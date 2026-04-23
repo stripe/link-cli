@@ -84,7 +84,7 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
 ### Authentication
 
 ```bash
-link-cli auth login --client-name "Claude Code" --output-json   # identify the connecting agent
+link-cli auth login --client-name "Claude Code" --output-json    # identify the connecting agent
 link-cli auth status --output-json                               # check auth status
 link-cli auth logout --output-json                               # disconnect
 ```
