@@ -1,0 +1,10 @@
+{
+  "extends": "@stripe/link-typescript-config/react-library.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

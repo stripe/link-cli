@@ -1,0 +1,29 @@
+{
+  "name": "@stripe/link-sdk",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "conf": "^13.1.0"
+  },
+  "devDependencies": {
+    "@stripe/link-typescript-config": "workspace:*",
+    "@types/node": "^22.19.15",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.2"
+  }
+}

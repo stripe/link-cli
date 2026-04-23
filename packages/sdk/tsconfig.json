@@ -1,0 +1,14 @@
+{
+  "extends": "@stripe/link-typescript-config/base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "noEmit": true,
+    "outDir": "dist",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "rootDir": "src"
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

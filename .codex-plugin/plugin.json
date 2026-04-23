@@ -1,0 +1,29 @@
+{
+  "name": "link-cli",
+  "version": "1.0.0",
+  "description": "Secure, one-time-use payment credentials from Link",
+  "author": {
+    "url": "https://link.com/agents"
+  },
+  "homepage": "https://link.com/agents",
+  "repository": "https://github.com/stripe/link-cli",
+  "license": "MIT",
+  "keywords": [],
+  "skills": "./skills",
+  "interface": {
+    "displayName": "Link",
+    "shortDescription": "Secure one-time-use payments",
+    "longDescription": "Authenticate with Link, create spend requests, and retrieve one-time-use card or shared payment token credentials for user-approved purchases.",
+    "category": "Finance",
+    "capabilities": [],
+    "websiteURL": "https://link.com/agents",
+    "privacyPolicyURL": "https://link.com/privacy",
+    "termsOfServiceURL": "https://link.com/terms",
+    "defaultPrompt": [
+      "Use Link to create a payment credential for this purchase"
+    ],
+    "screenshots": [],
+    "composerIcon": "./assets/link.svg",
+    "logo": "./assets/link.svg"
+  }
+}
