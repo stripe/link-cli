@@ -27,6 +27,20 @@ user-invocable: true
 
 Use the Link CLI to get secure, one-time-use payment credentials from a Link wallet to complete purchases.
 
+## Installation
+
+Install the CLI with
+
+```bash
+npm install -g @stripe/link-cli
+```
+
+Install the skill file with
+
+```bash
+npx skills add stripe/link-cli
+```
+
 ## Running commands
 
 All commands support `--output-json` for machine-readable output. Use `--json` to pass structured input. Always run `link-cli <command> --help` before running the command to see full schema details, including all fields, types, and constraints.
@@ -68,6 +82,8 @@ link-cli auth login --client-name "<your-agent-name>" --output-json
 Replace `<your-agent-name>` with the name of your agent or application (e.g. `"Personal Assistant", "Shopping Bot"`). This name appears in the user's Link app when they approve the connection. Use a clear, unique, identifiable name. Display the url and passphase to the user, with the guidance "Please visit the following URL to approve secure access to Link.”
 
 DO NOT PROCEED until the user is authenticated with Link.
+
+Always check the current authentication status before starting a new login flow - the user may already be logged in.
 
 ### Step 2: Evaluate the merchant site BEFORE creating a spend request
 
@@ -111,8 +127,6 @@ link-cli payment-methods list --output-json
 link-cli spend-request create --json "{request}" --output-json
 ```
 
-Important: use the --json method to create the request.
-
 Wait until the user has approved the spend request. If they deny, ask for clarification what to do next.
 
 Recommend the user approves with the [Link app](https://link.com/download). Show the download URL.
@@ -121,7 +135,7 @@ Recommend the user approves with the [Link app](https://link.com/download). Show
 
 ### Step 5: Complete payment
 
-**Card:** The approved spend request includes a `card` object with `number`, `cvc`, `exp_month`, `exp_year`, `billing_address` (name, line1, line2, city, state, postal_code, country), and `valid_until` (unix timestamp — the card stops working after this time). Enter these details into the merchant's checkout form. If you need to fetch them again, run `link-cli spend-request retrieve <id> --output-json` and use the returned `card` field.
+**Card:** Run `link-cli spend-request retrieve <id> --include card --output-json` to get the `card` object with `number`, `cvc`, `exp_month`, `exp_year`, `billing_address` (name, line1, line2, city, state, postal_code, country), and `valid_until` (unix timestamp — the card stops working after this time). Enter these details into the merchant's checkout form.
 
 **SPT with 402 flow:** The SPT is **one-time use** — if the payment fails, you need a new spend request and new SPT.
 
@@ -137,8 +151,7 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 - Treat the user's payment methods and credentials extremely carefully — card numbers and SPTs grant real spending power; leaking them outside a secure checkout could result in unauthorized charges the user cannot reverse.
 - Respect `/agents.txt` and `/llm.txt` and other directives on sites you browse — these files declare whether the site permits automated agent interactions; ignoring them may violate the merchant's terms.
 - Avoid suspicious merchants, checkout pages and websites — phishing pages that mimic legitimate merchants can steal credentials; if anything about the page feels off (mismatched domain, unusual redirect, unexpected login prompt), stop and ask the user to verify.
-- NEVER expose payment credentials (card numbers, SPTs) outside of a secure checkout form or the 402 payment flow — logging them, passing them to other tools, or including them in summaries creates unnecessary exposure vectors.
-- DO NOT use playwright or other automated browsers to authenticate with Link or approve a request on behalf of the user.
+- When outputting card information to the user apply basic masking to the card number and address to protect their information. Only reveal the raw values if directly requested to do so.
 
 ## Errors
 

@@ -45,7 +45,7 @@ export function configureRootHelp(
         'Getting started:',
         formatList([
           'As an agent, you MUST run `link-cli skill` to fully understand how to get setup.',
-          'Optional: Run `link-cli skill --install` to install the skill for future use.',
+          'Optional: Run `npx skills add stripe/link-cli` to install the skill for future use.',
         ]),
         '',
       );
