@@ -21,7 +21,5 @@ export function registerSkillCommand(program: Command): Command {
           'Warning: could not resolve cli_version — skill output without version\n',
         );
       }
-
-     
     });
 }
