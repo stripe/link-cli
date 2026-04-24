@@ -14,7 +14,7 @@
   },
   "homepage": "https://github.com/stripe/link-cli#readme",
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "scripts": {
     "build": "tsup",
