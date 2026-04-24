@@ -4,6 +4,9 @@ on:
   issues:
     types: [opened]
 
+permissions:
+  contents: read
+
 jobs:
   post_to_api:
     runs-on: ubuntu-latest
