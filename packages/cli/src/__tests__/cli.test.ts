@@ -715,6 +715,53 @@ describe('production mode', () => {
     }, 15_000);
   });
 
+  describe('auth logout', () => {
+    it('sends POST to /device/revoke with refresh token then clears auth', async () => {
+      setResponseForUrl('/device/revoke', 200, 'ok');
+
+      const result = await runProdCli('auth', 'logout', '--output-json');
+
+      expect(result.exitCode).toBe(0);
+      const parsed = parseJson(result.stdout) as Record<string, unknown>;
+      expect(parsed.authenticated).toBe(false);
+
+      const revokeRequest = requests.find((r) =>
+        r.url.includes('/device/revoke'),
+      );
+      expect(revokeRequest).toBeDefined();
+      expect(revokeRequest?.method).toBe('POST');
+      const params = new URLSearchParams(revokeRequest?.body);
+      expect(params.get('token')).toBe(PROD_AUTH_TOKENS.refresh_token);
+      expect(params.get('client_id')).toBe('lwlpk_U7Qy7ThG69STZk');
+    });
+
+    it('clears local auth even when revoke call fails', async () => {
+      setResponseForUrl('/device/revoke', 500, {
+        error: 'server_error',
+      });
+
+      const result = await runProdCli('auth', 'logout', '--output-json');
+
+      expect(result.exitCode).toBe(0);
+      const parsed = parseJson(result.stdout) as Record<string, unknown>;
+      expect(parsed.authenticated).toBe(false);
+    });
+
+    it('succeeds when no auth tokens are stored', async () => {
+      storage.clearAuth();
+
+      const result = await runProdCli('auth', 'logout', '--output-json');
+
+      expect(result.exitCode).toBe(0);
+      const parsed = parseJson(result.stdout) as Record<string, unknown>;
+      expect(parsed.authenticated).toBe(false);
+      const revokeRequest = requests.find((r) =>
+        r.url.includes('/device/revoke'),
+      );
+      expect(revokeRequest).toBeUndefined();
+    });
+  });
+
   describe('auth guard', () => {
     it('rejects unauthenticated requests before hitting the API', async () => {
       storage.clearAuth();

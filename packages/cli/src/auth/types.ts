@@ -13,4 +13,5 @@ export interface IAuthResource {
   initiateDeviceAuth(clientName?: string): Promise<DeviceAuthRequest>;
   pollDeviceAuth(deviceCode: string): Promise<AuthTokens | null>;
   refreshToken(refreshToken: string): Promise<AuthTokens>;
+  revokeToken(token: string): Promise<void>;
 }
