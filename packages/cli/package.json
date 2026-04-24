@@ -5,7 +5,7 @@
   "bin": {
     "link-cli": "./dist/cli.js"
   },
-  "files": ["dist", "README.md"],
+  "files": ["dist", "README.md", "LICENSE"],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -18,7 +18,7 @@
   },
   "scripts": {
     "build": "tsup",
-    "prepack": "cp ../../README.md .",
+    "prepack": "cp ../../README.md ../../LICENSE .",
     "typecheck": "tsc",
     "test": "vitest run",
     "dev": "tsx src/cli.tsx"
