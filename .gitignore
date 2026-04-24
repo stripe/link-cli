@@ -1,6 +1,7 @@
 node_modules/
 dist/
 *.log
+*.tgz
 .DS_Store
 .turbo
 .claude/skills/link-cli
