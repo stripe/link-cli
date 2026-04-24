@@ -125,8 +125,6 @@ link-cli payment-methods list --output-json
 link-cli spend-request create --json "{request}" --output-json
 ```
 
-Important: use the --json method to create the request.
-
 Wait until the user has approved the spend request. If they deny, ask for clarification what to do next.
 
 Recommend the user approves with the [Link app](https://link.com/download). Show the download URL.
@@ -151,8 +149,6 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 - Treat the user's payment methods and credentials extremely carefully — card numbers and SPTs grant real spending power; leaking them outside a secure checkout could result in unauthorized charges the user cannot reverse.
 - Respect `/agents.txt` and `/llm.txt` and other directives on sites you browse — these files declare whether the site permits automated agent interactions; ignoring them may violate the merchant's terms.
 - Avoid suspicious merchants, checkout pages and websites — phishing pages that mimic legitimate merchants can steal credentials; if anything about the page feels off (mismatched domain, unusual redirect, unexpected login prompt), stop and ask the user to verify.
-- NEVER expose payment credentials (card numbers, SPTs) outside of a secure checkout form or the 402 payment flow — logging them, passing them to other tools, or including them in summaries creates unnecessary exposure vectors.
-- DO NOT use playwright or other automated browsers to authenticate with Link or approve a request on behalf of the user.
 
 ## Errors
 
