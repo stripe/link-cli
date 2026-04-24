@@ -17,7 +17,7 @@ describe('resolveLinkSdkConfig', () => {
       const config = resolveLinkSdkConfig({
         fetch: mockFetch,
         defaultHeaders: {
-          'User-Agent': 'link-cli/0.0.1 (build 42)',
+          'User-Agent': 'link-cli/0.1.0 (build 42)',
           'X-Build-Number': '42',
         },
       });
@@ -28,7 +28,7 @@ describe('resolveLinkSdkConfig', () => {
       });
 
       const headers = captureHeaders(mockFetch) as Headers;
-      expect(headers.get('User-Agent')).toBe('link-cli/0.0.1 (build 42)');
+      expect(headers.get('User-Agent')).toBe('link-cli/0.1.0 (build 42)');
       expect(headers.get('X-Build-Number')).toBe('42');
     });
 
@@ -38,7 +38,7 @@ describe('resolveLinkSdkConfig', () => {
         .mockResolvedValue({ status: 200, text: async () => '{}' });
       const config = resolveLinkSdkConfig({
         fetch: mockFetch,
-        defaultHeaders: { 'User-Agent': 'link-cli/0.0.1 (build 42)' },
+        defaultHeaders: { 'User-Agent': 'link-cli/0.1.0 (build 42)' },
       });
 
       await config.fetch?.('https://example.com', {

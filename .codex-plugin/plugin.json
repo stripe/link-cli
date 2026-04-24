@@ -1,6 +1,6 @@
 {
   "name": "link-cli",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Secure, one-time-use payment credentials from Link",
   "author": {
     "url": "https://link.com/agents"
