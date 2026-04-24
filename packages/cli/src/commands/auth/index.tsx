@@ -122,11 +122,21 @@ export function registerAuthCommands(
       await executeCommand({
         outputJson: !!options.outputJson,
         jsonFn: async () => {
+          const auth = storage.getAuth();
+          if (auth?.refresh_token) {
+            try {
+              await authResource.revokeToken(auth.refresh_token);
+            } catch {
+              // best-effort: clear local storage regardless
+            }
+          }
           storage.clearAuth();
           storage.deleteConfig();
           return { authenticated: false };
         },
-        renderFn: () => <Logout onComplete={() => {}} />,
+        renderFn: () => (
+          <Logout authResource={authResource} onComplete={() => {}} />
+        ),
       });
     });
 

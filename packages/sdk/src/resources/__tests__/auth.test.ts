@@ -258,6 +258,51 @@ describe('AuthResource', () => {
     });
   });
 
+  describe('revokeToken', () => {
+    it('sends correct request parameters', async () => {
+      mockFetchResponse(200, {});
+
+      await repo.revokeToken('rt_to_revoke');
+
+      expect(mockFetch).toHaveBeenCalledOnce();
+      const [url, opts] = mockFetch.mock.calls[0];
+      expect(url).toBe('https://login.link.com/device/revoke');
+      expect(opts.method).toBe('POST');
+      expect(opts.headers['Content-Type']).toBe(
+        'application/x-www-form-urlencoded',
+      );
+
+      const params = new URLSearchParams(opts.body);
+      expect(params.get('client_id')).toBe('lwlpk_U7Qy7ThG69STZk');
+      expect(params.get('token')).toBe('rt_to_revoke');
+    });
+
+    it('resolves on 200 success', async () => {
+      mockFetchResponse(200, {});
+
+      await expect(repo.revokeToken('rt_valid')).resolves.toBeUndefined();
+    });
+
+    it('throws on HTTP error with error_description', async () => {
+      mockFetchResponse(400, {
+        error: 'invalid_client',
+        error_description: 'invalid client_id',
+      });
+
+      await expect(repo.revokeToken('rt_bad')).rejects.toThrow(
+        'Token revocation failed (400): invalid client_id',
+      );
+    });
+
+    it('handles non-JSON error body gracefully', async () => {
+      mockFetchRawResponse(502, 'Bad Gateway');
+
+      await expect(repo.revokeToken('rt_bad')).rejects.toThrow(
+        'Token revocation failed (502): Bad Gateway',
+      );
+    });
+  });
+
   describe('refreshToken', () => {
     it('returns new AuthTokens on success', async () => {
       mockFetchResponse(200, {

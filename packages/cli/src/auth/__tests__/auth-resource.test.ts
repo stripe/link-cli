@@ -172,6 +172,55 @@ describe('LinkAuthResource', () => {
     });
   });
 
+  describe('revokeToken', () => {
+    it('sends POST to /device/revoke with client_id and token', async () => {
+      mockFetchResponse(200, {});
+
+      const resource = createResource();
+      await resource.revokeToken('rt_to_revoke');
+
+      expect(mockFetch).toHaveBeenCalledOnce();
+      const [url, opts] = mockFetch.mock.calls[0];
+      expect(url).toBe('https://auth.test/device/revoke');
+      expect(opts.method).toBe('POST');
+
+      const params = new URLSearchParams(opts.body as string);
+      expect(params.get('client_id')).toBe('lwlpk_U7Qy7ThG69STZk');
+      expect(params.get('token')).toBe('rt_to_revoke');
+    });
+
+    it('resolves on 200 success', async () => {
+      mockFetchResponse(200, {});
+
+      const resource = createResource();
+      await expect(resource.revokeToken('rt_valid')).resolves.toBeUndefined();
+    });
+
+    it('throws LinkApiError on non-2xx response', async () => {
+      mockFetchResponse(400, {
+        error: 'invalid_client',
+        error_description: 'invalid client_id',
+      });
+
+      const resource = createResource();
+      await expect(resource.revokeToken('rt_bad')).rejects.toThrow(
+        LinkApiError,
+      );
+      await expect(resource.revokeToken('rt_bad')).rejects.toThrow(
+        /Token revocation failed/,
+      );
+    });
+
+    it('throws LinkTransportError when fetch fails', async () => {
+      mockFetch.mockRejectedValue(new Error('Network error'));
+
+      const resource = createResource();
+      await expect(resource.revokeToken('rt_bad')).rejects.toThrow(
+        LinkTransportError,
+      );
+    });
+  });
+
   describe('refreshToken', () => {
     it('returns new tokens on success', async () => {
       mockFetchResponse(200, {

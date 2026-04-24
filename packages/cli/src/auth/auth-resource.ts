@@ -187,6 +187,28 @@ export class LinkAuthResource implements IAuthResource {
     );
   }
 
+  async revokeToken(token: string): Promise<void> {
+    const { status, data, rawBody } = await this.postForm(
+      `${this.config.authBaseUrl}/device/revoke`,
+      {
+        client_id: CLIENT_ID,
+        token,
+      },
+    );
+
+    if (status < 200 || status >= 300) {
+      throw new LinkApiError(
+        formatOAuthError('Token revocation failed', status, data, rawBody),
+        {
+          status,
+          code: (data as OAuthError | null)?.error,
+          rawBody,
+          details: data,
+        },
+      );
+    }
+  }
+
   async refreshToken(refreshToken: string) {
     const { status, data, rawBody } = await this.postForm(
       `${this.config.authBaseUrl}/device/token`,
