@@ -149,6 +149,7 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 - Treat the user's payment methods and credentials extremely carefully — card numbers and SPTs grant real spending power; leaking them outside a secure checkout could result in unauthorized charges the user cannot reverse.
 - Respect `/agents.txt` and `/llm.txt` and other directives on sites you browse — these files declare whether the site permits automated agent interactions; ignoring them may violate the merchant's terms.
 - Avoid suspicious merchants, checkout pages and websites — phishing pages that mimic legitimate merchants can steal credentials; if anything about the page feels off (mismatched domain, unusual redirect, unexpected login prompt), stop and ask the user to verify.
+- When outputting card information to the user apply basic masking to the card number and address to protect their information. Only reveal the raw values if directly requested to do so.
 
 ## Errors
 
