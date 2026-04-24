@@ -1,6 +1,8 @@
 import { Command } from 'commander';
 import { registerAuthCommands } from './commands/auth';
 import { registerMppCommands } from './commands/mpp';
+import { registerDemoCommand } from './commands/demo';
+import { registerOnboardCommand } from './commands/onboard';
 import { registerPaymentMethodsCommands } from './commands/payment-methods';
 import { registerSkillCommand } from './commands/skill';
 import { registerSpendRequestCommands } from './commands/spend-request';
@@ -55,6 +57,15 @@ const paymentMethodsCommand = registerPaymentMethodsCommands(program, () =>
 
 const skillCommand = registerSkillCommand(program);
 const mppCommand = registerMppCommands(program, spendRequestRepo);
+const demoCommand = registerDemoCommand(program, spendRequestRepo, () =>
+  factory.createPaymentMethodsResource(),
+);
+const onboardCommand = registerOnboardCommand(
+  program,
+  authRepo,
+  spendRequestRepo,
+  () => factory.createPaymentMethodsResource(),
+);
 
 configureRootHelp(
   program,
@@ -63,6 +74,8 @@ configureRootHelp(
   paymentMethodsCommand,
   skillCommand,
   mppCommand,
+  demoCommand,
+  onboardCommand,
 );
 
 program.parse();

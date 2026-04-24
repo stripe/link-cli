@@ -7,6 +7,8 @@ export function configureRootHelp(
   paymentMethodsCommand: Command,
   skillCommand: Command,
   mppCommand: Command,
+  demoCommand: Command,
+  onboardCommand: Command,
 ): void {
   program.configureHelp({
     formatHelp(cmd, helper) {
@@ -81,7 +83,11 @@ export function configureRootHelp(
             // biome-ignore lint/style/noNonNullAssertion: sub is always a subcommand and always has a parent
             `${sub.parent!.name()} ${helper.subcommandTerm(sub)}`.length,
           ),
-        skillCommand.name().length,
+        Math.max(
+          skillCommand.name().length,
+          demoCommand.name().length,
+          onboardCommand.name().length,
+        ),
       );
 
       for (const { heading, parent } of commandGroups) {
@@ -104,6 +110,16 @@ export function configureRootHelp(
             skillCommand.name(),
             maxTermWidth,
             skillCommand.description(),
+          ),
+          formatItem(
+            demoCommand.name(),
+            maxTermWidth,
+            demoCommand.description(),
+          ),
+          formatItem(
+            onboardCommand.name(),
+            maxTermWidth,
+            onboardCommand.description(),
           ),
         ]),
         '',
