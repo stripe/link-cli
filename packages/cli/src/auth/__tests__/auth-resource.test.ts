@@ -193,9 +193,7 @@ describe('LinkAuthResource', () => {
       mockFetchResponse(200, {});
 
       const resource = createResource();
-      await expect(
-        resource.revokeToken('rt_valid'),
-      ).resolves.toBeUndefined();
+      await expect(resource.revokeToken('rt_valid')).resolves.toBeUndefined();
     });
 
     it('throws LinkApiError on non-2xx response', async () => {

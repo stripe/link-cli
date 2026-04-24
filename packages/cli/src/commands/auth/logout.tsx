@@ -9,10 +9,7 @@ interface LogoutProps {
   onComplete: () => void;
 }
 
-export const Logout: React.FC<LogoutProps> = ({
-  authResource,
-  onComplete,
-}) => {
+export const Logout: React.FC<LogoutProps> = ({ authResource, onComplete }) => {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
