@@ -133,7 +133,7 @@ Recommend the user approves with the [Link app](https://link.com/download). Show
 
 ### Step 5: Complete payment
 
-**Card:** The approved spend request includes a `card` object with `number`, `cvc`, `exp_month`, `exp_year`, `billing_address` (name, line1, line2, city, state, postal_code, country), and `valid_until` (unix timestamp — the card stops working after this time). Enter these details into the merchant's checkout form. If you need to fetch them again, run `link-cli spend-request retrieve <id> --output-json` and use the returned `card` field.
+**Card:** Run `link-cli spend-request retrieve <id> --include card --output-json` to get the `card` object with `number`, `cvc`, `exp_month`, `exp_year`, `billing_address` (name, line1, line2, city, state, postal_code, country), and `valid_until` (unix timestamp — the card stops working after this time). Enter these details into the merchant's checkout form.
 
 **SPT with 402 flow:** The SPT is **one-time use** — if the payment fails, you need a new spend request and new SPT.
 
