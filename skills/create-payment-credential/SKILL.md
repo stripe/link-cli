@@ -83,6 +83,8 @@ Replace `<your-agent-name>` with the name of your agent or application (e.g. `"P
 
 DO NOT PROCEED until the user is authenticated with Link.
 
+Always check the current authentication status before starting a new login flow - the user may already be logged in.
+
 ### Step 2: Evaluate the merchant site BEFORE creating a spend request
 
 **CRITICAL — You MUST complete this step before calling `spend-request create`.** Do NOT default to `card` credential type. The merchant determines the credential type — you cannot know it without checking first. Skipping this step will produce a spend request with the wrong credential type.
