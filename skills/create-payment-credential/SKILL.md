@@ -27,6 +27,20 @@ user-invocable: true
 
 Use the Link CLI to get secure, one-time-use payment credentials from a Link wallet to complete purchases.
 
+## Installation
+
+Install the CLI with
+
+```bash
+npm install -g @stripe/link-cli
+```
+
+Install the skill file with
+
+```bash
+npx skills add stripe/link-cli
+```
+
 ## Running commands
 
 All commands support `--output-json` for machine-readable output. Use `--json` to pass structured input. Always run `link-cli <command> --help` before running the command to see full schema details, including all fields, types, and constraints.

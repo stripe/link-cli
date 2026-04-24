@@ -14,7 +14,7 @@ Or run directly with `npx`:
 npx @stripe/link-cli
 ```
 
-You can install the skill via `link-cli skill --install`.
+You can install the skill via `npx skills add stripe/link-cli`.
 
 ## Quickstart
 
