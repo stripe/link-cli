@@ -263,7 +263,7 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
     }),
     options: retrieveOptions,
     outputPolicy: 'agent-only' as const,
-    async run(c) {
+    async *run(c) {
       if (!storage.isAuthenticated()) {
         return c.error({
           code: 'NOT_AUTHENTICATED',
@@ -322,7 +322,8 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
         }
 
         if (terminalStatuses.has(request.status)) {
-          return request;
+          yield request;
+          return;
         }
 
         attempts++;
@@ -331,8 +332,12 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
           (maxAttempts > 0 && attempts >= maxAttempts) ||
           Date.now() >= deadline;
 
-        if (shouldStop) return request;
+        if (shouldStop) {
+          yield request;
+          return;
+        }
 
+        yield request;
         await new Promise((resolve) => setTimeout(resolve, interval * 1000));
       }
     },

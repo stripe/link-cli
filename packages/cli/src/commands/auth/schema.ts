@@ -14,12 +14,12 @@ export const statusOptions = z.object({
     .number()
     .default(0)
     .describe(
-      'Poll interval in seconds. When > 0, polls until authenticated or timeout.',
+      'Poll interval in seconds. When > 0, polls until authenticated or timeout is reached, yielding status on each attempt.',
     ),
   maxAttempts: z.coerce
     .number()
     .default(0)
-    .describe('Max poll attempts. 0 = no limit (use timeout instead).'),
+    .describe('Max poll attempts. 0 = unlimited (use timeout instead).'),
   timeout: z.coerce
     .number()
     .default(300)

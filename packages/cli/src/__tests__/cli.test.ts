@@ -579,7 +579,8 @@ describe('production mode', () => {
       );
 
       expect(result.exitCode).toBe(0);
-      const request = parseJson(result.stdout) as Record<string, unknown>;
+      const output = parseJson(result.stdout) as Record<string, unknown>[];
+      const request = output[0];
       expect(request.status).toBe('approved');
       const card = request.card as Record<string, unknown>;
       expect(card.brand).toBe('Visa');
@@ -618,7 +619,8 @@ describe('production mode', () => {
       );
 
       expect(result.exitCode).toBe(0);
-      const request = parseJson(result.stdout) as Record<string, unknown>;
+      const output = parseJson(result.stdout) as Record<string, unknown>[];
+      const request = output[0];
       expect(request.status).toBe('approved');
       const card = request.card as Record<string, unknown>;
       expect(card.number).toBe('4242424242424242');

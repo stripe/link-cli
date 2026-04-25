@@ -42,7 +42,7 @@ export function createAuthCli(authResource: IAuthResource) {
       }
 
       // Agent mode: initiate device auth, store pending state, return immediately.
-      // The agent drives the polling loop via `auth status`.
+      // The agent drives the polling loop via `auth status --interval`.
       const authRequest = await authResource.initiateDeviceAuth(clientName);
       storage.setPendingDeviceAuth({
         device_code: authRequest.device_code,
@@ -89,12 +89,11 @@ export function createAuthCli(authResource: IAuthResource) {
     description: 'Check authentication status',
     options: statusOptions,
     outputPolicy: 'agent-only' as const,
-    async run(c) {
+    async *run(c) {
       const opts = c.options;
       const interval = opts.interval;
       const maxAttempts = opts.maxAttempts;
-      const timeoutMs = opts.timeout * 1000;
-      const deadline = Date.now() + timeoutMs;
+      const deadline = Date.now() + opts.timeout * 1000;
       let attempts = 0;
 
       while (true) {
@@ -110,13 +109,27 @@ export function createAuthCli(authResource: IAuthResource) {
 
         const auth = storage.getAuth();
         if (auth) {
-          return {
+          yield {
             authenticated: true,
             access_token: `${auth.access_token.substring(0, 20)}...`,
             token_type: auth.token_type,
             credentials_path: storage.getPath(),
           };
+          return;
         }
+
+        const currentPending = storage.getPendingDeviceAuth();
+        const status = {
+          authenticated: false,
+          credentials_path: storage.getPath(),
+          ...(currentPending
+            ? {
+                pending: true,
+                verification_url: currentPending.verification_url,
+                passphrase: currentPending.passphrase,
+              }
+            : {}),
+        };
 
         attempts++;
         const shouldStop =
@@ -125,20 +138,12 @@ export function createAuthCli(authResource: IAuthResource) {
           Date.now() >= deadline;
 
         if (shouldStop) {
-          const currentPending = storage.getPendingDeviceAuth();
-          return {
-            authenticated: false,
-            credentials_path: storage.getPath(),
-            ...(currentPending
-              ? {
-                  pending: true,
-                  verification_url: currentPending.verification_url,
-                  passphrase: currentPending.passphrase,
-                }
-              : {}),
-          };
+          yield status;
+          return;
         }
 
+        // Yield current status as MCP progress notification, then wait
+        yield status;
         await new Promise((resolve) => setTimeout(resolve, interval * 1000));
       }
     },
