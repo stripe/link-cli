@@ -6,6 +6,7 @@ import { registerPaymentMethodsCommands } from './commands/payment-methods';
 import { registerSkillCommand } from './commands/skill';
 import { registerSpendRequestCommands } from './commands/spend-request';
 import { configureRootHelp } from './utils/configure-root-help';
+import { notifyUpdate } from './utils/notify-update.js';
 import { ResourceFactory } from './utils/resource-factory';
 
 declare const __CLI_VERSION__: string;
@@ -71,19 +72,7 @@ configureRootHelp(
 const notifier = updateNotifier({ pkg: { name: cliName, version: cliVersion } });
 
 const isJsonMode = process.argv.includes('--output-json');
-if (isJsonMode) {
-  if (notifier.update) {
-    process.stderr.write(
-      `${JSON.stringify({
-        type: 'update_available',
-        current_version: notifier.update.current,
-        latest_version: notifier.update.latest,
-        update_command: `npm install -g ${cliName}`,
-      })}\n`,
-    );
-  }
-} else {
-  notifier.notify();
-}
+notifyUpdate(notifier.update, cliName, isJsonMode);
+if (!isJsonMode) notifier.notify();
 
 program.parse();
