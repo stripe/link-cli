@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { registerAuthCommands } from './commands/auth';
-import { registerMppCommands } from './commands/mpp';
 import { registerDemoCommand } from './commands/demo';
+import { registerMppCommands } from './commands/mpp';
 import { registerOnboardCommand } from './commands/onboard';
 import { registerPaymentMethodsCommands } from './commands/payment-methods';
 import { registerSkillCommand } from './commands/skill';
