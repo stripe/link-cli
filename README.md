@@ -91,6 +91,21 @@ link-cli auth logout --output-json                               # disconnect
 
 When `--client-name` is provided, the name is shown in the Link app when the user approves the connection — e.g. `Claude Code on my-macbook` instead of `link-cli on my-macbook`.
 
+`auth status --output-json` includes an `update` field when a newer version is available:
+
+```json
+{
+  "authenticated": true,
+  "update": {
+    "current_version": "0.1.2",
+    "latest_version": "0.2.0",
+    "update_command": "npm install -g @stripe/link-cli"
+  }
+}
+```
+
+Set `NO_UPDATE_NOTIFIER=1` to suppress update checks (e.g. in CI).
+
 ### Spend request lifecycle
 
 A spend request moves through: **create** → **request approval** → **approved** (with credentials).

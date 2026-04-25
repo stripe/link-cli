@@ -26,6 +26,7 @@ import { AuthStatus } from './status';
 export function registerAuthCommands(
   program: Command,
   authResource: IAuthResource,
+  updateInfo?: { current: string; latest: string },
 ): Command {
   const authCommand = program
     .command('auth')
@@ -153,15 +154,27 @@ export function registerAuthCommands(
         outputJson: !!options.outputJson,
         jsonFn: async () => {
           const auth = storage.getAuth();
+          const update = updateInfo
+            ? {
+                current_version: updateInfo.current,
+                latest_version: updateInfo.latest,
+                update_command: 'npm install -g @stripe/link-cli',
+              }
+            : undefined;
           if (auth) {
             return {
               authenticated: true,
               access_token: `${auth.access_token.substring(0, 20)}...`,
               token_type: auth.token_type,
               credentials_path: storage.getPath(),
+              ...(update && { update }),
             };
           }
-          return { authenticated: false, credentials_path: storage.getPath() };
+          return {
+            authenticated: false,
+            credentials_path: storage.getPath(),
+            ...(update && { update }),
+          };
         },
         renderFn: () => <AuthStatus onComplete={() => {}} />,
       });

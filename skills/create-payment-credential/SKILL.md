@@ -74,6 +74,8 @@ Check auth status:
 link-cli auth status --output-json
 ```
 
+If the response includes an `update` field, a newer version of `link-cli` is available — run the `update_command` from that field to upgrade before proceeding.
+
 If not authenticated:
 
 ```bash
