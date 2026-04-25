@@ -160,6 +160,24 @@ link-cli mpp decode \
 | `LINK_AUTH_BASE_URL` | Override the auth base URL |
 | `LINK_HTTP_PROXY` | Route all requests through an HTTP proxy (requires `undici`) |
 
+## Onboard
+
+Run the guided setup flow — authenticates, checks payment methods, shows the app download QR, and walks through both demo flows:
+
+```bash
+link-cli onboard
+```
+
+## Demo
+
+Run an interactive demo of both Link payment flows (always uses test mode — no real charges):
+
+```bash
+link-cli demo              # shows menu to choose flow
+link-cli demo --only-card  # virtual card flow only
+link-cli demo --only-spt   # machine payment (SPT) flow only
+```
+
 ## Development
 
 ```bash

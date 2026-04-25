@@ -82,6 +82,14 @@ Key input field notes:
 - Requires an approved spend request with `credential_type: "shared_payment_token"`. The SPT is one-time-use — a failed payment requires a new spend request.
 - Implemented in `packages/cli/src/commands/mpp/` — pay.tsx (logic), schema.ts (input/output schema), index.tsx (Commander registration).
 
+### demo command
+
+- `demo [--only-card] [--only-spt]` — Interactive demo of both payment flows. Always uses `--test` mode (no real charges). Shows a menu to choose: virtual card flow, SPT/machine payment flow, or both. `--only-card` and `--only-spt` skip the menu. Requires a TTY (no JSON output mode).
+
+### onboard command
+
+- `onboard` — Guided setup: authenticates (skips if already logged in), checks payment methods (prompts to add one if missing, shows picker if multiple), shows app download QR code, then runs the full demo. Requires a TTY.
+
 
 ## Code Conventions
 
