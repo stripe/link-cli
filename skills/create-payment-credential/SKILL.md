@@ -7,6 +7,7 @@ allowed-tools:
  - Bash(npx:*)
  - Bash(npm:*)
 license: Complete terms in LICENSE
+version: 0.0.1
 metadata:
   author: stripe
   url: link.com/agents
@@ -79,7 +80,7 @@ If not authenticated:
 link-cli auth login --client-name "<your-agent-name>" --output-json
 ```
 
-Replace `<your-agent-name>` with the name of your agent or application (e.g. `"Personal Assistant", "Shopping Bot"`). This name appears in the user's Link app when they approve the connection. Use a clear, unique, identifiable name. Display the url and passphase to the user, with the guidance "Please visit the following URL to approve secure access to Link.”
+Replace `<your-agent-name>` with the name of your agent or application (e.g. `"Personal Assistant", "Shopping Bot"`). This name appears in the user's Link app when they approve the connection. Use a clear, unique, identifiable name. Display the url and passphrase to the user, with the guidance "Please visit the following URL to approve secure access to Link.”
 
 DO NOT PROCEED until the user is authenticated with Link.
 
@@ -87,9 +88,12 @@ Always check the current authentication status before starting a new login flow 
 
 ### Step 2: Evaluate the merchant site BEFORE creating a spend request
 
-**CRITICAL — You MUST complete this step before calling `spend-request create`.** Do NOT default to `card` credential type. The merchant determines the credential type — you cannot know it without checking first. Skipping this step will produce a spend request with the wrong credential type.
+**CRITICAL** before calling `spend-request create` you must complete this checklist:
+1. Understand how the merchant accepts payments (cards or machine payments or other). **Do NOT default to `card` credential type. The merchant determines the credential type — you cannot know it without checking first. Skipping this step will produce a spend request with the wrong credential type.
+2. Have the final total amount needed. Inclusive of any shipping costs, taxes or other costs. Skipping this step will produce a spend request that does not cover the full amount needed, and will be rejected.
+3. Clear context and understanding of what the user is purchasing. Be sure to know sizes, colors, shipping options, etc. Skipping this step will produce a spend request that the user does not recognize or understand.
 
-Determine how the merchant accepts payment:
+**Determine how the merchant accepts payment:**
 
 1. **Navigate to the merchant page** — browse it, read the page content, and understand how the site accepts payment.
 2. **If the page has a credit card form, Stripe Elements, or traditional checkout UI** — use `card`.
