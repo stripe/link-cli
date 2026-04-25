@@ -1,146 +1,105 @@
 import type { ISpendRequestResource } from '@stripe/link-sdk';
-import type { Command } from 'commander';
+import { storage } from '@stripe/link-sdk';
+import { Cli, z } from 'incur';
+import { render } from 'ink';
 import React from 'react';
-import {
-  executeCommand,
-  outputError,
-  outputErrors,
-} from '../../utils/execute-command';
-import { buildInputHelp, buildOutputHelp } from '../../utils/help-text';
-import {
-  ValidationError,
-  registerSchemaOptions,
-  resolveInput,
-} from '../../utils/json-options';
-import { requireAuth } from '../../utils/require-auth';
 import { decodeStripeChallenge } from './decode';
 import { DecodeChallengeView } from './decode-view';
 import { MppPay, runMppPay } from './pay';
-import {
-  DECODE_INPUT_SCHEMA,
-  DECODE_OUTPUT_SCHEMA,
-  PAY_INPUT_SCHEMA,
-  PAY_OUTPUT_SCHEMA,
-} from './schema';
+import { decodeOptions, payOptions } from './schema';
 
-export function registerMppCommands(
-  program: Command,
-  repository: ISpendRequestResource,
-): Command {
-  const mppCommand = program
-    .command('mpp')
-    .description('Machine payment protocol (MPP) commands')
-    .helpCommand(false);
+export function createMppCli(repository: ISpendRequestResource) {
+  const cli = Cli.create('mpp', {
+    description: 'Machine payment protocol (MPP) commands',
+  });
 
-  const payCmd = mppCommand
-    .command('pay <url>')
-    .description(
+  cli.command('pay', {
+    description:
       'Complete a machine payment protocol (MPP) payment using an approved spend request',
-    );
-
-  registerSchemaOptions(payCmd, PAY_INPUT_SCHEMA);
-
-  payCmd
-    .option(
-      '--json <json>',
-      `JSON input (keys: ${Object.keys(PAY_INPUT_SCHEMA).join(', ')})`,
-    )
-    .option(
-      '--output-json',
-      'Output result as JSON instead of interactive display',
-    )
-    .addHelpText(
-      'after',
-      buildInputHelp(PAY_INPUT_SCHEMA) + buildOutputHelp(PAY_OUTPUT_SCHEMA),
-    )
-    .action(async (url: string, options) => {
-      requireAuth();
-
-      let resolved: Record<string, unknown> = {};
-      try {
-        resolved = resolveInput(options, PAY_INPUT_SCHEMA);
-      } catch (err) {
-        if (err instanceof ValidationError)
-          process.stderr.write(`${err.errors.join('\n')}\n`);
-        process.stderr.write(
-          `${JSON.stringify({ error: (err as Error).message })}\n`,
-        );
-        process.exit(1);
+    args: z.object({
+      url: z.string().describe('URL to pay'),
+    }),
+    options: payOptions,
+    alias: { method: 'X', data: 'd', header: 'H' },
+    outputPolicy: 'agent-only' as const,
+    async run(c) {
+      if (!storage.isAuthenticated()) {
+        return c.error({
+          code: 'NOT_AUTHENTICATED',
+          message: 'Not authenticated. Run "link-cli auth login" first.',
+          cta: {
+            commands: [
+              { command: 'auth login', description: 'Log in to Link' },
+            ],
+          },
+        });
       }
 
-      const spendRequestId = resolved.spend_request_id as string;
-      const method = resolved.method as string | undefined;
-      const data = resolved.data as string | undefined;
-      const headers = resolved.headers as string[] | undefined;
+      const url = c.args.url;
+      const opts = c.options;
+      const method = opts.method;
+      const data = opts.data;
+      const headers = opts.header?.length ? opts.header : undefined;
 
-      await executeCommand({
-        outputJson: !!options.outputJson,
-        jsonFn: async () => {
-          return runMppPay(
-            url,
-            spendRequestId,
-            method,
-            data,
-            headers,
-            repository,
+      if (!c.agent && !c.formatExplicit) {
+        return new Promise((resolve) => {
+          const { waitUntilExit } = render(
+            <MppPay
+              url={url}
+              spendRequestId={opts.spendRequestId}
+              method={method}
+              data={data}
+              headers={headers}
+              repository={repository}
+              onComplete={() => {}}
+            />,
           );
-        },
-        renderFn: () => (
-          <MppPay
-            url={url}
-            spendRequestId={spendRequestId}
-            method={method}
-            data={data}
-            headers={headers}
-            repository={repository}
-            onComplete={() => {}}
-          />
-        ),
-      });
-    });
-
-  const decodeCmd = mppCommand
-    .command('decode')
-    .description(
-      'Decode a stripe WWW-Authenticate challenge and extract network_id',
-    );
-
-  registerSchemaOptions(decodeCmd, DECODE_INPUT_SCHEMA);
-
-  decodeCmd
-    .option(
-      '--json <json>',
-      `JSON input (keys: ${Object.keys(DECODE_INPUT_SCHEMA).join(', ')})`,
-    )
-    .option(
-      '--output-json',
-      'Output result as JSON instead of interactive display',
-    )
-    .addHelpText(
-      'after',
-      buildInputHelp(DECODE_INPUT_SCHEMA) +
-        buildOutputHelp(DECODE_OUTPUT_SCHEMA),
-    )
-    .action(async (options) => {
-      let resolved: Record<string, unknown> = {};
-      try {
-        resolved = resolveInput(options, DECODE_INPUT_SCHEMA);
-      } catch (err) {
-        if (err instanceof ValidationError)
-          outputErrors(err.errors, !!options.outputJson);
-        outputError((err as Error).message);
+          waitUntilExit().then(async () => {
+            resolve(
+              await runMppPay(
+                url,
+                opts.spendRequestId,
+                method,
+                data,
+                headers,
+                repository,
+              ),
+            );
+          });
+        });
       }
 
-      const challenge = resolved.challenge as string;
+      return runMppPay(
+        url,
+        opts.spendRequestId,
+        method,
+        data,
+        headers,
+        repository,
+      );
+    },
+  });
 
-      await executeCommand({
-        outputJson: !!options.outputJson,
-        jsonFn: async () => decodeStripeChallenge(challenge),
-        renderFn: () => (
-          <DecodeChallengeView decoded={decodeStripeChallenge(challenge)} />
-        ),
-      });
-    });
+  cli.command('decode', {
+    description:
+      'Decode a stripe WWW-Authenticate challenge and extract network_id',
+    options: decodeOptions,
+    outputPolicy: 'agent-only' as const,
+    async run(c) {
+      const decoded = decodeStripeChallenge(c.options.challenge);
 
-  return mppCommand;
+      if (!c.agent && !c.formatExplicit) {
+        return new Promise((resolve) => {
+          const { waitUntilExit } = render(
+            <DecodeChallengeView decoded={decoded} />,
+          );
+          waitUntilExit().then(() => resolve(decoded));
+        });
+      }
+
+      return decoded;
+    },
+  });
+
+  return cli;
 }

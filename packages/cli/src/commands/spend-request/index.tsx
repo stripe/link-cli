@@ -4,308 +4,339 @@ import type {
   LineItem,
   Total,
 } from '@stripe/link-sdk';
-import type { Command } from 'commander';
+import { storage } from '@stripe/link-sdk';
+import { Cli, z } from 'incur';
+import { render } from 'ink';
 import React from 'react';
 import {
-  executeCommand,
-  outputError,
-  outputErrors,
-  outputJson,
-} from '../../utils/execute-command';
-import { buildInputHelp, buildOutputHelp } from '../../utils/help-text';
-import {
-  ValidationError,
-  registerSchemaOptions,
-  resolveInput,
-} from '../../utils/json-options';
-import { pollUntilApproved } from '../../utils/poll-until-approved';
-import { requireAuth } from '../../utils/require-auth';
+  parseLineItemFlag,
+  parseTotalFlag,
+} from '../../utils/line-item-parser';
 import { CreateSpendRequest } from './create';
 import { RequestApproval } from './request-approval';
 import { RetrieveSpendRequest } from './retrieve';
-import {
-  CREATE_INPUT_SCHEMA,
-  RETRIEVE_INPUT_SCHEMA,
-  SPEND_REQUEST_OUTPUT_SCHEMA,
-  UPDATE_INPUT_SCHEMA,
-} from './schema';
+import { createOptions, retrieveOptions, updateOptions } from './schema';
 import { UpdateSpendRequest } from './update';
 
-export function registerSpendRequestCommands(
-  program: Command,
-  repository: ISpendRequestResource,
-): Command {
-  const spendRequestCommand = program
-    .command('spend-request')
-    .description('Spend request management commands')
-    .helpCommand(false);
+export function createSpendRequestCli(repository: ISpendRequestResource) {
+  const cli = Cli.create('spend-request', {
+    description: 'Spend request management commands',
+  });
 
-  const createCmd = spendRequestCommand
-    .command('create')
-    .description('Create a new spend request');
-
-  registerSchemaOptions(createCmd, CREATE_INPUT_SCHEMA);
-
-  createCmd
-    .option(
-      '--json <json>',
-      `JSON input (keys: ${Object.keys(CREATE_INPUT_SCHEMA).join(', ')})`,
-    )
-    .option(
-      '--output-json',
-      'Output result as JSON instead of interactive display',
-    )
-    .addHelpText(
-      'after',
-      buildInputHelp(CREATE_INPUT_SCHEMA) +
-        buildOutputHelp(SPEND_REQUEST_OUTPUT_SCHEMA),
-    )
-    .action(async (options) => {
-      requireAuth();
-
-      let resolved: Record<string, unknown> = {};
-      try {
-        resolved = resolveInput(options, CREATE_INPUT_SCHEMA);
-      } catch (err) {
-        if (err instanceof ValidationError)
-          outputErrors(err.errors, !!options.outputJson);
-        outputError((err as Error).message);
+  cli.command('create', {
+    description: 'Create a new spend request',
+    options: createOptions,
+    alias: { merchantName: 'm' },
+    outputPolicy: 'agent-only' as const,
+    async *run(c) {
+      if (!storage.isAuthenticated()) {
+        return c.error({
+          code: 'NOT_AUTHENTICATED',
+          message: 'Not authenticated. Run "link-cli auth login" first.',
+          cta: {
+            commands: [
+              { command: 'auth login', description: 'Log in to Link' },
+            ],
+          },
+        });
       }
 
-      const requestApproval = !!resolved.request_approval;
-
-      const credentialType = resolved.credential_type as
-        | CredentialType
-        | undefined;
-      const networkId = resolved.network_id as string | undefined;
+      const opts = c.options;
+      const requestApproval = !!opts.requestApproval;
+      const credentialType = opts.credentialType as CredentialType | undefined;
+      const networkId = opts.networkId;
 
       if (credentialType === 'shared_payment_token' && !networkId) {
-        outputError(
-          'network-id is required when credential-type is shared_payment_token',
-        );
+        return c.error({
+          code: 'INVALID_INPUT',
+          message:
+            'network-id is required when credential-type is shared_payment_token',
+          cta: {
+            commands: [
+              {
+                command: 'mpp decode',
+                description:
+                  'Decode a WWW-Authenticate challenge to extract network-id',
+              },
+            ],
+          },
+        });
       }
       if (networkId && credentialType !== 'shared_payment_token') {
-        outputError(
-          'network-id can only be used when credential-type is shared_payment_token',
-        );
+        return c.error({
+          code: 'INVALID_INPUT',
+          message:
+            'network-id can only be used when credential-type is shared_payment_token',
+        });
       }
-      if (
-        credentialType !== 'shared_payment_token' &&
-        !resolved.merchant_name
-      ) {
-        outputError('merchant-name is required when credential-type is card');
+      if (credentialType !== 'shared_payment_token' && !opts.merchantName) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message: 'merchant-name is required when credential-type is card',
+        });
       }
-      if (credentialType !== 'shared_payment_token' && !resolved.merchant_url) {
-        outputError('merchant-url is required when credential-type is card');
+      if (credentialType !== 'shared_payment_token' && !opts.merchantUrl) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message: 'merchant-url is required when credential-type is card',
+        });
       }
+
+      // Parse line items/totals: strings from flags need parsing, objects from MCP pass through
+      const lineItems = opts.lineItem?.length
+        ? opts.lineItem.map((item: unknown) =>
+            typeof item === 'string' ? parseLineItemFlag(item) : item,
+          )
+        : undefined;
+      const totals = opts.total?.length
+        ? opts.total.map((item: unknown) =>
+            typeof item === 'string' ? parseTotalFlag(item) : item,
+          )
+        : undefined;
 
       const createParams = {
-        payment_details: resolved.payment_method_id as string,
+        payment_details: opts.paymentMethodId,
         credential_type: credentialType,
         network_id: networkId,
-        amount: resolved.amount as number | undefined,
-        currency: resolved.currency as string | undefined,
-        merchant_name: resolved.merchant_name as string | undefined,
-        merchant_url: resolved.merchant_url as string | undefined,
-        context: resolved.context as string,
-        line_items: resolved.line_items as LineItem[] | undefined,
-        totals: resolved.totals as Total[] | undefined,
+        amount: opts.amount,
+        currency: opts.currency,
+        merchant_name: opts.merchantName,
+        merchant_url: opts.merchantUrl,
+        context: opts.context,
+        line_items: lineItems as LineItem[] | undefined,
+        totals: totals as Total[] | undefined,
         request_approval: requestApproval || undefined,
-        test: resolved.test ? true : undefined,
+        test: opts.test ? true : undefined,
       };
 
-      await executeCommand({
-        outputJson: !!options.outputJson,
-        jsonFn: async () => {
-          const created = await repository.createSpendRequest(createParams);
-          if (requestApproval) {
-            outputJson(created);
-            return pollUntilApproved(repository, created.id, {
-              onProgress: (elapsedSeconds) => {
-                process.stderr.write(
-                  `${JSON.stringify({
-                    type: 'waiting',
-                    command: 'spend_request_approval',
-                    elapsed_seconds: elapsedSeconds,
-                    approval_url: created.approval_url ?? null,
-                    spend_request_id: created.id,
-                  })}\n`,
-                );
-              },
-            });
-          }
-          return created;
-        },
-        renderFn: () => (
-          <CreateSpendRequest
-            repository={repository}
-            params={createParams}
-            requestApproval={requestApproval}
-            onComplete={() => {}}
-          />
-        ),
-      });
-    });
-
-  const updateCmd = spendRequestCommand
-    .command('update <id>')
-    .description('Update a spend request');
-
-  registerSchemaOptions(updateCmd, UPDATE_INPUT_SCHEMA);
-
-  updateCmd
-    .option(
-      '--json <json>',
-      `JSON input (keys: ${Object.keys(UPDATE_INPUT_SCHEMA).join(', ')})`,
-    )
-    .option(
-      '--output-json',
-      'Output result as JSON instead of interactive display',
-    )
-    .addHelpText(
-      'after',
-      buildInputHelp(UPDATE_INPUT_SCHEMA) +
-        buildOutputHelp(SPEND_REQUEST_OUTPUT_SCHEMA),
-    )
-    .action(async (id: string, options) => {
-      requireAuth();
-
-      let resolved: Record<string, unknown> = {};
-      try {
-        resolved = resolveInput(options, UPDATE_INPUT_SCHEMA);
-      } catch (err) {
-        if (err instanceof ValidationError)
-          outputErrors(err.errors, !!options.outputJson);
-        outputError((err as Error).message);
+      if (!c.agent && !c.formatExplicit) {
+        return new Promise((resolve) => {
+          const { waitUntilExit } = render(
+            <CreateSpendRequest
+              repository={repository}
+              params={createParams}
+              requestApproval={requestApproval}
+              onComplete={() => {}}
+            />,
+          );
+          waitUntilExit().then(async () => {
+            const created = await repository.createSpendRequest(createParams);
+            resolve(created);
+          });
+        });
       }
+
+      // Agent mode: create, return immediately with _next polling hint.
+      // The agent drives the polling loop via `spend-request retrieve`.
+      const created = await repository.createSpendRequest(createParams);
+      if (!requestApproval) {
+        yield created;
+        return;
+      }
+      yield {
+        ...created,
+        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${created.id} --interval 2 --max-attempts 150\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
+        _next: {
+          command: `spend-request retrieve ${created.id} --interval 2 --max-attempts 150`,
+          until: 'status changes from pending_approval',
+        },
+      };
+    },
+  });
+
+  cli.command('update', {
+    description: 'Update a spend request',
+    args: z.object({
+      id: z.string().describe('Spend request ID'),
+    }),
+    options: updateOptions,
+    outputPolicy: 'agent-only' as const,
+    async run(c) {
+      if (!storage.isAuthenticated()) {
+        return c.error({
+          code: 'NOT_AUTHENTICATED',
+          message: 'Not authenticated. Run "link-cli auth login" first.',
+          cta: {
+            commands: [
+              { command: 'auth login', description: 'Log in to Link' },
+            ],
+          },
+        });
+      }
+
+      const id = c.args.id;
+      const opts = c.options;
 
       const params: Record<string, unknown> = {};
-      if (resolved.payment_method_id !== undefined)
-        params.payment_details = resolved.payment_method_id;
-      if (resolved.amount !== undefined) params.amount = resolved.amount;
-      if (resolved.merchant_url !== undefined)
-        params.merchant_url = resolved.merchant_url;
-      if (resolved.profile_id !== undefined)
-        params.profile_id = resolved.profile_id;
-      if (resolved.merchant_id !== undefined)
-        params.merchant_id = resolved.merchant_id;
-      if (resolved.currency !== undefined) params.currency = resolved.currency;
-      if (resolved.line_items !== undefined)
-        params.line_items = resolved.line_items;
-      if (resolved.totals !== undefined) params.totals = resolved.totals;
+      if (opts.paymentMethodId !== undefined)
+        params.payment_details = opts.paymentMethodId;
+      if (opts.amount !== undefined) params.amount = opts.amount;
+      if (opts.merchantUrl !== undefined)
+        params.merchant_url = opts.merchantUrl;
+      if (opts.profileId !== undefined) params.profile_id = opts.profileId;
+      if (opts.merchantId !== undefined) params.merchant_id = opts.merchantId;
+      if (opts.currency !== undefined) params.currency = opts.currency;
+      if (opts.lineItem?.length)
+        params.line_items = opts.lineItem.map((item: unknown) =>
+          typeof item === 'string' ? parseLineItemFlag(item) : item,
+        );
+      if (opts.total?.length)
+        params.totals = opts.total.map((item: unknown) =>
+          typeof item === 'string' ? parseTotalFlag(item) : item,
+        );
 
-      await executeCommand({
-        outputJson: !!options.outputJson,
-        jsonFn: async () => {
-          return repository.updateSpendRequest(id, params);
-        },
-        renderFn: () => (
-          <UpdateSpendRequest
-            repository={repository}
-            id={id}
-            params={params}
-            onComplete={() => {}}
-          />
-        ),
-      });
-    });
-
-  spendRequestCommand
-    .command('request-approval <id>')
-    .description('Request approval for a spend request')
-    .option(
-      '--output-json',
-      'Output result as JSON instead of interactive display',
-    )
-    .addHelpText('after', buildOutputHelp(SPEND_REQUEST_OUTPUT_SCHEMA))
-    .action(async (id: string, options: { outputJson?: boolean }) => {
-      requireAuth();
-
-      await executeCommand({
-        outputJson: !!options.outputJson,
-        jsonFn: async () => {
-          const approval = await repository.requestApproval(id);
-          outputJson(approval);
-          return pollUntilApproved(repository, id, {
-            onProgress: (elapsedSeconds) => {
-              process.stderr.write(
-                `${JSON.stringify({
-                  type: 'waiting',
-                  command: 'spend_request_approval',
-                  elapsed_seconds: elapsedSeconds,
-                  approval_url: approval.approval_link ?? null,
-                  spend_request_id: id,
-                })}\n`,
-              );
-            },
+      if (!c.agent && !c.formatExplicit) {
+        return new Promise((resolve) => {
+          const { waitUntilExit } = render(
+            <UpdateSpendRequest
+              repository={repository}
+              id={id}
+              params={params}
+              onComplete={() => {}}
+            />,
+          );
+          waitUntilExit().then(async () => {
+            resolve(await repository.updateSpendRequest(id, params));
           });
-        },
-        renderFn: () => (
-          <RequestApproval
-            repository={repository}
-            id={id}
-            onComplete={() => {}}
-          />
-        ),
-      });
-    });
-
-  const retrieveCmd = spendRequestCommand
-    .command('retrieve <id>')
-    .description('Retrieve a spend request');
-
-  registerSchemaOptions(retrieveCmd, RETRIEVE_INPUT_SCHEMA);
-
-  retrieveCmd
-    .option(
-      '--json <json>',
-      `JSON input (keys: ${Object.keys(RETRIEVE_INPUT_SCHEMA).join(', ')})`,
-    )
-    .option(
-      '--output-json',
-      'Output result as JSON instead of interactive display',
-    )
-    .addHelpText(
-      'after',
-      buildInputHelp(RETRIEVE_INPUT_SCHEMA) +
-        buildOutputHelp(SPEND_REQUEST_OUTPUT_SCHEMA),
-    )
-    .action(async (id: string, options) => {
-      requireAuth();
-
-      let resolved: Record<string, unknown> = {};
-      try {
-        resolved = resolveInput(options, RETRIEVE_INPUT_SCHEMA);
-      } catch (err) {
-        if (err instanceof ValidationError)
-          outputErrors(err.errors, !!options.outputJson);
-        outputError((err as Error).message);
+        });
       }
 
-      const timeout = resolved.timeout as number;
-      const includeArr = resolved.include as string[] | undefined;
+      return repository.updateSpendRequest(id, params);
+    },
+  });
+
+  cli.command('request-approval', {
+    description: 'Request approval for a spend request',
+    args: z.object({
+      id: z.string().describe('Spend request ID'),
+    }),
+    outputPolicy: 'agent-only' as const,
+    async *run(c) {
+      if (!storage.isAuthenticated()) {
+        return c.error({
+          code: 'NOT_AUTHENTICATED',
+          message: 'Not authenticated. Run "link-cli auth login" first.',
+          cta: {
+            commands: [
+              { command: 'auth login', description: 'Log in to Link' },
+            ],
+          },
+        });
+      }
+
+      const id = c.args.id;
+
+      if (!c.agent && !c.formatExplicit) {
+        return new Promise((resolve) => {
+          const { waitUntilExit } = render(
+            <RequestApproval
+              repository={repository}
+              id={id}
+              onComplete={() => {}}
+            />,
+          );
+          waitUntilExit().then(async () => {
+            const approval = await repository.requestApproval(id);
+            resolve(approval);
+          });
+        });
+      }
+
+      // Agent mode: request approval, return immediately with _next polling hint.
+      // The agent drives the polling loop via `spend-request retrieve`.
+      const approval = await repository.requestApproval(id);
+      yield {
+        ...approval,
+        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${id} --interval 2 --max-attempts 150\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
+        _next: {
+          command: `spend-request retrieve ${id} --interval 2 --max-attempts 150`,
+          until: 'status changes from pending_approval',
+        },
+      };
+    },
+  });
+
+  cli.command('retrieve', {
+    description: 'Retrieve a spend request',
+    args: z.object({
+      id: z.string().describe('Spend request ID'),
+    }),
+    options: retrieveOptions,
+    outputPolicy: 'agent-only' as const,
+    async run(c) {
+      if (!storage.isAuthenticated()) {
+        return c.error({
+          code: 'NOT_AUTHENTICATED',
+          message: 'Not authenticated. Run "link-cli auth login" first.',
+          cta: {
+            commands: [
+              { command: 'auth login', description: 'Log in to Link' },
+            ],
+          },
+        });
+      }
+
+      const id = c.args.id;
+      const opts = c.options;
+      const timeout = opts.timeout;
+      const interval = opts.interval;
+      const maxAttempts = opts.maxAttempts;
+      const includeArr = opts.include;
       const include = includeArr?.length ? includeArr : undefined;
 
-      await executeCommand({
-        outputJson: !!options.outputJson,
-        jsonFn: async () => {
-          const request = await repository.getSpendRequest(id, { include });
-          if (!request) {
-            throw new Error(`Spend request ${id} not found`);
-          }
-          return request;
-        },
-        renderFn: () => (
-          <RetrieveSpendRequest
-            repository={repository}
-            id={id}
-            timeout={timeout}
-            include={include}
-            onComplete={() => {}}
-          />
-        ),
-      });
-    });
+      if (!c.agent && !c.formatExplicit) {
+        return new Promise((resolve) => {
+          const { waitUntilExit } = render(
+            <RetrieveSpendRequest
+              repository={repository}
+              id={id}
+              timeout={timeout}
+              include={include}
+              onComplete={() => {}}
+            />,
+          );
+          waitUntilExit().then(async () => {
+            const request = await repository.getSpendRequest(id, { include });
+            resolve(request);
+          });
+        });
+      }
 
-  return spendRequestCommand;
+      const terminalStatuses = new Set([
+        'approved',
+        'denied',
+        'expired',
+        'succeeded',
+        'failed',
+      ]);
+      const deadline = Date.now() + timeout * 1000;
+      let attempts = 0;
+
+      while (true) {
+        const request = await repository.getSpendRequest(id, { include });
+        if (!request) {
+          return c.error({
+            code: 'NOT_FOUND',
+            message: `Spend request ${id} not found`,
+          });
+        }
+
+        if (terminalStatuses.has(request.status)) {
+          return request;
+        }
+
+        attempts++;
+        const shouldStop =
+          interval <= 0 ||
+          (maxAttempts > 0 && attempts >= maxAttempts) ||
+          Date.now() >= deadline;
+
+        if (shouldStop) return request;
+
+        await new Promise((resolve) => setTimeout(resolve, interval * 1000));
+      }
+    },
+  });
+
+  return cli;
 }

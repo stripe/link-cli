@@ -28,7 +28,7 @@
     "dev": "tsx src/cli.tsx"
   },
   "dependencies": {
-    "commander": "^12.1.0",
+    "incur": "^0.4.1",
     "ink": "^5.2.1",
     "ink-spinner": "^5.0.0",
     "mppx": "^0.5.7",

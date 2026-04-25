@@ -212,18 +212,22 @@ describe('production mode', () => {
       const result = await runProdCli(
         'spend-request',
         'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '--merchant-name',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--line-item',
+        'name:Widget,unit_amount:5000,quantity:1',
+        '--total',
+        'type:total,display_text:Total,amount:5000',
+        '--no-request-approval',
         '--json',
-        JSON.stringify({
-          payment_method_id: 'pd_prod_test',
-          merchant_name: 'Test Merchant',
-          merchant_url: 'https://example.com',
-          context: VALID_CONTEXT,
-          amount: 5000,
-          line_items: [{ name: 'Widget', unit_amount: 5000, quantity: 1 }],
-          totals: [{ type: 'total', display_text: 'Total', amount: 5000 }],
-          request_approval: false,
-        }),
-        '--output-json',
       );
 
       expect(result.exitCode).toBe(0);
@@ -252,23 +256,27 @@ describe('production mode', () => {
       const result = await runProdCli(
         'spend-request',
         'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '--merchant-name',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--line-item',
+        'name:Widget,unit_amount:5000,quantity:1',
+        '--total',
+        'type:total,display_text:Total,amount:5000',
+        '--no-request-approval',
         '--json',
-        JSON.stringify({
-          payment_method_id: 'pd_prod_test',
-          merchant_name: 'Test Merchant',
-          merchant_url: 'https://example.com',
-          context: VALID_CONTEXT,
-          amount: 5000,
-          line_items: [{ name: 'Widget', unit_amount: 5000, quantity: 1 }],
-          totals: [{ type: 'total', display_text: 'Total', amount: 5000 }],
-          request_approval: false,
-        }),
-        '--output-json',
       );
 
       expect(result.exitCode).toBe(0);
-      const request = parseJson(result.stdout) as Record<string, unknown>;
-      expect(request.id).toBe('lsrq_from_api');
+      const output = parseJson(result.stdout) as Record<string, unknown>[];
+      expect(output[0].id).toBe('lsrq_from_api');
     });
 
     it('sends credential_type and network_id in HTTP POST body', async () => {
@@ -281,18 +289,18 @@ describe('production mode', () => {
       const result = await runProdCli(
         'spend-request',
         'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--credential-type',
+        'shared_payment_token',
+        '--network-id',
+        'net_prod_abc',
+        '--no-request-approval',
         '--json',
-        JSON.stringify({
-          payment_method_id: 'pd_prod_test',
-          merchant_name: 'Test Merchant',
-          merchant_url: 'https://example.com',
-          context: VALID_CONTEXT,
-          amount: 5000,
-          credential_type: 'shared_payment_token',
-          network_id: 'net_prod_abc',
-          request_approval: false,
-        }),
-        '--output-json',
       );
 
       expect(result.exitCode).toBe(0);
@@ -300,7 +308,8 @@ describe('production mode', () => {
       expect(sentBody.credential_type).toBe('shared_payment_token');
       expect(sentBody.network_id).toBe('net_prod_abc');
 
-      const request = parseJson(result.stdout) as Record<string, unknown>;
+      const output = parseJson(result.stdout) as Record<string, unknown>[];
+      const request = output[0];
       expect(request.credential_type).toBe('shared_payment_token');
       expect(request.network_id).toBe('net_prod_abc');
     });
@@ -311,17 +320,19 @@ describe('production mode', () => {
       const result = await runProdCli(
         'spend-request',
         'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '--merchant-name',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--no-request-approval',
+        '--test',
         '--json',
-        JSON.stringify({
-          payment_method_id: 'pd_prod_test',
-          merchant_name: 'Test Merchant',
-          merchant_url: 'https://example.com',
-          context: VALID_CONTEXT,
-          amount: 5000,
-          request_approval: false,
-          test: true,
-        }),
-        '--output-json',
       );
 
       expect(result.exitCode).toBe(0);
@@ -335,16 +346,18 @@ describe('production mode', () => {
       const result = await runProdCli(
         'spend-request',
         'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '--merchant-name',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--no-request-approval',
         '--json',
-        JSON.stringify({
-          payment_method_id: 'pd_prod_test',
-          merchant_name: 'Test Merchant',
-          merchant_url: 'https://example.com',
-          context: VALID_CONTEXT,
-          amount: 5000,
-          request_approval: false,
-        }),
-        '--output-json',
       );
 
       expect(result.exitCode).toBe(0);
@@ -377,27 +390,25 @@ describe('production mode', () => {
         '--total',
         'type:total,display_text:Total,amount:5000',
         '--request-approval',
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(0);
-      // POST to create, then GET poll
+      // POST to create — returns immediately, no polling
       expect(requests[0].method).toBe('POST');
       expect(requests[0].url).toBe('/spend_requests');
       const sentBody = JSON.parse(requests[0].body);
       expect(sentBody.request_approval).toBe(true);
-      expect(requests[1].method).toBe('GET');
-      expect(requests[1].url).toBe('/spend_requests/lsrq_prod_001');
 
-      // Two JSON objects: initial SpendRequest (with approval_url) then final SpendRequest
-      const lines = result.stdout.trim().split('\n\n').filter(Boolean);
-      expect(lines.length).toBe(2);
-      const initial = parseJson(lines[0]) as Record<string, unknown>;
-      const final = parseJson(lines[1]) as Record<string, unknown>;
-      expect(initial.approval_url).toBe(
+      // Single result with _next polling hint
+      const output = parseJson(result.stdout) as Record<string, unknown>[];
+      expect(output.length).toBe(1);
+      expect(output[0].approval_url).toBe(
         'https://app.link.com/approve/lsrq_prod_001',
       );
-      expect(final.status).toBe('approved');
+      const next = output[0]._next as Record<string, unknown>;
+      expect(next.command).toContain('spend-request retrieve');
+      expect(next.command).toContain('--interval');
     });
 
     it('surfaces API error messages', async () => {
@@ -420,12 +431,12 @@ describe('production mode', () => {
         'name:Widget,unit_amount:5000,quantity:1',
         '--total',
         'type:total,display_text:Total,amount:5000',
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(1);
-      const err = parseJson(result.stderr) as { error: string };
-      expect(err.error).toContain('Invalid payment details');
+      const output = result.stdout + result.stderr;
+      expect(output).toContain('Invalid payment details');
     });
   });
 
@@ -441,7 +452,7 @@ describe('production mode', () => {
         'pd_updated',
         '--merchant-url',
         'https://updated.com',
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(0);
@@ -467,12 +478,12 @@ describe('production mode', () => {
         'lsrq_prod_001',
         '--payment-method-id',
         'pd_new',
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(1);
-      const err = parseJson(result.stderr) as { error: string };
-      expect(err.error).toContain('pending_approval');
+      const output = result.stdout + result.stderr;
+      expect(output).toContain('pending_approval');
     });
   });
 
@@ -488,11 +499,11 @@ describe('production mode', () => {
         'spend-request',
         'request-approval',
         'lsrq_prod_001',
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(0);
-      // POST to request_approval, then GET poll
+      // POST to request_approval — returns immediately, no polling
       expect(requests[0].method).toBe('POST');
       expect(requests[0].url).toBe(
         '/spend_requests/lsrq_prod_001/request_approval',
@@ -500,18 +511,16 @@ describe('production mode', () => {
       expect(requests[0].headers.authorization).toBe(
         'Bearer prod_test_access_token',
       );
-      expect(requests[1].method).toBe('GET');
-      expect(requests[1].url).toBe('/spend_requests/lsrq_prod_001');
 
-      // Two JSON objects: initial (with approval_url) then final SpendRequest
-      const lines = result.stdout.trim().split('\n\n').filter(Boolean);
-      expect(lines.length).toBe(2);
-      const initial = parseJson(lines[0]) as Record<string, unknown>;
-      const final = parseJson(lines[1]) as Record<string, unknown>;
-      expect(initial.approval_url).toBe(
+      // Single result with _next polling hint
+      const output = parseJson(result.stdout) as Record<string, unknown>[];
+      expect(output.length).toBe(1);
+      expect(output[0].approval_url).toBe(
         'https://app.link.com/approve/lsrq_prod_001',
       );
-      expect(final.status).toBe('approved');
+      const next = output[0]._next as Record<string, unknown>;
+      expect(next.command).toContain('spend-request retrieve');
+      expect(next.command).toContain('--interval');
     });
 
     it('surfaces API errors for request-approval', async () => {
@@ -523,12 +532,12 @@ describe('production mode', () => {
         'spend-request',
         'request-approval',
         'lsrq_prod_001',
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(1);
-      const err = parseJson(result.stderr) as { error: string };
-      expect(err.error).toContain('pending_approval');
+      const output = result.stdout + result.stderr;
+      expect(output).toContain('pending_approval');
     });
   });
 
@@ -538,7 +547,7 @@ describe('production mode', () => {
         'spend-request',
         'retrieve',
         'lsrq_prod_001',
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(0);
@@ -566,7 +575,7 @@ describe('production mode', () => {
         'spend-request',
         'retrieve',
         'lsrq_prod_001',
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(0);
@@ -605,7 +614,7 @@ describe('production mode', () => {
         'spend-request',
         'retrieve',
         'lsrq_prod_001',
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(0);
@@ -631,12 +640,12 @@ describe('production mode', () => {
         'spend-request',
         'retrieve',
         'lsrq_nonexistent',
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(1);
-      const err = parseJson(result.stderr) as { error: string };
-      expect(err.error).toContain('not found');
+      const output = result.stdout + result.stderr;
+      expect(output).toContain('not found');
     });
   });
 
@@ -664,23 +673,23 @@ describe('production mode', () => {
         'login',
         '--client-name',
         '   ',
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain('client_name');
+      const output = result.stdout + result.stderr;
+      expect(output).toMatch(/client.?name|non-empty/i);
     });
 
-    it('sends client_hint in device/code request when --client-name is provided', async () => {
+    it('sends client_hint and returns immediately with _next polling hint', async () => {
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
-      setResponseForUrl('/device/token', 200, TOKEN_RESPONSE);
 
       const result = await runProdCli(
         'auth',
         'login',
         '--client-name',
         'My Agent',
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(0);
@@ -691,28 +700,18 @@ describe('production mode', () => {
       const params = new URLSearchParams(deviceCodeRequest?.body);
       expect(params.get('client_hint')).toBe('My Agent');
       expect(params.get('connection_label')).toContain('My Agent on ');
-    }, 15_000);
 
-    it('sends client_hint when --client-name is provided via --json', async () => {
-      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
-      setResponseForUrl('/device/token', 200, TOKEN_RESPONSE);
-
-      const result = await runProdCli(
-        'auth',
-        'login',
-        '--json',
-        JSON.stringify({ client_name: 'My Agent' }),
-        '--output-json',
+      // Returns immediately with verification URL and _next hint
+      const output = parseJson(result.stdout) as Record<string, unknown>[];
+      expect(output.length).toBe(1);
+      expect(output[0].verification_url).toBe(
+        'https://app.link.com/device/setup?code=apple-grape',
       );
-
-      expect(result.exitCode).toBe(0);
-      const deviceCodeRequest = requests.find((r) =>
-        r.url.includes('/device/code'),
-      );
-      expect(deviceCodeRequest).toBeDefined();
-      const params = new URLSearchParams(deviceCodeRequest?.body);
-      expect(params.get('client_hint')).toBe('My Agent');
-    }, 15_000);
+      expect(output[0].passphrase).toBe('apple-grape');
+      const next = output[0]._next as Record<string, unknown>;
+      expect(next.command).toContain('auth status');
+      expect(next.until).toContain('authenticated');
+    });
   });
 
   describe('auth logout', () => {
@@ -773,14 +772,19 @@ describe('production mode', () => {
         'pd_test',
         '-m',
         'Nike',
+        '--merchant-url',
+        'https://example.com',
         '--context',
-        'Test',
-        '--output-json',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--no-request-approval',
+        '--json',
       );
 
       expect(result.exitCode).toBe(1);
-      const err = parseJson(result.stderr) as { error: string };
-      expect(err.error).toContain('Not authenticated');
+      const output = result.stdout + result.stderr;
+      expect(output).toContain('Not authenticated');
     });
   });
 
@@ -830,7 +834,7 @@ describe('production mode', () => {
         `http://127.0.0.1:${merchantPort}/api/charge`,
         '--spend-request-id',
         'lsrq_spt_001',
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(0);
@@ -898,7 +902,7 @@ describe('production mode', () => {
         `http://127.0.0.1:${merchantPort}/api/endpoint`,
         '--spend-request-id',
         'lsrq_spt_001',
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(0);
@@ -920,12 +924,12 @@ describe('production mode', () => {
         `http://127.0.0.1:${merchantPort}/api/endpoint`,
         '--spend-request-id',
         'lsrq_spt_001',
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(1);
-      const err = parseJson(result.stderr) as { error: string };
-      expect(err.error).toMatch(/stripe/i);
+      const output = result.stdout + result.stderr;
+      expect(output).toMatch(/stripe/i);
     });
 
     it('spend request not approved exits 1 with error', async () => {
@@ -940,12 +944,12 @@ describe('production mode', () => {
         `http://127.0.0.1:${merchantPort}/api/endpoint`,
         '--spend-request-id',
         'lsrq_spt_001',
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(1);
-      const err = parseJson(result.stderr) as { error: string };
-      expect(err.error).toMatch(/approved/i);
+      const output = result.stdout + result.stderr;
+      expect(output).toMatch(/approved/i);
     });
 
     it('sends POST with data when --data is provided', async () => {
@@ -960,7 +964,7 @@ describe('production mode', () => {
         'lsrq_spt_001',
         '--data',
         '{"amount":100}',
-        '--output-json',
+        '--json',
       );
 
       expect(merchantRequests[0].method).toBe('POST');
@@ -981,7 +985,7 @@ describe('production mode', () => {
         'X-Custom-Header: hello',
         '--header',
         'X-Another: world',
-        '--output-json',
+        '--json',
       );
 
       expect(merchantRequests[0].headers['x-custom-header']).toBe('hello');
@@ -1000,7 +1004,7 @@ describe('production mode', () => {
         'lsrq_spt_001',
         '--data',
         '{"amount":100}',
-        '--output-json',
+        '--json',
       );
 
       expect(merchantRequests[0].headers['content-type']).toContain(
@@ -1022,7 +1026,7 @@ describe('production mode', () => {
         'hello',
         '--header',
         'Content-Type: text/plain',
-        '--output-json',
+        '--json',
       );
 
       expect(merchantRequests[0].headers['content-type']).toContain(
@@ -1053,7 +1057,7 @@ describe('production mode', () => {
         'decode',
         '--challenge',
         WWW_AUTHENTICATE_MULTI,
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(0);
@@ -1090,12 +1094,12 @@ describe('production mode', () => {
         'decode',
         '--challenge',
         invalidChallenge,
-        '--output-json',
+        '--json',
       );
 
       expect(result.exitCode).toBe(1);
-      const err = parseJson(result.stderr) as { error: string };
-      expect(err.error).toMatch(/networkId/i);
+      const output = result.stdout + result.stderr;
+      expect(output).toMatch(/networkId/i);
     });
   });
 });

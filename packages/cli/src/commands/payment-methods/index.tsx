@@ -1,64 +1,77 @@
 import type { IPaymentMethodsResource } from '@stripe/link-sdk';
-import type { Command } from 'commander';
+import { storage } from '@stripe/link-sdk';
+import { Cli } from 'incur';
+import { render } from 'ink';
 import React from 'react';
-import { executeCommand, outputJson } from '../../utils/execute-command';
-import { buildOutputHelp } from '../../utils/help-text';
-import { requireAuth } from '../../utils/require-auth';
 import { AddPaymentMethod, WALLET_URL } from './add';
 import { PaymentMethodsList } from './list';
-import { PAYMENT_METHOD_SCHEMA } from './schema';
 
-export function registerPaymentMethodsCommands(
-  program: Command,
+export function createPaymentMethodsCli(
   createResource: () => IPaymentMethodsResource,
-): Command {
-  const paymentMethodsCommand = program
-    .command('payment-methods')
-    .description('Payment methods management commands')
-    .helpCommand(false);
+) {
+  const cli = Cli.create('payment-methods', {
+    description: 'Payment methods management commands',
+  });
 
-  paymentMethodsCommand
-    .command('list')
-    .description('List all payment methods on your account')
-    .option(
-      '--output-json',
-      'Output result as JSON instead of interactive display',
-    )
-    .addHelpText('after', buildOutputHelp(PAYMENT_METHOD_SCHEMA, true))
-    .action(async (options: { outputJson?: boolean }) => {
-      requireAuth();
+  cli.command('list', {
+    description: 'List all payment methods on your account',
+    outputPolicy: 'agent-only' as const,
+    async run(c) {
+      if (!storage.isAuthenticated()) {
+        return c.error({
+          code: 'NOT_AUTHENTICATED',
+          message: 'Not authenticated. Run "link-cli auth login" first.',
+          cta: {
+            commands: [
+              { command: 'auth login', description: 'Log in to Link' },
+            ],
+          },
+        });
+      }
 
       const resource = createResource();
 
-      await executeCommand({
-        outputJson: !!options.outputJson,
-        jsonFn: async () => {
-          return resource.listPaymentMethods();
-        },
-        renderFn: () => (
-          <PaymentMethodsList resource={resource} onComplete={() => {}} />
-        ),
-      });
-    });
-
-  paymentMethodsCommand
-    .command('add')
-    .description('Open the Link wallet to add a new payment method')
-    .option(
-      '--output-json',
-      'Output result as JSON instead of interactive display',
-    )
-    .action(async (options: { outputJson?: boolean }) => {
-      requireAuth();
-
-      if (options.outputJson) {
-        outputJson({ url: WALLET_URL });
-      } else {
-        const { render } = await import('ink');
-        const { waitUntilExit } = render(<AddPaymentMethod />);
-        await waitUntilExit();
+      if (!c.agent && !c.formatExplicit) {
+        return new Promise((resolve) => {
+          const { waitUntilExit } = render(
+            <PaymentMethodsList resource={resource} onComplete={() => {}} />,
+          );
+          waitUntilExit().then(async () => {
+            resolve(await resource.listPaymentMethods());
+          });
+        });
       }
-    });
 
-  return paymentMethodsCommand;
+      return resource.listPaymentMethods();
+    },
+  });
+
+  cli.command('add', {
+    description: 'Open the Link wallet to add a new payment method',
+    outputPolicy: 'agent-only' as const,
+    async run(c) {
+      if (!storage.isAuthenticated()) {
+        return c.error({
+          code: 'NOT_AUTHENTICATED',
+          message: 'Not authenticated. Run "link-cli auth login" first.',
+          cta: {
+            commands: [
+              { command: 'auth login', description: 'Log in to Link' },
+            ],
+          },
+        });
+      }
+
+      if (!c.agent && !c.formatExplicit) {
+        return new Promise((resolve) => {
+          const { waitUntilExit } = render(<AddPaymentMethod />);
+          waitUntilExit().then(() => resolve({ url: WALLET_URL }));
+        });
+      }
+
+      return { url: WALLET_URL };
+    },
+  });
+
+  return cli;
 }
