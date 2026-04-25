@@ -1,6 +1,8 @@
 import type {
+  CreateSpendRequestParams,
   IPaymentMethodsResource,
   ISpendRequestResource,
+  PaymentMethod,
   SpendRequest,
 } from '@stripe/link-sdk';
 import { Box, Text, useInput } from 'ink';
@@ -10,8 +12,10 @@ import { openUrl } from '../../utils/open-url';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
 import { decodeStripeChallenge } from '../mpp/decode';
 import { type PayResult, runMppPay } from '../mpp/pay';
+import { AppDownloadQrCodes } from '../spend-request/app-download-qr-codes';
 import {
   DEMO_CLIMATE_API_URL,
+  DEMO_MPP_DEV_URL,
   DEMO_SPT_AMOUNT,
   DEMO_SPT_CONTEXT,
 } from './constants';
@@ -21,10 +25,12 @@ import { StepData } from './step-data';
 type Step =
   | 'intro'
   | 'fetch-pm'
+  | 'pick-pm'
   | 'probe'
   | 'explain-402'
   | 'create-spend'
   | 'await-approval'
+  | 'approval-timeout'
   | 'mpp-pay-gate'
   | 'mpp-pay'
   | 'done'
@@ -45,7 +51,11 @@ export const SptFlow: React.FC<SptFlowProps> = ({
 }) => {
   const [step, setStep] = useState<Step>('intro');
   const [networkId, setNetworkId] = useState<string>('');
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [selectedPmIndex, setSelectedPmIndex] = useState(0);
   const [spendRequest, setSpendRequest] = useState<SpendRequest | null>(null);
+  const [spendRequestPayload, setSpendRequestPayload] =
+    useState<CreateSpendRequestParams | null>(null);
   const [payResult, setPayResult] = useState<PayResult | null>(null);
   const [challengeData, setChallengeData] = useState<Record<
     string,
@@ -56,6 +66,10 @@ export const SptFlow: React.FC<SptFlowProps> = ({
   const approvalUrl = spendRequest?.approval_url ?? '';
 
   const enterResolver = useRef<(() => void) | null>(null);
+  const pmResolver = useRef<((id: string) => void) | null>(null);
+  const retryChoiceResolver = useRef<
+    ((choice: 'retry' | 'exit') => void) | null
+  >(null);
 
   function waitForEnter(): Promise<void> {
     return new Promise((resolve) => {
@@ -63,13 +77,49 @@ export const SptFlow: React.FC<SptFlowProps> = ({
     });
   }
 
-  useInput((_input, key) => {
-    if (key.return) {
+  function waitForPmSelection(): Promise<string> {
+    return new Promise((resolve) => {
+      pmResolver.current = resolve;
+    });
+  }
+
+  function waitForRetryChoice(): Promise<'retry' | 'exit'> {
+    return new Promise((resolve) => {
+      retryChoiceResolver.current = resolve;
+    });
+  }
+
+  useInput((input, key) => {
+    if (step === 'pick-pm') {
+      if (key.upArrow) {
+        setSelectedPmIndex((i) => (i > 0 ? i - 1 : paymentMethods.length - 1));
+      } else if (key.downArrow) {
+        setSelectedPmIndex((i) => (i < paymentMethods.length - 1 ? i + 1 : 0));
+      } else if (key.return && pmResolver.current) {
+        const pm = paymentMethods[selectedPmIndex];
+        const resolve = pmResolver.current;
+        pmResolver.current = null;
+        resolve(pm.id);
+      }
+    } else if (step === 'approval-timeout' && retryChoiceResolver.current) {
+      if (input === 'r') {
+        const resolve = retryChoiceResolver.current;
+        retryChoiceResolver.current = null;
+        resolve('retry');
+      } else if (input === 'q') {
+        const resolve = retryChoiceResolver.current;
+        retryChoiceResolver.current = null;
+        resolve('exit');
+      }
+    } else if (key.return) {
       if (enterResolver.current) {
         const resolve = enterResolver.current;
         enterResolver.current = null;
         resolve();
-      } else if (step === 'await-approval' && approvalUrl) {
+      } else if (
+        (step === 'await-approval' || step === 'approval-timeout') &&
+        approvalUrl
+      ) {
         openUrl(approvalUrl);
       }
     }
@@ -94,8 +144,16 @@ export const SptFlow: React.FC<SptFlowProps> = ({
               'No payment methods found. Open the Link app (link.com) and add a card to your wallet, then run the demo again.',
             );
           }
-          const pm = methods.find((m) => m.is_default) ?? methods[0];
-          pmId = pm.id;
+
+          if (methods.length === 1) {
+            pmId = methods[0].id;
+          } else {
+            setPaymentMethods(methods);
+            const defaultIdx = methods.findIndex((m) => m.is_default);
+            setSelectedPmIndex(defaultIdx >= 0 ? defaultIdx : 0);
+            setStep('pick-pm');
+            pmId = await waitForPmSelection();
+          }
         }
 
         setStep('probe');
@@ -126,20 +184,42 @@ export const SptFlow: React.FC<SptFlowProps> = ({
         await waitForEnter();
 
         setStep('create-spend');
-        const result = await spendRequestRepo.createSpendRequest({
+        const payload = {
           payment_details: pmId,
-          credential_type: 'shared_payment_token',
+          credential_type: 'shared_payment_token' as const,
           network_id: decoded.network_id,
           amount: DEMO_SPT_AMOUNT,
           context: DEMO_SPT_CONTEXT,
           request_approval: true,
           test: true,
-        });
+        };
+        setSpendRequestPayload(payload);
+        const result = await spendRequestRepo.createSpendRequest(payload);
         setSpendRequest(result);
 
         setStep('await-approval');
-        const approved = await pollUntilApproved(spendRequestRepo, result.id);
-        setSpendRequest(approved);
+        for (;;) {
+          try {
+            const approved = await pollUntilApproved(
+              spendRequestRepo,
+              result.id,
+            );
+            setSpendRequest(approved);
+            break;
+          } catch (err) {
+            if ((err as Error).message === 'Approval polling timed out') {
+              setStep('approval-timeout');
+              const choice = await waitForRetryChoice();
+              if (choice === 'exit') {
+                onComplete(false);
+                return;
+              }
+              setStep('await-approval');
+            } else {
+              throw err;
+            }
+          }
+        }
 
         setStep('mpp-pay-gate');
         await waitForEnter();
@@ -168,6 +248,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
     const order: Step[] = [
       'intro',
       'fetch-pm',
+      'pick-pm',
       'probe',
       'explain-402',
       'create-spend',
@@ -193,6 +274,14 @@ export const SptFlow: React.FC<SptFlowProps> = ({
       </Text>
 
       <Box flexDirection="column">
+        <Box flexDirection="row" gap={1}>
+          <Text color="yellow">[testmode]</Text>
+          <Text dimColor>
+            {DEMO_CLIMATE_API_URL}
+            {'  '}
+            {DEMO_MPP_DEV_URL}
+          </Text>
+        </Box>
         <Text>{S.intro.description}</Text>
         <Box marginTop={1}>
           <Text>
@@ -207,6 +296,38 @@ export const SptFlow: React.FC<SptFlowProps> = ({
       {step === 'fetch-pm' && (
         <Box marginY={1}>
           <Text color="cyan">Fetching payment methods...</Text>
+        </Box>
+      )}
+
+      {step === 'pick-pm' && paymentMethods.length > 1 && (
+        <Box flexDirection="column">
+          <Text>Which payment method should we use for the demo?</Text>
+          <Box flexDirection="column" marginTop={1}>
+            {paymentMethods.map((pm, i) => (
+              <Text key={pm.id}>
+                {i === selectedPmIndex ? (
+                  <Text color="cyan" bold>
+                    {'>'}{' '}
+                    {pm.card_details
+                      ? `${pm.card_details.brand} ****${pm.card_details.last4}`
+                      : pm.type}
+                    {pm.is_default ? ' (default)' : ''}
+                  </Text>
+                ) : (
+                  <Text dimColor>
+                    {'  '}
+                    {pm.card_details
+                      ? `${pm.card_details.brand} ****${pm.card_details.last4}`
+                      : pm.type}
+                    {pm.is_default ? ' (default)' : ''}
+                  </Text>
+                )}
+              </Text>
+            ))}
+          </Box>
+          <Box marginTop={1}>
+            <Text dimColor>Use ↑↓ to select, [Enter] to confirm</Text>
+          </Box>
         </Box>
       )}
 
@@ -235,6 +356,25 @@ export const SptFlow: React.FC<SptFlowProps> = ({
       {pastStep('explain-402') && (
         <Box flexDirection="column">
           <Text>{S.createSpend.description}</Text>
+          {spendRequestPayload && (
+            <Box flexDirection="column" marginTop={1}>
+              <Text dimColor>spend-request create</Text>
+              <Box
+                flexDirection="column"
+                borderStyle="single"
+                borderColor="gray"
+                paddingX={2}
+              >
+                <Text>
+                  {JSON.stringify(
+                    spendRequestPayload as unknown as Record<string, unknown>,
+                    null,
+                    2,
+                  )}
+                </Text>
+              </Box>
+            </Box>
+          )}
           {step === 'create-spend' && (
             <Box marginY={1}>
               <Text color="cyan">{S.createSpend.loading}</Text>
@@ -243,7 +383,9 @@ export const SptFlow: React.FC<SptFlowProps> = ({
         </Box>
       )}
 
-      {(step === 'await-approval' || pastStep('await-approval')) &&
+      {(step === 'await-approval' ||
+        step === 'approval-timeout' ||
+        pastStep('await-approval')) &&
         spendRequest && (
           <Box flexDirection="column">
             <Text color="green">
@@ -256,6 +398,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
                 credential_type: spendRequest.credential_type,
                 network_id: spendRequest.network_id,
                 amount: spendRequest.amount,
+                context: spendRequest.context,
                 approval_url: spendRequest.approval_url,
               }}
             />
@@ -281,8 +424,37 @@ export const SptFlow: React.FC<SptFlowProps> = ({
             </Text>
             <Text dimColor>{S.approval.browserHint}</Text>
           </Box>
+          <AppDownloadQrCodes />
           <Box marginY={1}>
             <Text color="cyan">{S.approval.loading}</Text>
+          </Box>
+        </Box>
+      )}
+
+      {step === 'approval-timeout' && (
+        <Box flexDirection="column">
+          <Text color="yellow">
+            ⚠ Approval timed out (5 min). The spend request is still pending —
+            you can still approve it.
+          </Text>
+          <Box
+            flexDirection="column"
+            borderStyle="round"
+            borderColor="yellow"
+            paddingX={2}
+            paddingY={1}
+            marginTop={1}
+          >
+            <Text>
+              Approve at:{' '}
+              <Text bold color="cyan">
+                {approvalUrl}
+              </Text>
+            </Text>
+            <Text dimColor>Press [Enter] to open in browser</Text>
+          </Box>
+          <Box marginTop={1}>
+            <Text dimColor>r Retry polling q Quit demo</Text>
           </Box>
         </Box>
       )}

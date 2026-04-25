@@ -11,7 +11,7 @@ export const AppDownloadQrCodes: React.FC = () => {
   return (
     <Box flexDirection="column" marginTop={1}>
       <Text dimColor>
-        New! Get the Link app to approve spend requests easily
+        Get the Link app to approve spend requests from your phone
       </Text>
       <Box flexDirection="column" alignItems="flex-start" marginTop={1}>
         {qrLines.map((line, i) => (

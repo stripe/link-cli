@@ -1,4 +1,5 @@
 import type {
+  CreateSpendRequestParams,
   IPaymentMethodsResource,
   ISpendRequestResource,
   PaymentMethod,
@@ -9,6 +10,7 @@ import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { openUrl } from '../../utils/open-url';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
+import { AppDownloadQrCodes } from '../spend-request/app-download-qr-codes';
 import {
   DEMO_CARD_AMOUNT,
   DEMO_CARD_CONTEXT,
@@ -21,9 +23,11 @@ import { StepData } from './step-data';
 type Step =
   | 'intro'
   | 'fetch-pm'
+  | 'pick-pm'
   | 'explain-pm'
   | 'create-spend'
   | 'await-approval'
+  | 'approval-timeout'
   | 'show-card'
   | 'open-url'
   | 'done'
@@ -37,6 +41,10 @@ interface CardFlowProps {
     paymentMethodId: string;
     success: boolean;
   }) => void;
+}
+
+function formatPmLabel(pm: PaymentMethod): string {
+  return `${pm.card_details?.brand ?? pm.type} ****${pm.card_details?.last4 ?? ''}`;
 }
 
 function formatCardNumber(num: string): string {
@@ -57,12 +65,20 @@ export const CardFlow: React.FC<CardFlowProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(
     null,
   );
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [selectedPmIndex, setSelectedPmIndex] = useState(0);
   const [spendRequest, setSpendRequest] = useState<SpendRequest | null>(null);
+  const [spendRequestPayload, setSpendRequestPayload] =
+    useState<CreateSpendRequestParams | null>(null);
   const [error, setError] = useState<string>('');
 
   const approvalUrl = spendRequest?.approval_url ?? '';
 
   const enterResolver = useRef<(() => void) | null>(null);
+  const pmResolver = useRef<((id: string) => void) | null>(null);
+  const retryChoiceResolver = useRef<
+    ((choice: 'retry' | 'exit') => void) | null
+  >(null);
 
   function waitForEnter(): Promise<void> {
     return new Promise((resolve) => {
@@ -70,13 +86,49 @@ export const CardFlow: React.FC<CardFlowProps> = ({
     });
   }
 
-  useInput((_input, key) => {
-    if (key.return) {
+  function waitForPmSelection(): Promise<string> {
+    return new Promise((resolve) => {
+      pmResolver.current = resolve;
+    });
+  }
+
+  function waitForRetryChoice(): Promise<'retry' | 'exit'> {
+    return new Promise((resolve) => {
+      retryChoiceResolver.current = resolve;
+    });
+  }
+
+  useInput((input, key) => {
+    if (step === 'pick-pm') {
+      if (key.upArrow) {
+        setSelectedPmIndex((i) => (i > 0 ? i - 1 : paymentMethods.length - 1));
+      } else if (key.downArrow) {
+        setSelectedPmIndex((i) => (i < paymentMethods.length - 1 ? i + 1 : 0));
+      } else if (key.return && pmResolver.current) {
+        const pm = paymentMethods[selectedPmIndex];
+        const resolve = pmResolver.current;
+        pmResolver.current = null;
+        resolve(pm.id);
+      }
+    } else if (step === 'approval-timeout' && retryChoiceResolver.current) {
+      if (input === 'r') {
+        const resolve = retryChoiceResolver.current;
+        retryChoiceResolver.current = null;
+        resolve('retry');
+      } else if (input === 'q') {
+        const resolve = retryChoiceResolver.current;
+        retryChoiceResolver.current = null;
+        resolve('exit');
+      }
+    } else if (key.return) {
       if (enterResolver.current) {
         const resolve = enterResolver.current;
         enterResolver.current = null;
         resolve();
-      } else if (step === 'await-approval' && approvalUrl) {
+      } else if (
+        (step === 'await-approval' || step === 'approval-timeout') &&
+        approvalUrl
+      ) {
         openUrl(approvalUrl);
       }
     }
@@ -105,29 +157,60 @@ export const CardFlow: React.FC<CardFlowProps> = ({
             onComplete({ paymentMethodId: '', success: false });
             return;
           }
-          const pm = methods.find((m) => m.is_default) ?? methods[0];
-          setPaymentMethod(pm);
-          pmId = pm.id;
+
+          if (methods.length === 1) {
+            const pm = methods[0];
+            setPaymentMethod(pm);
+            setPaymentMethods(methods);
+            pmId = pm.id;
+          } else {
+            setPaymentMethods(methods);
+            const defaultIdx = methods.findIndex((m) => m.is_default);
+            setSelectedPmIndex(defaultIdx >= 0 ? defaultIdx : 0);
+            setStep('pick-pm');
+            pmId = await waitForPmSelection();
+            const pm = methods.find((m) => m.id === pmId) ?? methods[0];
+            setPaymentMethod(pm);
+          }
 
           setStep('explain-pm');
           await waitForEnter();
         }
 
         setStep('create-spend');
-        const result = await spendRequestRepo.createSpendRequest({
+        const payload = {
           payment_details: pmId,
-          credential_type: 'card',
+          credential_type: 'card' as const,
           amount: DEMO_CARD_AMOUNT,
           context: DEMO_CARD_CONTEXT,
           merchant_name: DEMO_MERCHANT_NAME,
           merchant_url: DEMO_MERCHANT_URL,
           request_approval: true,
           test: true,
-        });
+        };
+        setSpendRequestPayload(payload);
+        const result = await spendRequestRepo.createSpendRequest(payload);
         setSpendRequest(result);
 
         setStep('await-approval');
-        await pollUntilApproved(spendRequestRepo, result.id);
+        for (;;) {
+          try {
+            await pollUntilApproved(spendRequestRepo, result.id);
+            break;
+          } catch (err) {
+            if ((err as Error).message === 'Approval polling timed out') {
+              setStep('approval-timeout');
+              const choice = await waitForRetryChoice();
+              if (choice === 'exit') {
+                onComplete({ paymentMethodId: pmId ?? '', success: false });
+                return;
+              }
+              setStep('await-approval');
+            } else {
+              throw err;
+            }
+          }
+        }
         const approved = await spendRequestRepo.getSpendRequest(result.id, {
           include: ['card'],
         });
@@ -152,15 +235,14 @@ export const CardFlow: React.FC<CardFlowProps> = ({
     run();
   }, []);
 
-  const pmLabel = paymentMethod
-    ? `${paymentMethod.card_details?.brand ?? paymentMethod.type} ****${paymentMethod.card_details?.last4 ?? ''}`
-    : '';
+  const pmLabel = paymentMethod ? formatPmLabel(paymentMethod) : '';
 
   const card = spendRequest?.card;
   const pastStep = (target: Step) => {
     const order: Step[] = [
       'intro',
       'fetch-pm',
+      'pick-pm',
       'explain-pm',
       'create-spend',
       'await-approval',
@@ -186,10 +268,14 @@ export const CardFlow: React.FC<CardFlowProps> = ({
 
       {/* Intro */}
       <Box flexDirection="column">
+        <Box flexDirection="row" gap={1}>
+          <Text color="yellow">[testmode]</Text>
+          <Text dimColor>{DEMO_MERCHANT_URL}</Text>
+        </Box>
         <Text>{C.intro.description}</Text>
         <Box marginTop={1}>
           <Text>
-            Here's what will happen:{'\n'}
+            What happens:{'\n'}
             {C.intro.steps.map((s, i) => ` ${i + 1}. ${s}`).join('\n')}
           </Text>
         </Box>
@@ -202,6 +288,34 @@ export const CardFlow: React.FC<CardFlowProps> = ({
           <Text dimColor>
             Fetching payment methods from your Link wallet...
           </Text>
+        </Box>
+      )}
+
+      {/* PM picker */}
+      {step === 'pick-pm' && paymentMethods.length > 1 && (
+        <Box flexDirection="column">
+          <Text>Which payment method should we use for the demo?</Text>
+          <Box flexDirection="column" marginTop={1}>
+            {paymentMethods.map((pm, i) => (
+              <Text key={pm.id}>
+                {i === selectedPmIndex ? (
+                  <Text color="cyan" bold>
+                    {'>'} {formatPmLabel(pm)}
+                    {pm.is_default ? ' (default)' : ''}
+                  </Text>
+                ) : (
+                  <Text dimColor>
+                    {'  '}
+                    {formatPmLabel(pm)}
+                    {pm.is_default ? ' (default)' : ''}
+                  </Text>
+                )}
+              </Text>
+            ))}
+          </Box>
+          <Box marginTop={1}>
+            <Text dimColor>Use ↑↓ to select, [Enter] to confirm</Text>
+          </Box>
         </Box>
       )}
 
@@ -219,6 +333,25 @@ export const CardFlow: React.FC<CardFlowProps> = ({
       {pastStep('explain-pm') && (
         <Box flexDirection="column">
           <Text>{C.createSpend.description}</Text>
+          {spendRequestPayload && (
+            <Box flexDirection="column" marginTop={1}>
+              <Text dimColor>spend-request create</Text>
+              <Box
+                flexDirection="column"
+                borderStyle="single"
+                borderColor="gray"
+                paddingX={2}
+              >
+                <Text>
+                  {JSON.stringify(
+                    spendRequestPayload as unknown as Record<string, unknown>,
+                    null,
+                    2,
+                  )}
+                </Text>
+              </Box>
+            </Box>
+          )}
           {step === 'create-spend' && (
             <Box marginY={1}>
               <Text color="cyan">{C.createSpend.loading}</Text>
@@ -228,7 +361,9 @@ export const CardFlow: React.FC<CardFlowProps> = ({
       )}
 
       {/* Step 2 result + Step 3: approval */}
-      {(step === 'await-approval' || pastStep('await-approval')) &&
+      {(step === 'await-approval' ||
+        step === 'approval-timeout' ||
+        pastStep('await-approval')) &&
         spendRequest && (
           <Box flexDirection="column">
             <Text color="green">
@@ -241,6 +376,8 @@ export const CardFlow: React.FC<CardFlowProps> = ({
                 credential_type: spendRequest.credential_type,
                 amount: spendRequest.amount,
                 merchant_name: spendRequest.merchant_name,
+                merchant_url: spendRequest.merchant_url,
+                context: spendRequest.context,
                 approval_url: spendRequest.approval_url,
               }}
             />
@@ -266,8 +403,37 @@ export const CardFlow: React.FC<CardFlowProps> = ({
             </Text>
             <Text dimColor>{C.approval.browserHint}</Text>
           </Box>
+          <AppDownloadQrCodes />
           <Box marginY={1}>
             <Text color="cyan">{C.approval.loading}</Text>
+          </Box>
+        </Box>
+      )}
+
+      {step === 'approval-timeout' && (
+        <Box flexDirection="column">
+          <Text color="yellow">
+            ⚠ Approval timed out (5 min). The spend request is still pending —
+            you can still approve it.
+          </Text>
+          <Box
+            flexDirection="column"
+            borderStyle="round"
+            borderColor="yellow"
+            paddingX={2}
+            paddingY={1}
+            marginTop={1}
+          >
+            <Text>
+              Approve at:{' '}
+              <Text bold color="cyan">
+                {approvalUrl}
+              </Text>
+            </Text>
+            <Text dimColor>Press [Enter] to open in browser</Text>
+          </Box>
+          <Box marginTop={1}>
+            <Text dimColor>r Retry polling q Quit demo</Text>
           </Box>
         </Box>
       )}
@@ -285,6 +451,9 @@ export const CardFlow: React.FC<CardFlowProps> = ({
             paddingY={1}
             marginTop={1}
           >
+            <Text color="yellow" dimColor>
+              [testmode card]
+            </Text>
             <Text>
               Number: <Text bold>{formatCardNumber(card.number)}</Text>
             </Text>

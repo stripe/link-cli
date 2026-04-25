@@ -15,41 +15,39 @@ export const CARD_FLOW = {
   title: 'Flow 1: Virtual Card',
 
   intro: {
-    description:
-      'This flow demonstrates how an agent buys something on a website with a traditional checkout form. The agent will request a **virtual card** from your Link wallet — a one-time-use card number that expires in minutes. Your real card details are never shared with the agent or the merchant.',
+    description: `An agent buys a Merino Trail Jacket (${cardAmount}) from Galtee Outdoor using a **virtual card** — a one-time card number issued from your Link wallet. Your real payment details are never shared with the agent or the business.`,
     steps: [
-      'Create a "spend request" — the agent\'s way of asking permission to spend',
-      "You'll approve it in the Link app",
-      'Link generates a virtual card the agent can use',
-      "We'll open a checkout page so you can see the card in action",
+      `The agent calls \`spend-request create\` to request ${cardAmount} at Galtee Outdoor`,
+      'You approve in the Link app',
+      'Link issues a one-time virtual card',
+      'Open the checkout page and enter the card details',
     ],
     prompt: 'Press [Enter] to start',
   },
 
   createSpend: {
-    description: `Step 1: The agent calls \`spend-request create\` with the merchant name, URL, amount (${cardAmount}), and a description of why it's spending. This creates a spend request that needs your approval before any credentials are issued.`,
-    loading: 'Creating...',
+    description: `\`spend-request create\` sends the business name, URL, amount (${cardAmount}), and purchase description to Link. No credentials are issued until you approve.`,
+    loading: 'Creating spend request...',
   },
 
   approval: {
     description:
-      'Step 2: You need to approve this spend request. Open the link below, review the details, and approve. The agent is polling in the background and will continue automatically once you approve.',
+      'Open the URL to approve the spend request. The CLI polls and continues once approved.',
     loading: 'Waiting for approval...',
     browserHint: 'Press [Enter] to open in browser',
   },
 
   showCard: {
     description:
-      "Step 3: Link generated a one-time virtual card. These credentials are what the agent receives — it would fill them into the merchant's checkout form to complete the purchase:",
-    openUrl:
-      "Step 4: Let's open a real checkout page so you can try entering these card details yourself — just like an agent would.",
-    prompt: 'Press [Enter] to open the payment page',
+      'Link issued a one-time virtual card. An agent fills these into the checkout form. Single-use — expires in minutes:',
+    openUrl: 'Open Galtee Outdoor and enter these details at checkout.',
+    prompt: 'Press [Enter] to open Galtee Outdoor',
   },
 
   done: {
-    success: 'Opened the payment page in your browser',
+    success: 'Opened Galtee Outdoor in your browser',
     detail:
-      'Enter the card details above into the checkout form to complete the purchase.',
+      'Enter the card details above at checkout. Galtee Outdoor runs in testmode — no real charge.',
   },
 };
 
@@ -62,47 +60,47 @@ export const SPT_FLOW = {
 
   intro: {
     description:
-      'Not all merchants have checkout forms. Some accept payment entirely via API — an agent sends an HTTP request, the server responds with **HTTP 402 Payment Required** and a payment challenge, and the agent pays by signing that challenge with a **shared payment token** (SPT). This is called the Machine Payment Protocol (MPP).',
-    preamble: `We'll make a ${sptAmount} donation to Stripe Climate (climate.stripe.dev) to demonstrate:`,
+      'Some APIs accept payment without a checkout form. When called without credentials, the server responds with **HTTP 402** and a payment challenge. The agent signs that challenge with a **shared payment token** (SPT) and retries — this is the Machine Payment Protocol (MPP).',
+    preamble: `A ${sptAmount} donation to Stripe Climate (climate.stripe.dev) demonstrates:`,
     steps: [
-      'Probe the API to trigger the 402 challenge',
-      "Decode the challenge to get the merchant's network ID",
-      'Create a spend request for an SPT credential',
-      "You'll approve it",
-      'The agent completes payment automatically via the API',
+      'Probe the API — server responds HTTP 402 with a challenge',
+      'Decode the challenge to extract the `network_id`',
+      'Call `spend-request create` for an SPT credential',
+      'Approve the spend request',
+      '`mpp pay` signs the challenge and retries with an Authorization header',
     ],
     prompt: 'Press [Enter] to start',
   },
 
   probe: {
-    description: `Step 1: The agent sends a POST to ${DEMO_CLIMATE_API_URL}. Since there's no payment credential yet, the server should respond with HTTP 402 and a WWW-Authenticate header containing the payment challenge.`,
+    description: `The agent POSTs to ${DEMO_CLIMATE_API_URL}. Without a payment credential, the server returns HTTP 402 with a \`WWW-Authenticate\` challenge header.`,
     loading: 'Probing...',
     detail:
-      "The agent decodes the challenge and extracts the **network_id**. This identifies the merchant's payment profile on the Stripe network — the agent needs it to request the right type of SPT credential.",
+      'The challenge contains a **network_id** — the business identifier on the Stripe network. The agent uses it to request the matching SPT credential.',
   },
 
   createSpend: {
-    description: `Step 2: The agent calls \`spend-request create\` with credential_type "shared_payment_token", the network_id from the challenge, and the amount (${sptAmount}). Unlike the card flow, no merchant name/URL is needed — the network_id identifies the merchant.`,
-    loading: 'Creating...',
+    description: `\`spend-request create\` with \`credential_type: "shared_payment_token"\`, the decoded \`network_id\`, and amount (${sptAmount}). The \`network_id\` identifies the business — no name or URL needed.`,
+    loading: 'Creating spend request...',
   },
 
   approval: {
     description:
-      'Step 3: Same approval flow — you review and approve the spend request. Once approved, Link issues an SPT that the agent can use to sign the payment challenge.',
+      'Approve the spend request. Once approved, Link issues an SPT the agent uses to sign the 402 challenge.',
     loading: 'Waiting for approval...',
     browserHint: 'Press [Enter] to open in browser',
   },
 
   mppPay: {
     description:
-      'Step 4: Now `mpp pay` handles the rest automatically — it retrieves the SPT from the approved spend request, re-sends the original POST to the API, receives the 402 challenge again, signs it with the SPT, and retries with an Authorization header.',
+      '`mpp pay` retrieves the SPT, re-probes the API, signs the 402 challenge, and retries with an `Authorization: Payment` header.',
     loading: 'Completing payment...',
     prompt: 'Press [Enter] to pay',
   },
 
   done: {
-    success: 'Payment complete!',
-    detail: `The ${sptAmount} donation went through entirely via API — no forms, no browser, just the agent and the merchant server.`,
+    success: 'Payment complete',
+    detail: `The ${sptAmount} donation went through entirely via API — no forms, no browser.`,
   },
 };
 
@@ -113,32 +111,32 @@ export const SPT_FLOW = {
 export const DEMO_MENU = {
   title: 'Link CLI Demo',
   subtitle:
-    'See how agents use Link to make secure payments on behalf of users.',
-  question: 'Which flow would you like to demo?',
+    'Two flows showing how agents request and use payment credentials with Link.',
+  question: 'Which flow would you like to run?',
   hint: 'Use ↑↓ to select, [Enter] to confirm',
 
   options: [
     {
       key: 'both' as const,
-      label: 'Both',
+      label: 'Both flows',
       description: 'Walk through both flows end-to-end.',
     },
     {
       key: 'card' as const,
-      label: 'Virtual cards',
+      label: 'Virtual card',
       description:
-        'Get a one-time card number to fill into a checkout form, like an agent buying on a website.',
+        'The agent requests a one-time card number and fills it into a checkout form.',
     },
     {
       key: 'spt' as const,
-      label: 'Payment tokens (MPP)',
+      label: 'Machine payment (SPT)',
       description:
-        'Pay a merchant via API using the Machine Payment Protocol — no browser, no forms.',
+        'The agent pays via API using the Machine Payment Protocol — no browser, no forms.',
     },
   ],
 
   transition:
-    "That was the virtual card flow — the agent got a temporary card and could fill it into any checkout form. Next, let's see a completely different approach: the **machine payment** flow, where the agent pays entirely via API with no browser or form involved.",
+    'Virtual card flow done. Next: **machine payment** — the agent pays an API directly, no checkout form needed.',
   transitionPrompt: 'Press [Enter] to continue to Flow 2',
 };
 
@@ -149,7 +147,7 @@ export const DEMO_MENU = {
 export const ONBOARD = {
   title: 'Welcome to Link CLI',
   subtitle:
-    'Link CLI lets agents make secure payments on behalf of users. This setup will get you ready to go.',
+    'Set up Link CLI to let agents make secure payments on your behalf.',
 
   auth: {
     alreadyLoggedIn: 'Already logged in',
@@ -164,16 +162,16 @@ export const ONBOARD = {
     missing: 'No payment methods found in your Link wallet.',
     missingSteps: [
       'Open the Link app or visit link.com',
-      'Add a debit or credit card',
+      'Add a payment method',
       'Come back here and press [Enter] to retry',
     ],
     retryPrompt: 'Press [Enter] to retry',
   },
 
   appTip: {
-    title: 'Tip: Get the Link app',
+    title: 'Get the Link app',
     description:
-      "For the fastest way to approve spend requests, get the Link app on your phone. You'll get push notifications when an agent asks to spend — tap to approve or deny.",
+      'Approve spend requests from your phone. Push notifications let you approve or deny instantly.',
     url: 'https://link.com/download',
   },
 };

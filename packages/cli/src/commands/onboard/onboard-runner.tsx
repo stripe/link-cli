@@ -1,7 +1,6 @@
 import type {
   IPaymentMethodsResource,
   ISpendRequestResource,
-  PaymentMethod,
 } from '@stripe/link-sdk';
 import { storage } from '@stripe/link-sdk';
 import { Box, Text, useInput } from 'ink';
@@ -11,31 +10,14 @@ import type { IAuthResource } from '../../auth/types';
 import { Login } from '../auth/login';
 import { ONBOARD as O } from '../demo/content';
 import { DemoRunner } from '../demo/demo-runner';
-import { AppDownloadQrCodes } from '../spend-request/app-download-qr-codes';
 
-type Phase =
-  | 'welcome'
-  | 'auth'
-  | 'payment-methods'
-  | 'pick-pm'
-  | 'demo'
-  | 'app-tip';
+type Phase = 'welcome' | 'auth' | 'payment-methods' | 'demo';
 
 interface OnboardRunnerProps {
   authRepo: IAuthResource;
   spendRequestRepo: ISpendRequestResource;
   paymentMethodsResource: IPaymentMethodsResource;
   onComplete: () => void;
-}
-
-function formatPm(pm: PaymentMethod): string {
-  if (pm.card_details) {
-    return `${pm.card_details.brand} ****${pm.card_details.last4}`;
-  }
-  if (pm.bank_account_details) {
-    return `${pm.bank_account_details.bank_name} ****${pm.bank_account_details.last4}`;
-  }
-  return pm.type;
 }
 
 export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
@@ -46,9 +28,6 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
 }) => {
   const [phase, setPhase] = useState<Phase>('welcome');
   const [authSkipped, setAuthSkipped] = useState(false);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [selectedPmIndex, setSelectedPmIndex] = useState(0);
-  const [selectedPmId, setSelectedPmId] = useState<string>('');
   const [pmMissing, setPmMissing] = useState(false);
   const [error, setError] = useState<string>('');
 
@@ -69,21 +48,7 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
   }
 
   useInput((_input, key) => {
-    if (phase === 'pick-pm') {
-      if (key.upArrow) {
-        setSelectedPmIndex((i) => (i > 0 ? i - 1 : paymentMethods.length - 1));
-      } else if (key.downArrow) {
-        setSelectedPmIndex((i) => (i < paymentMethods.length - 1 ? i + 1 : 0));
-      } else if (key.return) {
-        const pm = paymentMethods[selectedPmIndex];
-        setSelectedPmId(pm.id);
-        if (enterResolver.current) {
-          const resolve = enterResolver.current;
-          enterResolver.current = null;
-          resolve();
-        }
-      }
-    } else if (key.return && enterResolver.current) {
+    if (key.return && enterResolver.current) {
       const resolve = enterResolver.current;
       enterResolver.current = null;
       resolve();
@@ -98,7 +63,7 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
 
     const run = async () => {
       try {
-        // Phase 1: Auth (no gate for welcome — just show it and proceed)
+        // Phase 1: Auth
         setPhase('auth');
         if (storage.isAuthenticated()) {
           setAuthSkipped(true);
@@ -107,39 +72,18 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
           await waitForAuth();
         }
 
-        // Phase 2: Payment methods
+        // Phase 2: Payment methods — just check at least one exists
         setPhase('payment-methods');
         while (true) {
           const methods = await paymentMethodsResource.listPaymentMethods();
-          if (methods.length > 0) {
-            setPaymentMethods(methods);
-            setPmMissing(false);
-
-            if (methods.length === 1) {
-              // Auto-select the only one
-              setSelectedPmId(methods[0].id);
-              break;
-            }
-
-            // Let user pick
-            const defaultIdx = methods.findIndex((m) => m.is_default);
-            setSelectedPmIndex(defaultIdx >= 0 ? defaultIdx : 0);
-            setPhase('pick-pm');
-            await waitForEnter();
-            break;
-          }
+          if (methods.length > 0) break;
           setPmMissing(true);
           await waitForEnter();
           setPmMissing(false);
         }
 
-        // Phase 3: App tip
-        setPhase('app-tip');
-        await waitForEnter();
-
-        // Phase 4: Demo
+        // Phase 3: Demo
         setPhase('demo');
-        // DemoRunner handles the rest via its own onComplete
       } catch (err) {
         setError((err as Error).message);
       }
@@ -148,14 +92,7 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
   }, []);
 
   const pastPhase = (target: Phase) => {
-    const order: Phase[] = [
-      'welcome',
-      'auth',
-      'payment-methods',
-      'pick-pm',
-      'app-tip',
-      'demo',
-    ];
+    const order: Phase[] = ['welcome', 'auth', 'payment-methods', 'demo'];
     return order.indexOf(phase) > order.indexOf(target);
   };
 
@@ -166,16 +103,9 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
     </Text>
   );
 
-  const selectedPmLabel = selectedPmId
-    ? formatPm(
-        paymentMethods.find((pm) => pm.id === selectedPmId) ??
-          paymentMethods[0],
-      )
-    : '';
-
   return (
     <Box flexDirection="column" gap={1}>
-      {/* Welcome — no gate, just header text */}
+      {/* Welcome */}
       <Box flexDirection="column">
         <Text bold>{O.title}</Text>
         <Text>{O.subtitle}</Text>
@@ -208,68 +138,20 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
               <Text color="yellow">{O.paymentMethods.missing}</Text>
               <Box marginTop={1}>
                 <Text>
-                  To continue, add a card to your Link wallet:{'\n'}
-                  {O.paymentMethods.missingSteps
-                    .map((s, i) => ` ${i + 1}. ${s}`)
-                    .join('\n')}
+                  Visit{' '}
+                  <Text bold color="cyan">
+                    app.link.com/wallet
+                  </Text>{' '}
+                  to add a payment method, then press [Enter] to continue.
                 </Text>
               </Box>
               {prompt(O.paymentMethods.retryPrompt)}
             </Box>
           )}
 
-          {/* PM picker */}
-          {phase === 'pick-pm' && paymentMethods.length > 1 && (
-            <Box flexDirection="column">
-              <Text>{O.paymentMethods.pickPrompt}</Text>
-              <Box flexDirection="column" marginTop={1}>
-                {paymentMethods.map((pm, i) => (
-                  <Text key={pm.id}>
-                    {i === selectedPmIndex ? (
-                      <Text color="cyan" bold>
-                        {'>'} {formatPm(pm)}
-                        {pm.is_default ? ' (default)' : ''}
-                      </Text>
-                    ) : (
-                      <Text dimColor>
-                        {'  '}
-                        {formatPm(pm)}
-                        {pm.is_default ? ' (default)' : ''}
-                      </Text>
-                    )}
-                  </Text>
-                ))}
-              </Box>
-              <Box marginTop={1}>
-                <Text dimColor>{O.paymentMethods.pickHint}</Text>
-              </Box>
-            </Box>
+          {pastPhase('payment-methods') && (
+            <Text color="green">✓ Payment method found</Text>
           )}
-
-          {/* PM selected summary */}
-          {pastPhase('pick-pm') && selectedPmId && (
-            <Text color="green">
-              ✓ Using <Text bold>{selectedPmLabel}</Text>
-            </Text>
-          )}
-        </Box>
-      )}
-
-      {/* App tip — before the demo so the user can grab the app for approvals */}
-      {pastPhase('pick-pm') && !pastPhase('app-tip') && (
-        <Box flexDirection="column">
-          <Box
-            flexDirection="column"
-            borderStyle="round"
-            borderColor="cyan"
-            paddingX={2}
-            paddingY={1}
-          >
-            <Text bold>{O.appTip.title}</Text>
-            <Text>{O.appTip.description}</Text>
-            <AppDownloadQrCodes />
-          </Box>
-          {phase === 'app-tip' && prompt('Press [Enter] to start the demo')}
         </Box>
       )}
 
@@ -281,7 +163,6 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
             authRepo={authRepo}
             spendRequestRepo={spendRequestRepo}
             paymentMethodsResource={paymentMethodsResource}
-            paymentMethodId={selectedPmId}
             onComplete={onComplete}
           />
         </Box>
