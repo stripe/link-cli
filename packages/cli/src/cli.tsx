@@ -69,7 +69,9 @@ configureRootHelp(
   mppCommand,
 );
 
-const notifier = updateNotifier({ pkg: { name: cliName, version: cliVersion } });
+const notifier = updateNotifier({
+  pkg: { name: cliName, version: cliVersion },
+});
 
 const isJsonMode = process.argv.includes('--output-json');
 notifyUpdate(notifier.update, cliName, isJsonMode);
