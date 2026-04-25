@@ -42,7 +42,7 @@ export const DemoRunner: React.FC<DemoRunnerProps> = ({
 }) => {
   const preselected = onlyCard ? 'card' : onlySpt ? 'spt' : null;
   const [choice, setChoice] = useState<Choice | null>(preselected);
-  const [menuIndex, setMenuIndex] = useState(2);
+  const [menuIndex, setMenuIndex] = useState(0);
 
   const postAuthPhase: Phase =
     preselected === 'spt' ? 'spt-flow' : preselected ? 'card-flow' : 'menu';

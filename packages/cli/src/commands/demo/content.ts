@@ -119,6 +119,11 @@ export const DEMO_MENU = {
 
   options: [
     {
+      key: 'both' as const,
+      label: 'Both',
+      description: 'Walk through both flows end-to-end.',
+    },
+    {
       key: 'card' as const,
       label: 'Virtual cards',
       description:
@@ -129,11 +134,6 @@ export const DEMO_MENU = {
       label: 'Payment tokens (MPP)',
       description:
         'Pay a merchant via API using the Machine Payment Protocol — no browser, no forms.',
-    },
-    {
-      key: 'both' as const,
-      label: 'Both',
-      description: 'Walk through both flows end-to-end.',
     },
   ],
 
