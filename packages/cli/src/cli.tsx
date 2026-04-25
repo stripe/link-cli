@@ -6,7 +6,6 @@ import { registerPaymentMethodsCommands } from './commands/payment-methods';
 import { registerSkillCommand } from './commands/skill';
 import { registerSpendRequestCommands } from './commands/spend-request';
 import { configureRootHelp } from './utils/configure-root-help';
-import { notifyUpdate } from './utils/notify-update.js';
 import { ResourceFactory } from './utils/resource-factory';
 
 declare const __CLI_VERSION__: string;
@@ -48,7 +47,11 @@ program
     },
   });
 
-const authCommand = registerAuthCommands(program, authRepo);
+const notifier = updateNotifier({
+  pkg: { name: cliName, version: cliVersion },
+});
+
+const authCommand = registerAuthCommands(program, authRepo, notifier.update);
 const spendRequestCommand = registerSpendRequestCommands(
   program,
   spendRequestRepo,
@@ -69,12 +72,6 @@ configureRootHelp(
   mppCommand,
 );
 
-const notifier = updateNotifier({
-  pkg: { name: cliName, version: cliVersion },
-});
-
-const isJsonMode = process.argv.includes('--output-json');
-notifyUpdate(notifier.update, cliName, isJsonMode);
-if (!isJsonMode) notifier.notify();
+notifier.notify();
 
 program.parse();

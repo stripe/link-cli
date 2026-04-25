@@ -41,4 +41,10 @@ export const AUTH_STATUS_SCHEMA: OutputSchema = {
     outputExample: '"~/.link-cli-nodejs/config.json"',
     description: 'Path to credentials file',
   },
+  update: {
+    outputExample:
+      '{ "current_version": "0.1.2", "latest_version": "0.2.0", "update_command": "npm install -g @stripe/link-cli" }',
+    description:
+      'Present only when a newer version is available — run update_command to upgrade',
+  },
 };
