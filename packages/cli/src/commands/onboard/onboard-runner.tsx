@@ -178,7 +178,7 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
       {/* Welcome — no gate, just header text */}
       <Box flexDirection="column">
         <Text bold>{O.title}</Text>
-        <Text dimColor>{O.subtitle}</Text>
+        <Text>{O.subtitle}</Text>
       </Box>
 
       {/* Auth */}

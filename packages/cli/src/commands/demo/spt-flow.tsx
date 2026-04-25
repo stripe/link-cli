@@ -212,7 +212,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
 
       {pastStep('fetch-pm') && (
         <Box flexDirection="column">
-          <Text dimColor>{S.probe.description}</Text>
+          <Text>{S.probe.description}</Text>
           {step === 'probe' && (
             <Box marginY={1}>
               <Text color="cyan">{S.probe.loading}</Text>
@@ -234,7 +234,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
 
       {pastStep('explain-402') && (
         <Box flexDirection="column">
-          <Text dimColor>{S.createSpend.description}</Text>
+          <Text>{S.createSpend.description}</Text>
           {step === 'create-spend' && (
             <Box marginY={1}>
               <Text color="cyan">{S.createSpend.loading}</Text>
@@ -292,7 +292,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
           {(step === 'mpp-pay-gate' || pastStep('mpp-pay-gate')) && (
             <>
               <Text color="green">✓ Approved!</Text>
-              <Text dimColor>{S.mppPay.description}</Text>
+              <Text>{S.mppPay.description}</Text>
             </>
           )}
           {step === 'mpp-pay-gate' && prompt(S.mppPay.prompt)}
@@ -319,7 +319,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
             <Text>
               Status: <Text bold>HTTP {payResult.status}</Text>
             </Text>
-            {payResult.body && <Text dimColor>{payResult.body}</Text>}
+            {payResult.body && <Text>{payResult.body}</Text>}
           </Box>
           <Box marginTop={1}>
             <Text>{S.done.detail}</Text>

@@ -102,7 +102,7 @@ export const DemoRunner: React.FC<DemoRunnerProps> = ({
     <Box flexDirection="column" gap={1}>
       <Box flexDirection="column">
         <Text bold>{M.title}</Text>
-        <Text dimColor>{M.subtitle}</Text>
+        <Text>{M.subtitle}</Text>
       </Box>
 
       {/* Auth */}

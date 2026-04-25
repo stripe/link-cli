@@ -218,7 +218,7 @@ export const CardFlow: React.FC<CardFlowProps> = ({
       {/* Step 2: Create spend request */}
       {pastStep('explain-pm') && (
         <Box flexDirection="column">
-          <Text dimColor>{C.createSpend.description}</Text>
+          <Text>{C.createSpend.description}</Text>
           {step === 'create-spend' && (
             <Box marginY={1}>
               <Text color="cyan">{C.createSpend.loading}</Text>
