@@ -14,9 +14,6 @@ importers:
       '@changesets/cli':
         specifier: ^2.30.0
         version: 2.30.0(@types/node@22.19.15)
-      '@types/update-notifier':
-        specifier: ^6.0.8
-        version: 6.0.8
       turbo:
         specifier: ^2.9.3
         version: 2.9.3
