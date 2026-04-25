@@ -43,6 +43,7 @@
     "@types/node": "^22.19.15",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^18.3.28",
+    "@types/update-notifier": "^6.0.8",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",

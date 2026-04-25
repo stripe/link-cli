@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import updateNotifier from 'update-notifier';
 import { registerAuthCommands } from './commands/auth';
 import { registerMppCommands } from './commands/mpp';
 import { registerPaymentMethodsCommands } from './commands/payment-methods';
@@ -9,9 +10,11 @@ import { ResourceFactory } from './utils/resource-factory';
 
 declare const __CLI_VERSION__: string;
 declare const __BUILD_NUMBER__: string;
+declare const __CLI_NAME__: string;
 
 const cliVersion = __CLI_VERSION__;
 const buildNumber = __BUILD_NUMBER__;
+const cliName = __CLI_NAME__;
 const defaultHeaders = {
   'User-Agent': `link-cli/${cliVersion} (build ${buildNumber})`,
   'X-Build-Number': buildNumber,
@@ -64,5 +67,23 @@ configureRootHelp(
   skillCommand,
   mppCommand,
 );
+
+const notifier = updateNotifier({ pkg: { name: cliName, version: cliVersion } });
+
+const isJsonMode = process.argv.includes('--output-json');
+if (isJsonMode) {
+  if (notifier.update) {
+    process.stderr.write(
+      `${JSON.stringify({
+        type: 'update_available',
+        current_version: notifier.update.current,
+        latest_version: notifier.update.latest,
+        update_command: `npm install -g ${cliName}`,
+      })}\n`,
+    );
+  }
+} else {
+  notifier.notify();
+}
 
 program.parse();

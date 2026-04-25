@@ -32,5 +32,6 @@ export default defineConfig({
     SKILL_CONTENT: JSON.stringify(skillContent),
     __CLI_VERSION__: JSON.stringify(pkg.version),
     __BUILD_NUMBER__: JSON.stringify(buildNumber),
+    __CLI_NAME__: JSON.stringify(pkg.name),
   },
 });
