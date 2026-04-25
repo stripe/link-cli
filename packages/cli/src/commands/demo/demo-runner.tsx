@@ -2,17 +2,27 @@ import type {
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
+import { storage } from '@stripe/link-sdk';
 import { Box, Text, useInput } from 'ink';
 import type React from 'react';
 import { useCallback, useState } from 'react';
+import type { IAuthResource } from '../../auth/types';
+import { Login } from '../auth/login';
 import { CardFlow } from './card-flow';
-import { DEMO_MENU as M } from './content';
+import { DEMO_MENU as M, ONBOARD as O } from './content';
 import { SptFlow } from './spt-flow';
 
 type Choice = 'card' | 'spt' | 'both';
-type Phase = 'menu' | 'card-flow' | 'card-done' | 'spt-flow' | 'summary';
+type Phase =
+  | 'auth'
+  | 'menu'
+  | 'card-flow'
+  | 'card-done'
+  | 'spt-flow'
+  | 'summary';
 
 interface DemoRunnerProps {
+  authRepo: IAuthResource;
   spendRequestRepo: ISpendRequestResource;
   paymentMethodsResource: IPaymentMethodsResource;
   paymentMethodId?: string;
@@ -22,6 +32,7 @@ interface DemoRunnerProps {
 }
 
 export const DemoRunner: React.FC<DemoRunnerProps> = ({
+  authRepo,
   spendRequestRepo,
   paymentMethodsResource,
   paymentMethodId: preselectedPmId,
@@ -33,9 +44,10 @@ export const DemoRunner: React.FC<DemoRunnerProps> = ({
   const [choice, setChoice] = useState<Choice | null>(preselected);
   const [menuIndex, setMenuIndex] = useState(2);
 
-  const initialPhase: Phase = preselected ? 'card-flow' : 'menu';
+  const postAuthPhase: Phase =
+    preselected === 'spt' ? 'spt-flow' : preselected ? 'card-flow' : 'menu';
   const [phase, setPhase] = useState<Phase>(
-    preselected === 'spt' ? 'spt-flow' : initialPhase,
+    storage.isAuthenticated() ? postAuthPhase : 'auth',
   );
   const [paymentMethodId, setPaymentMethodId] = useState<string>(
     preselectedPmId ?? '',
@@ -92,6 +104,15 @@ export const DemoRunner: React.FC<DemoRunnerProps> = ({
         <Text bold>{M.title}</Text>
         <Text dimColor>{M.subtitle}</Text>
       </Box>
+
+      {/* Auth */}
+      {phase === 'auth' && (
+        <Login
+          authResource={authRepo}
+          clientName={O.auth.clientName}
+          onComplete={() => setPhase(postAuthPhase)}
+        />
+      )}
 
       {/* Menu */}
       {phase === 'menu' && (

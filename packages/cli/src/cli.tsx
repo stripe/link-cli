@@ -57,8 +57,11 @@ const paymentMethodsCommand = registerPaymentMethodsCommands(program, () =>
 
 const skillCommand = registerSkillCommand(program);
 const mppCommand = registerMppCommands(program, spendRequestRepo);
-const demoCommand = registerDemoCommand(program, spendRequestRepo, () =>
-  factory.createPaymentMethodsResource(),
+const demoCommand = registerDemoCommand(
+  program,
+  authRepo,
+  spendRequestRepo,
+  () => factory.createPaymentMethodsResource(),
 );
 const onboardCommand = registerOnboardCommand(
   program,

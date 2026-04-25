@@ -278,6 +278,7 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
         <Box flexDirection="column">
           <Text dimColor>───</Text>
           <DemoRunner
+            authRepo={authRepo}
             spendRequestRepo={spendRequestRepo}
             paymentMethodsResource={paymentMethodsResource}
             paymentMethodId={selectedPmId}

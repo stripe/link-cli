@@ -6,8 +6,8 @@ import type { Command } from 'commander';
 import { render } from 'ink';
 import React from 'react';
 import { z } from 'zod';
+import type { IAuthResource } from '../../auth/types';
 import { registerSchemaOptions, resolveInput } from '../../utils/json-options';
-import { requireAuth } from '../../utils/require-auth';
 import { DemoRunner } from './demo-runner';
 
 const DEMO_INPUT_SCHEMA = {
@@ -27,6 +27,7 @@ const DEMO_INPUT_SCHEMA = {
 
 export function registerDemoCommand(
   program: Command,
+  authRepo: IAuthResource,
   spendRequestRepo: ISpendRequestResource,
   createPaymentMethodsResource: () => IPaymentMethodsResource,
 ): Command {
@@ -44,8 +45,6 @@ export function registerDemoCommand(
       `JSON input (keys: ${Object.keys(DEMO_INPUT_SCHEMA).join(', ')})`,
     )
     .action(async (options) => {
-      requireAuth();
-
       if (!process.stdout.isTTY) {
         process.stderr.write(
           'The demo command requires an interactive terminal.\n',
@@ -58,6 +57,7 @@ export function registerDemoCommand(
 
       const { waitUntilExit } = render(
         <DemoRunner
+          authRepo={authRepo}
           spendRequestRepo={spendRequestRepo}
           paymentMethodsResource={paymentMethodsResource}
           onlyCard={!!resolved.only_card}
