@@ -1,10 +1,12 @@
 import type { ISpendRequestResource } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
-import { Challenge, Credential } from 'mppx';
+import { Credential, Method } from 'mppx';
+import { Mppx, Transport } from 'mppx/client';
+import { Methods as StripeMethods } from 'mppx/stripe';
 import React, { useEffect, useState } from 'react';
 import { outputError } from '../../utils/execute-command';
-import { decodeStripeChallenge } from './decode';
+import { getStripeChargeChallengeFromResponse } from './decode';
 
 export type PayResult = {
   status: number;
@@ -44,6 +46,36 @@ async function readPayResult(
   }
 
   return { status: response.status, headers: responseHeaders, body };
+}
+
+function createStripePaymentClient(spt: string) {
+  const stripeCharge = Method.toClient(StripeMethods.charge, {
+    async createCredential({ challenge }) {
+      return Credential.serialize({
+        challenge,
+        payload: { spt },
+      });
+    },
+  });
+
+  return Mppx.create({
+    methods: [stripeCharge],
+    polyfill: false,
+    transport: Transport.from<RequestInit, Response>({
+      name: 'stripe-http',
+      isPaymentRequired(response) {
+        return response.status === 402;
+      },
+      getChallenge(response) {
+        return getStripeChargeChallengeFromResponse(response);
+      },
+      setCredential(request, credential) {
+        const nextHeaders = new Headers(request.headers);
+        nextHeaders.set('Authorization', credential);
+        return { ...request, headers: nextHeaders };
+      },
+    }),
+  });
 }
 
 export async function runMppPay(
@@ -103,27 +135,10 @@ export async function runMppPay(
     return readPayResult(initialResponse);
   }
 
-  // 5. Parse challenges, find stripe
-  const decoded = decodeStripeChallenge(
-    initialResponse.headers.get('www-authenticate') ?? '',
-  );
-  const stripeChallenge = Challenge.from({
-    id: decoded.id,
-    realm: decoded.realm,
-    method: decoded.method,
-    intent: decoded.intent,
-    request: decoded.request_json,
-    ...(decoded.description ? { description: decoded.description } : {}),
-    ...(decoded.digest ? { digest: decoded.digest } : {}),
-    ...(decoded.expires ? { expires: decoded.expires } : {}),
-  });
-
-  // 6. Build and serialize credential
-  const credential = Credential.from({
-    challenge: stripeChallenge,
-    payload: { spt },
-  });
-  const authHeader = Credential.serialize(credential);
+  // 5. Select the Stripe challenge and build the payment credential
+  const authHeader = await createStripePaymentClient(
+    spt,
+  ).createCredential(initialResponse);
 
   // 7. Retry with Authorization header
   const retryResponse = await fetch(url, {
@@ -206,25 +221,9 @@ export function MppPay({
         }
 
         setStep('signing');
-        const decoded = decodeStripeChallenge(
-          initialResponse.headers.get('www-authenticate') ?? '',
-        );
-        const stripeChallenge = Challenge.from({
-          id: decoded.id,
-          realm: decoded.realm,
-          method: decoded.method,
-          intent: decoded.intent,
-          request: decoded.request_json,
-          ...(decoded.description ? { description: decoded.description } : {}),
-          ...(decoded.digest ? { digest: decoded.digest } : {}),
-          ...(decoded.expires ? { expires: decoded.expires } : {}),
-        });
-
-        const credential = Credential.from({
-          challenge: stripeChallenge,
-          payload: { spt },
-        });
-        const authHeader = Credential.serialize(credential);
+        const authHeader = await createStripePaymentClient(
+          spt,
+        ).createCredential(initialResponse);
 
         setStep('submitting');
         const retryResponse = await fetch(url, {
