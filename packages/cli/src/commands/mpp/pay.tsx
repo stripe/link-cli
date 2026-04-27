@@ -30,6 +30,22 @@ function buildHeaders(
   return result;
 }
 
+async function readPayResult(
+  response: Response,
+  options?: { failOnError?: boolean },
+): Promise<PayResult> {
+  const responseHeaders = Object.fromEntries(response.headers.entries());
+  const body = await response.text();
+
+  if (options?.failOnError && !response.ok) {
+    throw new Error(
+      `Payment submission failed with status ${response.status}: ${body}`,
+    );
+  }
+
+  return { status: response.status, headers: responseHeaders, body };
+}
+
 export async function runMppPay(
   url: string,
   spendRequestId: string,
@@ -84,11 +100,7 @@ export async function runMppPay(
 
   // 4. If not 402, return as-is
   if (initialResponse.status !== 402) {
-    const responseHeaders = Object.fromEntries(
-      initialResponse.headers.entries(),
-    );
-    const body = await initialResponse.text();
-    return { status: initialResponse.status, headers: responseHeaders, body };
+    return readPayResult(initialResponse);
   }
 
   // 5. Parse challenges, find stripe
@@ -123,16 +135,7 @@ export async function runMppPay(
     },
   });
 
-  if (!retryResponse.ok) {
-    const body = await retryResponse.text();
-    outputError(
-      `Payment submission failed with status ${retryResponse.status}: ${body}`,
-    );
-  }
-
-  const responseHeaders = Object.fromEntries(retryResponse.headers.entries());
-  const body = await retryResponse.text();
-  return { status: retryResponse.status, headers: responseHeaders, body };
+  return readPayResult(retryResponse, { failOnError: true });
 }
 
 type Step = 'retrieving' | 'probing' | 'signing' | 'submitting' | 'done';
@@ -196,15 +199,7 @@ export function MppPay({
         });
 
         if (initialResponse.status !== 402) {
-          const responseHeaders = Object.fromEntries(
-            initialResponse.headers.entries(),
-          );
-          const body = await initialResponse.text();
-          setResult({
-            status: initialResponse.status,
-            headers: responseHeaders,
-            body,
-          });
+          setResult(await readPayResult(initialResponse));
           setStep('done');
           onComplete();
           return;
@@ -241,15 +236,7 @@ export function MppPay({
           },
         });
 
-        const responseHeaders = Object.fromEntries(
-          retryResponse.headers.entries(),
-        );
-        const body = await retryResponse.text();
-        setResult({
-          status: retryResponse.status,
-          headers: responseHeaders,
-          body,
-        });
+        setResult(await readPayResult(retryResponse, { failOnError: true }));
         setStep('done');
         onComplete();
       } catch (err) {

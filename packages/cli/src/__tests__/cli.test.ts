@@ -830,6 +830,29 @@ describe('production mode', () => {
       expect(merchantRequests[1].headers.authorization).toMatch(/^Payment /);
     });
 
+    it('exits 1 when the paid retry fails', async () => {
+      setNextResponse(200, APPROVED_SPT_REQUEST);
+      setMerchantResponse(402, '{"error":"payment required"}', {
+        'www-authenticate': WWW_AUTHENTICATE_STRIPE,
+      });
+      setMerchantResponse(401, '{"error":"spt rejected"}');
+
+      const result = await runProdCli(
+        'mpp',
+        'pay',
+        `http://127.0.0.1:${merchantPort}/api/charge`,
+        '--spend-request-id',
+        'lsrq_spt_001',
+        '--output-json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      const err = parseJson(result.stderr) as { error: string };
+      expect(err.error).toContain('Payment submission failed with status 401');
+      expect(err.error).toContain('spt rejected');
+      expect(merchantRequests).toHaveLength(2);
+    });
+
     it('passthrough: no 402 returns response without signing', async () => {
       setNextResponse(200, APPROVED_SPT_REQUEST);
       setMerchantResponse(200, '{"ok":true}');
