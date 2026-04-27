@@ -136,9 +136,8 @@ export async function runMppPay(
   }
 
   // 5. Select the Stripe challenge and build the payment credential
-  const authHeader = await createStripePaymentClient(
-    spt,
-  ).createCredential(initialResponse);
+  const authHeader =
+    await createStripePaymentClient(spt).createCredential(initialResponse);
 
   // 7. Retry with Authorization header
   const retryResponse = await fetch(url, {
@@ -221,9 +220,10 @@ export function MppPay({
         }
 
         setStep('signing');
-        const authHeader = await createStripePaymentClient(
-          spt,
-        ).createCredential(initialResponse);
+        const authHeader =
+          await createStripePaymentClient(spt).createCredential(
+            initialResponse,
+          );
 
         setStep('submitting');
         const retryResponse = await fetch(url, {
