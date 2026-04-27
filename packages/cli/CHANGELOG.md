@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.2.1
+
+### Patch Changes
+
+- ef4e362: Fix bug with update-notifier
+
 ## 0.2.0
 
 ### Minor Changes
