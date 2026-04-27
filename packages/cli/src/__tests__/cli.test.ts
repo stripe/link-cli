@@ -607,7 +607,7 @@ describe('production mode', () => {
             postal_code: '94111',
             country: 'US',
           },
-          valid_until: 1750000000,
+          valid_until: '2025-06-15T06:13:20Z',
         },
       });
 
@@ -624,7 +624,7 @@ describe('production mode', () => {
       expect(request.status).toBe('approved');
       const card = request.card as Record<string, unknown>;
       expect(card.number).toBe('4242424242424242');
-      expect(card.valid_until).toBe(1750000000);
+      expect(card.valid_until).toBe('2025-06-15T06:13:20Z');
       const billingAddress = card.billing_address as Record<string, unknown>;
       expect(billingAddress.name).toBe('Jane Doe');
       expect(billingAddress.line1).toBe('123 Main St');
