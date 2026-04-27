@@ -76,7 +76,9 @@ export function createAuthCli(authResource: IAuthResource) {
 
       if (!c.agent && !c.formatExplicit) {
         return new Promise((resolve) => {
-          const { waitUntilExit } = render(<Logout authResource={authResource} onComplete={() => {}} />);
+          const { waitUntilExit } = render(
+            <Logout authResource={authResource} onComplete={() => {}} />,
+          );
           waitUntilExit().then(() => resolve(result));
         });
       }
