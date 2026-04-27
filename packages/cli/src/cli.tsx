@@ -40,7 +40,11 @@ cli.command(
 );
 cli.command(createMppCli(spendRequestRepo));
 
-notifier.notify();
+const isAgent =
+  process.argv.includes('--format') || process.argv.includes('--mcp');
+if (!isAgent) {
+  notifier.notify({ defer: false });
+}
 
 cli.serve();
 
