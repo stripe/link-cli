@@ -1,12 +1,15 @@
 {
   "name": "link",
-  "description": "Link CLI lets agents get secure, one-time-use payment credentials from a Link wallet — so they can complete purchases on your behalf without ever storing your real card details.",
-  "version": "0.1.0",
+  "description": "Secure, one-time-use payment credentials from Link",
+  "version": "0.2.1",
   "author": {
     "name": "Stripe",
     "url": "https://link.com/agents"
   },
   "homepage": "https://link.com/agents",
   "repository": "https://github.com/stripe/link-cli",
-  "license": "MIT"
+  "license": "MIT",
+  "keywords": ["payments", "finance"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
 }
