@@ -26,23 +26,18 @@ user-invocable: true
 
 # Creating Payment Credentials
 
-Use the Link CLI to get secure, one-time-use payment credentials from a Link wallet to complete purchases.
+Use Link to get secure, one-time-use payment credentials from a Link wallet to complete purchases.
 
-## Installation
+## Choosing how to call Link
 
-Install the CLI with
+Link CLI can run as an **MCP server** or as a **standalone CLI**. Always prefer the MCP server when available — it avoids shell parsing issues and is the intended integration path.
 
-```bash
-npm install -g @stripe/link-cli
-```
+1. **Check for the MCP server first.** Look for a `link-cli` MCP server in your active MCP connections. If present, call its tools directly (e.g. `auth_status`, `auth_login`, `spend-request_create`, `payment-methods_list`, `mpp_pay`, `mpp_decode`).
+2. **Fall back to the CLI** only if the MCP server is not available. Install it with `npm install -g @stripe/link-cli`, then use the shell commands documented below.
 
-Install the skill file with
+The rest of this document shows CLI commands. When using the MCP server, map each command to its corresponding MCP tool — the parameters and behavior are identical.
 
-```bash
-npx skills add stripe/link-cli
-```
-
-## Running commands
+## Running commands (CLI fallback)
 
 All commands support `--output-json` for machine-readable output. Use `--json` to pass structured input. Always run `link-cli <command> --help` before running the command to see full schema details, including all fields, types, and constraints.
 

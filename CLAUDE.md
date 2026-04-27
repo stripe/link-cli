@@ -47,7 +47,7 @@ Commands in `packages/cli/src/cli.tsx` (Commander.js). Each has two output modes
 - **Interactive** (default): Ink/React components from `packages/cli/src/commands/`
 - **JSON** (`--output-json`): JSON to stdout, errors as JSON to stderr with exit code 1
 
-Commands: `auth login|logout|status`, `spend-request create|update|retrieve|request-approval`, `payment-methods list`, `mpp pay`, `skill`.
+Commands: `auth login|logout|status`, `spend-request create|update|retrieve|request-approval`, `payment-methods list`, `mpp pay`.
 
 **When adding a new command, always update `configureRootHelp` in `packages/cli/src/utils/configure-root-help.ts`** to include it in the root help output. Pass the command as a parameter and add it to the appropriate section (or a new one).
 

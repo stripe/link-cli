@@ -2,7 +2,6 @@ import { Cli } from 'incur';
 import { createAuthCli } from './commands/auth';
 import { createMppCli } from './commands/mpp';
 import { createPaymentMethodsCli } from './commands/payment-methods';
-import { skillCli } from './commands/skill';
 import { createSpendRequestCli } from './commands/spend-request';
 import { ResourceFactory } from './utils/resource-factory';
 
@@ -35,7 +34,6 @@ cli.command(
   createPaymentMethodsCli(() => factory.createPaymentMethodsResource()),
 );
 cli.command(createMppCli(spendRequestRepo));
-cli.command(skillCli);
 
 cli.serve();
 
