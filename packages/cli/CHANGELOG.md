@@ -1,5 +1,16 @@
 # @stripe/link-cli
 
+## 0.2.0
+
+### Minor Changes
+
+- eb2115d: Adds local stdio mcp server and agent-friendly formatting
+
+### Patch Changes
+
+- ae735ec: Use mpp to parse challenge directly
+- ae735ec: Adds update-notifier and bug fixes
+
 ## 0.1.2
 
 ### Patch Changes
