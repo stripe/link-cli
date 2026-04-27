@@ -8,7 +8,10 @@ import { Logout } from './logout';
 import { loginOptions, statusOptions } from './schema';
 import { AuthStatus } from './status';
 
-export function createAuthCli(authResource: IAuthResource) {
+export function createAuthCli(
+  authResource: IAuthResource,
+  updateInfo?: { current: string; latest: string },
+) {
   const cli = Cli.create('auth', {
     description: 'Authentication commands',
   });
@@ -118,12 +121,20 @@ export function createAuthCli(authResource: IAuthResource) {
         }
 
         const auth = storage.getAuth();
+        const update = updateInfo
+          ? {
+              current_version: updateInfo.current,
+              latest_version: updateInfo.latest,
+              update_command: 'npm install -g @stripe/link-cli',
+            }
+          : undefined;
         if (auth) {
           yield {
             authenticated: true,
             access_token: `${auth.access_token.substring(0, 20)}...`,
             token_type: auth.token_type,
             credentials_path: storage.getPath(),
+            ...(update && { update }),
           };
           return;
         }
@@ -132,6 +143,7 @@ export function createAuthCli(authResource: IAuthResource) {
         const status = {
           authenticated: false,
           credentials_path: storage.getPath(),
+          ...(update && { update }),
           ...(currentPending
             ? {
                 pending: true,

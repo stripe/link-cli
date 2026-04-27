@@ -1,4 +1,5 @@
 import { Cli } from 'incur';
+import updateNotifier from 'update-notifier';
 import { createAuthCli } from './commands/auth';
 import { createMppCli } from './commands/mpp';
 import { createPaymentMethodsCli } from './commands/payment-methods';
@@ -22,18 +23,24 @@ const factory = new ResourceFactory({ verbose, defaultHeaders });
 const authRepo = factory.createAuthResource();
 const spendRequestRepo = factory.createSpendRequestResource();
 
+const notifier = updateNotifier({
+  pkg: { name: cliName, version: cliVersion },
+});
+
 const cli = Cli.create('link-cli', {
   description:
     'Create a secure, one-time payment credential from a Link wallet to let agents complete purchases on behalf of users.',
   version: `${cliVersion} (build ${buildNumber})`,
 });
 
-cli.command(createAuthCli(authRepo));
+cli.command(createAuthCli(authRepo, notifier.update));
 cli.command(createSpendRequestCli(spendRequestRepo));
 cli.command(
   createPaymentMethodsCli(() => factory.createPaymentMethodsResource()),
 );
 cli.command(createMppCli(spendRequestRepo));
+
+notifier.notify();
 
 cli.serve();
 
