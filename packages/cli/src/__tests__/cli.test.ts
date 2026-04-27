@@ -863,12 +863,15 @@ describe('production mode', () => {
         `http://127.0.0.1:${merchantPort}/api/charge`,
         '--spend-request-id',
         'lsrq_spt_001',
-        '--format', 'json',
+        '--format',
+        'json',
       );
 
       expect(result.exitCode).toBe(1);
       const err = parseJson(result.stdout) as { message: string };
-      expect(err.message).toContain('Payment submission failed with status 401');
+      expect(err.message).toContain(
+        'Payment submission failed with status 401',
+      );
       expect(err.message).toContain('spt rejected');
       expect(merchantRequests).toHaveLength(2);
     });
@@ -886,7 +889,8 @@ describe('production mode', () => {
         `http://127.0.0.1:${merchantPort}/api/charge`,
         '--spend-request-id',
         'lsrq_spt_001',
-        '--format', 'json',
+        '--format',
+        'json',
       );
 
       expect(result.exitCode).toBe(0);

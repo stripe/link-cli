@@ -39,15 +39,15 @@ The rest of this document shows CLI commands. When using the MCP server, map eac
 
 ## Running commands (CLI fallback)
 
-All commands support `--output-json` for machine-readable output. Use `--json` to pass structured input. Always run `link-cli <command> --help` before running the command to see full schema details, including all fields, types, and constraints.
+All commands support `--format json` for machine-readable output. Pass input via flags (run `link-cli <command> --help` to see full schema details, including all fields, types, and constraints).
 
 IMPORTANT: Run `auth login`, `spend-request create`, and `spend-request request-approval` with `run_in_background=true` (or `TaskOutput(task_id, block: false)`). These commands emit JSON to stdout before they exit, then keep running while they poll for user action.
 
 The JSON stream contract for these long-running commands is:
 
-- `auth login --output-json`: first object contains `verification_url` and `passphrase`; final object contains authentication result after approval succeeds
-- `spend-request create --request-approval --output-json`: first object is the created spend request; final object is the terminal spend request after polling completes
-- `spend-request request-approval --output-json`: first object contains the approval link; final object is the terminal spend request after polling completes
+- `auth login --format json`: first object contains `verification_url` and `passphrase`; final object contains authentication result after approval succeeds
+- `spend-request create --request-approval --format json`: first object is the created spend request; final object is the terminal spend request after polling completes
+- `spend-request request-approval --format json`: first object contains the approval link; final object is the terminal spend request after polling completes
 
 Always keep reading stdout until the process exits. Do not assume the first JSON object is the full result. The user MUST visit the verification or approval URL to continue, and you should always show that full URL in clear text.
 
@@ -66,7 +66,7 @@ Copy this checklist and track progress:
 Check auth status:
 
 ```bash
-link-cli auth status --output-json
+link-cli auth status --format json
 ```
 
 If the response includes an `update` field, a newer version of `link-cli` is available — run the `update_command` from that field to upgrade before proceeding.
@@ -74,7 +74,7 @@ If the response includes an `update` field, a newer version of `link-cli` is ava
 If not authenticated:
 
 ```bash
-link-cli auth login --client-name "<your-agent-name>" --output-json
+link-cli auth login --client-name "<your-agent-name>" --format json
 ```
 
 Replace `<your-agent-name>` with the name of your agent or application (e.g. `"Personal Assistant", "Shopping Bot"`). This name appears in the user's Link app when they approve the connection. Use a clear, unique, identifiable name. Display the url and passphrase to the user, with the guidance "Please visit the following URL to approve secure access to Link.”
@@ -109,7 +109,7 @@ What you find determines which credential type to use:
 To derive `network_id`, use Link CLI's challenge decoder:
 
 ```bash
-link-cli mpp decode --challenge '<raw WWW-Authenticate header>' --output-json
+link-cli mpp decode --challenge '<raw WWW-Authenticate header>' --format json
 ```
 
 This validates the Stripe challenge, decodes the `request` payload, and returns both the extracted `network_id` and the decoded request JSON. Pass the full header exactly as received, even if it also contains non-Stripe or multiple `Payment` challenges.
@@ -119,29 +119,35 @@ This validates the Stripe challenge, decodes the `request` payload, and returns 
 Use the default payment method, unless the user explicitly asks to select a different one.
 
 ```bash
-link-cli payment-methods list --output-json
+link-cli payment-methods list --format json
 ```
 
 ### Step 4: Create the spend request with the right credential type
 
 ```bash
-link-cli spend-request create --json "{request}" --output-json
+link-cli spend-request create \
+  --payment-method-id <id> \
+  --amount <cents> \
+  --context "<description>" \
+  --merchant-name "<name>" \
+  --merchant-url "<url>" \
+  --format json
 ```
 
 Wait until the user has approved the spend request. If they deny, ask for clarification what to do next.
 
 Recommend the user approves with the [Link app](https://link.com/download). Show the download URL.
 
-**Test mode:** Add `"test": true` to the JSON input (or `--test` flag) to create testmode credentials instead of real ones. Useful for development and integration testing.
+**Test mode:** Add `--test` to create testmode credentials instead of real ones. Useful for development and integration testing.
 
 ### Step 5: Complete payment
 
-**Card:** Run `link-cli spend-request retrieve <id> --include card --output-json` to get the `card` object with `number`, `cvc`, `exp_month`, `exp_year`, `billing_address` (name, line1, line2, city, state, postal_code, country), and `valid_until` (unix timestamp — the card stops working after this time). Enter these details into the merchant's checkout form.
+**Card:** Run `link-cli spend-request retrieve <id> --include card --format json` to get the `card` object with `number`, `cvc`, `exp_month`, `exp_year`, `billing_address` (name, line1, line2, city, state, postal_code, country), and `valid_until` (unix timestamp — the card stops working after this time). Enter these details into the merchant's checkout form.
 
 **SPT with 402 flow:** The SPT is **one-time use** — if the payment fails, you need a new spend request and new SPT.
 
 ```bash
-link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount":100}'] [--header 'Name: Value'] --output-json
+link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount":100}'] [--header 'Name: Value'] --format json
 ```
 
 `mpp pay` handles the full 402 flow automatically: probes the URL, parses the `www-authenticate` header, builds the `Authorization: Payment` credential using the SPT, and retries.
@@ -156,7 +162,7 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 
 ## Errors
 
-All errors go to stderr as `{"error": "..."}` with exit code 1.
+All errors are output as JSON with `code` and `message` fields, with exit code 1.
 
 ### Common errors and recovery
 
