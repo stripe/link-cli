@@ -720,7 +720,7 @@ describe('production mode', () => {
     it('sends POST to /device/revoke with refresh token then clears auth', async () => {
       setResponseForUrl('/device/revoke', 200, 'ok');
 
-      const result = await runProdCli('auth', 'logout', '--output-json');
+      const result = await runProdCli('auth', 'logout', '--format', 'json');
 
       expect(result.exitCode).toBe(0);
       const parsed = parseJson(result.stdout) as Record<string, unknown>;
@@ -741,7 +741,7 @@ describe('production mode', () => {
         error: 'server_error',
       });
 
-      const result = await runProdCli('auth', 'logout', '--output-json');
+      const result = await runProdCli('auth', 'logout', '--format', 'json');
 
       expect(result.exitCode).toBe(0);
       const parsed = parseJson(result.stdout) as Record<string, unknown>;
@@ -751,7 +751,7 @@ describe('production mode', () => {
     it('succeeds when no auth tokens are stored', async () => {
       storage.clearAuth();
 
-      const result = await runProdCli('auth', 'logout', '--output-json');
+      const result = await runProdCli('auth', 'logout', '--format', 'json');
 
       expect(result.exitCode).toBe(0);
       const parsed = parseJson(result.stdout) as Record<string, unknown>;
@@ -863,13 +863,13 @@ describe('production mode', () => {
         `http://127.0.0.1:${merchantPort}/api/charge`,
         '--spend-request-id',
         'lsrq_spt_001',
-        '--output-json',
+        '--format', 'json',
       );
 
       expect(result.exitCode).toBe(1);
-      const err = parseJson(result.stderr) as { error: string };
-      expect(err.error).toContain('Payment submission failed with status 401');
-      expect(err.error).toContain('spt rejected');
+      const err = parseJson(result.stdout) as { message: string };
+      expect(err.message).toContain('Payment submission failed with status 401');
+      expect(err.message).toContain('spt rejected');
       expect(merchantRequests).toHaveLength(2);
     });
 
@@ -886,7 +886,7 @@ describe('production mode', () => {
         `http://127.0.0.1:${merchantPort}/api/charge`,
         '--spend-request-id',
         'lsrq_spt_001',
-        '--output-json',
+        '--format', 'json',
       );
 
       expect(result.exitCode).toBe(0);

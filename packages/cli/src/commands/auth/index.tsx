@@ -69,6 +69,14 @@ export function createAuthCli(authResource: IAuthResource) {
     description: 'Log out from Link',
     outputPolicy: 'agent-only' as const,
     async run(c) {
+      const auth = storage.getAuth();
+      if (auth?.refresh_token) {
+        try {
+          await authResource.revokeToken(auth.refresh_token);
+        } catch {
+          // best-effort: clear local storage regardless
+        }
+      }
       storage.clearAuth();
       storage.clearPendingDeviceAuth();
       storage.deleteConfig();
