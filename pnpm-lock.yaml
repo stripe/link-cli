@@ -23,9 +23,9 @@ importers:
 
   packages/cli:
     dependencies:
-      commander:
-        specifier: ^12.1.0
-        version: 12.1.0
+      incur:
+        specifier: ^0.4.1
+        version: 0.4.1
       ink:
         specifier: ^5.2.1
         version: 5.2.1(@types/react@18.3.28)(react@18.3.1)
@@ -34,7 +34,7 @@ importers:
         version: 5.0.0(ink@5.2.1(@types/react@18.3.28)(react@18.3.1))(react@18.3.1)
       mppx:
         specifier: ^0.5.7
-        version: 0.5.7(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(express@5.2.1)(hono@4.12.12)(openapi-types@12.1.3)(typescript@5.9.3)(viem@2.47.10(typescript@5.9.3)(zod@4.3.6))
+        version: 0.5.7(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.3.6))(express@5.2.1)(hono@4.12.12)(typescript@5.9.3)(viem@2.47.10(typescript@5.9.3)(zod@4.3.6))
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
@@ -68,7 +68,7 @@ importers:
         version: 6.0.8
       tsup:
         specifier: ^8.5.1
-        version: 8.5.1(postcss@8.5.10)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+        version: 8.5.1(postcss@8.5.8)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -93,7 +93,7 @@ importers:
         version: 22.19.15
       tsup:
         specifier: ^8.5.1
-        version: 8.5.1(postcss@8.5.10)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+        version: 8.5.1(postcss@8.5.8)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -111,20 +111,6 @@ packages:
   '@alcalzone/ansi-tokenize@0.1.3':
     resolution: {integrity: sha512-3yWxPTq3UQ/FY9p1ErPxIyfT64elWaMvM9lIHnaqpyft63tkxodF5aUElYHrdisWve5cETkh1+KBw1yJuW0aRw==}
     engines: {node: '>=14.13.1'}
-
-  '@apidevtools/json-schema-ref-parser@14.2.1':
-    resolution: {integrity: sha512-HmdFw9CDYqM6B25pqGBpNeLCKvGPlIx1EbLrVL0zPvj50CJQUHyBNBw45Muk0kEIkogo1VZvOKHajdMuAzSxRg==}
-    engines: {node: '>= 20'}
-    peerDependencies:
-      '@types/json-schema': ^7.0.15
-
-  '@babel/code-frame@7.29.0':
-    resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
-    engines: {node: '>=6.9.0'}
-
-  '@babel/helper-validator-identifier@7.28.5':
-    resolution: {integrity: sha512-qSs4ifwzKJSV39ucNjsvc6WVHs6b7S03sOh2OcHF9UHfVPqWWALUsNUVzhSBiItjRZoLHx7nIarVjqKVusUZ1Q==}
-    engines: {node: '>=6.9.0'}
 
   '@babel/runtime@7.29.2':
     resolution: {integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==}
@@ -186,6 +172,9 @@ packages:
     engines: {node: '>=14.21.3'}
     cpu: [x64]
     os: [win32]
+
+  '@cfworker/json-schema@4.1.1':
+    resolution: {integrity: sha512-gAmrUZSGtKc3AiBL71iNWxDsyUC5uMaKKGdvzYsBoTW/xi42JQHl7eKV2OYzCUqvc+D2RCcf7EXY2iCyFIk6og==}
 
   '@changesets/apply-release-plan@7.1.0':
     resolution: {integrity: sha512-yq8ML3YS7koKQ/9bk1PqO0HMzApIFNwjlwCnwFEXMzNe8NpzeeYYKCmnhWJGkN8g7E51MnWaSbqRcTcdIxUgnQ==}
@@ -413,10 +402,6 @@ packages:
     peerDependencies:
       hono: ^4
 
-  '@humanwhocodes/momoa@2.0.4':
-    resolution: {integrity: sha512-RE815I4arJFtt+FVeU1Tgp9/Xvecacji8w/V6XtXsWWH/wz/eNkNbhb+ny/+PlVZjV0rxQpRSQKNKE3lcktHEA==}
-    engines: {node: '>=10.10.0'}
-
   '@inquirer/external-editor@1.0.3':
     resolution: {integrity: sha512-RWbSrDiYmO4LbejWY7ttpxczuwQyZLBUyygsA9Nsv95hpzUWwnNTVQmAq3xuh7vNwCp07UTmE5i11XAEExx4RA==}
     engines: {node: '>=18'}
@@ -455,8 +440,17 @@ packages:
       '@cfworker/json-schema':
         optional: true
 
-  '@napi-rs/wasm-runtime@1.1.4':
-    resolution: {integrity: sha512-3NQNNgA1YSlJb/kMH1ildASP9HW7/7kYnRI2szWJaofaS1hWmbGI4H+d3+22aGzXXN9IJ+n+GiFVcGipJP18ow==}
+  '@modelcontextprotocol/server@2.0.0-alpha.2':
+    resolution: {integrity: sha512-gmLgdHzlYM8L7Aw/+VE0kxjT25WKamtUSLNhdOgrJq5CrESvqVSoAfWSJJeNPUXNTluQ+dYDGFbKVitdsJtbPA==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@cfworker/json-schema': ^4.1.1
+    peerDependenciesMeta:
+      '@cfworker/json-schema':
+        optional: true
+
+  '@napi-rs/wasm-runtime@1.1.2':
+    resolution: {integrity: sha512-sNXv5oLJ7ob93xkZ1XnxisYhGYXfaG9f65/ZgYuAu3qt7b3NadcOEhLvx28hv31PgX8SZJRYrAIPQilQmFpLVw==}
     peerDependencies:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
@@ -499,22 +493,6 @@ packages:
   '@pnpm/npm-conf@3.0.2':
     resolution: {integrity: sha512-h104Kh26rR8tm+a3Qkc5S4VLYint3FE48as7+/5oCEcKR2idC/pF1G6AhIXKI+eHPJa/3J9i5z0Al47IeGHPkA==}
     engines: {node: '>=12'}
-
-  '@readme/better-ajv-errors@2.4.0':
-    resolution: {integrity: sha512-9WODaOAKSl/mU+MYNZ2aHCrkoRSvmQ+1YkLj589OEqqjOAhbn8j7Z+ilYoiTu/he6X63/clsxxAB4qny9/dDzg==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      ajv: 4.11.8 - 8
-
-  '@readme/openapi-parser@6.0.1':
-    resolution: {integrity: sha512-uMtwMPVv86Xr5Y6A+QFrxLwWW1irJp3TIz7R3Zs2WaX383MPYX5kaQemPBsaHCu58ZULd+bosNIGUoFW8KM5Ew==}
-    engines: {node: '>=20'}
-    peerDependencies:
-      openapi-types: '>=7'
-
-  '@readme/openapi-schemas@3.1.0':
-    resolution: {integrity: sha512-9FC/6ho8uFa8fV50+FPy/ngWN53jaUu4GRXlAjcxIRrzhltJnpKkBG2Tp0IDraFJeWrOpk84RJ9EMEEYzaI1Bw==}
-    engines: {node: '>=18'}
 
   '@remix-run/fetch-proxy@0.7.1':
     resolution: {integrity: sha512-rPLfOpAaCXtm1dLI45uIPKERNbXbrh0P9AJc1sliz8pWd/McaFYjdr5KzB4QrFSfPvEt/Wmy6F2521qB1kK0ug==}
@@ -821,9 +799,6 @@ packages:
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
 
-  '@types/json-schema@7.0.15':
-    resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
-
   '@types/node@12.20.55':
     resolution: {integrity: sha512-J8xLz7q2OFulZ2cyGTLE1TbbZcjpno7FaN6zdJNrgAdrJ+DZzh/uFR6YrTb4C+nXakvud8Q4+rbhoIWlYQbUFQ==}
 
@@ -890,14 +865,6 @@ packages:
     resolution: {integrity: sha512-UVJyE9MttOsBQIDKw1skb9nAwQuR5wuGD3+82K6JgJlm/Y+KI92oNsMNGZCYdDsVtRHSak0pcV5Dno5+4jh9sw==}
     engines: {node: '>=0.4.0'}
     hasBin: true
-
-  ajv-draft-04@1.0.0:
-    resolution: {integrity: sha512-mv00Te6nmYbRp5DCwclxtt7yV/joXJPGS7nM+97GdxvuttCOfgI3K4U25zboyeX0O+myI8ERluxQe5wljMmVIw==}
-    peerDependencies:
-      ajv: ^8.5.0
-    peerDependenciesMeta:
-      ajv:
-        optional: true
 
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
@@ -1059,10 +1026,6 @@ packages:
 
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
-
-  commander@12.1.0:
-    resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
-    engines: {node: '>=18'}
 
   commander@4.1.1:
     resolution: {integrity: sha512-NOKm8xhkzAjzFx8B2v5OAHT+u5pRQc2UCa2Vq9jYL/31o2wi9mxBA7LIFs3sV5VSC49z6pEhfbMULvShKj26WA==}
@@ -1403,8 +1366,13 @@ packages:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
     engines: {node: '>= 4'}
 
-  incur@0.3.19:
-    resolution: {integrity: sha512-LvVwb8ZNYb7FwbHreL9eBqPq4HYS0Q3tF4/kU36YVzw3cZrdqKRKzezRUYIoX4T0JQYUOwWcbmyMAvoUbWuFxA==}
+  incur@0.3.25:
+    resolution: {integrity: sha512-jrSkzauM42ilbQJ6THVkAY6dTulkyVW0sZpVHdA8gfiBwrLrLnLUf8U3bAOegAKBIMSOFgk1idchgu9xm9HMng==}
+    engines: {node: '>=22'}
+    hasBin: true
+
+  incur@0.4.1:
+    resolution: {integrity: sha512-+0JwzFYrPsuASGBJp7ya3HRT+ET406L57wmbji52bAlxHWPIRC9Zh4ZWaatsj1nqZGHAbHse5KBs7P3L3ytc8g==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -1537,10 +1505,6 @@ packages:
   jsonfile@4.0.0:
     resolution: {integrity: sha512-m6F1R3z8jjlf2imQHS2Qez5sjKWQzbuuhuJ/FKYFRZvPE3PuHcSMVZzfsLhGVOkfd20obL5SWEBew5ShlquNxg==}
 
-  jsonpointer@5.0.1:
-    resolution: {integrity: sha512-p/nXbhSEcu3pZRdkW1OfJhpsVtW1gd4Wa1fnQc9YLiTfAjn0312eMKimbdIQzuZl9aa9xUGaRlP9T/CJE/ditQ==}
-    engines: {node: '>=0.10.0'}
-
   ky@1.14.3:
     resolution: {integrity: sha512-9zy9lkjac+TR1c2tG+mkNSVlyOpInnWdSMiue4F+kq8TwJSgv6o8jhLRg8Ho6SnZ9wOYUq/yozts9qQCfk7bIw==}
     engines: {node: '>=18'}
@@ -1548,10 +1512,6 @@ packages:
   latest-version@9.0.0:
     resolution: {integrity: sha512-7W0vV3rqv5tokqkBAFV1LbR7HPOWzXQDpDgEuib/aJ1jsZZx6x3c2mBI+TJhJzOhkGeaLbCKEHXEXLfirtG2JA==}
     engines: {node: '>=18'}
-
-  leven@3.1.0:
-    resolution: {integrity: sha512-qsda+H8jTaUaN/x5vzW2rzc+8Rw4TAQ/4KjB46IwK5VH+IlVeeeje/EoZRpiXvIqjFgK84QffqPztGI3VBLG1A==}
-    engines: {node: '>=6'}
 
   lightningcss-android-arm64@1.32.0:
     resolution: {integrity: sha512-YK7/ClTt4kAK0vo6w3X+Pnm0D2cf2vPHbhOXdoNti1Ga0al1P4TBZhwjATvjNwLEBCnKvjJc2jQgHXH0NEwlAg==}
@@ -1754,9 +1714,6 @@ packages:
     resolution: {integrity: sha512-kbpaSSGJTWdAY5KPVeMOKXSrPtr8C8C7wodJbcsd51jRnmD+GZu8Y0VoU6Dm5Z4vWr0Ig/1NKuWRKf7j5aaYSg==}
     engines: {node: '>=6'}
 
-  openapi-types@12.1.3:
-    resolution: {integrity: sha512-N4YtSYJqghVu4iek2ZUvcN/0aqH1kRDuNqzcycDxhOUpg7GdvLa2F3DgS6yBNhInhv2r/6I0Flkn7CqL8+nIcw==}
-
   outdent@0.5.0:
     resolution: {integrity: sha512-/jHxFIzoMXdqPzTaCpFzAAWhpkSjZPF4Vsn6jAfNpmbH/ymsmd7Qc6VE9BGn0L6YMj6uwpQLxCECpus4ukKS9Q==}
 
@@ -1869,8 +1826,8 @@ packages:
       yaml:
         optional: true
 
-  postcss@8.5.10:
-    resolution: {integrity: sha512-pMMHxBOZKFU6HgAZ4eyGnwXF/EvPGGqUr0MnZ5+99485wwW41kW91A4LOGxSHhgugZmSChL5AlElNdwlNgcnLQ==}
+  postcss@8.5.8:
+    resolution: {integrity: sha512-OW/rX8O/jXnm82Ey1k44pObPtdblfiuWnrd8X7GJ7emImCOstunGbXUpp7HdBrFQX6rJzn3sPT397Wp5aCwCHg==}
     engines: {node: ^10 || ^12 || >=14}
 
   prettier@2.8.8:
@@ -2146,10 +2103,6 @@ packages:
 
   tinyglobby@0.2.15:
     resolution: {integrity: sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ==}
-    engines: {node: '>=12.0.0'}
-
-  tinyglobby@0.2.16:
-    resolution: {integrity: sha512-pn99VhoACYR8nFHhxqix+uvsbXineAasWm5ojXoN8xEwK5Kd3/TrhNn1wByuD52UxWRLy8pu+kRMniEi6Eq9Zg==}
     engines: {node: '>=12.0.0'}
 
   tinyrainbow@3.1.0:
@@ -2437,19 +2390,6 @@ snapshots:
       ansi-styles: 6.2.3
       is-fullwidth-code-point: 4.0.0
 
-  '@apidevtools/json-schema-ref-parser@14.2.1(@types/json-schema@7.0.15)':
-    dependencies:
-      '@types/json-schema': 7.0.15
-      js-yaml: 4.1.1
-
-  '@babel/code-frame@7.29.0':
-    dependencies:
-      '@babel/helper-validator-identifier': 7.28.5
-      js-tokens: 4.0.0
-      picocolors: 1.1.1
-
-  '@babel/helper-validator-identifier@7.28.5': {}
-
   '@babel/runtime@7.29.2': {}
 
   '@biomejs/biome@1.9.4':
@@ -2486,6 +2426,8 @@ snapshots:
 
   '@biomejs/cli-win32-x64@1.9.4':
     optional: true
+
+  '@cfworker/json-schema@4.1.1': {}
 
   '@changesets/apply-release-plan@7.1.0':
     dependencies:
@@ -2727,8 +2669,7 @@ snapshots:
   '@hono/node-server@1.19.13(hono@4.12.12)':
     dependencies:
       hono: 4.12.12
-
-  '@humanwhocodes/momoa@2.0.4': {}
+    optional: true
 
   '@inquirer/external-editor@1.0.3(@types/node@22.19.15)':
     dependencies:
@@ -2767,7 +2708,7 @@ snapshots:
       globby: 11.1.0
       read-yaml-file: 1.1.0
 
-  '@modelcontextprotocol/sdk@1.29.0(zod@4.3.6)':
+  '@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.3.6)':
     dependencies:
       '@hono/node-server': 1.19.13(hono@4.12.12)
       ajv: 8.18.0
@@ -2786,10 +2727,19 @@ snapshots:
       raw-body: 3.0.2
       zod: 4.3.6
       zod-to-json-schema: 3.25.2(zod@4.3.6)
+    optionalDependencies:
+      '@cfworker/json-schema': 4.1.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
-  '@napi-rs/wasm-runtime@1.1.4(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)':
+  '@modelcontextprotocol/server@2.0.0-alpha.2(@cfworker/json-schema@4.1.1)':
+    dependencies:
+      zod: 4.3.6
+    optionalDependencies:
+      '@cfworker/json-schema': 4.1.1
+
+  '@napi-rs/wasm-runtime@1.1.2(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)':
     dependencies:
       '@emnapi/core': 1.9.1
       '@emnapi/runtime': 1.9.1
@@ -2829,28 +2779,6 @@ snapshots:
       '@pnpm/config.env-replace': 1.1.0
       '@pnpm/network.ca-file': 1.0.2
       config-chain: 1.1.13
-
-  '@readme/better-ajv-errors@2.4.0(ajv@8.18.0)':
-    dependencies:
-      '@babel/code-frame': 7.29.0
-      '@babel/runtime': 7.29.2
-      '@humanwhocodes/momoa': 2.0.4
-      ajv: 8.18.0
-      jsonpointer: 5.0.1
-      leven: 3.1.0
-      picocolors: 1.1.1
-
-  '@readme/openapi-parser@6.0.1(openapi-types@12.1.3)':
-    dependencies:
-      '@apidevtools/json-schema-ref-parser': 14.2.1(@types/json-schema@7.0.15)
-      '@readme/better-ajv-errors': 2.4.0(ajv@8.18.0)
-      '@readme/openapi-schemas': 3.1.0
-      '@types/json-schema': 7.0.15
-      ajv: 8.18.0
-      ajv-draft-04: 1.0.0(ajv@8.18.0)
-      openapi-types: 12.1.3
-
-  '@readme/openapi-schemas@3.1.0': {}
 
   '@remix-run/fetch-proxy@0.7.1':
     dependencies:
@@ -2898,7 +2826,7 @@ snapshots:
 
   '@rolldown/binding-wasm32-wasi@1.0.0-rc.10(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)':
     dependencies:
-      '@napi-rs/wasm-runtime': 1.1.4(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)
+      '@napi-rs/wasm-runtime': 1.1.2(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -3038,8 +2966,6 @@ snapshots:
 
   '@types/estree@1.0.8': {}
 
-  '@types/json-schema@7.0.15': {}
-
   '@types/node@12.20.55': {}
 
   '@types/node@22.19.15':
@@ -3112,12 +3038,9 @@ snapshots:
     dependencies:
       mime-types: 3.0.2
       negotiator: 1.0.0
+    optional: true
 
   acorn@8.16.0: {}
-
-  ajv-draft-04@1.0.0(ajv@8.18.0):
-    optionalDependencies:
-      ajv: 8.18.0
 
   ajv-formats@3.0.1(ajv@8.18.0):
     optionalDependencies:
@@ -3186,6 +3109,7 @@ snapshots:
       type-is: 2.0.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   boxen@7.1.1:
     dependencies:
@@ -3218,7 +3142,8 @@ snapshots:
       esbuild: 0.27.4
       load-tsconfig: 0.2.5
 
-  bytes@3.1.2: {}
+  bytes@3.1.2:
+    optional: true
 
   cac@6.7.14: {}
 
@@ -3226,11 +3151,13 @@ snapshots:
     dependencies:
       es-errors: 1.3.0
       function-bind: 1.1.2
+    optional: true
 
   call-bound@1.0.4:
     dependencies:
       call-bind-apply-helpers: 1.0.2
       get-intrinsic: 1.3.0
+    optional: true
 
   camelcase@5.3.1: {}
 
@@ -3277,8 +3204,6 @@ snapshots:
 
   color-name@1.1.4: {}
 
-  commander@12.1.0: {}
-
   commander@4.1.1: {}
 
   conf@13.1.0:
@@ -3309,22 +3234,27 @@ snapshots:
 
   consola@3.4.2: {}
 
-  content-disposition@1.0.1: {}
+  content-disposition@1.0.1:
+    optional: true
 
-  content-type@1.0.5: {}
+  content-type@1.0.5:
+    optional: true
 
   convert-source-map@2.0.0: {}
 
   convert-to-spaces@2.0.1: {}
 
-  cookie-signature@1.2.2: {}
+  cookie-signature@1.2.2:
+    optional: true
 
-  cookie@0.7.2: {}
+  cookie@0.7.2:
+    optional: true
 
   cors@2.8.6:
     dependencies:
       object-assign: 4.1.1
       vary: 1.1.2
+    optional: true
 
   cross-spawn@7.0.6:
     dependencies:
@@ -3346,7 +3276,8 @@ snapshots:
 
   deep-extend@0.6.0: {}
 
-  depd@2.0.0: {}
+  depd@2.0.0:
+    optional: true
 
   detect-indent@6.1.0: {}
 
@@ -3367,10 +3298,12 @@ snapshots:
       call-bind-apply-helpers: 1.0.2
       es-errors: 1.3.0
       gopd: 1.2.0
+    optional: true
 
   eastasianwidth@0.2.0: {}
 
-  ee-first@1.1.1: {}
+  ee-first@1.1.1:
+    optional: true
 
   emoji-regex@10.6.0: {}
 
@@ -3378,7 +3311,8 @@ snapshots:
 
   emoji-regex@9.2.2: {}
 
-  encodeurl@2.0.0: {}
+  encodeurl@2.0.0:
+    optional: true
 
   enquirer@2.4.1:
     dependencies:
@@ -3389,15 +3323,18 @@ snapshots:
 
   environment@1.1.0: {}
 
-  es-define-property@1.0.1: {}
+  es-define-property@1.0.1:
+    optional: true
 
-  es-errors@1.3.0: {}
+  es-errors@1.3.0:
+    optional: true
 
   es-module-lexer@2.0.0: {}
 
   es-object-atoms@1.1.1:
     dependencies:
       es-errors: 1.3.0
+    optional: true
 
   es-toolkit@1.45.1: {}
 
@@ -3432,7 +3369,8 @@ snapshots:
 
   escape-goat@4.0.0: {}
 
-  escape-html@1.0.3: {}
+  escape-html@1.0.3:
+    optional: true
 
   escape-string-regexp@2.0.0: {}
 
@@ -3442,15 +3380,18 @@ snapshots:
     dependencies:
       '@types/estree': 1.0.8
 
-  etag@1.8.1: {}
+  etag@1.8.1:
+    optional: true
 
   eventemitter3@5.0.1: {}
 
-  eventsource-parser@3.0.6: {}
+  eventsource-parser@3.0.6:
+    optional: true
 
   eventsource@3.0.7:
     dependencies:
       eventsource-parser: 3.0.6
+    optional: true
 
   expect-type@1.3.0: {}
 
@@ -3458,6 +3399,7 @@ snapshots:
     dependencies:
       express: 5.2.1
       ip-address: 10.1.0
+    optional: true
 
   express@5.2.1:
     dependencies:
@@ -3491,6 +3433,7 @@ snapshots:
       vary: 1.1.2
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   extendable-error@0.1.7: {}
 
@@ -3528,6 +3471,7 @@ snapshots:
       statuses: 2.0.2
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   find-up@4.1.0:
     dependencies:
@@ -3540,9 +3484,11 @@ snapshots:
       mlly: 1.8.2
       rollup: 4.60.1
 
-  forwarded@0.2.0: {}
+  forwarded@0.2.0:
+    optional: true
 
-  fresh@2.0.0: {}
+  fresh@2.0.0:
+    optional: true
 
   fs-extra@7.0.1:
     dependencies:
@@ -3559,7 +3505,8 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
-  function-bind@1.1.2: {}
+  function-bind@1.1.2:
+    optional: true
 
   get-caller-file@2.0.5: {}
 
@@ -3577,11 +3524,13 @@ snapshots:
       has-symbols: 1.1.0
       hasown: 2.0.2
       math-intrinsics: 1.1.0
+    optional: true
 
   get-proto@1.0.1:
     dependencies:
       dunder-proto: 1.0.1
       es-object-atoms: 1.1.1
+    optional: true
 
   get-tsconfig@4.13.7:
     dependencies:
@@ -3604,19 +3553,23 @@ snapshots:
       merge2: 1.4.1
       slash: 3.0.0
 
-  gopd@1.2.0: {}
+  gopd@1.2.0:
+    optional: true
 
   graceful-fs@4.2.10: {}
 
   graceful-fs@4.2.11: {}
 
-  has-symbols@1.1.0: {}
+  has-symbols@1.1.0:
+    optional: true
 
   hasown@2.0.2:
     dependencies:
       function-bind: 1.1.2
+    optional: true
 
-  hono@4.12.12: {}
+  hono@4.12.12:
+    optional: true
 
   http-errors@2.0.1:
     dependencies:
@@ -3625,6 +3578,7 @@ snapshots:
       setprototypeof: 1.2.0
       statuses: 2.0.2
       toidentifier: 1.0.1
+    optional: true
 
   human-id@4.1.3: {}
 
@@ -3634,22 +3588,28 @@ snapshots:
 
   ignore@5.3.2: {}
 
-  incur@0.3.19(openapi-types@12.1.3):
+  incur@0.3.25:
     dependencies:
-      '@modelcontextprotocol/sdk': 1.29.0(zod@4.3.6)
-      '@readme/openapi-parser': 6.0.1(openapi-types@12.1.3)
+      '@cfworker/json-schema': 4.1.1
+      '@modelcontextprotocol/server': 2.0.0-alpha.2(@cfworker/json-schema@4.1.1)
       '@toon-format/toon': 2.1.0
       tokenx: 1.3.0
       yaml: 2.8.3
       zod: 4.3.6
-    transitivePeerDependencies:
-      - '@cfworker/json-schema'
-      - openapi-types
-      - supports-color
+
+  incur@0.4.1:
+    dependencies:
+      '@cfworker/json-schema': 4.1.1
+      '@modelcontextprotocol/server': 2.0.0-alpha.2(@cfworker/json-schema@4.1.1)
+      '@toon-format/toon': 2.1.0
+      tokenx: 1.3.0
+      yaml: 2.8.3
+      zod: 4.3.6
 
   indent-string@5.0.0: {}
 
-  inherits@2.0.4: {}
+  inherits@2.0.4:
+    optional: true
 
   ini@1.3.8: {}
 
@@ -3694,9 +3654,11 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  ip-address@10.1.0: {}
+  ip-address@10.1.0:
+    optional: true
 
-  ipaddr.js@1.9.1: {}
+  ipaddr.js@1.9.1:
+    optional: true
 
   is-extglob@2.1.1: {}
 
@@ -3725,7 +3687,8 @@ snapshots:
 
   is-path-inside@4.0.0: {}
 
-  is-promise@4.0.0: {}
+  is-promise@4.0.0:
+    optional: true
 
   is-subdir@1.2.0:
     dependencies:
@@ -3739,7 +3702,8 @@ snapshots:
     dependencies:
       ws: 8.18.3
 
-  jose@6.2.2: {}
+  jose@6.2.2:
+    optional: true
 
   joycon@3.1.1: {}
 
@@ -3762,15 +3726,11 @@ snapshots:
     optionalDependencies:
       graceful-fs: 4.2.11
 
-  jsonpointer@5.0.1: {}
-
   ky@1.14.3: {}
 
   latest-version@9.0.0:
     dependencies:
       package-json: 10.0.1
-
-  leven@3.1.0: {}
 
   lightningcss-android-arm64@1.32.0:
     optional: true
@@ -3841,11 +3801,14 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  math-intrinsics@1.1.0: {}
+  math-intrinsics@1.1.0:
+    optional: true
 
-  media-typer@1.1.0: {}
+  media-typer@1.1.0:
+    optional: true
 
-  merge-descriptors@2.0.0: {}
+  merge-descriptors@2.0.0:
+    optional: true
 
   merge2@1.4.1: {}
 
@@ -3854,11 +3817,13 @@ snapshots:
       braces: 3.0.3
       picomatch: 2.3.2
 
-  mime-db@1.54.0: {}
+  mime-db@1.54.0:
+    optional: true
 
   mime-types@3.0.2:
     dependencies:
       mime-db: 1.54.0
+    optional: true
 
   mimic-fn@2.1.0: {}
 
@@ -3873,22 +3838,19 @@ snapshots:
       pkg-types: 1.3.1
       ufo: 1.6.3
 
-  mppx@0.5.7(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(express@5.2.1)(hono@4.12.12)(openapi-types@12.1.3)(typescript@5.9.3)(viem@2.47.10(typescript@5.9.3)(zod@4.3.6)):
+  mppx@0.5.7(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.3.6))(express@5.2.1)(hono@4.12.12)(typescript@5.9.3)(viem@2.47.10(typescript@5.9.3)(zod@4.3.6)):
     dependencies:
       '@remix-run/fetch-proxy': 0.7.1
       '@remix-run/node-fetch-server': 0.13.0
-      incur: 0.3.19(openapi-types@12.1.3)
+      incur: 0.3.25
       ox: 0.14.7(typescript@5.9.3)(zod@4.3.6)
       viem: 2.47.10(typescript@5.9.3)(zod@4.3.6)
       zod: 4.3.6
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.29.0(zod@4.3.6)
+      '@modelcontextprotocol/sdk': 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.3.6)
       express: 5.2.1
       hono: 4.12.12
     transitivePeerDependencies:
-      - '@cfworker/json-schema'
-      - openapi-types
-      - supports-color
       - typescript
 
   mri@1.2.0: {}
@@ -3903,27 +3865,29 @@ snapshots:
 
   nanoid@3.3.11: {}
 
-  negotiator@1.0.0: {}
+  negotiator@1.0.0:
+    optional: true
 
   object-assign@4.1.1: {}
 
-  object-inspect@1.13.4: {}
+  object-inspect@1.13.4:
+    optional: true
 
   obug@2.1.1: {}
 
   on-finished@2.4.1:
     dependencies:
       ee-first: 1.1.1
+    optional: true
 
   once@1.4.0:
     dependencies:
       wrappy: 1.0.2
+    optional: true
 
   onetime@5.1.2:
     dependencies:
       mimic-fn: 2.1.0
-
-  openapi-types@12.1.3: {}
 
   outdent@0.5.0: {}
 
@@ -3969,7 +3933,8 @@ snapshots:
     dependencies:
       quansync: 0.2.11
 
-  parseurl@1.3.3: {}
+  parseurl@1.3.3:
+    optional: true
 
   patch-console@2.0.0: {}
 
@@ -3977,7 +3942,8 @@ snapshots:
 
   path-key@3.1.1: {}
 
-  path-to-regexp@8.4.2: {}
+  path-to-regexp@8.4.2:
+    optional: true
 
   path-type@4.0.0: {}
 
@@ -3993,7 +3959,8 @@ snapshots:
 
   pirates@4.0.7: {}
 
-  pkce-challenge@5.0.1: {}
+  pkce-challenge@5.0.1:
+    optional: true
 
   pkg-types@1.3.1:
     dependencies:
@@ -4003,15 +3970,15 @@ snapshots:
 
   pngjs@5.0.0: {}
 
-  postcss-load-config@6.0.1(postcss@8.5.10)(tsx@4.21.0)(yaml@2.8.3):
+  postcss-load-config@6.0.1(postcss@8.5.8)(tsx@4.21.0)(yaml@2.8.3):
     dependencies:
       lilconfig: 3.1.3
     optionalDependencies:
-      postcss: 8.5.10
+      postcss: 8.5.8
       tsx: 4.21.0
       yaml: 2.8.3
 
-  postcss@8.5.10:
+  postcss@8.5.8:
     dependencies:
       nanoid: 3.3.11
       picocolors: 1.1.1
@@ -4025,6 +3992,7 @@ snapshots:
     dependencies:
       forwarded: 0.2.0
       ipaddr.js: 1.9.1
+    optional: true
 
   pupa@3.3.0:
     dependencies:
@@ -4039,12 +4007,14 @@ snapshots:
   qs@6.15.0:
     dependencies:
       side-channel: 1.1.0
+    optional: true
 
   quansync@0.2.11: {}
 
   queue-microtask@1.2.3: {}
 
-  range-parser@1.2.1: {}
+  range-parser@1.2.1:
+    optional: true
 
   raw-body@3.0.2:
     dependencies:
@@ -4052,6 +4022,7 @@ snapshots:
       http-errors: 2.0.1
       iconv-lite: 0.7.2
       unpipe: 1.0.0
+    optional: true
 
   rc@1.2.8:
     dependencies:
@@ -4168,6 +4139,7 @@ snapshots:
       path-to-regexp: 8.4.2
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   run-parallel@1.2.0:
     dependencies:
@@ -4196,6 +4168,7 @@ snapshots:
       statuses: 2.0.2
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   serve-static@2.2.1:
     dependencies:
@@ -4205,10 +4178,12 @@ snapshots:
       send: 1.2.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   set-blocking@2.0.0: {}
 
-  setprototypeof@1.2.0: {}
+  setprototypeof@1.2.0:
+    optional: true
 
   shebang-command@2.0.0:
     dependencies:
@@ -4220,6 +4195,7 @@ snapshots:
     dependencies:
       es-errors: 1.3.0
       object-inspect: 1.13.4
+    optional: true
 
   side-channel-map@1.0.1:
     dependencies:
@@ -4227,6 +4203,7 @@ snapshots:
       es-errors: 1.3.0
       get-intrinsic: 1.3.0
       object-inspect: 1.13.4
+    optional: true
 
   side-channel-weakmap@1.0.2:
     dependencies:
@@ -4235,6 +4212,7 @@ snapshots:
       get-intrinsic: 1.3.0
       object-inspect: 1.13.4
       side-channel-map: 1.0.1
+    optional: true
 
   side-channel@1.1.0:
     dependencies:
@@ -4243,6 +4221,7 @@ snapshots:
       side-channel-list: 1.0.0
       side-channel-map: 1.0.1
       side-channel-weakmap: 1.0.2
+    optional: true
 
   siginfo@2.0.0: {}
 
@@ -4279,7 +4258,8 @@ snapshots:
 
   stackback@0.0.2: {}
 
-  statuses@2.0.2: {}
+  statuses@2.0.2:
+    optional: true
 
   std-env@4.0.0: {}
 
@@ -4350,18 +4330,14 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
 
-  tinyglobby@0.2.16:
-    dependencies:
-      fdir: 6.5.0(picomatch@4.0.4)
-      picomatch: 4.0.4
-
   tinyrainbow@3.1.0: {}
 
   to-regex-range@5.0.1:
     dependencies:
       is-number: 7.0.0
 
-  toidentifier@1.0.1: {}
+  toidentifier@1.0.1:
+    optional: true
 
   tokenx@1.3.0: {}
 
@@ -4372,7 +4348,7 @@ snapshots:
   tslib@2.8.1:
     optional: true
 
-  tsup@8.5.1(postcss@8.5.10)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3):
+  tsup@8.5.1(postcss@8.5.8)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3):
     dependencies:
       bundle-require: 5.1.0(esbuild@0.27.4)
       cac: 6.7.14
@@ -4383,7 +4359,7 @@ snapshots:
       fix-dts-default-cjs-exports: 1.0.1
       joycon: 3.1.1
       picocolors: 1.1.1
-      postcss-load-config: 6.0.1(postcss@8.5.10)(tsx@4.21.0)(yaml@2.8.3)
+      postcss-load-config: 6.0.1(postcss@8.5.8)(tsx@4.21.0)(yaml@2.8.3)
       resolve-from: 5.0.0
       rollup: 4.60.1
       source-map: 0.7.6
@@ -4392,7 +4368,7 @@ snapshots:
       tinyglobby: 0.2.15
       tree-kill: 1.2.2
     optionalDependencies:
-      postcss: 8.5.10
+      postcss: 8.5.8
       typescript: 5.9.3
     transitivePeerDependencies:
       - jiti
@@ -4425,6 +4401,7 @@ snapshots:
       content-type: 1.0.5
       media-typer: 1.1.0
       mime-types: 3.0.2
+    optional: true
 
   typescript@5.9.3: {}
 
@@ -4436,7 +4413,8 @@ snapshots:
 
   universalify@0.1.2: {}
 
-  unpipe@1.0.0: {}
+  unpipe@1.0.0:
+    optional: true
 
   update-notifier@7.3.1:
     dependencies:
@@ -4451,7 +4429,8 @@ snapshots:
       semver: 7.7.4
       xdg-basedir: 5.1.0
 
-  vary@1.1.2: {}
+  vary@1.1.2:
+    optional: true
 
   viem@2.47.10(typescript@5.9.3)(zod@4.3.6):
     dependencies:
@@ -4474,9 +4453,9 @@ snapshots:
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.4
-      postcss: 8.5.10
+      postcss: 8.5.8
       rolldown: 1.0.0-rc.10(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)
-      tinyglobby: 0.2.16
+      tinyglobby: 0.2.15
     optionalDependencies:
       '@types/node': 22.19.15
       esbuild: 0.27.4
@@ -4553,7 +4532,8 @@ snapshots:
       string-width: 7.2.0
       strip-ansi: 7.2.0
 
-  wrappy@1.0.2: {}
+  wrappy@1.0.2:
+    optional: true
 
   ws@8.18.3: {}
 
@@ -4589,5 +4569,6 @@ snapshots:
   zod-to-json-schema@3.25.2(zod@4.3.6):
     dependencies:
       zod: 4.3.6
+    optional: true
 
   zod@4.3.6: {}

@@ -5,7 +5,6 @@ import { Credential, Method } from 'mppx';
 import { Mppx, Transport } from 'mppx/client';
 import { Methods as StripeMethods } from 'mppx/stripe';
 import React, { useEffect, useState } from 'react';
-import { outputError } from '../../utils/execute-command';
 import { getStripeChargeChallengeFromResponse } from './decode';
 
 export type PayResult = {
@@ -92,32 +91,23 @@ export async function runMppPay(
   });
 
   if (!spendRequest) {
-    outputError(`Spend request ${spendRequestId} not found`);
+    throw new Error(`Spend request ${spendRequestId} not found`);
   }
-  if (
-    (spendRequest as NonNullable<typeof spendRequest>).credential_type !==
-    'shared_payment_token'
-  ) {
-    const type =
-      (spendRequest as NonNullable<typeof spendRequest>).credential_type ??
-      'card';
-    outputError(
+  if (spendRequest.credential_type !== 'shared_payment_token') {
+    const type = spendRequest.credential_type ?? 'card';
+    throw new Error(
       `Spend request ${spendRequestId} must have credential_type 'shared_payment_token' (current: '${type}')`,
     );
   }
-  if (
-    (spendRequest as NonNullable<typeof spendRequest>).status !== 'approved'
-  ) {
-    outputError(
-      `Spend request must be approved (current status: ${(spendRequest as NonNullable<typeof spendRequest>).status})`,
+  if (spendRequest.status !== 'approved') {
+    throw new Error(
+      `Spend request must be approved (current status: ${spendRequest.status})`,
     );
   }
-  const sptObj = (spendRequest as NonNullable<typeof spendRequest>)
-    .shared_payment_token;
-  if (!sptObj) {
-    outputError('Spend request does not have a shared payment token');
+  if (!spendRequest.shared_payment_token) {
+    throw new Error('Spend request does not have a shared payment token');
   }
-  const spt = (sptObj as NonNullable<typeof sptObj>).id;
+  const spt = spendRequest.shared_payment_token.id;
 
   // 2. Determine method
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');

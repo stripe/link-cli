@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "link-cli": {
+      "command": "pnpx",
+      "args": ["link-cli", "--mcp"]
+    }
+  }
+}

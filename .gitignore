@@ -8,3 +8,5 @@ dist/
 CLAUDE.local.md
 docs/
 packages/cli/README.md
+.claude/
+.codex/
