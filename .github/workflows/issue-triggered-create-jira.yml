@@ -31,7 +31,9 @@ jobs:
             '{
               project: "PQTEST",
               summary: ("New GitHub Issue: " + $title),
-              description: ("Issue #" + $number + " opened by " + $author + ".\n*URL:* " + $url + ".\n*Body:*\n\n" + $body)
+              description: ("Issue #" + $number + " opened by " + $author + ".\n*URL:* " + $url + ".\n*Body:*\n\n" + $body),
+              issuetype: "Bug",
+              labels: ["project-LINK_AI_WALLET"]
             }')
 
           # Compute HMAC-SHA256 signature of the body using the secret as a hex key
