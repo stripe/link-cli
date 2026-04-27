@@ -709,7 +709,7 @@ describe('production mode', () => {
       expect(output[0].verification_url).toBe(
         'https://app.link.com/device/setup?code=apple-grape',
       );
-      expect(output[0].passphrase).toBe('apple-grape');
+      expect(output[0].phrase).toBe('apple-grape');
       const next = output[0]._next as Record<string, unknown>;
       expect(next.command).toContain('auth status');
       expect(next.until).toContain('authenticated');

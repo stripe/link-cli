@@ -49,11 +49,11 @@ export function createAuthCli(authResource: IAuthResource) {
         interval: authRequest.interval,
         expires_at: Date.now() + authRequest.expires_in * 1000,
         verification_url: authRequest.verification_url_complete,
-        passphrase: authRequest.user_code,
+        phrase: authRequest.user_code,
       });
       yield {
         verification_url: authRequest.verification_url_complete,
-        passphrase: authRequest.user_code,
+        phrase: authRequest.user_code,
         instruction:
           'Present the verification_url to the user and ask them to approve in the Link app. Then call `auth status --interval 5 --max-attempts 60` to poll until authenticated. Do not wait for the user to reply — start polling immediately.',
         _next: {
@@ -136,7 +136,7 @@ export function createAuthCli(authResource: IAuthResource) {
             ? {
                 pending: true,
                 verification_url: currentPending.verification_url,
-                passphrase: currentPending.passphrase,
+                phrase: currentPending.phrase,
               }
             : {}),
         };

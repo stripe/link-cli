@@ -132,7 +132,7 @@ export const Login: React.FC<LoginProps> = ({
         </Text>
         <Text dimColor>Press Enter to open in browser</Text>
         <Text>
-          Enter passphrase:{' '}
+          Enter phrase:{' '}
           <Text bold color="yellow">
             {userCode}
           </Text>

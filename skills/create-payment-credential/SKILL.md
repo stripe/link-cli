@@ -45,7 +45,7 @@ IMPORTANT: Run `auth login`, `spend-request create`, and `spend-request request-
 
 The JSON stream contract for these long-running commands is:
 
-- `auth login --format json`: first object contains `verification_url` and `passphrase`; final object contains authentication result after approval succeeds
+- `auth login --format json`: first object contains `verification_url` and `phrase`; final object contains authentication result after approval succeeds
 - `spend-request create --request-approval --format json`: first object is the created spend request; final object is the terminal spend request after polling completes
 - `spend-request request-approval --format json`: first object contains the approval link; final object is the terminal spend request after polling completes
 
@@ -77,7 +77,7 @@ If not authenticated:
 link-cli auth login --client-name "<your-agent-name>" --format json
 ```
 
-Replace `<your-agent-name>` with the name of your agent or application (e.g. `"Personal Assistant", "Shopping Bot"`). This name appears in the user's Link app when they approve the connection. Use a clear, unique, identifiable name. Display the url and passphrase to the user, with the guidance "Please visit the following URL to approve secure access to Link.”
+Replace `<your-agent-name>` with the name of your agent or application (e.g. `"Personal Assistant", "Shopping Bot"`). This name appears in the user's Link app when they approve the connection. Use a clear, unique, identifiable name. Display the url and phrase to the user, with the guidance "Please visit the following URL to approve secure access to Link.”
 
 DO NOT PROCEED until the user is authenticated with Link.
 
