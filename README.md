@@ -26,7 +26,7 @@ The `link-cli` requires a Link account. You can login to your existing one or [r
 link-cli auth login
 ```
 
-You'll receive a verification URL and a short passphrase. Visit the URL, log in to your Link account, and enter the passphrase to approve the connection.
+You'll receive a verification URL and a short phrase. Visit the URL, log in to your Link account, and enter the phrase to approve the connection.
 
 ### List payment methods
 
