@@ -15,6 +15,7 @@ function createMockAuthRepo(
     initiateDeviceAuth: vi.fn(),
     pollDeviceAuth: vi.fn(),
     refreshToken: vi.fn(async () => refreshResult),
+    revokeToken: vi.fn(async () => {}),
   };
 }
 

@@ -1,10 +1,11 @@
 import type { ISpendRequestResource } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
-import { Challenge, Credential } from 'mppx';
+import { Credential, Method } from 'mppx';
+import { Mppx, Transport } from 'mppx/client';
+import { Methods as StripeMethods } from 'mppx/stripe';
 import React, { useEffect, useState } from 'react';
-import { outputError } from '../../utils/execute-command';
-import { decodeStripeChallenge } from './decode';
+import { getStripeChargeChallengeFromResponse } from './decode';
 
 export type PayResult = {
   status: number;
@@ -30,6 +31,52 @@ function buildHeaders(
   return result;
 }
 
+async function readPayResult(
+  response: Response,
+  options?: { failOnError?: boolean },
+): Promise<PayResult> {
+  const responseHeaders = Object.fromEntries(response.headers.entries());
+  const body = await response.text();
+
+  if (options?.failOnError && !response.ok) {
+    throw new Error(
+      `Payment submission failed with status ${response.status}: ${body}`,
+    );
+  }
+
+  return { status: response.status, headers: responseHeaders, body };
+}
+
+function createStripePaymentClient(spt: string) {
+  const stripeCharge = Method.toClient(StripeMethods.charge, {
+    async createCredential({ challenge }) {
+      return Credential.serialize({
+        challenge,
+        payload: { spt },
+      });
+    },
+  });
+
+  return Mppx.create({
+    methods: [stripeCharge],
+    polyfill: false,
+    transport: Transport.from<RequestInit, Response>({
+      name: 'stripe-http',
+      isPaymentRequired(response) {
+        return response.status === 402;
+      },
+      getChallenge(response) {
+        return getStripeChargeChallengeFromResponse(response);
+      },
+      setCredential(request, credential) {
+        const nextHeaders = new Headers(request.headers);
+        nextHeaders.set('Authorization', credential);
+        return { ...request, headers: nextHeaders };
+      },
+    }),
+  });
+}
+
 export async function runMppPay(
   url: string,
   spendRequestId: string,
@@ -44,32 +91,23 @@ export async function runMppPay(
   });
 
   if (!spendRequest) {
-    outputError(`Spend request ${spendRequestId} not found`);
+    throw new Error(`Spend request ${spendRequestId} not found`);
   }
-  if (
-    (spendRequest as NonNullable<typeof spendRequest>).credential_type !==
-    'shared_payment_token'
-  ) {
-    const type =
-      (spendRequest as NonNullable<typeof spendRequest>).credential_type ??
-      'card';
-    outputError(
+  if (spendRequest.credential_type !== 'shared_payment_token') {
+    const type = spendRequest.credential_type ?? 'card';
+    throw new Error(
       `Spend request ${spendRequestId} must have credential_type 'shared_payment_token' (current: '${type}')`,
     );
   }
-  if (
-    (spendRequest as NonNullable<typeof spendRequest>).status !== 'approved'
-  ) {
-    outputError(
-      `Spend request must be approved (current status: ${(spendRequest as NonNullable<typeof spendRequest>).status})`,
+  if (spendRequest.status !== 'approved') {
+    throw new Error(
+      `Spend request must be approved (current status: ${spendRequest.status})`,
     );
   }
-  const sptObj = (spendRequest as NonNullable<typeof spendRequest>)
-    .shared_payment_token;
-  if (!sptObj) {
-    outputError('Spend request does not have a shared payment token');
+  if (!spendRequest.shared_payment_token) {
+    throw new Error('Spend request does not have a shared payment token');
   }
-  const spt = (sptObj as NonNullable<typeof sptObj>).id;
+  const spt = spendRequest.shared_payment_token.id;
 
   // 2. Determine method
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
@@ -84,34 +122,12 @@ export async function runMppPay(
 
   // 4. If not 402, return as-is
   if (initialResponse.status !== 402) {
-    const responseHeaders = Object.fromEntries(
-      initialResponse.headers.entries(),
-    );
-    const body = await initialResponse.text();
-    return { status: initialResponse.status, headers: responseHeaders, body };
+    return readPayResult(initialResponse);
   }
 
-  // 5. Parse challenges, find stripe
-  const decoded = decodeStripeChallenge(
-    initialResponse.headers.get('www-authenticate') ?? '',
-  );
-  const stripeChallenge = Challenge.from({
-    id: decoded.id,
-    realm: decoded.realm,
-    method: decoded.method,
-    intent: decoded.intent,
-    request: decoded.request_json,
-    ...(decoded.description ? { description: decoded.description } : {}),
-    ...(decoded.digest ? { digest: decoded.digest } : {}),
-    ...(decoded.expires ? { expires: decoded.expires } : {}),
-  });
-
-  // 6. Build and serialize credential
-  const credential = Credential.from({
-    challenge: stripeChallenge,
-    payload: { spt },
-  });
-  const authHeader = Credential.serialize(credential);
+  // 5. Select the Stripe challenge and build the payment credential
+  const authHeader =
+    await createStripePaymentClient(spt).createCredential(initialResponse);
 
   // 7. Retry with Authorization header
   const retryResponse = await fetch(url, {
@@ -123,16 +139,7 @@ export async function runMppPay(
     },
   });
 
-  if (!retryResponse.ok) {
-    const body = await retryResponse.text();
-    outputError(
-      `Payment submission failed with status ${retryResponse.status}: ${body}`,
-    );
-  }
-
-  const responseHeaders = Object.fromEntries(retryResponse.headers.entries());
-  const body = await retryResponse.text();
-  return { status: retryResponse.status, headers: responseHeaders, body };
+  return readPayResult(retryResponse, { failOnError: true });
 }
 
 type Step = 'retrieving' | 'probing' | 'signing' | 'submitting' | 'done';
@@ -196,40 +203,17 @@ export function MppPay({
         });
 
         if (initialResponse.status !== 402) {
-          const responseHeaders = Object.fromEntries(
-            initialResponse.headers.entries(),
-          );
-          const body = await initialResponse.text();
-          setResult({
-            status: initialResponse.status,
-            headers: responseHeaders,
-            body,
-          });
+          setResult(await readPayResult(initialResponse));
           setStep('done');
           onComplete();
           return;
         }
 
         setStep('signing');
-        const decoded = decodeStripeChallenge(
-          initialResponse.headers.get('www-authenticate') ?? '',
-        );
-        const stripeChallenge = Challenge.from({
-          id: decoded.id,
-          realm: decoded.realm,
-          method: decoded.method,
-          intent: decoded.intent,
-          request: decoded.request_json,
-          ...(decoded.description ? { description: decoded.description } : {}),
-          ...(decoded.digest ? { digest: decoded.digest } : {}),
-          ...(decoded.expires ? { expires: decoded.expires } : {}),
-        });
-
-        const credential = Credential.from({
-          challenge: stripeChallenge,
-          payload: { spt },
-        });
-        const authHeader = Credential.serialize(credential);
+        const authHeader =
+          await createStripePaymentClient(spt).createCredential(
+            initialResponse,
+          );
 
         setStep('submitting');
         const retryResponse = await fetch(url, {
@@ -241,15 +225,7 @@ export function MppPay({
           },
         });
 
-        const responseHeaders = Object.fromEntries(
-          retryResponse.headers.entries(),
-        );
-        const body = await retryResponse.text();
-        setResult({
-          status: retryResponse.status,
-          headers: responseHeaders,
-          body,
-        });
+        setResult(await readPayResult(retryResponse, { failOnError: true }));
         setStep('done');
         onComplete();
       } catch (err) {

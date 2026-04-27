@@ -1,0 +1,46 @@
+name: Send GitHub issue data to Jira via tmkv2
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+
+jobs:
+  post_to_api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Issue Data via Signed Curl
+        env:
+          API_KEY: ${{ secrets.TMV2_PROD_API_KEY }}
+          API_ENDPOINT: ${{ secrets.TMV2_PROD_API_ENDPOINT }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          # Build the JSON body using jq for safe escaping of special characters
+          BODY=$(jq -n \
+            --arg title "$ISSUE_TITLE" \
+            --arg author "$ISSUE_AUTHOR" \
+            --arg url "$ISSUE_URL" \
+            --arg number "$ISSUE_NUMBER" \
+            --arg body "$ISSUE_BODY" \
+            '{
+              project: "PQTEST",
+              summary: ("New GitHub Issue: " + $title),
+              description: ("Issue #" + $number + " opened by " + $author + ".\n*URL:* " + $url + ".\n*Body:*\n\n" + $body),
+              issuetype: "Bug",
+              labels: ["project-LINK_AI_WALLET"]
+            }')
+
+          # Compute HMAC-SHA256 signature of the body using the secret as a hex key
+          SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -mac HMAC -macopt hexkey:$API_KEY -binary | openssl base64 -A)
+
+          # Send the signed request
+          curl -X POST "$API_ENDPOINT" \
+            -H "Content-Type: application/json" \
+            -H "X-TM-Signature: $SIG" \
+            --data-raw "$BODY"

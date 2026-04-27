@@ -65,7 +65,7 @@ By default, a spend request provisions a virtual card. For merchants that suppor
 The approved spend request includes a `card` object with `number`, `cvc`, `exp_month`, `exp_year`, `billing_address`, and `valid_until`. Enter these into the merchant's checkout form. 
 
 ```bash
-link-cli spend-request retrieve lsrq_001 --output-json
+link-cli spend-request retrieve lsrq_001 --format json
 ```
 By default, retrieving a spend request will not include card details. Use the `--include=card` to see unmasked card details.
 
@@ -76,7 +76,7 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
   --spend-request-id lsrq_001 \
   --method POST \
   --data '{"amount":100}' \
-  --output-json
+  --format json
 ```
 
 ## Advanced
@@ -84,12 +84,27 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
 ### Authentication
 
 ```bash
-link-cli auth login --client-name "Claude Code" --output-json   # identify the connecting agent
-link-cli auth status --output-json                               # check auth status
-link-cli auth logout --output-json                               # disconnect
+link-cli auth login --client-name "Claude Code" --format json   # identify the connecting agent
+link-cli auth status --format json                               # check auth status
+link-cli auth logout --format json                               # disconnect
 ```
 
 When `--client-name` is provided, the name is shown in the Link app when the user approves the connection — e.g. `Claude Code on my-macbook` instead of `link-cli on my-macbook`.
+
+`auth status --format json` includes an `update` field when a newer version is available:
+
+```json
+{
+  "authenticated": true,
+  "update": {
+    "current_version": "0.1.2",
+    "latest_version": "0.2.0",
+    "update_command": "npm install -g @stripe/link-cli"
+  }
+}
+```
+
+Set `NO_UPDATE_NOTIFIER=1` to suppress update checks (e.g. in CI).
 
 ### Spend request lifecycle
 
@@ -104,32 +119,18 @@ A spend request moves through: **create** → **request approval** → **approve
 # Update before approval
 link-cli spend-request update lsrq_001 \
   --merchant-url https://press.stripe.com/working-in-public \
-  --output-json
+  --format json
 
 # Request approval separately (alternative to create --request-approval)
-link-cli spend-request request-approval lsrq_001 --output-json
+link-cli spend-request request-approval lsrq_001 --format json
 
 # Retrieve at any time (includes card credentials once approved)
-link-cli spend-request retrieve lsrq_001 --output-json
+link-cli spend-request retrieve lsrq_001 --format json
 ```
 
-### JSON
+### Output formats
 
-All commands accept `--json` for structured input (mutually exclusive with flags):
-
-```bash
-link-cli spend-request create --json '{
-  "payment_method_id": "csmrpd_xxx",
-  "merchant_name": "Stripe Press",
-  "merchant_url": "https://press.stripe.com/working-in-public",
-  "context": "Purchasing '\''Working in Public'\'' from press.stripe.com. The user initiated this purchase through the shopping assistant.",
-  "amount": 3500,
-  "line_items": [{ "name": "Working in Public", "unit_amount": 3500, "quantity": 1 }],
-  "totals": [{ "type": "total", "display_text": "Total", "amount": 3500 }]
-}' --output-json
-```
-
-All commands also accept `--output-json` for structured JSON output. Errors are returned as JSON to stderr with exit code 1.
+All commands accept `--format json` for structured JSON output. Other formats: `yaml`, `md`, `jsonl`, `toon` (default). Errors are returned as JSON with `code` and `message` fields, with exit code 1.
 
 ### MPP
 
@@ -141,7 +142,7 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
   --method POST \
   --data '{"amount":100}' \
   --header "X-Custom: value" \
-  --output-json
+  --format json
 ```
 
 Use `mpp decode` to validate a raw `WWW-Authenticate` header and extract the `network_id` needed for `shared_payment_token` spend requests:
@@ -149,7 +150,7 @@ Use `mpp decode` to validate a raw `WWW-Authenticate` header and extract the `ne
 ```bash
 link-cli mpp decode \
   --challenge 'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge", request="..."' \
-  --output-json
+  --format json
 ```
 
 ### Environment variables

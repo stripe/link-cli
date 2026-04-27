@@ -5,10 +5,6 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'tsup';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const skillContent = readFileSync(
-  join(__dirname, '../../skills/create-payment-credential/SKILL.md'),
-  'utf-8',
-);
 const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'));
 let buildNumber = '0';
 try {
@@ -29,8 +25,8 @@ export default defineConfig({
   sourcemap: false,
   banner: { js: '#!/usr/bin/env node' },
   define: {
-    SKILL_CONTENT: JSON.stringify(skillContent),
     __CLI_VERSION__: JSON.stringify(pkg.version),
     __BUILD_NUMBER__: JSON.stringify(buildNumber),
+    __CLI_NAME__: JSON.stringify(pkg.name),
   },
 });
