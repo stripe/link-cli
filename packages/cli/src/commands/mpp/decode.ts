@@ -1,5 +1,17 @@
 import { Challenge } from 'mppx';
 
+type StripeChargeChallenge = Challenge.Challenge<
+  Record<string, unknown>,
+  'charge',
+  'stripe'
+>;
+
+type ResolvedStripeChallenge = {
+  challenge: StripeChargeChallenge;
+  networkId: string;
+  request: Record<string, unknown>;
+};
+
 export interface DecodedStripeChallenge {
   id: string;
   realm: string;
@@ -46,11 +58,9 @@ function getMethodDetails(
   return methodDetails as Record<string, unknown>;
 }
 
-export function decodeStripeChallenge(
-  challengeHeader: string,
-): DecodedStripeChallenge {
-  const challenges = Challenge.deserializeList(challengeHeader);
-
+function resolveStripeChallenge(
+  challenges: Challenge.Challenge[],
+): ResolvedStripeChallenge {
   const stripeChallenge = challenges.find(
     (challenge) =>
       challenge.method === 'stripe' && challenge.intent === 'charge',
@@ -88,13 +98,33 @@ export function decodeStripeChallenge(
   }
 
   return {
-    id: stripeChallenge.id,
-    realm: stripeChallenge.realm,
+    challenge: stripeChallenge as StripeChargeChallenge,
+    networkId,
+    request,
+  };
+}
+
+export function getStripeChargeChallengeFromResponse(
+  response: Response,
+): StripeChargeChallenge {
+  return resolveStripeChallenge(Challenge.fromResponseList(response)).challenge;
+}
+
+export function decodeStripeChallenge(
+  challengeHeader: string,
+): DecodedStripeChallenge {
+  const { challenge, networkId, request } = resolveStripeChallenge(
+    Challenge.deserializeList(challengeHeader),
+  );
+
+  return {
+    id: challenge.id,
+    realm: challenge.realm,
     method: 'stripe',
     intent: 'charge',
-    description: stripeChallenge.description,
-    digest: stripeChallenge.digest,
-    expires: stripeChallenge.expires,
+    description: challenge.description,
+    digest: challenge.digest,
+    expires: challenge.expires,
     network_id: networkId,
     request_json: request,
   };

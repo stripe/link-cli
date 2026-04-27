@@ -803,6 +803,20 @@ describe('production mode', () => {
       'expires="2099-01-01T00:00:00Z"',
     ].join(' ');
 
+    const WWW_AUTHENTICATE_MULTI = [
+      'Payment id="tempo_001",',
+      'realm="127.0.0.1",',
+      'method="tempo",',
+      'intent="charge",',
+      'request="e30=",',
+      'Payment id="ch_001",',
+      'realm="127.0.0.1",',
+      'method="stripe",',
+      'intent="charge",',
+      `request="${Buffer.from(JSON.stringify({ networkId: 'net_001', amount: '1000', currency: 'usd', decimals: 2, paymentMethodTypes: ['card'] })).toString('base64')}",`,
+      'expires="2099-01-01T00:00:00Z"',
+    ].join(' ');
+
     it('happy path: probes, gets 402, signs, retries, returns response', async () => {
       setNextResponse(200, APPROVED_SPT_REQUEST);
       setMerchantResponse(402, '{"error":"payment required"}', {
@@ -851,6 +865,27 @@ describe('production mode', () => {
       expect(err.error).toContain('Payment submission failed with status 401');
       expect(err.error).toContain('spt rejected');
       expect(merchantRequests).toHaveLength(2);
+    });
+
+    it('selects the stripe challenge when the response advertises multiple methods', async () => {
+      setNextResponse(200, APPROVED_SPT_REQUEST);
+      setMerchantResponse(402, '{"error":"payment required"}', {
+        'www-authenticate': WWW_AUTHENTICATE_MULTI,
+      });
+      setMerchantResponse(200, '{"success":true}');
+
+      const result = await runProdCli(
+        'mpp',
+        'pay',
+        `http://127.0.0.1:${merchantPort}/api/charge`,
+        '--spend-request-id',
+        'lsrq_spt_001',
+        '--output-json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(merchantRequests).toHaveLength(2);
+      expect(merchantRequests[1].headers.authorization).toMatch(/^Payment /);
     });
 
     it('passthrough: no 402 returns response without signing', async () => {
