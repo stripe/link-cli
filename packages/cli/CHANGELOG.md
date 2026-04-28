@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.2.3
+
+### Patch Changes
+
+- de325f1: Polling commands now only emit results when the response has changed, reducing noise in agent logs.
+
 ## 0.2.2
 
 ### Patch Changes
