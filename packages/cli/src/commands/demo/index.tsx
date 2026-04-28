@@ -40,14 +40,14 @@ export function createDemoCli(
       const paymentMethodsResource = createPaymentMethodsResource();
 
       return new Promise((resolve) => {
-        const { waitUntilExit } = render(
+        const { waitUntilExit, unmount } = render(
           <DemoRunner
             authRepo={authRepo}
             spendRequestRepo={spendRequestRepo}
             paymentMethodsResource={paymentMethodsResource}
             onlyCard={c.options.onlyCard}
             onlySpt={c.options.onlySpt}
-            onComplete={() => {}}
+            onComplete={() => unmount()}
           />,
         );
         waitUntilExit().then(() => resolve({}));

@@ -28,12 +28,12 @@ export function createOnboardCli(
       const paymentMethodsResource = createPaymentMethodsResource();
 
       return new Promise((resolve) => {
-        const { waitUntilExit } = render(
+        const { waitUntilExit, unmount } = render(
           <OnboardRunner
             authRepo={authRepo}
             spendRequestRepo={spendRequestRepo}
             paymentMethodsResource={paymentMethodsResource}
-            onComplete={() => {}}
+            onComplete={() => unmount()}
           />,
         );
         waitUntilExit().then(() => resolve({}));
