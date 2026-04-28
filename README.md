@@ -20,7 +20,7 @@ You can install the skill via `npx skills add stripe/link-cli`.
 
 ### Login
 
-The `link-cli` requires a Link account. You can login to your existing one or [register online](https://app.link.com).
+The `link-cli` requires a Link account. You can log in to your existing one or [register online](https://app.link.com).
 
 ```bash
 link-cli auth login
