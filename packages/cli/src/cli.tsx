@@ -1,7 +1,9 @@
 import { Cli } from 'incur';
 import updateNotifier from 'update-notifier';
 import { createAuthCli } from './commands/auth';
+import { createDemoCli } from './commands/demo';
 import { createMppCli } from './commands/mpp';
+import { createOnboardCli } from './commands/onboard';
 import { createPaymentMethodsCli } from './commands/payment-methods';
 import { createSpendRequestCli } from './commands/spend-request';
 import { ResourceFactory } from './utils/resource-factory';
@@ -39,6 +41,16 @@ cli.command(
   createPaymentMethodsCli(() => factory.createPaymentMethodsResource()),
 );
 cli.command(createMppCli(spendRequestRepo));
+cli.command(
+  createDemoCli(authRepo, spendRequestRepo, () =>
+    factory.createPaymentMethodsResource(),
+  ),
+);
+cli.command(
+  createOnboardCli(authRepo, spendRequestRepo, () =>
+    factory.createPaymentMethodsResource(),
+  ),
+);
 
 const isAgent =
   process.argv.includes('--format') || process.argv.includes('--mcp');

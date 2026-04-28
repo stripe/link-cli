@@ -68,13 +68,21 @@ Key input field notes:
 - `context` requires min 100 characters; `amount` is in cents with max 50000
 - `--test` flag creates testmode credentials (real testmode SPT from test card data) instead of livemode ones
 - `create --request-approval` and `request-approval` both show an approval URL in interactive mode and poll until approved/denied/expired/failed. In JSON mode (`--format json`), they block silently and return the final `SpendRequest` when complete.
-- `card` credentials include `billing_address` (name, line1, line2, city, state, postal_code, country) and `valid_until` (unix timestamp — when the card expires/stops working)
+- `card` credentials include `billing_address` (name, line1, line2, city, state, postal_code, country) and `valid_until` (ISO date string — when the card expires/stops working)
 
 ### mpp pay
 
 - `mpp pay <url> --spend-request-id <id> [--method <method>] [--data <body>] [--header <header>]...` — completes the 402 flow: retrieves the spend request with `include: ['shared_payment_token']`, probes the URL, parses the `www-authenticate` stripe challenge, builds the `Authorization: Payment` credential, and retries. `--header` is repeatable and uses `"Name: Value"` format. `Content-Type: application/json` is auto-applied when `--data` is provided; user-provided headers take precedence.
 - Requires an approved spend request with `credential_type: "shared_payment_token"`. The SPT is one-time-use — a failed payment requires a new spend request.
 - Implemented in `packages/cli/src/commands/mpp/` — pay.tsx (logic), schema.ts (input/output schema), index.tsx (incur registration).
+
+### demo command
+
+- `demo [--only-card] [--only-spt]` — Interactive demo of both payment flows. Always uses `--test` mode (no real charges). Shows a menu to choose: virtual card flow, SPT/machine payment flow, or both. `--only-card` and `--only-spt` skip the menu. Requires a TTY (no JSON output mode).
+
+### onboard command
+
+- `onboard` — Guided setup: authenticates (skips if already logged in), checks payment methods (prompts to add one if missing, shows picker if multiple), shows app download QR code, then runs the full demo. Requires a TTY.
 
 
 ## Code Conventions
