@@ -108,6 +108,7 @@ export function createAuthCli(
       const maxAttempts = opts.maxAttempts;
       const deadline = Date.now() + opts.timeout * 1000;
       let attempts = 0;
+      let previousAttemptData: string | undefined;
 
       while (true) {
         // If there's a pending device auth, try one poll to see if the user approved.
@@ -164,8 +165,12 @@ export function createAuthCli(
           return;
         }
 
-        // Yield current status as MCP progress notification, then wait
-        yield status;
+        // Only yield when status has changed to avoid noisy agent transcripts
+        const snapshot = JSON.stringify(status);
+        if (snapshot !== previousAttemptData) {
+          previousAttemptData = snapshot;
+          yield status;
+        }
         await new Promise((resolve) => setTimeout(resolve, interval * 1000));
       }
     },
