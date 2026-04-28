@@ -424,7 +424,6 @@ export const SptFlow: React.FC<SptFlowProps> = ({
             </Text>
             <Text dimColor>{S.approval.browserHint}</Text>
           </Box>
-          <AppDownloadQrCodes />
           <Box marginY={1}>
             <Text color="cyan">{S.approval.loading}</Text>
           </Box>
@@ -496,6 +495,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
           <Box marginTop={1}>
             <Text>{S.done.detail}</Text>
           </Box>
+          <AppDownloadQrCodes />
         </Box>
       )}
 

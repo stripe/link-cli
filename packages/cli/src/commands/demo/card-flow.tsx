@@ -403,7 +403,6 @@ export const CardFlow: React.FC<CardFlowProps> = ({
             </Text>
             <Text dimColor>{C.approval.browserHint}</Text>
           </Box>
-          <AppDownloadQrCodes />
           <Box marginY={1}>
             <Text color="cyan">{C.approval.loading}</Text>
           </Box>
@@ -491,6 +490,7 @@ export const CardFlow: React.FC<CardFlowProps> = ({
         <Box flexDirection="column">
           <Text color="green">✓ {C.done.success}</Text>
           <Text>{C.done.detail}</Text>
+          <AppDownloadQrCodes />
         </Box>
       )}
 
