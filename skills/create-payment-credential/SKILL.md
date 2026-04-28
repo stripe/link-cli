@@ -37,6 +37,20 @@ Link CLI can run as an **MCP server** or as a **standalone CLI**. Always prefer 
 
 The rest of this document shows CLI commands. When using the MCP server, map each command to its corresponding MCP tool — the parameters and behavior are identical.
 
+| CLI command | MCP tool |
+|---|---|
+| `auth login` | `mcp__link-cli__auth_login` |
+| `auth logout` | `mcp__link-cli__auth_logout` |
+| `auth status` | `mcp__link-cli__auth_status` |
+| `spend-request create` | `mcp__link-cli__spend-request_create` |
+| `spend-request update` | `mcp__link-cli__spend-request_update` |
+| `spend-request retrieve` | `mcp__link-cli__spend-request_retrieve` |
+| `spend-request request-approval` | `mcp__link-cli__spend-request_request-approval` |
+| `payment-methods list` | `mcp__link-cli__payment-methods_list` |
+| `payment-methods add` | `mcp__link-cli__payment-methods_add` |
+| `mpp pay` | `mcp__link-cli__mpp_pay` |
+| `mpp decode` | `mcp__link-cli__mpp_decode` |
+
 ## Running commands (CLI fallback)
 
 All commands support `--format json` for machine-readable output. Pass input via flags (run `link-cli <command> --help` to see full schema details, including all fields, types, and constraints).
