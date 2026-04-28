@@ -16,6 +16,21 @@ npx @stripe/link-cli
 
 You can install the skill via `npx skills add stripe/link-cli`.
 
+### MCP Server
+
+Link CLI can also run as a local MCP server. Add the following to your MCP client config (`.mcp.json`, etc.)
+
+```json
+{
+  "mcpServers": {
+    "link": {
+      "command": "npx",
+      "args": ["@stripe/link-cli", "--mcp"]
+    }
+  }
+}
+```
+
 ## Quickstart
 
 ### Login
