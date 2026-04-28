@@ -2,44 +2,42 @@ import type {
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
-import type { Command } from 'commander';
+import { Cli } from 'incur';
 import { render } from 'ink';
 import React from 'react';
 import type { IAuthResource } from '../../auth/types';
 import { OnboardRunner } from './onboard-runner';
 
-export function registerOnboardCommand(
-  program: Command,
+export function createOnboardCli(
   authRepo: IAuthResource,
   spendRequestRepo: ISpendRequestResource,
   createPaymentMethodsResource: () => IPaymentMethodsResource,
-): Command {
-  const onboardCommand = program
-    .command('onboard')
-    .description(
+) {
+  return Cli.create('onboard', {
+    description:
       'Guided setup: authenticate, verify payment methods, and demo both payment flows',
-    )
-    .action(async () => {
-      if (!process.stdout.isTTY) {
-        process.stderr.write(
-          'The onboard command requires an interactive terminal.\n',
-        );
-        process.exit(1);
+    outputPolicy: 'agent-only' as const,
+    async run(c) {
+      if (c.agent || c.formatExplicit) {
+        return c.error({
+          code: 'REQUIRES_TTY',
+          message: 'The onboard command requires an interactive terminal.',
+        });
       }
 
       const paymentMethodsResource = createPaymentMethodsResource();
 
-      const { waitUntilExit } = render(
-        <OnboardRunner
-          authRepo={authRepo}
-          spendRequestRepo={spendRequestRepo}
-          paymentMethodsResource={paymentMethodsResource}
-          onComplete={() => process.exit(0)}
-        />,
-      );
-
-      await waitUntilExit();
-    });
-
-  return onboardCommand;
+      return new Promise((resolve) => {
+        const { waitUntilExit } = render(
+          <OnboardRunner
+            authRepo={authRepo}
+            spendRequestRepo={spendRequestRepo}
+            paymentMethodsResource={paymentMethodsResource}
+            onComplete={() => {}}
+          />,
+        );
+        waitUntilExit().then(() => resolve({}));
+      });
+    },
+  });
 }
