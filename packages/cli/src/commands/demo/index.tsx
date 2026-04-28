@@ -8,10 +8,10 @@ import React from 'react';
 import type { IAuthResource } from '../../auth/types';
 import { DemoRunner } from './demo-runner';
 
-const demoOptions = {
-  only_card: z.boolean().default(false).describe('Run only the virtual card flow'),
-  only_spt: z.boolean().default(false).describe('Run only the machine payment (SPT) flow'),
-};
+const demoOptions = z.object({
+  onlyCard: z.boolean().default(false).describe('Run only the virtual card flow'),
+  onlySpt: z.boolean().default(false).describe('Run only the machine payment (SPT) flow'),
+});
 
 export function createDemoCli(
   authRepo: IAuthResource,
@@ -38,8 +38,8 @@ export function createDemoCli(
             authRepo={authRepo}
             spendRequestRepo={spendRequestRepo}
             paymentMethodsResource={paymentMethodsResource}
-            onlyCard={c.options.only_card}
-            onlySpt={c.options.only_spt}
+            onlyCard={c.options.onlyCard}
+            onlySpt={c.options.onlySpt}
             onComplete={() => {}}
           />,
         );
