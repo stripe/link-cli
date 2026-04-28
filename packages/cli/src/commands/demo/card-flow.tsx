@@ -8,6 +8,7 @@ import type {
 import { Box, Text, useInput } from 'ink';
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { MarkdownText } from '../../utils/markdown-text';
 import { openUrl } from '../../utils/open-url';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
 import {
@@ -271,7 +272,7 @@ export const CardFlow: React.FC<CardFlowProps> = ({
           <Text color="yellow">[testmode]</Text>
           <Text dimColor>{DEMO_MERCHANT_URL}</Text>
         </Box>
-        <Text>{C.intro.description}</Text>
+        <MarkdownText>{C.intro.description}</MarkdownText>
         <Box marginTop={1}>
           <Text>
             What happens:{'\n'}
@@ -331,7 +332,7 @@ export const CardFlow: React.FC<CardFlowProps> = ({
       {/* Step 2: Create spend request */}
       {pastStep('explain-pm') && (
         <Box flexDirection="column">
-          <Text>{C.createSpend.description}</Text>
+          <MarkdownText>{C.createSpend.description}</MarkdownText>
           {spendRequestPayload && (
             <Box flexDirection="column" marginTop={1}>
               <Text dimColor>spend-request create</Text>
@@ -440,7 +441,7 @@ export const CardFlow: React.FC<CardFlowProps> = ({
       {pastStep('await-approval') && card && (
         <Box flexDirection="column">
           <Text color="green">✓ Approved!</Text>
-          <Text>{C.showCard.description}</Text>
+          <MarkdownText>{C.showCard.description}</MarkdownText>
           <Box
             flexDirection="column"
             borderStyle="round"
@@ -479,7 +480,7 @@ export const CardFlow: React.FC<CardFlowProps> = ({
           </Box>
 
           <Box marginTop={1}>
-            <Text>{C.showCard.openUrl}</Text>
+            <MarkdownText>{C.showCard.openUrl}</MarkdownText>
           </Box>
           {step === 'show-card' && prompt(C.showCard.prompt)}
         </Box>
@@ -487,7 +488,10 @@ export const CardFlow: React.FC<CardFlowProps> = ({
 
       {step === 'done' && (
         <Box flexDirection="column">
-          <Text color="green">✓ {C.done.success}</Text>
+          <Box flexDirection="row" gap={1}>
+            <Text color="yellow">[testmode]</Text>
+            <Text color="green">✓ {C.done.success}</Text>
+          </Box>
           <Text>{C.done.detail}</Text>
         </Box>
       )}

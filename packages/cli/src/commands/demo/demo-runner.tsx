@@ -7,6 +7,7 @@ import { Box, Text, useInput } from 'ink';
 import type React from 'react';
 import { useCallback, useState } from 'react';
 import type { IAuthResource } from '../../auth/types';
+import { MarkdownText } from '../../utils/markdown-text';
 import { Login } from '../auth/login';
 import { AppDownloadQrCodes } from '../spend-request/app-download-qr-codes';
 import { CardFlow } from './card-flow';
@@ -160,7 +161,7 @@ export const DemoRunner: React.FC<DemoRunnerProps> = ({
       {phase === 'card-done' && (
         <Box flexDirection="column">
           <Text dimColor>───</Text>
-          <Text>{M.transition}</Text>
+          <MarkdownText>{M.transition}</MarkdownText>
           <Text dimColor>
             {'\n'}
             {'>'} {M.transitionPrompt}

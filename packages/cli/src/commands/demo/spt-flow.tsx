@@ -8,6 +8,7 @@ import type {
 import { Box, Text, useInput } from 'ink';
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { MarkdownText } from '../../utils/markdown-text';
 import { openUrl } from '../../utils/open-url';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
 import { decodeStripeChallenge } from '../mpp/decode';
@@ -281,13 +282,12 @@ export const SptFlow: React.FC<SptFlowProps> = ({
             {DEMO_MPP_DEV_URL}
           </Text>
         </Box>
-        <Text>{S.intro.description}</Text>
-        <Box marginTop={1}>
-          <Text>
-            {S.intro.preamble}
-            {'\n'}
-            {S.intro.steps.map((s, i) => ` ${i + 1}. ${s}`).join('\n')}
-          </Text>
+        <MarkdownText>{S.intro.description}</MarkdownText>
+        <Box marginTop={1} flexDirection="column">
+          <Text>{S.intro.preamble}</Text>
+          {S.intro.steps.map((s, i) => (
+            <MarkdownText key={s}>{` ${i + 1}. ${s}`}</MarkdownText>
+          ))}
         </Box>
         {step === 'intro' && prompt(S.intro.prompt)}
       </Box>
@@ -332,7 +332,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
 
       {pastStep('fetch-pm') && (
         <Box flexDirection="column">
-          <Text>{S.probe.description}</Text>
+          <MarkdownText>{S.probe.description}</MarkdownText>
           {step === 'probe' && (
             <Box marginY={1}>
               <Text color="cyan">{S.probe.loading}</Text>
@@ -347,14 +347,14 @@ export const SptFlow: React.FC<SptFlowProps> = ({
             ✓ Got HTTP 402 with a <Text bold>WWW-Authenticate</Text> challenge
           </Text>
           {challengeData && <StepData data={challengeData} />}
-          <Text>{S.probe.detail}</Text>
+          <MarkdownText>{S.probe.detail}</MarkdownText>
           {step === 'explain-402' && prompt()}
         </Box>
       )}
 
       {pastStep('explain-402') && (
         <Box flexDirection="column">
-          <Text>{S.createSpend.description}</Text>
+          <MarkdownText>{S.createSpend.description}</MarkdownText>
           {spendRequestPayload && (
             <Box flexDirection="column" marginTop={1}>
               <Text dimColor>spend-request create</Text>
@@ -462,7 +462,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
           {(step === 'mpp-pay-gate' || pastStep('mpp-pay-gate')) && (
             <>
               <Text color="green">✓ Approved!</Text>
-              <Text>{S.mppPay.description}</Text>
+              <MarkdownText>{S.mppPay.description}</MarkdownText>
             </>
           )}
           {step === 'mpp-pay-gate' && prompt(S.mppPay.prompt)}
@@ -502,7 +502,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
               })()}
           </Box>
           <Box marginTop={1}>
-            <Text>{S.done.detail}</Text>
+            <MarkdownText>{S.done.detail}</MarkdownText>
           </Box>
         </Box>
       )}
