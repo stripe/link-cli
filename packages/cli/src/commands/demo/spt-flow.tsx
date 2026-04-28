@@ -489,13 +489,17 @@ export const SptFlow: React.FC<SptFlowProps> = ({
             <Text>
               Status: <Text bold>HTTP {payResult.status}</Text>
             </Text>
-            {payResult.body && (() => {
-              try {
-                return <Text>{JSON.stringify(JSON.parse(payResult.body!), null, 2)}</Text>;
-              } catch {
-                return <Text>{payResult.body}</Text>;
-              }
-            })()}
+            {payResult.body &&
+              (() => {
+                const body = payResult.body;
+                try {
+                  return (
+                    <Text>{JSON.stringify(JSON.parse(body), null, 2)}</Text>
+                  );
+                } catch {
+                  return <Text>{body}</Text>;
+                }
+              })()}
           </Box>
           <Box marginTop={1}>
             <Text>{S.done.detail}</Text>

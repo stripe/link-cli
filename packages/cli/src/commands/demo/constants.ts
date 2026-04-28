@@ -1,7 +1,8 @@
 export const DEMO_MERCHANT_NAME = 'Galtee Outdoor';
 export const DEMO_MERCHANT_URL = 'https://galtee.stripedemos.com/';
 export const DEMO_MPP_DEV_URL = 'https://mpp.dev';
-export const DEMO_CLIMATE_API_URL = 'https://climate.stripe.dev/api/test/contribute';
+export const DEMO_CLIMATE_API_URL =
+  'https://climate.stripe.dev/api/test/contribute';
 export const DEMO_CARD_AMOUNT = 12900; // $129.00 — trail jacket
 export const DEMO_SPT_AMOUNT = 100;
 
