@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.2.2
+
+### Patch Changes
+
+- f8f51a6: Update plugin configs for claude and codex
+
 ## 0.2.1
 
 ### Patch Changes
