@@ -18,11 +18,7 @@ export function createDemoCli(
   spendRequestRepo: ISpendRequestResource,
   createPaymentMethodsResource: () => IPaymentMethodsResource,
 ) {
-  const cli = Cli.create('demo', {
-    description: 'Run an interactive demo of both Link payment flows (virtual card + machine payment)',
-  });
-
-  cli.command('demo', {
+  return Cli.create('demo', {
     description: 'Run an interactive demo of both Link payment flows (virtual card + machine payment)',
     options: demoOptions,
     outputPolicy: 'agent-only' as const,
@@ -42,8 +38,8 @@ export function createDemoCli(
             authRepo={authRepo}
             spendRequestRepo={spendRequestRepo}
             paymentMethodsResource={paymentMethodsResource}
-            onlyCard={!!c.options.only_card}
-            onlySpt={!!c.options.only_spt}
+            onlyCard={c.options.only_card}
+            onlySpt={c.options.only_spt}
             onComplete={() => {}}
           />,
         );
@@ -51,6 +47,4 @@ export function createDemoCli(
       });
     },
   });
-
-  return cli;
 }
