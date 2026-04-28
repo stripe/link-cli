@@ -9,8 +9,14 @@ import type { IAuthResource } from '../../auth/types';
 import { DemoRunner } from './demo-runner';
 
 const demoOptions = z.object({
-  onlyCard: z.boolean().default(false).describe('Run only the virtual card flow'),
-  onlySpt: z.boolean().default(false).describe('Run only the machine payment (SPT) flow'),
+  onlyCard: z
+    .boolean()
+    .default(false)
+    .describe('Run only the virtual card flow'),
+  onlySpt: z
+    .boolean()
+    .default(false)
+    .describe('Run only the machine payment (SPT) flow'),
 });
 
 export function createDemoCli(
@@ -19,7 +25,8 @@ export function createDemoCli(
   createPaymentMethodsResource: () => IPaymentMethodsResource,
 ) {
   return Cli.create('demo', {
-    description: 'Run an interactive demo of both Link payment flows (virtual card + machine payment)',
+    description:
+      'Run an interactive demo of both Link payment flows (virtual card + machine payment)',
     options: demoOptions,
     outputPolicy: 'agent-only' as const,
     async run(c) {

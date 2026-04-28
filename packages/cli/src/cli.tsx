@@ -41,8 +41,16 @@ cli.command(
   createPaymentMethodsCli(() => factory.createPaymentMethodsResource()),
 );
 cli.command(createMppCli(spendRequestRepo));
-cli.command(createDemoCli(authRepo, spendRequestRepo, () => factory.createPaymentMethodsResource()));
-cli.command(createOnboardCli(authRepo, spendRequestRepo, () => factory.createPaymentMethodsResource()));
+cli.command(
+  createDemoCli(authRepo, spendRequestRepo, () =>
+    factory.createPaymentMethodsResource(),
+  ),
+);
+cli.command(
+  createOnboardCli(authRepo, spendRequestRepo, () =>
+    factory.createPaymentMethodsResource(),
+  ),
+);
 
 const isAgent =
   process.argv.includes('--format') || process.argv.includes('--mcp');

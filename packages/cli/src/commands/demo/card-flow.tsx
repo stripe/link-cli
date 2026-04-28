@@ -472,7 +472,7 @@ export const CardFlow: React.FC<CardFlowProps> = ({
             {card.valid_until && (
               <Text dimColor>
                 Expires:{' '}
-                {new Date(card.valid_until * 1000).toLocaleTimeString([], {
+                {new Date(card.valid_until).toLocaleTimeString([], {
                   hour: '2-digit',
                   minute: '2-digit',
                 })}
