@@ -111,6 +111,7 @@ async function runProdCli(...args: string[]): Promise<CliResult> {
           ...process.env,
           LINK_API_BASE_URL: `http://127.0.0.1:${serverPort}`,
           LINK_AUTH_BASE_URL: `http://127.0.0.1:${serverPort}`,
+          XDG_DATA_HOME: '/tmp/link-cli-test-empty',
         },
         timeout: 10_000,
       },
