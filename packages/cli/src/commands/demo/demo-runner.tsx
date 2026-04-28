@@ -8,6 +8,7 @@ import type React from 'react';
 import { useCallback, useState } from 'react';
 import type { IAuthResource } from '../../auth/types';
 import { Login } from '../auth/login';
+import { AppDownloadQrCodes } from '../spend-request/app-download-qr-codes';
 import { CardFlow } from './card-flow';
 import { DEMO_MENU as M, ONBOARD as O } from './content';
 import { SptFlow } from './spt-flow';
@@ -195,6 +196,7 @@ export const DemoRunner: React.FC<DemoRunnerProps> = ({
               {sptSuccess ? '✓' : '✗'} Machine payment flow
             </Text>
           )}
+          <AppDownloadQrCodes />
         </Box>
       )}
     </Box>
