@@ -37,6 +37,20 @@ Link CLI can run as an **MCP server** or as a **standalone CLI**. Always prefer 
 
 The rest of this document shows CLI commands. When using the MCP server, map each command to its corresponding MCP tool — the parameters and behavior are identical.
 
+| CLI command | MCP tool |
+|---|---|
+| `auth login` | `mcp__link-cli__auth_login` |
+| `auth logout` | `mcp__link-cli__auth_logout` |
+| `auth status` | `mcp__link-cli__auth_status` |
+| `spend-request create` | `mcp__link-cli__spend-request_create` |
+| `spend-request update` | `mcp__link-cli__spend-request_update` |
+| `spend-request retrieve` | `mcp__link-cli__spend-request_retrieve` |
+| `spend-request request-approval` | `mcp__link-cli__spend-request_request-approval` |
+| `payment-methods list` | `mcp__link-cli__payment-methods_list` |
+| `payment-methods add` | `mcp__link-cli__payment-methods_add` |
+| `mpp pay` | `mcp__link-cli__mpp_pay` |
+| `mpp decode` | `mcp__link-cli__mpp_decode` |
+
 ## Running commands (CLI fallback)
 
 All commands support `--format json` for machine-readable output. Pass input via flags (run `link-cli <command> --help` to see full schema details, including all fields, types, and constraints).
@@ -45,7 +59,7 @@ IMPORTANT: Run `auth login`, `spend-request create`, and `spend-request request-
 
 The JSON stream contract for these long-running commands is:
 
-- `auth login --format json`: first object contains `verification_url` and `passphrase`; final object contains authentication result after approval succeeds
+- `auth login --format json`: first object contains `verification_url` and `phrase`; final object contains authentication result after approval succeeds
 - `spend-request create --request-approval --format json`: first object is the created spend request; final object is the terminal spend request after polling completes
 - `spend-request request-approval --format json`: first object contains the approval link; final object is the terminal spend request after polling completes
 
@@ -77,7 +91,7 @@ If not authenticated:
 link-cli auth login --client-name "<your-agent-name>" --format json
 ```
 
-Replace `<your-agent-name>` with the name of your agent or application (e.g. `"Personal Assistant", "Shopping Bot"`). This name appears in the user's Link app when they approve the connection. Use a clear, unique, identifiable name. Display the url and passphrase to the user, with the guidance "Please visit the following URL to approve secure access to Link.”
+Replace `<your-agent-name>` with the name of your agent or application (e.g. `"Personal Assistant", "Shopping Bot"`). This name appears in the user's Link app when they approve the connection. Use a clear, unique, identifiable name. Display the url and phrase to the user, with the guidance "Please visit the following URL to approve secure access to Link.”
 
 DO NOT PROCEED until the user is authenticated with Link.
 

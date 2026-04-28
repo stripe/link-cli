@@ -8,7 +8,10 @@ import { Logout } from './logout';
 import { loginOptions, statusOptions } from './schema';
 import { AuthStatus } from './status';
 
-export function createAuthCli(authResource: IAuthResource) {
+export function createAuthCli(
+  authResource: IAuthResource,
+  updateInfo?: { current: string; latest: string },
+) {
   const cli = Cli.create('auth', {
     description: 'Authentication commands',
   });
@@ -49,11 +52,11 @@ export function createAuthCli(authResource: IAuthResource) {
         interval: authRequest.interval,
         expires_at: Date.now() + authRequest.expires_in * 1000,
         verification_url: authRequest.verification_url_complete,
-        passphrase: authRequest.user_code,
+        phrase: authRequest.user_code,
       });
       yield {
         verification_url: authRequest.verification_url_complete,
-        passphrase: authRequest.user_code,
+        phrase: authRequest.user_code,
         instruction:
           'Present the verification_url to the user and ask them to approve in the Link app. Then call `auth status --interval 5 --max-attempts 60` to poll until authenticated. Do not wait for the user to reply — start polling immediately.',
         _next: {
@@ -105,6 +108,7 @@ export function createAuthCli(authResource: IAuthResource) {
       const maxAttempts = opts.maxAttempts;
       const deadline = Date.now() + opts.timeout * 1000;
       let attempts = 0;
+      let previousAttemptData: string | undefined;
 
       while (true) {
         // If there's a pending device auth, try one poll to see if the user approved.
@@ -118,12 +122,20 @@ export function createAuthCli(authResource: IAuthResource) {
         }
 
         const auth = storage.getAuth();
+        const update = updateInfo
+          ? {
+              current_version: updateInfo.current,
+              latest_version: updateInfo.latest,
+              update_command: 'npm install -g @stripe/link-cli',
+            }
+          : undefined;
         if (auth) {
           yield {
             authenticated: true,
             access_token: `${auth.access_token.substring(0, 20)}...`,
             token_type: auth.token_type,
             credentials_path: storage.getPath(),
+            ...(update && { update }),
           };
           return;
         }
@@ -132,11 +144,12 @@ export function createAuthCli(authResource: IAuthResource) {
         const status = {
           authenticated: false,
           credentials_path: storage.getPath(),
+          ...(update && { update }),
           ...(currentPending
             ? {
                 pending: true,
                 verification_url: currentPending.verification_url,
-                passphrase: currentPending.passphrase,
+                phrase: currentPending.phrase,
               }
             : {}),
         };
@@ -152,8 +165,12 @@ export function createAuthCli(authResource: IAuthResource) {
           return;
         }
 
-        // Yield current status as MCP progress notification, then wait
-        yield status;
+        // Only yield when status has changed to avoid noisy agent transcripts
+        const snapshot = JSON.stringify(status);
+        if (snapshot !== previousAttemptData) {
+          previousAttemptData = snapshot;
+          yield status;
+        }
         await new Promise((resolve) => setTimeout(resolve, interval * 1000));
       }
     },

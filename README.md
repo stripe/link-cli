@@ -16,17 +16,32 @@ npx @stripe/link-cli
 
 You can install the skill via `npx skills add stripe/link-cli`.
 
+### MCP Server
+
+Link CLI can also run as a local MCP server. Add the following to your MCP client config (`.mcp.json`, etc.)
+
+```json
+{
+  "mcpServers": {
+    "link": {
+      "command": "npx",
+      "args": ["@stripe/link-cli", "--mcp"]
+    }
+  }
+}
+```
+
 ## Quickstart
 
 ### Login
 
-The `link-cli` requires a Link account. You can login to your existing one or [register online](https://app.link.com).
+The `link-cli` requires a Link account. You can log in to your existing one or [register online](https://app.link.com).
 
 ```bash
 link-cli auth login
 ```
 
-You'll receive a verification URL and a short passphrase. Visit the URL, log in to your Link account, and enter the passphrase to approve the connection.
+You'll receive a verification URL and a short phrase. Visit the URL, log in to your Link account, and enter the phrase to approve the connection.
 
 ### List payment methods
 

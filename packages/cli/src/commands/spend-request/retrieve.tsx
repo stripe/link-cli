@@ -282,10 +282,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
             {request?.card.valid_until && (
               <Text>
                 {' '}
-                Valid Until:{' '}
-                <Text bold>
-                  {new Date(request.card.valid_until * 1000).toISOString()}
-                </Text>
+                Valid Until: <Text bold>{request.card.valid_until}</Text>
               </Text>
             )}
             {request?.card.billing_address && (

@@ -52,7 +52,7 @@ export interface Card {
   number: string;
   cvc?: string;
   billing_address?: BillingAddress;
-  valid_until?: number;
+  valid_until?: string;
 }
 
 export type SpendRequestStatus =

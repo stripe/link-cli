@@ -311,6 +311,7 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
       ]);
       const deadline = Date.now() + timeout * 1000;
       let attempts = 0;
+      let previousAttemptData: string | undefined;
 
       while (true) {
         const request = await repository.getSpendRequest(id, { include });
@@ -337,7 +338,12 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
           return;
         }
 
-        yield request;
+        // Only yield when the response has changed to avoid noisy agent transcripts
+        const snapshot = JSON.stringify(request);
+        if (snapshot !== previousAttemptData) {
+          previousAttemptData = snapshot;
+          yield request;
+        }
         await new Promise((resolve) => setTimeout(resolve, interval * 1000));
       }
     },

@@ -1,5 +1,23 @@
 # @stripe/link-cli
 
+## 0.2.3
+
+### Patch Changes
+
+- de325f1: Polling commands now only emit results when the response has changed, reducing noise in agent logs.
+
+## 0.2.2
+
+### Patch Changes
+
+- f8f51a6: Update plugin configs for claude and codex
+
+## 0.2.1
+
+### Patch Changes
+
+- ef4e362: Fix bug with update-notifier
+
 ## 0.2.0
 
 ### Minor Changes

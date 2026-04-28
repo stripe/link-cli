@@ -7,7 +7,7 @@ export interface PendingDeviceAuth {
   interval: number;
   expires_at: number;
   verification_url: string;
-  passphrase: string;
+  phrase: string;
 }
 
 interface StorageSchema {

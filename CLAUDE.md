@@ -61,7 +61,7 @@ Input is passed via flags. Define options in the command's zod schema — incur 
 
 ### spend-request command
 
-CLI command is `spend-request` (user-facing). Implemented in `packages/cli/src/commands/spend-request/`. The SDK interfaces (`ISpendIntentRepository`, `CreateSpendIntentParams`, `UpdateSpendIntentParams`) and API endpoints (`/spend-intents`) retain their original names.
+CLI command is `spend-request` (user-facing). Implemented in `packages/cli/src/commands/spend-request/`. SDK interfaces: `ISpendRequestResource`, `CreateSpendRequestParams`, `UpdateSpendRequestParams`. API endpoint: `/spend_requests`.
 
 Key input field notes:
 - CLI input uses `payment_method_id`; mapped to `payment_details` when calling the SDK
