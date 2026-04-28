@@ -12,7 +12,6 @@ import { openUrl } from '../../utils/open-url';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
 import { decodeStripeChallenge } from '../mpp/decode';
 import { type PayResult, runMppPay } from '../mpp/pay';
-import { AppDownloadQrCodes } from '../spend-request/app-download-qr-codes';
 import {
   DEMO_CLIMATE_API_URL,
   DEMO_MPP_DEV_URL,
@@ -424,7 +423,6 @@ export const SptFlow: React.FC<SptFlowProps> = ({
             </Text>
             <Text dimColor>{S.approval.browserHint}</Text>
           </Box>
-          <AppDownloadQrCodes />
           <Box marginY={1}>
             <Text color="cyan">{S.approval.loading}</Text>
           </Box>

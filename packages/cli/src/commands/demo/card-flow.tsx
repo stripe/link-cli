@@ -10,7 +10,6 @@ import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { openUrl } from '../../utils/open-url';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
-import { AppDownloadQrCodes } from '../spend-request/app-download-qr-codes';
 import {
   DEMO_CARD_AMOUNT,
   DEMO_CARD_CONTEXT,
@@ -403,7 +402,6 @@ export const CardFlow: React.FC<CardFlowProps> = ({
             </Text>
             <Text dimColor>{C.approval.browserHint}</Text>
           </Box>
-          <AppDownloadQrCodes />
           <Box marginY={1}>
             <Text color="cyan">{C.approval.loading}</Text>
           </Box>
