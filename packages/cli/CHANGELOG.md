@@ -1,5 +1,15 @@
 # @stripe/link-cli
 
+## 0.3.0
+
+### Minor Changes
+
+- cd84685: adds new onboarding and demo flows that demonstrate how to use the link-cli
+
+### Patch Changes
+
+- facab3c: add mapping between cli commands and mcp tools to skill file
+
 ## 0.2.3
 
 ### Patch Changes
