@@ -68,7 +68,7 @@ Key input field notes:
 - `context` requires min 100 characters; `amount` is in cents with max 50000
 - `--test` flag creates testmode credentials (real testmode SPT from test card data) instead of livemode ones
 - `create --request-approval` and `request-approval` both show an approval URL in interactive mode and poll until approved/denied/expired/failed. In JSON mode (`--format json`), they block silently and return the final `SpendRequest` when complete.
-- `card` credentials include `billing_address` (name, line1, line2, city, state, postal_code, country) and `valid_until` (unix timestamp — when the card expires/stops working)
+- `card` credentials include `billing_address` (name, line1, line2, city, state, postal_code, country) and `valid_until` (ISO date string — when the card expires/stops working)
 
 ### mpp pay
 
