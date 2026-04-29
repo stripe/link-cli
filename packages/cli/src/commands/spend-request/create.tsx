@@ -15,7 +15,7 @@ interface CreateSpendRequestProps {
   repository: ISpendRequestResource;
   params: CreateSpendRequestParams;
   requestApproval?: boolean;
-  onComplete: () => void;
+  onComplete: (result: SpendRequest | null) => void;
 }
 
 export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
@@ -59,12 +59,12 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
           setStatus('waiting');
         } else {
           setStatus('success');
-          setTimeout(onComplete, 1500);
+          setTimeout(() => onComplete(result), 1500);
         }
       } catch (err) {
         setError((err as Error).message);
         setStatus('error');
-        setTimeout(onComplete, 1500);
+        setTimeout(() => onComplete(null), 1500);
       }
     };
 

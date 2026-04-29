@@ -9,7 +9,7 @@ interface RetrieveSpendRequestProps {
   id: string;
   timeout?: number;
   include?: string[];
-  onComplete: () => void;
+  onComplete: (result: SpendRequest | null) => void;
 }
 
 type Phase =
@@ -34,6 +34,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
   const startTimeRef = useRef<number>(Date.now());
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const requestRef = useRef<SpendRequest | null>(null);
 
   useEffect(() => {
     return () => {
@@ -49,18 +50,19 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
         if (!result) {
           setError(`Spend request ${id} not found`);
           setPhase('error');
-          setTimeout(onComplete, 1500);
+          setTimeout(() => onComplete(null), 1500);
           return;
         }
 
+        requestRef.current = result;
         setRequest(result);
 
         if (result.status === 'approved') {
           setPhase('success');
-          setTimeout(onComplete, 1500);
+          setTimeout(() => onComplete(result), 1500);
         } else if (result.status === 'denied') {
           setPhase('declined');
-          setTimeout(onComplete, 1500);
+          setTimeout(() => onComplete(result), 1500);
         } else {
           startTimeRef.current = Date.now();
           setPhase('polling');
@@ -68,7 +70,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
       } catch (err) {
         setError((err as Error).message);
         setPhase('error');
-        setTimeout(onComplete, 1500);
+        setTimeout(() => onComplete(null), 1500);
       }
     };
 
@@ -89,7 +91,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
         if (pollRef.current) clearInterval(pollRef.current);
         if (timerRef.current) clearInterval(timerRef.current);
         setPhase('timeout');
-        setTimeout(onComplete, 1500);
+        setTimeout(() => onComplete(requestRef.current), 1500);
         return;
       }
 
@@ -97,18 +99,19 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
         const result = await repository.getSpendRequest(id, { include });
         if (!result) return;
 
+        requestRef.current = result;
         setRequest(result);
 
         if (result.status === 'approved') {
           if (pollRef.current) clearInterval(pollRef.current);
           if (timerRef.current) clearInterval(timerRef.current);
           setPhase('success');
-          setTimeout(onComplete, 1500);
+          setTimeout(() => onComplete(result), 1500);
         } else if (result.status === 'denied') {
           if (pollRef.current) clearInterval(pollRef.current);
           if (timerRef.current) clearInterval(timerRef.current);
           setPhase('declined');
-          setTimeout(onComplete, 1500);
+          setTimeout(() => onComplete(result), 1500);
         }
       } catch {
         // Ignore transient poll errors, keep polling

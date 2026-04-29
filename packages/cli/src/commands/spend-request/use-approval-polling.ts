@@ -12,7 +12,7 @@ interface UseApprovalPollingOptions {
   approvalUrl: string;
   repository: ISpendRequestResource;
   requestId: string | null;
-  onComplete: () => void;
+  onComplete: (result: SpendRequest) => void;
   onSuccess: (result: SpendRequest) => void;
   onError: (msg: string) => void;
 }
@@ -53,7 +53,7 @@ export function useApprovalPolling({
         if (!cancelled) {
           onSuccess(final);
           setStatus('success');
-          setTimeout(onComplete, 1000);
+          setTimeout(() => onComplete(final), 1000);
         }
       } catch (err) {
         if (!cancelled) {

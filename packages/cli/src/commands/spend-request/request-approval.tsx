@@ -9,7 +9,7 @@ import { useApprovalPolling } from './use-approval-polling';
 interface RequestApprovalProps {
   repository: ISpendRequestResource;
   id: string;
-  onComplete: () => void;
+  onComplete: (result: SpendRequest) => void;
 }
 
 export const RequestApproval: React.FC<RequestApprovalProps> = ({
