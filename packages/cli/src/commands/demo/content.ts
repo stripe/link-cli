@@ -31,8 +31,7 @@ export const CARD_FLOW = {
   },
 
   approval: {
-    description:
-      'Open the URL to approve. CLI continues once approved.',
+    description: 'Open the URL to approve. CLI continues once approved.',
     loading: 'Waiting for approval...',
     browserHint: 'Press [Enter] to open in browser',
   },
@@ -58,7 +57,7 @@ export const SPT_FLOW = {
 
   intro: {
     description:
-      'No checkout form. Server returns **HTTP 402** with a payment challenge; the agent signs it with a **shared payment token** (SPT) and retries. That\'s the Machine Payment Protocol.',
+      "No checkout form. Server returns **HTTP 402** with a payment challenge; the agent signs it with a **shared payment token** (SPT) and retries. That's the Machine Payment Protocol.",
     preamble: `${sptAmount} donation to Stripe Climate demonstrates:`,
     steps: [
       'Select payment method',
@@ -74,7 +73,7 @@ export const SPT_FLOW = {
     description: `POST to ${DEMO_CLIMATE_API_URL} without credentials — server returns 402 with a \`WWW-Authenticate\` challenge.`,
     loading: 'Probing...',
     detail:
-      'Challenge contains a `network_id` — the business identifier on Stripe\'s network.',
+      "Challenge contains a `network_id` — the business identifier on Stripe's network.",
   },
 
   createSpend: {

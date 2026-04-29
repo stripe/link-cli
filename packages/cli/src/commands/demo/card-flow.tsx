@@ -284,8 +284,7 @@ export const CardFlow: React.FC<CardFlowProps> = ({
             ];
             const done = pastStep(doneAfter[i]);
             const active =
-              !done &&
-              (step === activeFrom[i] || pastStep(activeFrom[i]));
+              !done && (step === activeFrom[i] || pastStep(activeFrom[i]));
             return done ? (
               <Text key={s} dimColor strikethrough>
                 {' '}

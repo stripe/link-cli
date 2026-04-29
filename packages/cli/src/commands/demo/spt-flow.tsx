@@ -285,8 +285,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
             ];
             const done = pastStep(doneAfter[i]);
             const active =
-              !done &&
-              (step === activeFrom[i] || pastStep(activeFrom[i]));
+              !done && (step === activeFrom[i] || pastStep(activeFrom[i]));
             const label = s.replace(/`/g, '');
             return done ? (
               <Text key={s} dimColor strikethrough>
