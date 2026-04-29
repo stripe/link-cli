@@ -86,15 +86,20 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
           <Text>
             Amount:{' '}
             <Text bold>
-              {(() => {
-                const t = result?.totals.find((t) => t.type === 'total');
-                return t ? String(t.amount) : 'N/A';
-              })()}
+              {result?.amount != null
+                ? `${result.amount} ${result.currency?.toUpperCase() ?? ''}`.trim()
+                : 'N/A'}
             </Text>
           </Text>
           <Text>
             Merchant: <Text bold>{result?.merchant_name}</Text>
           </Text>
+          {result?.credential_type === 'shared_payment_token' &&
+            result.shared_payment_token && (
+              <Text>
+                Token: <Text bold>{result.shared_payment_token.id}</Text>
+              </Text>
+            )}
         </Box>
       </Box>
     );

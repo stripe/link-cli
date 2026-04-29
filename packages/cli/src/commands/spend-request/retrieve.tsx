@@ -195,10 +195,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
           <Text>
             Amount:{' '}
             <Text bold>
-              {(() => {
-                const t = request?.totals.find((t) => t.type === 'total');
-                return t ? String(t.amount) : 'N/A';
-              })()}
+              {request?.amount != null ? String(request.amount) : 'N/A'}
             </Text>
           </Text>
           <Text>
@@ -225,10 +222,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
         <Text>
           Amount:{' '}
           <Text bold>
-            {(() => {
-              const t = request?.totals.find((t) => t.type === 'total');
-              return t ? String(t.amount) : 'N/A';
-            })()}
+            {request?.amount != null ? String(request.amount) : 'N/A'}
           </Text>
         </Text>
         <Text>

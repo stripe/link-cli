@@ -78,6 +78,7 @@ export interface SpendRequest {
   merchant_url?: string;
   context?: string;
   amount?: number;
+  currency?: string;
   line_items: LineItem[];
   totals: Total[];
   payment_method?: string;
