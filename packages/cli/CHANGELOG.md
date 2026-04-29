@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.4.0
+
+### Minor Changes
+
+- a618ce2: fix-double-spend-request
+
 ## 0.3.1
 
 ### Patch Changes
