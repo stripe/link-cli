@@ -34,6 +34,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
   const startTimeRef = useRef<number>(Date.now());
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const requestRef = useRef<SpendRequest | null>(null);
 
   useEffect(() => {
     return () => {
@@ -53,6 +54,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
           return;
         }
 
+        requestRef.current = result;
         setRequest(result);
 
         if (result.status === 'approved') {
@@ -89,7 +91,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
         if (pollRef.current) clearInterval(pollRef.current);
         if (timerRef.current) clearInterval(timerRef.current);
         setPhase('timeout');
-        setTimeout(() => onComplete(request), 1500);
+        setTimeout(() => onComplete(requestRef.current), 1500);
         return;
       }
 
@@ -97,6 +99,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
         const result = await repository.getSpendRequest(id, { include });
         if (!result) return;
 
+        requestRef.current = result;
         setRequest(result);
 
         if (result.status === 'approved') {
