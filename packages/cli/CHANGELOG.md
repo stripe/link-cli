@@ -1,5 +1,12 @@
 # @stripe/link-cli
 
+## 0.4.1
+
+### Patch Changes
+
+- 21bc584: Exit non-zero when spend request polling exhausts its timeout or max attempts before reaching a terminal status.
+- 5e03819: bug-fixes
+
 ## 0.4.0
 
 ### Minor Changes
