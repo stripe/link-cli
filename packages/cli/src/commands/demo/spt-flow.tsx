@@ -1,5 +1,4 @@
 import type {
-  CreateSpendRequestParams,
   IPaymentMethodsResource,
   ISpendRequestResource,
   PaymentMethod,
@@ -20,7 +19,6 @@ import {
   DEMO_SPT_CONTEXT,
 } from './constants';
 import { SPT_FLOW as S } from './content';
-import { StepData } from './step-data';
 
 type Step =
   | 'intro'
@@ -54,13 +52,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedPmIndex, setSelectedPmIndex] = useState(0);
   const [spendRequest, setSpendRequest] = useState<SpendRequest | null>(null);
-  const [spendRequestPayload, setSpendRequestPayload] =
-    useState<CreateSpendRequestParams | null>(null);
   const [payResult, setPayResult] = useState<PayResult | null>(null);
-  const [challengeData, setChallengeData] = useState<Record<
-    string,
-    unknown
-  > | null>(null);
   const [error, setError] = useState<string>('');
 
   const approvalUrl = spendRequest?.approval_url ?? '';
@@ -172,19 +164,12 @@ export const SptFlow: React.FC<SptFlowProps> = ({
         const wwwAuth = probeResponse.headers.get('www-authenticate') ?? '';
         const decoded = decodeStripeChallenge(wwwAuth);
         setNetworkId(decoded.network_id);
-        setChallengeData({
-          status: probeResponse.status,
-          method: decoded.method,
-          intent: decoded.intent,
-          network_id: decoded.network_id,
-          realm: decoded.realm,
-        });
 
         setStep('explain-402');
         await waitForEnter();
 
         setStep('create-spend');
-        const payload = {
+        const result = await spendRequestRepo.createSpendRequest({
           payment_details: pmId,
           credential_type: 'shared_payment_token' as const,
           network_id: decoded.network_id,
@@ -192,9 +177,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
           context: DEMO_SPT_CONTEXT,
           request_approval: true,
           test: true,
-        };
-        setSpendRequestPayload(payload);
-        const result = await spendRequestRepo.createSpendRequest(payload);
+        });
         setSpendRequest(result);
 
         setStep('await-approval');
@@ -285,9 +268,43 @@ export const SptFlow: React.FC<SptFlowProps> = ({
         <MarkdownText>{S.intro.description}</MarkdownText>
         <Box marginTop={1} flexDirection="column">
           <Text>{S.intro.preamble}</Text>
-          {S.intro.steps.map((s, i) => (
-            <MarkdownText key={s}>{` ${i + 1}. ${s}`}</MarkdownText>
-          ))}
+          {S.intro.steps.map((s, i) => {
+            const doneAfter: Step[] = [
+              'pick-pm',
+              'probe',
+              'create-spend',
+              'await-approval',
+              'mpp-pay',
+            ];
+            const activeFrom: Step[] = [
+              'fetch-pm',
+              'probe',
+              'create-spend',
+              'await-approval',
+              'mpp-pay-gate',
+            ];
+            const done = pastStep(doneAfter[i]);
+            const active =
+              !done &&
+              (step === activeFrom[i] || pastStep(activeFrom[i]));
+            const label = s.replace(/`/g, '');
+            return done ? (
+              <Text key={s} dimColor strikethrough>
+                {' '}
+                {i + 1}. {label}
+              </Text>
+            ) : active ? (
+              <Text key={s} bold color="cyan">
+                {' '}
+                {i + 1}. {label}
+              </Text>
+            ) : (
+              <Text key={s} dimColor>
+                {' '}
+                {i + 1}. {label}
+              </Text>
+            );
+          })}
         </Box>
         {step === 'intro' && prompt(S.intro.prompt)}
       </Box>
@@ -330,7 +347,9 @@ export const SptFlow: React.FC<SptFlowProps> = ({
         </Box>
       )}
 
-      {pastStep('fetch-pm') && (
+      {/* Step detail — only the active step's content is shown */}
+
+      {(step === 'probe' || step === 'explain-402') && (
         <Box flexDirection="column">
           <MarkdownText>{S.probe.description}</MarkdownText>
           {step === 'probe' && (
@@ -338,133 +357,91 @@ export const SptFlow: React.FC<SptFlowProps> = ({
               <Text color="cyan">{S.probe.loading}</Text>
             </Box>
           )}
+          {step === 'explain-402' && networkId && (
+            <>
+              <Text color="green">
+                ✓ Got HTTP 402 — network_id: <Text bold>{networkId}</Text>
+              </Text>
+              <MarkdownText>{S.probe.detail}</MarkdownText>
+              {prompt()}
+            </>
+          )}
         </Box>
       )}
 
-      {pastStep('probe') && networkId && (
-        <Box flexDirection="column">
-          <Text color="green">
-            ✓ Got HTTP 402 with a <Text bold>WWW-Authenticate</Text> challenge
-          </Text>
-          {challengeData && <StepData data={challengeData} />}
-          <MarkdownText>{S.probe.detail}</MarkdownText>
-          {step === 'explain-402' && prompt()}
-        </Box>
-      )}
-
-      {pastStep('explain-402') && (
+      {step === 'create-spend' && (
         <Box flexDirection="column">
           <MarkdownText>{S.createSpend.description}</MarkdownText>
-          {spendRequestPayload && (
-            <Box flexDirection="column" marginTop={1}>
-              <Text dimColor>spend-request create</Text>
-              <Box
-                flexDirection="column"
-                borderStyle="single"
-                borderColor="gray"
-                paddingX={2}
-              >
-                <Text>
-                  {JSON.stringify(
-                    spendRequestPayload as unknown as Record<string, unknown>,
-                    null,
-                    2,
-                  )}
-                </Text>
-              </Box>
-            </Box>
-          )}
-          {step === 'create-spend' && (
-            <Box marginY={1}>
-              <Text color="cyan">{S.createSpend.loading}</Text>
-            </Box>
-          )}
+          <Box marginY={1}>
+            <Text color="cyan">{S.createSpend.loading}</Text>
+          </Box>
         </Box>
       )}
 
-      {(step === 'await-approval' ||
-        step === 'approval-timeout' ||
-        pastStep('await-approval')) &&
+      {(step === 'await-approval' || step === 'approval-timeout') &&
         spendRequest && (
           <Box flexDirection="column">
             <Text color="green">
-              ✓ Spend request created (ID: <Text bold>{spendRequest.id}</Text>)
+              ✓ Spend request created ({spendRequest.id})
             </Text>
-            <StepData
-              data={{
-                id: spendRequest.id,
-                status: spendRequest.status,
-                credential_type: spendRequest.credential_type,
-                network_id: spendRequest.network_id,
-                amount: spendRequest.amount,
-                context: spendRequest.context,
-                approval_url: spendRequest.approval_url,
-              }}
-            />
+            {step === 'await-approval' && (
+              <>
+                <Text>{S.approval.description}</Text>
+                <Box
+                  flexDirection="column"
+                  borderStyle="round"
+                  borderColor="cyan"
+                  paddingX={2}
+                  paddingY={1}
+                  marginTop={1}
+                >
+                  <Text>
+                    Approve at:{' '}
+                    <Text bold color="cyan">
+                      {approvalUrl}
+                    </Text>
+                  </Text>
+                  <Text dimColor>{S.approval.browserHint}</Text>
+                </Box>
+                <Box marginY={1}>
+                  <Text color="cyan">{S.approval.loading}</Text>
+                </Box>
+              </>
+            )}
+            {step === 'approval-timeout' && (
+              <>
+                <Text color="yellow">
+                  ⚠ Approval timed out (5 min). Still pending — you can still
+                  approve.
+                </Text>
+                <Box
+                  flexDirection="column"
+                  borderStyle="round"
+                  borderColor="yellow"
+                  paddingX={2}
+                  paddingY={1}
+                  marginTop={1}
+                >
+                  <Text>
+                    Approve at:{' '}
+                    <Text bold color="cyan">
+                      {approvalUrl}
+                    </Text>
+                  </Text>
+                  <Text dimColor>Press [Enter] to open in browser</Text>
+                </Box>
+                <Box marginTop={1}>
+                  <Text dimColor>r Retry polling q Quit demo</Text>
+                </Box>
+              </>
+            )}
           </Box>
         )}
 
-      {step === 'await-approval' && (
+      {(step === 'mpp-pay-gate' || step === 'mpp-pay') && (
         <Box flexDirection="column">
-          <Text>{S.approval.description}</Text>
-          <Box
-            flexDirection="column"
-            borderStyle="round"
-            borderColor="cyan"
-            paddingX={2}
-            paddingY={1}
-            marginTop={1}
-          >
-            <Text>
-              Approve at:{' '}
-              <Text bold color="cyan">
-                {approvalUrl}
-              </Text>
-            </Text>
-            <Text dimColor>{S.approval.browserHint}</Text>
-          </Box>
-          <Box marginY={1}>
-            <Text color="cyan">{S.approval.loading}</Text>
-          </Box>
-        </Box>
-      )}
-
-      {step === 'approval-timeout' && (
-        <Box flexDirection="column">
-          <Text color="yellow">
-            ⚠ Approval timed out (5 min). The spend request is still pending —
-            you can still approve it.
-          </Text>
-          <Box
-            flexDirection="column"
-            borderStyle="round"
-            borderColor="yellow"
-            paddingX={2}
-            paddingY={1}
-            marginTop={1}
-          >
-            <Text>
-              Approve at:{' '}
-              <Text bold color="cyan">
-                {approvalUrl}
-              </Text>
-            </Text>
-            <Text dimColor>Press [Enter] to open in browser</Text>
-          </Box>
-          <Box marginTop={1}>
-            <Text dimColor>r Retry polling q Quit demo</Text>
-          </Box>
-        </Box>
-      )}
-
-      {pastStep('await-approval') && step !== 'error' && (
-        <Box flexDirection="column">
-          {(step === 'mpp-pay-gate' || pastStep('mpp-pay-gate')) && (
-            <>
-              <Text color="green">✓ Approved!</Text>
-              <MarkdownText>{S.mppPay.description}</MarkdownText>
-            </>
-          )}
+          <Text color="green">✓ Approved!</Text>
+          <MarkdownText>{S.mppPay.description}</MarkdownText>
           {step === 'mpp-pay-gate' && prompt(S.mppPay.prompt)}
           {step === 'mpp-pay' && (
             <Box marginY={1}>
@@ -476,34 +453,10 @@ export const SptFlow: React.FC<SptFlowProps> = ({
 
       {step === 'done' && payResult && (
         <Box flexDirection="column">
-          <Box
-            flexDirection="column"
-            borderStyle="round"
-            borderColor="green"
-            paddingX={2}
-            paddingY={1}
-          >
-            <Text bold color="green">
-              {S.done.success}
-            </Text>
-            <Text>
-              Status: <Text bold>HTTP {payResult.status}</Text>
-            </Text>
-            {payResult.body &&
-              (() => {
-                const body = payResult.body;
-                try {
-                  return (
-                    <Text>{JSON.stringify(JSON.parse(body), null, 2)}</Text>
-                  );
-                } catch {
-                  return <Text>{body}</Text>;
-                }
-              })()}
-          </Box>
-          <Box marginTop={1}>
-            <MarkdownText>{S.done.detail}</MarkdownText>
-          </Box>
+          <Text bold color="green">
+            ✓ {S.done.success} (HTTP {payResult.status})
+          </Text>
+          <MarkdownText>{S.done.detail}</MarkdownText>
         </Box>
       )}
 
