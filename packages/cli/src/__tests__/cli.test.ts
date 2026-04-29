@@ -650,6 +650,78 @@ describe('production mode', () => {
       const output = result.stdout + result.stderr;
       expect(output).toContain('not found');
     });
+
+    it('exits non-zero when polling attempts are exhausted before a terminal status', async () => {
+      setNextResponse(200, {
+        ...BASE_REQUEST,
+        status: 'pending_approval',
+        approval_url: 'https://app.link.com/approve/lsrq_prod_001',
+      });
+
+      const result = await runProdCli(
+        'spend-request',
+        'retrieve',
+        'lsrq_prod_001',
+        '--interval',
+        '1',
+        '--max-attempts',
+        '1',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      const output = parseJson(result.stdout) as Record<string, unknown>;
+      expect(output.code).toBe('POLLING_TIMEOUT');
+      expect(output.message).toContain('pending_approval');
+      expect(output.message).toContain('max attempts');
+    });
+
+    it('exits non-zero when polling times out before a terminal status', async () => {
+      setNextResponse(200, {
+        ...BASE_REQUEST,
+        status: 'pending_approval',
+        approval_url: 'https://app.link.com/approve/lsrq_prod_001',
+      });
+
+      const result = await runProdCli(
+        'spend-request',
+        'retrieve',
+        'lsrq_prod_001',
+        '--interval',
+        '1',
+        '--timeout',
+        '0',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      const output = parseJson(result.stdout) as Record<string, unknown>;
+      expect(output.code).toBe('POLLING_TIMEOUT');
+      expect(output.message).toContain('pending_approval');
+      expect(output.message).toContain('timeout');
+    });
+
+    it('exits successfully when polling observes a terminal status', async () => {
+      setNextResponse(200, {
+        ...BASE_REQUEST,
+        status: 'approved',
+      });
+
+      const result = await runProdCli(
+        'spend-request',
+        'retrieve',
+        'lsrq_prod_001',
+        '--interval',
+        '1',
+        '--max-attempts',
+        '1',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const output = parseJson(result.stdout) as Record<string, unknown>[];
+      expect(output[0].status).toBe('approved');
+    });
   });
 
   describe('auth login', () => {

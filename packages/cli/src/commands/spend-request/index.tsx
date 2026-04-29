@@ -338,14 +338,22 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
         }
 
         attempts++;
-        const shouldStop =
-          interval <= 0 ||
-          (maxAttempts > 0 && attempts >= maxAttempts) ||
-          Date.now() >= deadline;
-
-        if (shouldStop) {
+        if (interval <= 0) {
           yield request;
           return;
+        }
+
+        const maxAttemptsExhausted = maxAttempts > 0 && attempts >= maxAttempts;
+        const timeoutReached = Date.now() >= deadline;
+        if (maxAttemptsExhausted || timeoutReached) {
+          const reason = maxAttemptsExhausted
+            ? `max attempts (${maxAttempts}) exhausted`
+            : `timeout (${timeout}s) reached`;
+          return c.error({
+            code: 'POLLING_TIMEOUT',
+            message: `Polling stopped before spend request ${id} reached a terminal status: ${reason}; current status is ${request.status}.`,
+            retryable: true,
+          });
         }
 
         // Only yield when the response has changed to avoid noisy agent transcripts

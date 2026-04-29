@@ -84,6 +84,14 @@ link-cli spend-request retrieve lsrq_001 --format json
 ```
 By default, retrieving a spend request will not include card details. Use the `--include=card` to see unmasked card details.
 
+For agent polling, pass `--interval` and optionally `--max-attempts`:
+
+```bash
+link-cli spend-request retrieve lsrq_001 --interval 2 --max-attempts 150 --format json
+```
+
+Polling exits successfully only after the request reaches a terminal status such as `approved`, `denied`, or `expired`. If polling reaches `--timeout` or exhausts `--max-attempts` while the request is still non-terminal, the command exits non-zero with `code: "POLLING_TIMEOUT"` so callers do not treat a still-pending request as complete.
+
 If the merchant supports MPP, use `link-cli mpp pay` instead:
 
 ```bash

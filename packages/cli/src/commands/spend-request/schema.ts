@@ -63,17 +63,21 @@ export const retrieveOptions = z.object({
   timeout: z.coerce
     .number()
     .default(300)
-    .describe('Polling timeout in seconds'),
+    .describe(
+      'Polling timeout in seconds. When reached during active polling, exits non-zero with POLLING_TIMEOUT.',
+    ),
   interval: z.coerce
     .number()
     .default(0)
     .describe(
-      'Poll interval in seconds. When > 0, polls until status is terminal or timeout is reached, yielding status on each attempt.',
+      'Poll interval in seconds. When > 0, polls until status is terminal, timeout is reached, or max attempts are exhausted.',
     ),
   maxAttempts: z.coerce
     .number()
     .default(0)
-    .describe('Max poll attempts. 0 = unlimited (use timeout instead).'),
+    .describe(
+      'Max poll attempts. 0 = unlimited. Exhaustion during active polling exits non-zero with POLLING_TIMEOUT.',
+    ),
   include: z
     .array(z.string())
     .default([])
