@@ -103,6 +103,27 @@ export function createAuthCli(
     options: statusOptions,
     outputPolicy: 'agent-only' as const,
     async *run(c) {
+      if (!c.agent && !c.formatExplicit) {
+        return new Promise((resolve) => {
+          const { waitUntilExit } = render(
+            <AuthStatus onComplete={() => {}} />,
+          );
+          waitUntilExit().then(() => {
+            const auth = storage.getAuth();
+            resolve({
+              authenticated: !!auth,
+              ...(auth
+                ? {
+                    access_token: `${auth.access_token.substring(0, 20)}...`,
+                    token_type: auth.token_type,
+                  }
+                : {}),
+              credentials_path: storage.getPath(),
+            });
+          });
+        });
+      }
+
       const opts = c.options;
       const interval = opts.interval;
       const maxAttempts = opts.maxAttempts;
