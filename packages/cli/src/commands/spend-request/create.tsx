@@ -104,10 +104,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
           <Text>
             Amount:{' '}
             <Text bold>
-              {(() => {
-                const t = request?.totals.find((t) => t.type === 'total');
-                return t ? String(t.amount) : 'N/A';
-              })()}
+              {request?.amount != null ? `${request.amount} ${request.currency?.toUpperCase() ?? ''}`.trim() : 'N/A'}
             </Text>
           </Text>
           <Text>
@@ -119,6 +116,11 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
               {request?.line_items.map((li) => li.name).join(', ') || 'N/A'}
             </Text>
           </Text>
+          {request?.credential_type === 'shared_payment_token' && request.shared_payment_token && (
+            <Text>
+              Token: <Text bold>{request.shared_payment_token.id}</Text>
+            </Text>
+          )}
         </Box>
         <AppDownloadQrCodes />
       </Box>
