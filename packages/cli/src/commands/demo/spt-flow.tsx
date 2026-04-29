@@ -358,11 +358,11 @@ export const SptFlow: React.FC<SptFlowProps> = ({
           )}
           {step === 'explain-402' && networkId && (
             <>
+              <MarkdownText>{S.probe.detail}</MarkdownText>
               <Text color="green">
                 ✓ Got HTTP 402 — network_id: <Text bold>{networkId}</Text>
               </Text>
-              <MarkdownText>{S.probe.detail}</MarkdownText>
-              {prompt()}
+              {prompt(S.probe.prompt)}
             </>
           )}
         </Box>

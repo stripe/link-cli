@@ -25,6 +25,10 @@ export const CARD_FLOW = {
     prompt: 'Press [Enter] to start',
   },
 
+  explainPm: {
+    prompt: 'Press [Enter] to create a spend request',
+  },
+
   createSpend: {
     description: `Requests ${cardAmount} from your wallet. No credentials issued until you approve.`,
     loading: 'Creating spend request...',
@@ -57,7 +61,7 @@ export const SPT_FLOW = {
 
   intro: {
     description:
-      "No checkout form. Server returns **HTTP 402** with a payment challenge; the agent signs it with a **shared payment token** (SPT) and retries. That's the Machine Payment Protocol.",
+      "No checkout form. Server returns **HTTP 402** with a payment challenge; the link-cli creates and sends a **shared payment token** (SPT) and retries. That's the Machine Payment Protocol.",
     preamble: `${sptAmount} donation to Stripe Climate demonstrates:`,
     steps: [
       'Select payment method',
@@ -74,6 +78,7 @@ export const SPT_FLOW = {
     loading: 'Probing...',
     detail:
       "Challenge contains a `network_id` — the business identifier on Stripe's network.",
+    prompt: 'Press [Enter] to create a spend request',
   },
 
   createSpend: {

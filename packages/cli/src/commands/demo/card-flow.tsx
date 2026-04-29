@@ -350,7 +350,7 @@ export const CardFlow: React.FC<CardFlowProps> = ({
                 ✓ Using <Text bold>{pmLabel}</Text>
                 {paymentMethod.is_default ? ' (default)' : ''}
               </Text>
-              {step === 'explain-pm' && prompt()}
+              {step === 'explain-pm' && prompt(C.explainPm.prompt)}
             </Box>
           )}
         </Box>
