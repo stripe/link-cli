@@ -1,5 +1,6 @@
 export const DEMO_MERCHANT_NAME = 'Galtee Outdoor';
-export const DEMO_MERCHANT_URL = 'https://galtee.stripedemos.com/en/products/prod_RtAl1kmlzvL8oj';
+export const DEMO_MERCHANT_URL =
+  'https://galtee.stripedemos.com/en/products/prod_RtAl1kmlzvL8oj';
 export const DEMO_MPP_DEV_URL = 'https://mpp.dev';
 export const DEMO_CLIMATE_API_URL =
   'https://climate.stripe.dev/api/test/contribute';

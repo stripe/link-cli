@@ -425,44 +425,45 @@ export const CardFlow: React.FC<CardFlowProps> = ({
           </Box>
         )}
 
-      {(step === 'show-card' || step === 'open-url') && card && (
-        <Box flexDirection="column">
-          <Text color="green">✓ Approved!</Text>
-          <MarkdownText>{C.showCard.description}</MarkdownText>
-          <Box flexDirection="column" paddingX={2} marginTop={1}>
-            <Text>
-              <Text dimColor>Number </Text>
-              <Text bold>{formatCardNumber(card.number)}</Text>
-              {'  '}
-              <Text dimColor>Exp </Text>
-              <Text bold>{formatExpiry(card.exp_month, card.exp_year)}</Text>
-              {'  '}
-              <Text dimColor>CVC </Text>
-              <Text bold>{card.cvc}</Text>
-              {card.billing_address?.postal_code && (
-                <>
-                  {'  '}
-                  <Text dimColor>Zip </Text>
-                  <Text bold>{card.billing_address.postal_code}</Text>
-                </>
-              )}
-              {card.valid_until && (
-                <>
-                  {'  '}
-                  <Text dimColor>
-                    expires{' '}
-                    {new Date(card.valid_until).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </Text>
-                </>
-              )}
-            </Text>
+      {(step === 'show-card' || step === 'open-url' || step === 'done') &&
+        card && (
+          <Box flexDirection="column">
+            <Text color="green">✓ Approved!</Text>
+            <MarkdownText>{C.showCard.description}</MarkdownText>
+            <Box flexDirection="column" paddingX={2} marginTop={1}>
+              <Text>
+                <Text dimColor>Number </Text>
+                <Text bold>{formatCardNumber(card.number)}</Text>
+                {'  '}
+                <Text dimColor>Exp </Text>
+                <Text bold>{formatExpiry(card.exp_month, card.exp_year)}</Text>
+                {'  '}
+                <Text dimColor>CVC </Text>
+                <Text bold>{card.cvc}</Text>
+                {card.billing_address?.postal_code && (
+                  <>
+                    {'  '}
+                    <Text dimColor>Zip </Text>
+                    <Text bold>{card.billing_address.postal_code}</Text>
+                  </>
+                )}
+                {card.valid_until && (
+                  <>
+                    {'  '}
+                    <Text dimColor>
+                      expires{' '}
+                      {new Date(card.valid_until).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Text>
+                  </>
+                )}
+              </Text>
+            </Box>
+            {step === 'show-card' && prompt(C.showCard.prompt)}
           </Box>
-          {step === 'show-card' && prompt(C.showCard.prompt)}
-        </Box>
-      )}
+        )}
 
       {step === 'done' && (
         <Box flexDirection="column">
