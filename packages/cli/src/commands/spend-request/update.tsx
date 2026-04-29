@@ -12,7 +12,7 @@ interface UpdateSpendRequestProps {
   repository: ISpendRequestResource;
   id: string;
   params: UpdateSpendRequestParams;
-  onComplete: () => void;
+  onComplete: (result: SpendRequest | null) => void;
 }
 
 export const UpdateSpendRequest: React.FC<UpdateSpendRequestProps> = ({
@@ -33,11 +33,11 @@ export const UpdateSpendRequest: React.FC<UpdateSpendRequestProps> = ({
         const result = await repository.updateSpendRequest(id, params);
         setRequest(result);
         setStatus('success');
-        setTimeout(onComplete, 1500);
+        setTimeout(() => onComplete(result), 1500);
       } catch (err) {
         setError((err as Error).message);
         setStatus('error');
-        setTimeout(onComplete, 1500);
+        setTimeout(() => onComplete(null), 1500);
       }
     };
 

@@ -2,6 +2,7 @@ import type {
   CredentialType,
   ISpendRequestResource,
   LineItem,
+  SpendRequest,
   Total,
 } from '@stripe/link-sdk';
 import { storage } from '@stripe/link-sdk';
@@ -111,17 +112,19 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
 
       if (!c.agent && !c.formatExplicit) {
         return new Promise((resolve) => {
+          let capturedResult: SpendRequest | null = null;
           const { waitUntilExit } = render(
             <CreateSpendRequest
               repository={repository}
               params={createParams}
               requestApproval={requestApproval}
-              onComplete={() => {}}
+              onComplete={(result) => {
+                capturedResult = result;
+              }}
             />,
           );
-          waitUntilExit().then(async () => {
-            const created = await repository.createSpendRequest(createParams);
-            resolve(created);
+          waitUntilExit().then(() => {
+            resolve(capturedResult as SpendRequest);
           });
         });
       }
@@ -187,16 +190,19 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
 
       if (!c.agent && !c.formatExplicit) {
         return new Promise((resolve) => {
+          let capturedResult: SpendRequest | null = null;
           const { waitUntilExit } = render(
             <UpdateSpendRequest
               repository={repository}
               id={id}
               params={params}
-              onComplete={() => {}}
+              onComplete={(result) => {
+                capturedResult = result;
+              }}
             />,
           );
-          waitUntilExit().then(async () => {
-            resolve(await repository.updateSpendRequest(id, params));
+          waitUntilExit().then(() => {
+            resolve(capturedResult as SpendRequest);
           });
         });
       }
@@ -228,16 +234,18 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
 
       if (!c.agent && !c.formatExplicit) {
         return new Promise((resolve) => {
+          let capturedResult: SpendRequest | null = null;
           const { waitUntilExit } = render(
             <RequestApproval
               repository={repository}
               id={id}
-              onComplete={() => {}}
+              onComplete={(result) => {
+                capturedResult = result;
+              }}
             />,
           );
-          waitUntilExit().then(async () => {
-            const approval = await repository.requestApproval(id);
-            resolve(approval);
+          waitUntilExit().then(() => {
+            resolve(capturedResult as SpendRequest);
           });
         });
       }
@@ -286,18 +294,20 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
 
       if (!c.agent && !c.formatExplicit) {
         return new Promise((resolve) => {
+          let capturedResult: SpendRequest | null = null;
           const { waitUntilExit } = render(
             <RetrieveSpendRequest
               repository={repository}
               id={id}
               timeout={timeout}
               include={include}
-              onComplete={() => {}}
+              onComplete={(result) => {
+                capturedResult = result;
+              }}
             />,
           );
-          waitUntilExit().then(async () => {
-            const request = await repository.getSpendRequest(id, { include });
-            resolve(request);
+          waitUntilExit().then(() => {
+            resolve(capturedResult as SpendRequest);
           });
         });
       }
