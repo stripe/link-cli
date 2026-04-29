@@ -61,7 +61,7 @@ export const SPT_FLOW = {
 
   intro: {
     description:
-      "No checkout form. Server returns **HTTP 402** with a payment challenge; the link-cli creates and sends a **shared payment token** (SPT) and retries. That's the Machine Payment Protocol.",
+      "No checkout form. The server returns **HTTP 402** with a payment challenge. The link-cli creates and sends a **Shared Payment Token** (SPT) programmaticaly scoped to the business and amount.",
     preamble: `${sptAmount} donation to Stripe Climate demonstrates:`,
     steps: [
       'Select payment method',
