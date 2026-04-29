@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.3.1
+
+### Patch Changes
+
+- b061e10: Adds checklist flow to onboard/demo
+
 ## 0.3.0
 
 ### Minor Changes
