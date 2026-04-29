@@ -114,7 +114,7 @@ export const Login: React.FC<LoginProps> = ({
   return (
     <Box flexDirection="column" paddingY={1}>
       <Box marginBottom={1}>
-        <Text bold>Link CLI Authentication</Text>
+        <Text bold>Authentication</Text>
       </Box>
 
       <Box

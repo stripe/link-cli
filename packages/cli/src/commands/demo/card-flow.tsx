@@ -1,5 +1,4 @@
 import type {
-  CreateSpendRequestParams,
   IPaymentMethodsResource,
   ISpendRequestResource,
   PaymentMethod,
@@ -18,7 +17,6 @@ import {
   DEMO_MERCHANT_URL,
 } from './constants';
 import { CARD_FLOW as C } from './content';
-import { StepData } from './step-data';
 
 type Step =
   | 'intro'
@@ -68,8 +66,6 @@ export const CardFlow: React.FC<CardFlowProps> = ({
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedPmIndex, setSelectedPmIndex] = useState(0);
   const [spendRequest, setSpendRequest] = useState<SpendRequest | null>(null);
-  const [spendRequestPayload, setSpendRequestPayload] =
-    useState<CreateSpendRequestParams | null>(null);
   const [error, setError] = useState<string>('');
 
   const approvalUrl = spendRequest?.approval_url ?? '';
@@ -178,7 +174,7 @@ export const CardFlow: React.FC<CardFlowProps> = ({
         }
 
         setStep('create-spend');
-        const payload = {
+        const result = await spendRequestRepo.createSpendRequest({
           payment_details: pmId,
           credential_type: 'card' as const,
           amount: DEMO_CARD_AMOUNT,
@@ -187,9 +183,7 @@ export const CardFlow: React.FC<CardFlowProps> = ({
           merchant_url: DEMO_MERCHANT_URL,
           request_approval: true,
           test: true,
-        };
-        setSpendRequestPayload(payload);
-        const result = await spendRequestRepo.createSpendRequest(payload);
+        });
         setSpendRequest(result);
 
         setStep('await-approval');
@@ -266,23 +260,54 @@ export const CardFlow: React.FC<CardFlowProps> = ({
         {C.title}
       </Text>
 
-      {/* Intro */}
+      {/* Intro + checklist */}
       <Box flexDirection="column">
         <Box flexDirection="row" gap={1}>
           <Text color="yellow">[testmode]</Text>
           <Text dimColor>{DEMO_MERCHANT_URL}</Text>
         </Box>
         <MarkdownText>{C.intro.description}</MarkdownText>
-        <Box marginTop={1}>
-          <Text>
-            What happens:{'\n'}
-            {C.intro.steps.map((s, i) => ` ${i + 1}. ${s}`).join('\n')}
-          </Text>
+        <Box marginTop={1} flexDirection="column">
+          <Text>What happens:</Text>
+          {C.intro.steps.map((s, i) => {
+            const doneAfter: Step[] = [
+              'pick-pm',
+              'create-spend',
+              'await-approval',
+              'show-card',
+            ];
+            const activeFrom: Step[] = [
+              'fetch-pm',
+              'create-spend',
+              'await-approval',
+              'show-card',
+            ];
+            const done = pastStep(doneAfter[i]);
+            const active =
+              !done && (step === activeFrom[i] || pastStep(activeFrom[i]));
+            return done ? (
+              <Text key={s} dimColor strikethrough>
+                {' '}
+                {i + 1}. {s}
+              </Text>
+            ) : active ? (
+              <Text key={s} bold color="cyan">
+                {' '}
+                {i + 1}. {s}
+              </Text>
+            ) : (
+              <Text key={s} dimColor>
+                {' '}
+                {i + 1}. {s}
+              </Text>
+            );
+          })}
         </Box>
         {step === 'intro' && prompt(C.intro.prompt)}
       </Box>
 
-      {/* Fetch payment methods (only when running standalone without onboard) */}
+      {/* Step detail — only the active step's content is shown */}
+
       {step === 'fetch-pm' && (
         <Box flexDirection="column">
           <Text dimColor>
@@ -291,207 +316,158 @@ export const CardFlow: React.FC<CardFlowProps> = ({
         </Box>
       )}
 
-      {/* PM picker */}
-      {step === 'pick-pm' && paymentMethods.length > 1 && (
+      {(step === 'pick-pm' || step === 'explain-pm') && (
         <Box flexDirection="column">
-          <Text>Which payment method should we use for the demo?</Text>
-          <Box flexDirection="column" marginTop={1}>
-            {paymentMethods.map((pm, i) => (
-              <Text key={pm.id}>
-                {i === selectedPmIndex ? (
-                  <Text color="cyan" bold>
-                    {'>'} {formatPmLabel(pm)}
-                    {pm.is_default ? ' (default)' : ''}
+          {step === 'pick-pm' && paymentMethods.length > 1 && (
+            <Box flexDirection="column">
+              <Text>Which payment method should we use for the demo?</Text>
+              <Box flexDirection="column" marginTop={1}>
+                {paymentMethods.map((pm, i) => (
+                  <Text key={pm.id}>
+                    {i === selectedPmIndex ? (
+                      <Text color="cyan" bold>
+                        {'>'} {formatPmLabel(pm)}
+                        {pm.is_default ? ' (default)' : ''}
+                      </Text>
+                    ) : (
+                      <Text dimColor>
+                        {'  '}
+                        {formatPmLabel(pm)}
+                        {pm.is_default ? ' (default)' : ''}
+                      </Text>
+                    )}
                   </Text>
-                ) : (
-                  <Text dimColor>
-                    {'  '}
-                    {formatPmLabel(pm)}
-                    {pm.is_default ? ' (default)' : ''}
-                  </Text>
-                )}
-              </Text>
-            ))}
-          </Box>
-          <Box marginTop={1}>
-            <Text dimColor>Use ↑↓ to select, [Enter] to confirm</Text>
-          </Box>
-        </Box>
-      )}
-
-      {pastStep('fetch-pm') && paymentMethod && (
-        <Box flexDirection="column">
-          <Text color="green">
-            ✓ Using <Text bold>{pmLabel}</Text>
-            {paymentMethod.is_default ? ' (default)' : ''}
-          </Text>
-          {step === 'explain-pm' && prompt()}
-        </Box>
-      )}
-
-      {/* Step 2: Create spend request */}
-      {pastStep('explain-pm') && (
-        <Box flexDirection="column">
-          <MarkdownText>{C.createSpend.description}</MarkdownText>
-          {spendRequestPayload && (
-            <Box flexDirection="column" marginTop={1}>
-              <Text dimColor>spend-request create</Text>
-              <Box
-                flexDirection="column"
-                borderStyle="single"
-                borderColor="gray"
-                paddingX={2}
-              >
-                <Text>
-                  {JSON.stringify(
-                    spendRequestPayload as unknown as Record<string, unknown>,
-                    null,
-                    2,
-                  )}
-                </Text>
+                ))}
+              </Box>
+              <Box marginTop={1}>
+                <Text dimColor>Use ↑↓ to select, [Enter] to confirm</Text>
               </Box>
             </Box>
           )}
-          {step === 'create-spend' && (
-            <Box marginY={1}>
-              <Text color="cyan">{C.createSpend.loading}</Text>
+          {paymentMethod && (
+            <Box flexDirection="column">
+              <Text color="green">
+                ✓ Using <Text bold>{pmLabel}</Text>
+                {paymentMethod.is_default ? ' (default)' : ''}
+              </Text>
+              {step === 'explain-pm' && prompt(C.explainPm.prompt)}
             </Box>
           )}
         </Box>
       )}
 
-      {/* Step 2 result + Step 3: approval */}
-      {(step === 'await-approval' ||
-        step === 'approval-timeout' ||
-        pastStep('await-approval')) &&
+      {step === 'create-spend' && (
+        <Box flexDirection="column">
+          <MarkdownText>{C.createSpend.description}</MarkdownText>
+          <Box marginY={1}>
+            <Text color="cyan">{C.createSpend.loading}</Text>
+          </Box>
+        </Box>
+      )}
+
+      {(step === 'await-approval' || step === 'approval-timeout') &&
         spendRequest && (
           <Box flexDirection="column">
             <Text color="green">
-              ✓ Spend request created (ID: <Text bold>{spendRequest.id}</Text>)
+              ✓ Spend request created ({spendRequest.id})
             </Text>
-            <StepData
-              data={{
-                id: spendRequest.id,
-                status: spendRequest.status,
-                credential_type: spendRequest.credential_type,
-                amount: spendRequest.amount,
-                merchant_name: spendRequest.merchant_name,
-                merchant_url: spendRequest.merchant_url,
-                context: spendRequest.context,
-                approval_url: spendRequest.approval_url,
-              }}
-            />
+            {step === 'await-approval' && (
+              <>
+                <Text>{C.approval.description}</Text>
+                <Box
+                  flexDirection="column"
+                  borderStyle="round"
+                  borderColor="cyan"
+                  paddingX={2}
+                  paddingY={1}
+                  marginTop={1}
+                >
+                  <Text>
+                    Approve at:{' '}
+                    <Text bold color="cyan">
+                      {approvalUrl}
+                    </Text>
+                  </Text>
+                  <Text dimColor>{C.approval.browserHint}</Text>
+                </Box>
+                <Box marginY={1}>
+                  <Text color="cyan">{C.approval.loading}</Text>
+                </Box>
+              </>
+            )}
+            {step === 'approval-timeout' && (
+              <>
+                <Text color="yellow">
+                  ⚠ Approval timed out (5 min). Still pending — you can still
+                  approve.
+                </Text>
+                <Box
+                  flexDirection="column"
+                  borderStyle="round"
+                  borderColor="yellow"
+                  paddingX={2}
+                  paddingY={1}
+                  marginTop={1}
+                >
+                  <Text>
+                    Approve at:{' '}
+                    <Text bold color="cyan">
+                      {approvalUrl}
+                    </Text>
+                  </Text>
+                  <Text dimColor>Press [Enter] to open in browser</Text>
+                </Box>
+                <Box marginTop={1}>
+                  <Text dimColor>r Retry polling q Quit demo</Text>
+                </Box>
+              </>
+            )}
           </Box>
         )}
 
-      {step === 'await-approval' && (
-        <Box flexDirection="column">
-          <Text>{C.approval.description}</Text>
-          <Box
-            flexDirection="column"
-            borderStyle="round"
-            borderColor="cyan"
-            paddingX={2}
-            paddingY={1}
-            marginTop={1}
-          >
-            <Text>
-              Approve at:{' '}
-              <Text bold color="cyan">
-                {approvalUrl}
-              </Text>
-            </Text>
-            <Text dimColor>{C.approval.browserHint}</Text>
-          </Box>
-          <Box marginY={1}>
-            <Text color="cyan">{C.approval.loading}</Text>
-          </Box>
-        </Box>
-      )}
-
-      {step === 'approval-timeout' && (
-        <Box flexDirection="column">
-          <Text color="yellow">
-            ⚠ Approval timed out (5 min). The spend request is still pending —
-            you can still approve it.
-          </Text>
-          <Box
-            flexDirection="column"
-            borderStyle="round"
-            borderColor="yellow"
-            paddingX={2}
-            paddingY={1}
-            marginTop={1}
-          >
-            <Text>
-              Approve at:{' '}
-              <Text bold color="cyan">
-                {approvalUrl}
-              </Text>
-            </Text>
-            <Text dimColor>Press [Enter] to open in browser</Text>
-          </Box>
-          <Box marginTop={1}>
-            <Text dimColor>r Retry polling q Quit demo</Text>
-          </Box>
-        </Box>
-      )}
-
-      {/* Step 4: Show card */}
-      {pastStep('await-approval') && card && (
-        <Box flexDirection="column">
-          <Text color="green">✓ Approved!</Text>
-          <MarkdownText>{C.showCard.description}</MarkdownText>
-          <Box
-            flexDirection="column"
-            borderStyle="round"
-            borderColor="green"
-            paddingX={2}
-            paddingY={1}
-            marginTop={1}
-          >
-            <Text color="yellow" dimColor>
-              [testmode card]
-            </Text>
-            <Text>
-              Number: <Text bold>{formatCardNumber(card.number)}</Text>
-            </Text>
-            <Text>
-              Exp:{' '}
-              <Text bold>{formatExpiry(card.exp_month, card.exp_year)}</Text>
-            </Text>
-            <Text>
-              CVC: <Text bold>{card.cvc}</Text>
-            </Text>
-            {card.billing_address?.postal_code && (
+      {(step === 'show-card' || step === 'open-url' || step === 'done') &&
+        card && (
+          <Box flexDirection="column">
+            <Text color="green">✓ Approved!</Text>
+            <MarkdownText>{C.showCard.description}</MarkdownText>
+            <Box flexDirection="column" paddingX={2} marginTop={1}>
               <Text>
-                Zip: <Text bold>{card.billing_address.postal_code}</Text>
+                <Text dimColor>Number </Text>
+                <Text bold>{formatCardNumber(card.number)}</Text>
+                {'  '}
+                <Text dimColor>Exp </Text>
+                <Text bold>{formatExpiry(card.exp_month, card.exp_year)}</Text>
+                {'  '}
+                <Text dimColor>CVC </Text>
+                <Text bold>{card.cvc}</Text>
+                {card.billing_address?.postal_code && (
+                  <>
+                    {'  '}
+                    <Text dimColor>Zip </Text>
+                    <Text bold>{card.billing_address.postal_code}</Text>
+                  </>
+                )}
+                {card.valid_until && (
+                  <>
+                    {'  '}
+                    <Text dimColor>
+                      expires{' '}
+                      {new Date(card.valid_until).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Text>
+                  </>
+                )}
               </Text>
-            )}
-            {card.valid_until && (
-              <Text dimColor>
-                Expires:{' '}
-                {new Date(card.valid_until).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </Text>
-            )}
+            </Box>
+            {step === 'show-card' && prompt(C.showCard.prompt)}
           </Box>
-
-          <Box marginTop={1}>
-            <MarkdownText>{C.showCard.openUrl}</MarkdownText>
-          </Box>
-          {step === 'show-card' && prompt(C.showCard.prompt)}
-        </Box>
-      )}
+        )}
 
       {step === 'done' && (
         <Box flexDirection="column">
-          <Box flexDirection="row" gap={1}>
-            <Text color="yellow">[testmode]</Text>
-            <Text color="green">✓ {C.done.success}</Text>
-          </Box>
+          <Text color="green">✓ {C.done.success}</Text>
           <Text>{C.done.detail}</Text>
         </Box>
       )}

@@ -15,39 +15,40 @@ export const CARD_FLOW = {
   title: 'Flow 1: Virtual Card',
 
   intro: {
-    description: `An agent buys a Merino Trail Jacket (${cardAmount}) from Galtee Outdoor using a **virtual card** — a one-time card number issued from your Link wallet. Your real payment details are never shared with the agent or the business.`,
+    description: `Agent buys a Errigal Puffer Jacket (${cardAmount}) with a one-time virtual card from your Link wallet. Your real card is never shared.`,
     steps: [
-      `The agent calls \`spend-request create\` to request ${cardAmount} at Galtee Outdoor`,
-      'You approve in the Link app',
-      'Link issues a one-time virtual card',
-      'Open the checkout page and enter the card details',
+      'Select payment method',
+      `Create spend request for ${cardAmount}`,
+      'Approve in Link',
+      'Get virtual card and open checkout',
     ],
     prompt: 'Press [Enter] to start',
   },
 
+  explainPm: {
+    prompt: 'Press [Enter] to create a spend request',
+  },
+
   createSpend: {
-    description: `\`spend-request create\` sends the business name, URL, amount (${cardAmount}), and purchase description to Link. No credentials are issued until you approve.`,
+    description: `Requests ${cardAmount} from your wallet. No credentials issued until you approve.`,
     loading: 'Creating spend request...',
   },
 
   approval: {
-    description:
-      'Open the URL to approve the spend request. The CLI polls and continues once approved.',
+    description: 'Open the URL to approve. CLI continues once approved.',
     loading: 'Waiting for approval...',
     browserHint: 'Press [Enter] to open in browser',
   },
 
   showCard: {
     description:
-      'Link issued a one-time virtual card. An agent fills these into the checkout form. Single-use — expires in minutes:',
-    openUrl: 'Open Galtee Outdoor and enter these details at checkout.',
+      'One-time virtual card issued. Enter these at Galtee Outdoor checkout:',
     prompt: 'Press [Enter] to open Galtee Outdoor',
   },
 
   done: {
     success: 'Opened Galtee Outdoor in your browser',
-    detail:
-      'Enter the card details above at checkout. Galtee Outdoor runs in testmode — no real charge.',
+    detail: 'Testmode — no real charge.',
   },
 };
 
@@ -60,47 +61,47 @@ export const SPT_FLOW = {
 
   intro: {
     description:
-      'Some APIs accept payment without a checkout form. When called without credentials, the server responds with **HTTP 402** and a payment challenge. The agent signs that challenge with a **shared payment token** (SPT) and retries — this is the Machine Payment Protocol (MPP).',
-    preamble: `A ${sptAmount} donation to Stripe Climate (climate.stripe.dev) demonstrates:`,
+      'No checkout form. The server returns **HTTP 402** with a payment challenge. The link-cli creates and sends a **Shared Payment Token** (SPT) programmaticaly scoped to the business and amount.',
+    preamble: `${sptAmount} donation to Stripe Climate demonstrates:`,
     steps: [
-      'Probe the API — server responds HTTP 402 with a challenge',
-      'Decode the challenge to extract the `network_id`',
-      'Call `spend-request create` for an SPT credential',
-      'Approve the spend request',
-      '`mpp pay` signs the challenge and retries with an Authorization header',
+      'Select payment method',
+      'Probe API — get HTTP 402 challenge and decode `network_id`',
+      'Create SPT spend request',
+      'Approve',
+      '`mpp pay` signs and retries',
     ],
     prompt: 'Press [Enter] to start',
   },
 
   probe: {
-    description: `The agent POSTs to ${DEMO_CLIMATE_API_URL}. Without a payment credential, the server returns HTTP 402 with a \`WWW-Authenticate\` challenge header.`,
+    description: `POST to ${DEMO_CLIMATE_API_URL} without credentials — server returns 402 with a \`WWW-Authenticate\` challenge.`,
     loading: 'Probing...',
     detail:
-      'The challenge contains a **network_id** — the business identifier on the Stripe network. The agent uses it to request the matching SPT credential.',
+      "Challenge contains a `network_id` — the business identifier on Stripe's network.",
+    prompt: 'Press [Enter] to create a spend request',
   },
 
   createSpend: {
-    description: `\`spend-request create\` with \`credential_type: "shared_payment_token"\`, the decoded \`network_id\`, and amount (${sptAmount}). The \`network_id\` identifies the business — no name or URL needed.`,
+    description: `Request an SPT using the decoded \`network_id\` and amount (${sptAmount}).`,
     loading: 'Creating spend request...',
   },
 
   approval: {
-    description:
-      'Approve the spend request. Once approved, Link issues an SPT the agent uses to sign the 402 challenge.',
+    description: 'Approve to issue the SPT.',
     loading: 'Waiting for approval...',
     browserHint: 'Press [Enter] to open in browser',
   },
 
   mppPay: {
     description:
-      '`mpp pay` retrieves the SPT, re-probes the API, signs the 402 challenge, and retries with an `Authorization: Payment` header.',
+      '`mpp pay` retrieves the SPT, signs the challenge, retries with `Authorization: Payment`.',
     loading: 'Completing payment...',
     prompt: 'Press [Enter] to pay',
   },
 
   done: {
     success: 'Payment complete',
-    detail: `The ${sptAmount} donation went through entirely via API — no forms, no browser.`,
+    detail: `${sptAmount} donation completed via API — no forms, no browser.`,
   },
 };
 
@@ -110,8 +111,7 @@ export const SPT_FLOW = {
 
 export const DEMO_MENU = {
   title: 'Link CLI Demo',
-  subtitle:
-    'Two flows showing how agents request and use payment credentials with Link.',
+  subtitle: 'See how agents use Link to make payments.',
   question: 'Which flow would you like to run?',
   hint: 'Use ↑↓ to select, [Enter] to confirm',
 
@@ -119,24 +119,22 @@ export const DEMO_MENU = {
     {
       key: 'both' as const,
       label: 'Both flows',
-      description: 'Walk through both flows end-to-end.',
+      description: 'Run both end-to-end.',
     },
     {
       key: 'card' as const,
       label: 'Virtual card',
-      description:
-        'The agent requests a one-time card number and fills it into a checkout form.',
+      description: 'One-time card number for checkout forms.',
     },
     {
       key: 'spt' as const,
       label: 'Machine payment (SPT)',
-      description:
-        'The agent pays via API using the Machine Payment Protocol — no browser, no forms.',
+      description: 'Pay via API — no browser, no forms.',
     },
   ],
 
   transition:
-    'Virtual card flow done. Next: **machine payment** — the agent pays an API directly, no checkout form needed.',
+    'Card flow done. Next: **machine payment** — paying an API directly.',
   transitionPrompt: 'Press [Enter] to continue to Flow 2',
 };
 
@@ -146,8 +144,7 @@ export const DEMO_MENU = {
 
 export const ONBOARD = {
   title: 'Welcome to Link CLI',
-  subtitle:
-    'Set up Link CLI to let agents make secure payments on your behalf.',
+  subtitle: 'Let agents make secure payments on your behalf.',
 
   auth: {
     alreadyLoggedIn: 'Already logged in',
@@ -159,11 +156,11 @@ export const ONBOARD = {
     loading: 'Checking payment methods...',
     pickPrompt: 'Which payment method should we use for the demo?',
     pickHint: 'Use ↑↓ to select, [Enter] to confirm',
-    missing: 'No payment methods found in your Link wallet.',
+    missing: 'No payment methods in your Link wallet.',
     missingSteps: [
       'Open the Link app or visit link.com',
       'Add a payment method',
-      'Come back here and press [Enter] to retry',
+      'Press [Enter] to retry',
     ],
     retryPrompt: 'Press [Enter] to retry',
   },
@@ -171,7 +168,7 @@ export const ONBOARD = {
   appTip: {
     title: 'Get the Link app',
     description:
-      'Approve spend requests from your phone. Push notifications let you approve or deny instantly.',
+      'Approve spend requests from your phone with push notifications.',
     url: 'https://link.com/download',
   },
 };
