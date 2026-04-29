@@ -15,7 +15,7 @@ export const CARD_FLOW = {
   title: 'Flow 1: Virtual Card',
 
   intro: {
-    description: `Agent buys a Merino Trail Jacket (${cardAmount}) with a one-time virtual card from your Link wallet. Your real card is never shared.`,
+    description: `Agent buys a Errigal Puffer Jacket (${cardAmount}) with a one-time virtual card from your Link wallet. Your real card is never shared.`,
     steps: [
       'Select payment method',
       `Create spend request for ${cardAmount}`,
