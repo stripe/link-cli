@@ -67,7 +67,8 @@ Key input field notes:
 - CLI input uses `payment_method_id`; mapped to `payment_details` when calling the SDK
 - `context` requires min 100 characters; `amount` is in cents with max 50000
 - `--test` flag creates testmode credentials (real testmode SPT from test card data) instead of livemode ones
-- `create --request-approval` and `request-approval` both show an approval URL in interactive mode and poll until approved/denied/expired/failed. In JSON mode (`--format json`), they block silently and return the final `SpendRequest` when complete.
+- `create --request-approval` and `request-approval` both show an approval URL in interactive mode and poll until approved/denied/expired/failed. In JSON mode (`--format json`), they return immediately with an `_next.command` for `spend-request retrieve`.
+- `retrieve --interval <seconds>` polls until approved/denied/expired/succeeded/failed. If `--timeout` is reached or `--max-attempts` is exhausted while the request is still non-terminal, it exits non-zero with `POLLING_TIMEOUT`.
 - `card` credentials include `billing_address` (name, line1, line2, city, state, postal_code, country) and `valid_until` (ISO date string — when the card expires/stops working)
 
 ### mpp pay

@@ -55,15 +55,16 @@ The rest of this document shows CLI commands. When using the MCP server, map eac
 
 All commands support `--format json` for machine-readable output. Pass input via flags (run `link-cli <command> --help` to see full schema details, including all fields, types, and constraints).
 
-IMPORTANT: Run `auth login`, `spend-request create`, and `spend-request request-approval` with `run_in_background=true` (or `TaskOutput(task_id, block: false)`). These commands emit JSON to stdout before they exit, then keep running while they poll for user action.
+IMPORTANT: Run `auth login` with `run_in_background=true` (or `TaskOutput(task_id, block: false)`). It emits JSON to stdout before it exits, then keeps running while it polls for user action.
 
-The JSON stream contract for these long-running commands is:
+The agent-facing JSON contract is:
 
 - `auth login --format json`: first object contains `verification_url` and `phrase`; final object contains authentication result after approval succeeds
-- `spend-request create --request-approval --format json`: first object is the created spend request; final object is the terminal spend request after polling completes
-- `spend-request request-approval --format json`: first object contains the approval link; final object is the terminal spend request after polling completes
+- `spend-request create --request-approval --format json`: returns the created spend request immediately with an `_next.command` polling hint
+- `spend-request request-approval --format json`: returns the approval link immediately with an `_next.command` polling hint
+- `spend-request retrieve <id> --interval <seconds> --format json`: polls until the spend request reaches a terminal status, then returns the terminal spend request. It exits non-zero with `code: "POLLING_TIMEOUT"` if `--timeout` is reached or `--max-attempts` is exhausted while the request is still non-terminal.
 
-Always keep reading stdout until the process exits. Do not assume the first JSON object is the full result. The user MUST visit the verification or approval URL to continue, and you should always show that full URL in clear text.
+For `auth login`, keep reading stdout until the process exits. For spend request approval, present the `approval_url` to the user and start the `_next.command` polling command immediately. The user MUST visit the verification or approval URL to continue, and you should always show that full URL in clear text.
 
 ## Core flow
 
@@ -148,7 +149,7 @@ link-cli spend-request create \
   --format json
 ```
 
-Wait until the user has approved the spend request. If they deny, ask for clarification what to do next.
+After creating or requesting approval for a spend request, run the returned `_next.command` to poll for the terminal status. Do not proceed to payment while the request is still `created` or `pending_approval`. If polling exits with `POLLING_TIMEOUT`, keep waiting or ask the user whether to continue polling. If they deny, ask for clarification what to do next.
 
 Recommend the user approves with the [Link app](https://link.com/download). Show the download URL.
 
