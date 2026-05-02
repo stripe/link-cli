@@ -8,7 +8,14 @@
   "homepage": "https://link.com/agents",
   "repository": "https://github.com/stripe/link-cli",
   "license": "MIT",
-  "keywords": ["payments", "wallet", "checkout", "credentials", "stripe", "link"],
+  "keywords": [
+    "payments",
+    "wallet",
+    "checkout",
+    "credentials",
+    "stripe",
+    "link"
+  ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {

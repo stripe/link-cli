@@ -17,8 +17,22 @@
       "repository": "https://github.com/stripe/link-cli",
       "license": "MIT",
       "category": "finance",
-      "tags": ["payments", "wallet", "checkout", "credentials", "stripe", "link"],
-      "keywords": ["payments", "wallet", "checkout", "credentials", "stripe", "link"]
+      "tags": [
+        "payments",
+        "wallet",
+        "checkout",
+        "credentials",
+        "stripe",
+        "link"
+      ],
+      "keywords": [
+        "payments",
+        "wallet",
+        "checkout",
+        "credentials",
+        "stripe",
+        "link"
+      ]
     }
   ]
 }
