@@ -42,11 +42,15 @@ export const createOptions = z.object({
   lineItem: z
     .array(z.union([z.string(), z.record(z.string(), z.unknown())]))
     .default([])
-    .describe('Line item (repeatable, key:value format)'),
+    .describe(
+      'Line item (repeatable, key:value format). Keys: name (required), quantity, unit_amount, description, sku, url, image_url, product_url. Example: "name:Shoes,unit_amount:5000,quantity:2"',
+    ),
   total: z
     .array(z.union([z.string(), z.record(z.string(), z.unknown())]))
     .default([])
-    .describe('Total (repeatable, key:value format)'),
+    .describe(
+      'Total (repeatable, key:value format). Keys: type (required), display_text (required), amount (required). Example: "type:total,display_text:Total,amount:5000"',
+    ),
   requestApproval: z
     .boolean()
     .default(true)
@@ -94,9 +98,13 @@ export const updateOptions = z.object({
   lineItem: z
     .array(z.union([z.string(), z.record(z.string(), z.unknown())]))
     .default([])
-    .describe('Line item (repeatable, key:value format)'),
+    .describe(
+      'Line item (repeatable, key:value format). Keys: name (required), quantity, unit_amount, description, sku, url, image_url, product_url. Example: "name:Shoes,unit_amount:5000,quantity:2"',
+    ),
   total: z
     .array(z.union([z.string(), z.record(z.string(), z.unknown())]))
     .default([])
-    .describe('Total (repeatable, key:value format)'),
+    .describe(
+      'Total (repeatable, key:value format). Keys: type (required), display_text (required), amount (required). Example: "type:total,display_text:Total,amount:5000"',
+    ),
 });

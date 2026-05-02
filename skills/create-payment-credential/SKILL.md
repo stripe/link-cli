@@ -146,8 +146,14 @@ link-cli spend-request create \
   --context "<description>" \
   --merchant-name "<name>" \
   --merchant-url "<url>" \
+  --line-item "name:<product>,unit_amount:<cents>,quantity:<n>" \
+  --total "type:total,display_text:Total,amount:<cents>" \
   --format json
 ```
+
+**`--line-item` keys:** `name` (required), `quantity`, `unit_amount`, `description`, `sku`, `url`, `image_url`, `product_url`. Repeatable for multiple items.
+
+**`--total` keys:** `type` (required), `display_text` (required), `amount` (required). Repeatable (e.g. subtotal + shipping + total).
 
 After creating or requesting approval for a spend request, run the returned `_next.command` to poll for the terminal status. Do not proceed to payment while the request is still `created` or `pending_approval`. If polling exits with `POLLING_TIMEOUT`, keep waiting or ask the user whether to continue polling. If they deny, ask for clarification what to do next.
 
