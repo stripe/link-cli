@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.4.2
+
+### Patch Changes
+
+- 90fc183: add claude marketplace.json and improve plugins
+
 ## 0.4.1
 
 ### Patch Changes
