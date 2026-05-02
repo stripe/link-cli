@@ -71,6 +71,23 @@ The `--request-approval` flag triggers a push notification (or email) to the use
 
 Users can easily approve requests with the [Link app](https://link.com/download).
 
+#### Line items and totals
+
+`--line-item` and `--total` use repeatable `key:value` format.
+
+**`--line-item` keys:** `name` (required), `quantity`, `unit_amount`, `description`, `sku`, `url`, `image_url`, `product_url`
+
+```bash
+--line-item "name:Running Shoes,unit_amount:12000,quantity:1,description:Trail runners"
+```
+
+**`--total` keys:** `type` (required), `display_text` (required), `amount` (required)
+
+```bash
+--total "type:subtotal,display_text:Subtotal,amount:12000" \
+--total "type:total,display_text:Total,amount:12000"
+```
+
 #### Credential types
 
 By default, a spend request provisions a virtual card. For merchants that support the [Machine Payments Protocol](https://mpp.dev) (HTTP 402) and the Stripe payment method, you can instead include `--credential-type "shared_payment_token"`. 

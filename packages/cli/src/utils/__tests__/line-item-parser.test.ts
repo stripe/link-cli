@@ -44,8 +44,10 @@ describe('parseLineItemFlag', () => {
     );
   });
 
-  it('throws on unknown keys', () => {
-    expect(() => parseLineItemFlag('name:Shoes,color:red')).toThrow('color');
+  it('throws on unknown keys with allowed keys listed', () => {
+    expect(() => parseLineItemFlag('name:Shoes,color:red')).toThrow(
+      'unrecognized key "color". Allowed keys: name, url, image_url, description, sku, quantity, unit_amount, product_url',
+    );
   });
 
   it('throws on fields missing colon separator', () => {
@@ -87,10 +89,12 @@ describe('parseTotalFlag', () => {
     ).toThrow('amount');
   });
 
-  it('throws on unknown keys', () => {
+  it('throws on unknown keys with allowed keys listed', () => {
     expect(() =>
       parseTotalFlag('type:total,display_text:Total,amount:5000,extra:value'),
-    ).toThrow('extra');
+    ).toThrow(
+      'unrecognized key "extra". Allowed keys: type, display_text, amount',
+    );
   });
 
   it('throws on fields missing colon separator', () => {

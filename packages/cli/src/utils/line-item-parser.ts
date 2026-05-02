@@ -34,8 +34,17 @@ export function parseKvString(raw: string): Record<string, string> {
   return result;
 }
 
-function formatZodError(err: z.ZodError, prefix: string): Error {
+function formatZodError(
+  err: z.ZodError,
+  prefix: string,
+  schema: z.ZodObject<z.ZodRawShape>,
+): Error {
+  const allowed = Object.keys(schema.shape);
   const messages = err.issues.map((issue) => {
+    if (issue.code === 'unrecognized_keys') {
+      const keys = issue.keys.map((k) => `"${k}"`).join(', ');
+      return `${prefix}: unrecognized key ${keys}. Allowed keys: ${allowed.join(', ')}`;
+    }
     const key = issue.path[0]?.toString();
     return key
       ? `${prefix} ${key}: ${issue.message}`
@@ -49,7 +58,8 @@ export function parseLineItemFlag(raw: string): LineItem {
   try {
     return LineItemSchema.parse(obj) as LineItem;
   } catch (err) {
-    if (err instanceof z.ZodError) throw formatZodError(err, 'Line item');
+    if (err instanceof z.ZodError)
+      throw formatZodError(err, 'Line item', LineItemSchema);
     throw err;
   }
 }
@@ -59,7 +69,8 @@ export function parseTotalFlag(raw: string): Total {
   try {
     return TotalSchema.parse(obj) as Total;
   } catch (err) {
-    if (err instanceof z.ZodError) throw formatZodError(err, 'Total');
+    if (err instanceof z.ZodError)
+      throw formatZodError(err, 'Total', TotalSchema);
     throw err;
   }
 }
