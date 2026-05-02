@@ -1,15 +1,21 @@
 {
   "name": "link",
-  "version": "0.2.1",
   "description": "Secure, one-time-use payment credentials from Link",
   "author": {
-    "name": "Link",
+    "name": "Stripe",
     "url": "https://link.com/agents"
   },
   "homepage": "https://link.com/agents",
   "repository": "https://github.com/stripe/link-cli",
   "license": "MIT",
-  "keywords": [],
+  "keywords": [
+    "payments",
+    "wallet",
+    "checkout",
+    "credentials",
+    "stripe",
+    "link"
+  ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
