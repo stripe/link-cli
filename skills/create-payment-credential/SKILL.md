@@ -159,6 +159,12 @@ Recommend the user approves with the [Link app](https://link.com/download). Show
 
 **Card:** Run `link-cli spend-request retrieve <id> --include card --format json` to get the `card` object with `number`, `cvc`, `exp_month`, `exp_year`, `billing_address` (name, line1, line2, city, state, postal_code, country), and `valid_until` (unix timestamp — the card stops working after this time). Enter these details into the merchant's checkout form.
 
+**Safe credential handoff:** To avoid leaking card data into transcripts or logs, add `--output-file <path>` to write the full card to a local file (created with `0600` permissions) while stdout shows only redacted data. Use `--force` to overwrite an existing file. Example:
+
+```bash
+link-cli spend-request retrieve <id> --include card --output-file /tmp/link-card.json --format json
+```
+
 **SPT with 402 flow:** The SPT is **one-time use** — if the payment fails, you need a new spend request and new SPT.
 
 ```bash

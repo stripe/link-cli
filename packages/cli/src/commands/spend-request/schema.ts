@@ -57,6 +57,16 @@ export const createOptions = z.object({
     .describe(
       'Use test mode (creates testmode credentials from test card data)',
     ),
+  outputFile: z
+    .string()
+    .optional()
+    .describe(
+      'Write full card credentials to this file path; stdout shows redacted card data only',
+    ),
+  force: z
+    .boolean()
+    .default(false)
+    .describe('Overwrite output file if it already exists'),
 });
 
 export const retrieveOptions = z.object({
@@ -82,6 +92,16 @@ export const retrieveOptions = z.object({
     .array(z.string())
     .default([])
     .describe('Include extra data (repeatable, e.g. --include card)'),
+  outputFile: z
+    .string()
+    .optional()
+    .describe(
+      'Write full card credentials to this file path; stdout shows redacted card data only',
+    ),
+  force: z
+    .boolean()
+    .default(false)
+    .describe('Overwrite output file if it already exists'),
 });
 
 export const updateOptions = z.object({
