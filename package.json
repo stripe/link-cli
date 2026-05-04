@@ -10,7 +10,7 @@
     "lint": "biome lint .",
     "format": "biome format --write .",
     "check": "biome check --write .",
-    "link-cli": "node packages/cli/dist/cli.js"
+    "link-cli": "./packages/cli/dist/cli.js"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
