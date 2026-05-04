@@ -1,3 +1,6 @@
+import process from 'node:process';
+import updateNotifier from 'update-notifier';
+
 export interface UpdateInfo {
   current: string;
   latest: string;
@@ -11,10 +14,8 @@ export type UpdateInfoProvider = (
   request: UpdateInfoRequest,
 ) => Promise<UpdateInfo | undefined>;
 
-const NPM_LATEST_URL = 'https://registry.npmjs.org/@stripe/link-cli/latest';
 const UPDATE_CACHE_TTL_MS = 60 * 60 * 1000;
 const FAILURE_CACHE_TTL_MS = 60 * 1000;
-const FETCH_TIMEOUT_MS = 5_000;
 
 let cachedUpdateInfo:
   | {
@@ -25,6 +26,7 @@ let cachedUpdateInfo:
 let inflightUpdateInfo: Promise<UpdateInfo | undefined> | undefined;
 
 export function createAgentUpdateInfoProvider(
+  packageName: string,
   cliVersion: string,
 ): UpdateInfoProvider {
   return async ({ polling }) => {
@@ -38,9 +40,11 @@ export function createAgentUpdateInfoProvider(
     }
 
     if (!inflightUpdateInfo) {
-      inflightUpdateInfo = fetchLatestVersion(cliVersion).finally(() => {
-        inflightUpdateInfo = undefined;
-      });
+      inflightUpdateInfo = fetchLatestVersion(packageName, cliVersion).finally(
+        () => {
+          inflightUpdateInfo = undefined;
+        },
+      );
     }
 
     return inflightUpdateInfo;
@@ -63,21 +67,21 @@ export function renderInteractiveUpdateNotice(updateInfo: UpdateInfo): string {
 }
 
 async function fetchLatestVersion(
+  packageName: string,
   cliVersion: string,
 ): Promise<UpdateInfo | undefined> {
-  try {
-    const response = await fetch(NPM_LATEST_URL, {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
-    if (!response.ok) {
-      cacheUpdateInfo(undefined, FAILURE_CACHE_TTL_MS);
-      return undefined;
-    }
+  const previousDisableFlag = process.env.NO_UPDATE_NOTIFIER;
 
-    const payload = (await response.json()) as { version?: unknown };
-    const latest =
-      typeof payload.version === 'string' ? payload.version.trim() : undefined;
+  try {
+    process.env.NO_UPDATE_NOTIFIER = '1';
+    const notifier = updateNotifier({
+      pkg: {
+        name: packageName,
+        version: cliVersion,
+      },
+    });
+    const payload = await notifier.fetchInfo();
+    const latest = payload.latest?.trim();
     const value =
       latest && latest.length > 0 && latest !== cliVersion
         ? { current: cliVersion, latest }
@@ -88,6 +92,12 @@ async function fetchLatestVersion(
   } catch {
     cacheUpdateInfo(undefined, FAILURE_CACHE_TTL_MS);
     return undefined;
+  } finally {
+    if (previousDisableFlag === undefined) {
+      process.env.NO_UPDATE_NOTIFIER = undefined;
+    } else {
+      process.env.NO_UPDATE_NOTIFIER = previousDisableFlag;
+    }
   }
 }
 

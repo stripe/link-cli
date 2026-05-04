@@ -37,7 +37,10 @@ const cli = Cli.create('link-cli', {
 
 const isAgent =
   process.argv.includes('--format') || process.argv.includes('--mcp');
-const agentUpdateInfoProvider = createAgentUpdateInfoProvider(cliVersion);
+const agentUpdateInfoProvider = createAgentUpdateInfoProvider(
+  cliName,
+  cliVersion,
+);
 let getUpdateInfo = agentUpdateInfoProvider;
 
 if (!isAgent && process.stdout.isTTY) {
