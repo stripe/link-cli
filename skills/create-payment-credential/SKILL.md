@@ -65,7 +65,7 @@ Call `tools/list` to see all available MCP tools.
 - By default all output is in `toon` format. Pass `--format [json|md|yaml]` to change output format.
 - Some commands return a verification or approval URL. **These** must be presented to the user clearly for their action.
 
-_Recommended_: Run `link-cli --llms` to understand all the available commands. The `--llms` output is the canonical reference for parameter names, types, and valid values. Pass `--schema` before invoking a command to understand its parameters and constraints.
+_Recommended_: Run `link-cli --llms` to understand all the available commands. The `--llms-full` output is the canonical reference for parameter names, types, and valid values. Pass `--schema` before invoking a command to understand its parameters and constraints.
 
 ## Core flow
 
