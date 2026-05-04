@@ -1,6 +1,13 @@
 # Link CLI
 
-Link CLI lets agents get secure, one-time-use payment credentials from a Link wallet — so they can complete purchases on your behalf without ever storing your real card details.
+Link CLI lets agents get secure, one-time-use payment credentials from a Link wallet — so agents can complete purchases on your behalf without ever storing your real card details.
+
+The CLI can produce one of two credential types:
+
+- A virtual card (PAN) for use with a standard web checkout form. The issued card works anywhere, and is not restricted to Link-enabled sellers or sellers that use Stripe.
+- A [Shared Payment Token](https://docs.stripe.com/agentic-commerce/concepts/shared-payment-tokens) (SPT) when the seller is in the Stripe Network and accepts payments programmatically (for example with [Machine Payment Protocols](https://mpp.dev) (MPP))
+
+For now, this is only available to US Link accounts.
 
 ## Installation
 
@@ -14,11 +21,31 @@ Or run directly with `npx`:
 npx @stripe/link-cli
 ```
 
-You can install the skill via `npx skills add stripe/link-cli`.
+### Use with agents
 
-### MCP Server
+Install the skill:
 
-Link CLI can also run as a local MCP server. Add the following to your MCP client config (`.mcp.json`, etc.)
+```bash
+npx skills add stripe/link-cli
+```
+
+By default when called from an agent (non-TTY), all commands use `toon` output. All commands accept `--format [format]` for structured output. Other formats: `json`, `yaml`, `md`, `jsonl`.
+
+List available commands:
+
+```bash
+link-cli --llms-full
+```
+
+Get a command's full schema with `--schema`. Example:
+
+```bash
+link-cli spend-request create --schema
+```
+
+#### MCP Server
+
+Link CLI can run as a local MCP server. Add the following to your MCP client config (`.mcp.json`, etc.)
 
 ```json
 {
@@ -32,6 +59,12 @@ Link CLI can also run as a local MCP server. Add the following to your MCP clien
 ```
 
 ## Quickstart
+
+Run a guided onboarding and demo flow:
+
+```bash
+link-cli onboard
+```
 
 ### Login
 
@@ -67,9 +100,9 @@ link-cli spend-request create \
   --request-approval
 ```
 
-The `--request-approval` flag triggers a push notification (or email) to the user for approval, then polls until the request is approved or denied.
+The `--request-approval` flag triggers a push notification to the user for approval, then polls until the request is approved or denied.
 
-Users can easily approve requests with the [Link app](https://link.com/download).
+Easily approve requests with the [Link app](https://link.com/download).
 
 #### Line items and totals
 
@@ -97,14 +130,14 @@ By default, a spend request provisions a virtual card. For merchants that suppor
 The approved spend request includes a `card` object with `number`, `cvc`, `exp_month`, `exp_year`, `billing_address`, and `valid_until`. Enter these into the merchant's checkout form. 
 
 ```bash
-link-cli spend-request retrieve lsrq_001 --format json
+link-cli spend-request retrieve lsrq_001
 ```
 By default, retrieving a spend request will not include card details. Use the `--include=card` to see unmasked card details.
 
 For agent polling, pass `--interval` and optionally `--max-attempts`:
 
 ```bash
-link-cli spend-request retrieve lsrq_001 --interval 2 --max-attempts 150 --format json
+link-cli spend-request retrieve lsrq_001 --interval 2 --max-attempts 150
 ```
 
 Polling exits successfully only after the request reaches a terminal status such as `approved`, `denied`, or `expired`. If polling reaches `--timeout` or exhausts `--max-attempts` while the request is still non-terminal, the command exits non-zero with `code: "POLLING_TIMEOUT"` so callers do not treat a still-pending request as complete.
@@ -115,8 +148,7 @@ If the merchant supports MPP, use `link-cli mpp pay` instead:
 link-cli mpp pay https://climate.stripe.dev/api/contribute \
   --spend-request-id lsrq_001 \
   --method POST \
-  --data '{"amount":100}' \
-  --format json
+  --data '{"amount":100}'
 ```
 
 ## Advanced
@@ -124,14 +156,14 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
 ### Authentication
 
 ```bash
-link-cli auth login --client-name "Claude Code" --format json   # identify the connecting agent
-link-cli auth status --format json                               # check auth status
-link-cli auth logout --format json                               # disconnect
+link-cli auth login --client-name "Claude Code"   # identify the connecting agent
+link-cli auth status                               # check auth status
+link-cli auth logout                               # disconnect
 ```
 
 When `--client-name` is provided, the name is shown in the Link app when the user approves the connection — e.g. `Claude Code on my-macbook` instead of `link-cli on my-macbook`.
 
-`auth status --format json` includes an `update` field when a newer version is available:
+`auth status` includes an `update` field when a newer version is available:
 
 ```json
 {
@@ -159,18 +191,14 @@ A spend request moves through: **create** → **request approval** → **approve
 # Update before approval
 link-cli spend-request update lsrq_001 \
   --merchant-url https://press.stripe.com/working-in-public \
-  --format json
+ 
 
 # Request approval separately (alternative to create --request-approval)
-link-cli spend-request request-approval lsrq_001 --format json
+link-cli spend-request request-approval lsrq_001
 
 # Retrieve at any time (includes card credentials once approved)
-link-cli spend-request retrieve lsrq_001 --format json
+link-cli spend-request retrieve lsrq_001
 ```
-
-### Output formats
-
-All commands accept `--format json` for structured JSON output. Other formats: `yaml`, `md`, `jsonl`, `toon` (default). Errors are returned as JSON with `code` and `message` fields, with exit code 1.
 
 ### MPP
 
@@ -182,7 +210,7 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
   --method POST \
   --data '{"amount":100}' \
   --header "X-Custom: value" \
-  --format json
+ 
 ```
 
 Use `mpp decode` to validate a raw `WWW-Authenticate` header and extract the `network_id` needed for `shared_payment_token` spend requests:
@@ -190,7 +218,7 @@ Use `mpp decode` to validate a raw `WWW-Authenticate` header and extract the `ne
 ```bash
 link-cli mpp decode \
   --challenge 'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge", request="..."' \
-  --format json
+ 
 ```
 
 ### Environment variables

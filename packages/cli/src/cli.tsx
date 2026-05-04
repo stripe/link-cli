@@ -29,6 +29,7 @@ const notifier = updateNotifier({
   pkg: { name: cliName, version: cliVersion },
 });
 
+
 const cli = Cli.create('link-cli', {
   description:
     'Create a secure, one-time payment credential from a Link wallet to let agents complete purchases on behalf of users.',
