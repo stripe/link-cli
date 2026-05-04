@@ -149,6 +149,9 @@ link-cli spend-request request-approval lsrq_001 --format json
 
 # Retrieve at any time (includes card credentials once approved)
 link-cli spend-request retrieve lsrq_001 --format json
+
+# Cancel a spend request (from created, pending_approval, or approved state)
+link-cli spend-request cancel lsrq_001 --format json
 ```
 
 ### Output formats

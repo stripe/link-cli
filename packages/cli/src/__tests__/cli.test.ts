@@ -542,6 +542,63 @@ describe('production mode', () => {
     });
   });
 
+  describe('spend-request cancel', () => {
+    it('sends POST to /spend_requests/:id/cancel with auth header and no body', async () => {
+      setNextResponse(200, { ...BASE_REQUEST, status: 'canceled' });
+
+      const result = await runProdCli(
+        'spend-request',
+        'cancel',
+        'lsrq_prod_001',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.method).toBe('POST');
+      expect(lastRequest.url).toBe('/spend_requests/lsrq_prod_001/cancel');
+      expect(lastRequest.headers.authorization).toBe(
+        'Bearer prod_test_access_token',
+      );
+      expect(lastRequest.body).toBe('');
+    });
+
+    it('returns the canceled spend request', async () => {
+      setNextResponse(200, { ...BASE_REQUEST, status: 'canceled' });
+
+      const result = await runProdCli(
+        'spend-request',
+        'cancel',
+        'lsrq_prod_001',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const output = parseJson(result.stdout) as Record<string, unknown>;
+      expect(output.status).toBe('canceled');
+      expect(output.id).toBe('lsrq_prod_001');
+    });
+
+    it('surfaces API errors for cancel (409 terminal state)', async () => {
+      setNextResponse(409, {
+        error: {
+          message:
+            'Spend request is in a terminal state and cannot be canceled',
+        },
+      });
+
+      const result = await runProdCli(
+        'spend-request',
+        'cancel',
+        'lsrq_prod_001',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      const output = result.stdout + result.stderr;
+      expect(output).toContain('terminal state');
+    });
+  });
+
   describe('spend-request retrieve', () => {
     it('sends GET to /spend-requests/:id', async () => {
       const result = await runProdCli(
