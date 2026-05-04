@@ -29,11 +29,11 @@ Use [Link](https://link.com) to get secure, one-time-use payment credentials fro
 
 The CLI can produce one of two credential types:
 - A virtual card (PAN) for use with a standard web checkout form. The issued card works anywhere.
-- A Shared Payment Token (SPT) when the seller is in the Stripe Network and accepts payments programmatically (for example with Machine Paymnet Protocols).
+- A Shared Payment Token (SPT) when the seller is in the Stripe Network and accepts payments programmatically (for example with Machine Payment Protocols).
 
 ## Installing
 
-Install with `npm install -g @stripe/link-cli`
+Install with `npm install -g @stripe/link-cli`. Or run directly with `npx @stripe/link-cli`.
 
 ## Running commands
 
@@ -52,20 +52,20 @@ Link CLI can run as an **MCP server** or as a **standalone CLI**.
 }
 ```
 
-Or run directly with `npx @stripe/link-cli@latest --mcp`.
+Run the MCP server directly with `npx @stripe/link-cli@latest --mcp`.
 
-Be sure to call `tools/list` to see all available MCP tools.
+Call `tools/list` to see all available MCP tools.
 
 ### Common commands/options
 
 - List all commands: `link-cli --llms`
 - List all commands with parameters: `link-cli --llms-full`
-- Get a command's exact schema with `--schema`. E.g. `link-cli spend-request create --schema`
-- Multi-step commands return a `_next` action. For example, authenticating or creating a spend request will return a `_next.command` that must be run to complete the flow.
-- By default all output will be in `toon` format. Pass `--format [json|md|yaml]` to change output format.
-- Some commands will return a verification or approval URL. THESE must be presented to the user clearly for their action.
+- Get a command's exact schema with `--schema`. For example, `link-cli spend-request create --schema`
+- Multi-step commands return a `_next` action. For example, authenticating or creating a spend request returns a `_next.command` that must be run to complete the flow.
+- By default all output is in `toon` format. Pass `--format [json|md|yaml]` to change output format.
+- Some commands return a verification or approval URL. **These** must be presented to the user clearly for their action.
 
-_Recommended_: Run `link-cli --llms` to understand all the available commands. Pass `--schema` before invoking a command to understand it's parameteres and contraints.
+_Recommended_: Run `link-cli --llms` to understand all the available commands. The `--llms` output is the canonical reference for parameter names, types, and valid values. Pass `--schema` before invoking a command to understand its parameters and constraints.
 
 ## Core flow
 
@@ -93,15 +93,15 @@ If not authenticated:
 link-cli auth login --client-name "<your-agent-name>"
 ```
 
-Replace `<your-agent-name>` with the name of your agent or application (e.g. `"Personal Assistant", "Shopping Bot"`). This name appears in the user's Link app when they approve the connection. Use a clear, unique, identifiable name.
+Replace `<your-agent-name>` with the name of your agent or application (for example, `"Personal Assistant"`, `"Shopping Bot"`). This name appears in the user's Link app when they approve the connection. Use a clear, unique, identifiable name.
 
 DO NOT PROCEED until the user is authenticated with Link.
 
-Always check the current authentication status before starting a new login flow - the user may already be logged in.
+Always check the current authentication status before starting a new login flow — the user might already be logged in.
 
 ### Step 2: Evaluate the merchant site BEFORE creating a spend request
 
-**CRITICAL** before calling `spend-request create` you must complete this checklist:
+**CRITICAL:** Before calling `spend-request create` you must complete this checklist:
 1. Understand how the merchant accepts payments (cards or machine payments or other). **Do NOT** default to `card` credential type. The merchant determines the credential type — you cannot know it without checking first. Skipping this step will produce a spend request with the wrong credential type.
 2. Have the final total amount needed. Inclusive of any shipping costs, taxes or other costs. Skipping this step will produce a spend request that does not cover the full amount needed, and will be rejected.
 3. Clear context and understanding of what the user is purchasing. Be sure to know sizes, colors, shipping options, etc. Skipping this step will produce a spend request that the user does not recognize or understand.
@@ -164,7 +164,7 @@ Recommend the user approves with the [Link app](https://link.com/download). Show
 
 ### Step 5: Complete payment
 
-**Card:** Run `link-cli spend-request retrieve <id> --include card` to get the `card` object with `number`, `cvc`, `exp_month`, `exp_year`, `billing_address` (name, line1, line2, city, state, postal_code, country), and `valid_until` (unix timestamp — the card stops working after this time). Enter these details into the merchant's checkout form.
+**Card:** Run `link-cli spend-request retrieve <id> --include card` to get the `card` object with `number`, `cvc`, `exp_month`, `exp_year`, `billing_address` (name, line1, line2, city, state, postal_code, country), and `valid_until` (Unix timestamp — the card stops working after this time). Enter these details into the merchant's checkout form.
 
 **SPT with 402 flow:** The SPT is **one-time use** — if the payment fails, you need a new spend request and new SPT.
 
@@ -193,7 +193,6 @@ All errors are output as JSON with `code` and `message` fields, with exit code 1
 | `verification-failed` in error body from `mpp pay` | SPT was already consumed (one-time use) | Create a new spend request with `credential_type: "shared_payment_token"` — do not retry with the same spend request ID |
 | `context` validation error on `spend-request create` | `context` field is under 100 characters | Rewrite `context` as a full sentence explaining what is being purchased and why; the user reads this when approving |
 | API rejects `merchant_name` or `merchant_url` | These fields are forbidden when `credential_type` is `shared_payment_token` | Remove both fields from the request; SPT flows identify the merchant via `network_id` instead |
-| Command hangs indefinitely | `auth login` or `spend-request create` run synchronously | Always run these commands with `run_in_background=true` — they block until the user acts, so synchronous execution freezes the agent |
 | Spend request approved but payment fails immediately | Wrong credential type for the merchant (e.g. `card` on a 402-only endpoint) | Go back to Step 2, re-evaluate the merchant, create a new spend request with the correct `credential_type` |
 | Auth token expired mid-session (exit code 1 during approval polling) | Token refresh failure during background polling | Re-authenticate with `auth login`, then retrieve the existing spend request or resume polling. Only create a new spend request if the original one expired, was denied, or its shared payment token was already consumed |
 

@@ -1,11 +1,11 @@
 # Link CLI
 
-Link CLI lets agents get secure, one-time-use payment credentials from a Link wallet — so agents can complete purchases on your behalf without ever storing your real card details.
+Link CLI lets agents get secure, one-time-use payment credentials from a Link wallet to complete purchases on your behalf — without storing your real card details.
 
 The CLI can produce one of two credential types:
 
 - A virtual card (PAN) for use with a standard web checkout form. The issued card works anywhere, and is not restricted to Link-enabled sellers or sellers that use Stripe.
-- A [Shared Payment Token](https://docs.stripe.com/agentic-commerce/concepts/shared-payment-tokens) (SPT) when the seller is in the Stripe Network and accepts payments programmatically (for example with [Machine Payment Protocols](https://mpp.dev) (MPP))
+- A [Shared Payment Token](https://docs.stripe.com/agentic-commerce/concepts/shared-payment-tokens) (SPT) when the seller accepts programmatic payments through [Machine Payment Protocols](https://mpp.dev) (MPP)
 
 For now, this is only available to US Link accounts.
 
@@ -29,7 +29,7 @@ Install the skill:
 npx skills add stripe/link-cli
 ```
 
-By default when called from an agent (non-TTY), all commands use `toon` output. All commands accept `--format [format]` for structured output. Other formats: `json`, `yaml`, `md`, `jsonl`.
+By default when called from an agent (non-TTY), all commands use `toon` output — a compact, LLM-friendly text format. All commands accept `--format [format]` for structured output. Other formats: `json`, `yaml`, `md`, `jsonl`.
 
 List available commands:
 
@@ -74,7 +74,7 @@ The `link-cli` requires a Link account. You can log in to your existing one or [
 link-cli auth login
 ```
 
-You'll receive a verification URL and a short phrase. Visit the URL, log in to your Link account, and enter the phrase to approve the connection.
+You receive a verification URL and a short phrase. Visit the URL, log in to your Link account, and enter the phrase to approve the connection.
 
 ### List payment methods
 
@@ -82,11 +82,11 @@ You'll receive a verification URL and a short phrase. Visit the URL, log in to y
 link-cli payment-methods list
 ```
 
-Returns the cards and bank accounts saved to your Link account. Use the `id` field as `payment_method_id` in the next step. If you have no payment methods, you can [add new ones in Link](https://app.link.com/wallet).
+Returns the cards and bank accounts saved to your Link account. Use the `id` field as `payment_method_id` in the next step. If you have no payment methods, [add new ones in Link](https://app.link.com/wallet).
 
 ### Create a spend request
 
-To request a secure, one-time payment credential from your Link wallet, you create a spend request. You specify a payment method in your account, as well as some merchant details, line items, and amounts.
+Create a spend request with a payment method, merchant details, line items, and amounts:
 
 ```bash
 link-cli spend-request create \
@@ -123,7 +123,7 @@ Easily approve requests with the [Link app](https://link.com/download).
 
 #### Credential types
 
-By default, a spend request provisions a virtual card. For merchants that support the [Machine Payments Protocol](https://mpp.dev) (HTTP 402) and the Stripe payment method, you can instead include `--credential-type "shared_payment_token"`. 
+By default, a spend request provisions a virtual card. For merchants that support the [Machine Payments Protocol](https://mpp.dev) (HTTP 402) and the Stripe payment method, instead pass `--credential-type "shared_payment_token"`. 
 
 ### Execute payment
 
@@ -132,7 +132,7 @@ The approved spend request includes a `card` object with `number`, `cvc`, `exp_m
 ```bash
 link-cli spend-request retrieve lsrq_001
 ```
-By default, retrieving a spend request will not include card details. Use the `--include=card` to see unmasked card details.
+By default, retrieving a spend request doesn't include card details. Pass `--include card` to see unmasked card details.
 
 For agent polling, pass `--interval` and optionally `--max-attempts`:
 
@@ -161,7 +161,7 @@ link-cli auth status                               # check auth status
 link-cli auth logout                               # disconnect
 ```
 
-When `--client-name` is provided, the name is shown in the Link app when the user approves the connection — e.g. `Claude Code on my-macbook` instead of `link-cli on my-macbook`.
+When you provide `--client-name`, the Link app displays it when you approve the connection — for example, `Claude Code on my-macbook` instead of `link-cli on my-macbook`.
 
 `auth status` includes an `update` field when a newer version is available:
 
@@ -176,7 +176,7 @@ When `--client-name` is provided, the name is shown in the Link app when the use
 }
 ```
 
-Set `NO_UPDATE_NOTIFIER=1` to suppress update checks (e.g. in CI).
+Set `NO_UPDATE_NOTIFIER=1` to suppress update checks (for example, in CI).
 
 ### Spend request lifecycle
 
@@ -185,40 +185,37 @@ A spend request moves through: **create** → **request approval** → **approve
 **Required fields for create:** `payment_method_id`, `merchant_name`, `merchant_url`, `context`, `amount`
 
 **Constraints:** `context` must be at least 100 characters; `amount` must not exceed 50000 (cents); `currency` must be a 3-letter ISO code.
-**Test mode:** Pass `--test` to create testmode credentials (uses test card `4242424242424242`). Useful for development and integration testing without using real payment methods.
+**Test mode:** Pass `--test` to create testmode credentials (uses test card `4242424242424242`), useful for development and integration testing without real payment methods.
 
 ```bash
 # Update before approval
 link-cli spend-request update lsrq_001 \
-  --merchant-url https://press.stripe.com/working-in-public \
- 
+  --merchant-url https://press.stripe.com/working-in-public
 
 # Request approval separately (alternative to create --request-approval)
 link-cli spend-request request-approval lsrq_001
 
-# Retrieve at any time (includes card credentials once approved)
+# Retrieve at any time (includes card credentials after approval)
 link-cli spend-request retrieve lsrq_001
 ```
 
 ### MPP
 
-Use `mpp pay` to complete purchases on merchants that use the [Machine Payments Protocol](https://mpp.dev). The spend request must use `credential_type: "shared_payment_token"` and be approved. The SPT is one-time-use — if payment fails, create a new spend request.
+Use `mpp pay` to complete purchases on merchants that use the [Machine Payments Protocol](https://mpp.dev). The spend request must use `credential_type: "shared_payment_token"` and you must approve it before paying. The SPT is one-time-use — if payment fails, create a new spend request.
 
 ```bash
 link-cli mpp pay https://climate.stripe.dev/api/contribute \
   --spend-request-id lsrq_001 \
   --method POST \
   --data '{"amount":100}' \
-  --header "X-Custom: value" \
- 
+  --header "X-Custom: value"
 ```
 
 Use `mpp decode` to validate a raw `WWW-Authenticate` header and extract the `network_id` needed for `shared_payment_token` spend requests:
 
 ```bash
 link-cli mpp decode \
-  --challenge 'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge", request="..."' \
- 
+  --challenge 'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge", request="..."'
 ```
 
 ### Environment variables
@@ -231,7 +228,7 @@ link-cli mpp decode \
 
 ## Onboard
 
-Run the guided setup flow — authenticates, checks payment methods, shows the app download QR, and walks through both demo flows:
+Run the guided setup flow — authenticates, checks payment methods, shows the app download QR, and runs both demo flows:
 
 ```bash
 link-cli onboard
