@@ -5,12 +5,12 @@ import { createMppCli } from './commands/mpp';
 import { createOnboardCli } from './commands/onboard';
 import { createPaymentMethodsCli } from './commands/payment-methods';
 import { createSpendRequestCli } from './commands/spend-request';
+import { ResourceFactory } from './utils/resource-factory';
 import {
   createAgentUpdateInfoProvider,
   createInteractiveUpdateInfoProvider,
   renderInteractiveUpdateNotice,
 } from './utils/update-info';
-import { ResourceFactory } from './utils/resource-factory';
 
 declare const __CLI_VERSION__: string;
 declare const __BUILD_NUMBER__: string;
