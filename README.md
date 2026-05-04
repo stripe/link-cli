@@ -134,6 +134,14 @@ link-cli spend-request retrieve lsrq_001
 ```
 By default, retrieving a spend request doesn't include card details. Pass `--include card` to see unmasked card details.
 
+To avoid leaking card credentials into agent transcripts or logs, use `--output-file` to write the full card to a secure local file while stdout shows only redacted data (brand, last4, expiry):
+
+```bash
+link-cli spend-request retrieve lsrq_001 --include card --output-file /tmp/link-card.json --format json
+```
+
+The file is created with `0600` permissions. If the file already exists, the command fails unless `--force` is passed. When `--output-file` is set, the JSON output replaces the `card` object with redacted fields and adds a `card_output_file` path.
+
 For agent polling, pass `--interval` and optionally `--max-attempts`:
 
 ```bash

@@ -9,6 +9,7 @@ import { storage } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import { render } from 'ink';
 import React from 'react';
+import { writeCredentialFile } from '../../utils/credential-output';
 import {
   parseLineItemFlag,
   parseTotalFlag,
@@ -18,6 +19,29 @@ import { RequestApproval } from './request-approval';
 import { RetrieveSpendRequest } from './retrieve';
 import { createOptions, retrieveOptions, updateOptions } from './schema';
 import { UpdateSpendRequest } from './update';
+
+async function applyOutputFile(
+  request: SpendRequest,
+  outputFile: string | undefined,
+  force: boolean,
+): Promise<SpendRequest & { card_output_file?: string }> {
+  if (!outputFile || !request.card) return request;
+
+  const fileData = {
+    spend_request_id: request.id,
+    merchant_name: request.merchant_name,
+    merchant_url: request.merchant_url,
+    context: request.context,
+    created_at: request.created_at,
+    card: request.card,
+  };
+  const resolvedPath = await writeCredentialFile(outputFile, fileData, force);
+  const { card: _, ...withoutCard } = request;
+  return {
+    ...withoutCard,
+    card_output_file: resolvedPath,
+  } as SpendRequest & { card_output_file?: string };
+}
 
 export function createSpendRequestCli(repository: ISpendRequestResource) {
   const cli = Cli.create('spend-request', {
@@ -110,6 +134,9 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
         test: opts.test ? true : undefined,
       };
 
+      const outputFile = opts.outputFile;
+      const forceOverwrite = opts.force;
+
       if (!c.agent && !c.formatExplicit) {
         return new Promise((resolve) => {
           let capturedResult: SpendRequest | null = null;
@@ -118,6 +145,8 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
               repository={repository}
               params={createParams}
               requestApproval={requestApproval}
+              outputFile={outputFile}
+              force={forceOverwrite}
               onComplete={(result) => {
                 capturedResult = result;
               }}
@@ -133,7 +162,15 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
       // The agent drives the polling loop via `spend-request retrieve`.
       const created = await repository.createSpendRequest(createParams);
       if (!requestApproval) {
-        yield created;
+        try {
+          yield await applyOutputFile(created, outputFile, forceOverwrite);
+        } catch (err) {
+          const message = (err as Error).message;
+          if (message.startsWith('OUTPUT_FILE_EXISTS')) {
+            return c.error({ code: 'OUTPUT_FILE_EXISTS', message });
+          }
+          return c.error({ code: 'OUTPUT_FILE_WRITE_ERROR', message });
+        }
         return;
       }
       yield {
@@ -291,6 +328,8 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
       const maxAttempts = opts.maxAttempts;
       const includeArr = opts.include;
       const include = includeArr?.length ? includeArr : undefined;
+      const outputFile = opts.outputFile;
+      const forceOverwrite = opts.force;
 
       if (!c.agent && !c.formatExplicit) {
         return new Promise((resolve) => {
@@ -301,6 +340,8 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
               id={id}
               timeout={timeout}
               include={include}
+              outputFile={outputFile}
+              force={forceOverwrite}
               onComplete={(result) => {
                 capturedResult = result;
               }}
@@ -332,16 +373,22 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
           });
         }
 
-        if (terminalStatuses.has(request.status)) {
-          yield request;
+        const shouldEmitFinal =
+          terminalStatuses.has(request.status) || interval <= 0;
+        if (shouldEmitFinal) {
+          try {
+            yield await applyOutputFile(request, outputFile, forceOverwrite);
+          } catch (err) {
+            const message = (err as Error).message;
+            if (message.startsWith('OUTPUT_FILE_EXISTS')) {
+              return c.error({ code: 'OUTPUT_FILE_EXISTS', message });
+            }
+            return c.error({ code: 'OUTPUT_FILE_WRITE_ERROR', message });
+          }
           return;
         }
 
         attempts++;
-        if (interval <= 0) {
-          yield request;
-          return;
-        }
 
         const maxAttemptsExhausted = maxAttempts > 0 && attempts >= maxAttempts;
         const timeoutReached = Date.now() >= deadline;
