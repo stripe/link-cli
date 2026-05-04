@@ -114,7 +114,7 @@ Easily approve requests with the [Link app](https://link.com/download).
 --line-item "name:Running Shoes,unit_amount:12000,quantity:1,description:Trail runners"
 ```
 
-**`--total` keys:** `type` (required), `display_text` (required), `amount` (required)
+**`--total` keys:** `type` (required; one of: `subtotal`, `tax`, `total`), `display_text` (required), `amount` (required)
 
 ```bash
 --total "type:subtotal,display_text:Subtotal,amount:12000" \

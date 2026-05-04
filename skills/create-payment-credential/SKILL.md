@@ -154,7 +154,7 @@ link-cli spend-request create \
 
 **`--line-item` keys:** `name` (required), `quantity`, `unit_amount`, `description`, `sku`, `url`, `image_url`, `product_url`. Repeatable for multiple items.
 
-**`--total` keys:** `type` (required), `display_text` (required), `amount` (required). Repeatable (e.g. subtotal + shipping + total).
+**`--total` keys:** `type` (required; one of: `subtotal`, `tax`, `total`), `display_text` (required), `amount` (required). Repeatable (e.g. subtotal + tax + total).
 
 Do not proceed to payment while the request is still `created` or `pending_approval`. If polling exits with `POLLING_TIMEOUT`, keep waiting or ask the user whether to continue polling. If they deny, ask for clarification what to do next.
 
