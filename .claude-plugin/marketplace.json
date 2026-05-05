@@ -1,5 +1,5 @@
 {
-  "name": "Link",
+  "name": "link-cli",
   "description": "Secure, one-time-use payment credentials from Link",
   "owner": {
     "name": "Stripe",
@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "link",
-      "source": ".",
+      "source": "./plugins/link",
       "description": "Authenticate with Link, create spend requests, and retrieve one-time-use card or shared payment token credentials for user-approved purchases.",
       "author": {
         "name": "Stripe"

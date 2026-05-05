@@ -8,7 +8,7 @@
       "name": "link",
       "source": {
         "source": "local",
-        "path": "./plugins/link"
+        "path": "."
       },
       "policy": {
         "installation": "AVAILABLE",
