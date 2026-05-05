@@ -1,9 +1,11 @@
 {
   "name": "link-cli",
-  "description": "Secure, one-time-use payment credentials from Link",
   "owner": {
     "name": "Stripe",
     "email": "agent-spend@stripe.com"
+  },
+  "metadata": {
+    "description": "Secure, one-time-use payment credentials from Link"
   },
   "plugins": [
     {
