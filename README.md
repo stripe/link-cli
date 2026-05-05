@@ -21,6 +21,18 @@ Or run directly with `npx`:
 npx @stripe/link-cli
 ```
 
+### Standalone binaries
+
+Each release also ships single-file standalone binaries for darwin-arm64, darwin-x64, linux-x64, and windows-x64. These do not require Node or npm at runtime and are intended for embedding inside other applications (desktop apps, CI runners, agent platforms).
+
+Download from the [latest release](https://github.com/stripe/link-cli/releases/latest), or pin a specific build via the per-release `manifest.json`:
+
+```
+https://github.com/stripe/link-cli/releases/download/<tag>/manifest.json
+```
+
+The manifest reports the `version`, file names, sha256 checksums, and download URLs for every target.
+
 ### Use with agents
 
 Install the skill:
