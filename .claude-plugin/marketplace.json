@@ -1,14 +1,16 @@
 {
-  "name": "Link",
-  "description": "Secure, one-time-use payment credentials from Link",
+  "name": "link-cli",
   "owner": {
     "name": "Stripe",
     "email": "agent-spend@stripe.com"
   },
+  "metadata": {
+    "description": "Secure, one-time-use payment credentials from Link"
+  },
   "plugins": [
     {
       "name": "link",
-      "source": ".",
+      "source": "./plugins/link",
       "description": "Authenticate with Link, create spend requests, and retrieve one-time-use card or shared payment token credentials for user-approved purchases.",
       "author": {
         "name": "Stripe"
