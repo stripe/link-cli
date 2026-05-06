@@ -5,9 +5,7 @@
  * built. Downstream consumers (Houston, etc.) pin against this manifest.
  *
  * Usage:
- *   bun run scripts/generate-manifest.ts <version> [<base-url>]
- *
- * <base-url> defaults to the GitHub release download URL pattern.
+ *   bun run scripts/generate-manifest.ts <version>
  */
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -15,16 +13,11 @@ import { join } from 'node:path';
 
 const version = process.argv[2];
 if (!version) {
-  console.error(
-    'Usage: bun run scripts/generate-manifest.ts <version> [<base-url>]',
-  );
+  console.error('Usage: bun run scripts/generate-manifest.ts <version>');
   process.exit(1);
 }
 
-const baseUrl =
-  process.argv[3] ??
-  `https://github.com/stripe/link-cli/releases/download/${version}`;
-
+const baseUrl = `https://github.com/stripe/link-cli/releases/download/${version}`;
 const distDir = 'dist-bin';
 const files = readdirSync(distDir).filter((f) => f.startsWith('link-cli-'));
 
