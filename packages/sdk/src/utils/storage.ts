@@ -35,13 +35,35 @@ function withComputedExpiry(auth: AuthTokens): AuthTokens {
   };
 }
 
-class Storage implements AuthStorage {
+// Restricts the on-disk config to the owning user only. The file holds
+// OAuth access + refresh tokens and, during the device-auth window, a
+// device_code. `conf` defaults to 0o666 (masked by umask to 0o644 on most
+// systems), which would let any other local user read the credentials and,
+// during a pending login, race the legitimate poll loop to /device/token.
+// Owner-only matches the convention used by gh, aws, and similar CLIs.
+const CONFIG_FILE_MODE = 0o600;
+
+export interface StorageOptions {
+  // Override the conf storage directory. Production callers pass nothing —
+  // conf resolves to the platform user-config directory. Tests pass a temp
+  // dir so they don't touch the real location.
+  cwd?: string;
+}
+
+export class Storage implements AuthStorage {
   private config?: Conf<StorageSchema>;
+  private readonly options: StorageOptions;
+
+  constructor(options: StorageOptions = {}) {
+    this.options = options;
+  }
 
   private getConfig(): Conf<StorageSchema> {
     if (!this.config) {
       this.config = new Conf<StorageSchema>({
         projectName: 'link-cli',
+        configFileMode: CONFIG_FILE_MODE,
+        ...(this.options.cwd ? { cwd: this.options.cwd } : {}),
         defaults: {
           auth: null,
           pendingDeviceAuth: null,

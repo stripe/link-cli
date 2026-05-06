@@ -7,6 +7,7 @@ import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
+import { writeCredentialFile } from '../../utils/credential-output';
 import { AppDownloadQrCodes } from './app-download-qr-codes';
 import { ApprovalWaitingView } from './approval-waiting-view';
 import { useApprovalPolling } from './use-approval-polling';
@@ -15,6 +16,8 @@ interface CreateSpendRequestProps {
   repository: ISpendRequestResource;
   params: CreateSpendRequestParams;
   requestApproval?: boolean;
+  outputFile?: string;
+  force?: boolean;
   onComplete: (result: SpendRequest | null) => void;
 }
 
@@ -22,6 +25,8 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
   repository,
   params,
   requestApproval = false,
+  outputFile,
+  force,
   onComplete,
 }) => {
   const [status, setStatus] = useState<
@@ -29,6 +34,8 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
   >('creating');
   const [request, setRequest] = useState<SpendRequest | null>(null);
   const [error, setError] = useState<string>('');
+  const [outputFilePath, setOutputFilePath] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string>('');
 
   const approvalUrl = request?.approval_url ?? '';
 
@@ -70,6 +77,22 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
 
     create();
   }, [repository, params, requestApproval, onComplete]);
+
+  useEffect(() => {
+    if (status !== 'success' || !outputFile || !request?.card) return;
+
+    const fileData = {
+      spend_request_id: request.id,
+      merchant_name: request.merchant_name,
+      merchant_url: request.merchant_url,
+      context: request.context,
+      created_at: request.created_at,
+      card: request.card,
+    };
+    writeCredentialFile(outputFile, fileData, force ?? false)
+      .then((path) => setOutputFilePath(path))
+      .catch((err) => setFileError((err as Error).message));
+  }, [status, outputFile, force, request]);
 
   if (status === 'creating') {
     return (
@@ -125,6 +148,51 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
               </Text>
             )}
         </Box>
+        {request?.card && !outputFile && (
+          <Box flexDirection="column" marginTop={1}>
+            <Text bold>Card Details:</Text>
+            <Text>
+              {' '}
+              Number: <Text bold>{request.card.number}</Text>
+            </Text>
+            <Text>
+              {' '}
+              Brand: <Text bold>{request.card.brand}</Text>
+            </Text>
+            <Text>
+              {' '}
+              Expiry:{' '}
+              <Text bold>
+                {String(request.card.exp_month).padStart(2, '0')}/
+                {request.card.exp_year}
+              </Text>
+            </Text>
+            {request.card.cvc && (
+              <Text>
+                {' '}
+                CVC: <Text bold>{request.card.cvc}</Text>
+              </Text>
+            )}
+            {request.card.valid_until && (
+              <Text>
+                {' '}
+                Valid Until: <Text bold>{request.card.valid_until}</Text>
+              </Text>
+            )}
+          </Box>
+        )}
+        {request?.card && outputFile && (
+          <Box flexDirection="column" marginTop={1}>
+            {outputFilePath && (
+              <Text color="green">
+                Card credentials written to <Text bold>{outputFilePath}</Text>
+              </Text>
+            )}
+            {fileError && (
+              <Text color="red">Failed to write card file: {fileError}</Text>
+            )}
+          </Box>
+        )}
         <AppDownloadQrCodes />
       </Box>
     );

@@ -7,7 +7,6 @@ allowed-tools:
  - Bash(npx:*)
  - Bash(npm:*)
 license: Complete terms in LICENSE
-version: 0.0.1
 metadata:
   author: stripe
   url: link.com/agents
@@ -24,47 +23,49 @@ metadata:
 user-invocable: true
 ---
 
-# Creating Payment Credentials
+# Create Payment Credential
 
-Use Link to get secure, one-time-use payment credentials from a Link wallet to complete purchases.
+Use [Link](https://link.com) to get secure, one-time-use payment credentials from a Link wallet to complete purchases.
 
-## Choosing how to call Link
+The CLI can produce one of two credential types:
+- A virtual card (PAN) for use with a standard web checkout form. The issued card works anywhere.
+- A Shared Payment Token (SPT) when the seller is in the Stripe Network and accepts payments programmatically (for example with Machine Payment Protocols).
 
-Link CLI can run as an **MCP server** or as a **standalone CLI**. Always prefer the MCP server when available — it avoids shell parsing issues and is the intended integration path.
+## Installing
 
-1. **Check for the MCP server first.** Look for a `link-cli` MCP server in your active MCP connections. If present, call its tools directly (e.g. `auth_status`, `auth_login`, `spend-request_create`, `payment-methods_list`, `mpp_pay`, `mpp_decode`).
-2. **Fall back to the CLI** only if the MCP server is not available. Install it with `npm install -g @stripe/link-cli`, then use the shell commands documented below.
+Install with `npm install -g @stripe/link-cli`. Or run directly with `npx @stripe/link-cli`.
 
-The rest of this document shows CLI commands. When using the MCP server, map each command to its corresponding MCP tool — the parameters and behavior are identical.
+## Running commands
 
-| CLI command | MCP tool |
-|---|---|
-| `auth login` | `mcp__link-cli__auth_login` |
-| `auth logout` | `mcp__link-cli__auth_logout` |
-| `auth status` | `mcp__link-cli__auth_status` |
-| `spend-request create` | `mcp__link-cli__spend-request_create` |
-| `spend-request update` | `mcp__link-cli__spend-request_update` |
-| `spend-request retrieve` | `mcp__link-cli__spend-request_retrieve` |
-| `spend-request request-approval` | `mcp__link-cli__spend-request_request-approval` |
-| `payment-methods list` | `mcp__link-cli__payment-methods_list` |
-| `payment-methods add` | `mcp__link-cli__payment-methods_add` |
-| `mpp pay` | `mcp__link-cli__mpp_pay` |
-| `mpp decode` | `mcp__link-cli__mpp_decode` |
+Link CLI can run as an **MCP server** or as a **standalone CLI**.
 
-## Running commands (CLI fallback)
+**MCP:** Add the following to your MCP client config (`.mcp.json`, etc.)
 
-All commands support `--format json` for machine-readable output. Pass input via flags (run `link-cli <command> --help` to see full schema details, including all fields, types, and constraints).
+```json
+{
+  "mcpServers": {
+    "link": {
+      "command": "npx",
+      "args": ["@stripe/link-cli", "--mcp"]
+    }
+  }
+}
+```
 
-IMPORTANT: Run `auth login` with `run_in_background=true` (or `TaskOutput(task_id, block: false)`). It emits JSON to stdout before it exits, then keeps running while it polls for user action.
+Run the MCP server directly with `npx @stripe/link-cli@latest --mcp`.
 
-The agent-facing JSON contract is:
+Call `tools/list` to see all available MCP tools.
 
-- `auth login --format json`: first object contains `verification_url` and `phrase`; final object contains authentication result after approval succeeds
-- `spend-request create --request-approval --format json`: returns the created spend request immediately with an `_next.command` polling hint
-- `spend-request request-approval --format json`: returns the approval link immediately with an `_next.command` polling hint
-- `spend-request retrieve <id> --interval <seconds> --format json`: polls until the spend request reaches a terminal status, then returns the terminal spend request. It exits non-zero with `code: "POLLING_TIMEOUT"` if `--timeout` is reached or `--max-attempts` is exhausted while the request is still non-terminal.
+### Common commands/options
 
-For `auth login`, keep reading stdout until the process exits. For spend request approval, present the `approval_url` to the user and start the `_next.command` polling command immediately. The user MUST visit the verification or approval URL to continue, and you should always show that full URL in clear text.
+- List all commands: `link-cli --llms`
+- List all commands with parameters: `link-cli --llms-full`
+- Get a command's exact schema with `--schema`. For example, `link-cli spend-request create --schema`
+- Multi-step commands return a `_next` action. For example, authenticating or creating a spend request returns a `_next.command` that must be run to complete the flow.
+- By default all output is in `toon` format. Pass `--format [json|md|yaml]` to change output format.
+- Some commands return a verification or approval URL. **These** must be presented to the user clearly for their action.
+
+_Recommended_: Run `link-cli --llms` to understand all the available commands. The `--llms-full` output is the canonical reference for parameter names, types, and valid values. Pass `--schema` before invoking a command to understand its parameters and constraints.
 
 ## Core flow
 
@@ -81,7 +82,7 @@ Copy this checklist and track progress:
 Check auth status:
 
 ```bash
-link-cli auth status --format json
+link-cli auth status
 ```
 
 If the response includes an `update` field, a newer version of `link-cli` is available — run the `update_command` from that field to upgrade before proceeding.
@@ -89,19 +90,19 @@ If the response includes an `update` field, a newer version of `link-cli` is ava
 If not authenticated:
 
 ```bash
-link-cli auth login --client-name "<your-agent-name>" --format json
+link-cli auth login --client-name "<your-agent-name>"
 ```
 
-Replace `<your-agent-name>` with the name of your agent or application (e.g. `"Personal Assistant", "Shopping Bot"`). This name appears in the user's Link app when they approve the connection. Use a clear, unique, identifiable name. Display the url and phrase to the user, with the guidance "Please visit the following URL to approve secure access to Link.”
+Replace `<your-agent-name>` with the name of your agent or application (for example, `"Personal Assistant"`, `"Shopping Bot"`). This name appears in the user's Link app when they approve the connection. Use a clear, unique, identifiable name.
 
 DO NOT PROCEED until the user is authenticated with Link.
 
-Always check the current authentication status before starting a new login flow - the user may already be logged in.
+Always check the current authentication status before starting a new login flow — the user might already be logged in.
 
 ### Step 2: Evaluate the merchant site BEFORE creating a spend request
 
-**CRITICAL** before calling `spend-request create` you must complete this checklist:
-1. Understand how the merchant accepts payments (cards or machine payments or other). **Do NOT default to `card` credential type. The merchant determines the credential type — you cannot know it without checking first. Skipping this step will produce a spend request with the wrong credential type.
+**CRITICAL:** Before calling `spend-request create` you must complete this checklist:
+1. Understand how the merchant accepts payments (cards or machine payments or other). **Do NOT** default to `card` credential type. The merchant determines the credential type — you cannot know it without checking first. Skipping this step will produce a spend request with the wrong credential type.
 2. Have the final total amount needed. Inclusive of any shipping costs, taxes or other costs. Skipping this step will produce a spend request that does not cover the full amount needed, and will be rejected.
 3. Clear context and understanding of what the user is purchasing. Be sure to know sizes, colors, shipping options, etc. Skipping this step will produce a spend request that the user does not recognize or understand.
 
@@ -124,7 +125,7 @@ What you find determines which credential type to use:
 To derive `network_id`, use Link CLI's challenge decoder:
 
 ```bash
-link-cli mpp decode --challenge '<raw WWW-Authenticate header>' --format json
+link-cli mpp decode --challenge '<raw WWW-Authenticate header>'
 ```
 
 This validates the Stripe challenge, decodes the `request` payload, and returns both the extracted `network_id` and the decoded request JSON. Pass the full header exactly as received, even if it also contains non-Stripe or multiple `Payment` challenges.
@@ -134,7 +135,7 @@ This validates the Stripe challenge, decodes the `request` payload, and returns 
 Use the default payment method, unless the user explicitly asks to select a different one.
 
 ```bash
-link-cli payment-methods list --format json
+link-cli payment-methods list
 ```
 
 ### Step 4: Create the spend request with the right credential type
@@ -146,10 +147,16 @@ link-cli spend-request create \
   --context "<description>" \
   --merchant-name "<name>" \
   --merchant-url "<url>" \
-  --format json
+  --line-item "name:<product>,unit_amount:<cents>,quantity:<n>" \
+  --total "type:total,display_text:Total,amount:<cents>" \
+ 
 ```
 
-After creating or requesting approval for a spend request, run the returned `_next.command` to poll for the terminal status. Do not proceed to payment while the request is still `created` or `pending_approval`. If polling exits with `POLLING_TIMEOUT`, keep waiting or ask the user whether to continue polling. If they deny, ask for clarification what to do next.
+**`--line-item` keys:** `name` (required), `quantity`, `unit_amount`, `description`, `sku`, `url`, `image_url`, `product_url`. Repeatable for multiple items.
+
+**`--total` keys:** `type` (required; one of: `subtotal`, `tax`, `total`), `display_text` (required), `amount` (required). Repeatable (e.g. subtotal + tax + total).
+
+Do not proceed to payment while the request is still `created` or `pending_approval`. If polling exits with `POLLING_TIMEOUT`, keep waiting or ask the user whether to continue polling. If they deny, ask for clarification what to do next.
 
 Recommend the user approves with the [Link app](https://link.com/download). Show the download URL.
 
@@ -157,12 +164,18 @@ Recommend the user approves with the [Link app](https://link.com/download). Show
 
 ### Step 5: Complete payment
 
-**Card:** Run `link-cli spend-request retrieve <id> --include card --format json` to get the `card` object with `number`, `cvc`, `exp_month`, `exp_year`, `billing_address` (name, line1, line2, city, state, postal_code, country), and `valid_until` (unix timestamp — the card stops working after this time). Enter these details into the merchant's checkout form.
+**Card:** Run `link-cli spend-request retrieve <id> --include card` to get the `card` object with `number`, `cvc`, `exp_month`, `exp_year`, `billing_address` (name, line1, line2, city, state, postal_code, country), and `valid_until` (Unix timestamp — the card stops working after this time). Enter these details into the merchant's checkout form.
+
+**Safe credential handoff:** To avoid leaking card data into transcripts or logs, add `--output-file <path>` to write the full card to a local file (created with `0600` permissions) while stdout shows only redacted data. Use `--force` to overwrite an existing file. Example:
+
+```bash
+link-cli spend-request retrieve <id> --include card --output-file /tmp/link-card.json --format json
+```
 
 **SPT with 402 flow:** The SPT is **one-time use** — if the payment fails, you need a new spend request and new SPT.
 
 ```bash
-link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount":100}'] [--header 'Name: Value'] --format json
+link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount":100}'] [--header 'Name: Value']
 ```
 
 `mpp pay` handles the full 402 flow automatically: probes the URL, parses the `www-authenticate` header, builds the `Authorization: Payment` credential using the SPT, and retries.
@@ -186,7 +199,6 @@ All errors are output as JSON with `code` and `message` fields, with exit code 1
 | `verification-failed` in error body from `mpp pay` | SPT was already consumed (one-time use) | Create a new spend request with `credential_type: "shared_payment_token"` — do not retry with the same spend request ID |
 | `context` validation error on `spend-request create` | `context` field is under 100 characters | Rewrite `context` as a full sentence explaining what is being purchased and why; the user reads this when approving |
 | API rejects `merchant_name` or `merchant_url` | These fields are forbidden when `credential_type` is `shared_payment_token` | Remove both fields from the request; SPT flows identify the merchant via `network_id` instead |
-| Command hangs indefinitely | `auth login` or `spend-request create` run synchronously | Always run these commands with `run_in_background=true` — they block until the user acts, so synchronous execution freezes the agent |
 | Spend request approved but payment fails immediately | Wrong credential type for the merchant (e.g. `card` on a 402-only endpoint) | Go back to Step 2, re-evaluate the merchant, create a new spend request with the correct `credential_type` |
 | Auth token expired mid-session (exit code 1 during approval polling) | Token refresh failure during background polling | Re-authenticate with `auth login`, then retrieve the existing spend request or resume polling. Only create a new spend request if the original one expired, was denied, or its shared payment token was already consumed |
 

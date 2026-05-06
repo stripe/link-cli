@@ -1,5 +1,17 @@
 # @stripe/link-cli
 
+## 0.4.3
+
+### Patch Changes
+
+- 59a0fe1: Restrict the auth config file (`config.json`) to mode `0o600`. The file holds OAuth access + refresh tokens and, during a pending login, a `device_code`. Previously it inherited `conf`'s default (`0o666` masked by umask, typically `0o644`), which let other local users read the credentials and, during a login, race the legitimate poll loop to `/device/token`. Existing files are remediated automatically on the next config write.
+
+## 0.4.2
+
+### Patch Changes
+
+- 90fc183: add claude marketplace.json and improve plugins
+
 ## 0.4.1
 
 ### Patch Changes

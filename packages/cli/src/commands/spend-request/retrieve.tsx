@@ -3,12 +3,15 @@ import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { writeCredentialFile } from '../../utils/credential-output';
 
 interface RetrieveSpendRequestProps {
   repository: ISpendRequestResource;
   id: string;
   timeout?: number;
   include?: string[];
+  outputFile?: string;
+  force?: boolean;
   onComplete: (result: SpendRequest | null) => void;
 }
 
@@ -25,12 +28,16 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
   id,
   timeout = 300,
   include,
+  outputFile,
+  force,
   onComplete,
 }) => {
   const [phase, setPhase] = useState<Phase>('fetching');
   const [request, setRequest] = useState<SpendRequest | null>(null);
   const [error, setError] = useState<string>('');
   const [elapsed, setElapsed] = useState<number>(0);
+  const [outputFilePath, setOutputFilePath] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string>('');
   const startTimeRef = useRef<number>(Date.now());
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -42,6 +49,22 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (phase !== 'success' || !outputFile || !request?.card) return;
+
+    const fileData = {
+      spend_request_id: request.id,
+      merchant_name: request.merchant_name,
+      merchant_url: request.merchant_url,
+      context: request.context,
+      created_at: request.created_at,
+      card: request.card,
+    };
+    writeCredentialFile(outputFile, fileData, force ?? false)
+      .then((path) => setOutputFilePath(path))
+      .catch((err) => setFileError((err as Error).message));
+  }, [phase, outputFile, force, request]);
 
   useEffect(() => {
     const fetch = async () => {
@@ -251,7 +274,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
             </Text>
           </Box>
         )}
-        {request?.card && (
+        {request?.card && !outputFile && (
           <Box flexDirection="column" marginTop={1}>
             <Text bold>Card Details:</Text>
             <Text>
@@ -314,6 +337,18 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
                   {request.card.billing_address.country}
                 </Text>
               </Box>
+            )}
+          </Box>
+        )}
+        {request?.card && outputFile && (
+          <Box flexDirection="column" marginTop={1}>
+            {outputFilePath && (
+              <Text color="green">
+                Card credentials written to <Text bold>{outputFilePath}</Text>
+              </Text>
+            )}
+            {fileError && (
+              <Text color="red">Failed to write card file: {fileError}</Text>
             )}
           </Box>
         )}

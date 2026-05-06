@@ -1,5 +1,4 @@
 import { Cli } from 'incur';
-import updateNotifier from 'update-notifier';
 import { createAuthCli } from './commands/auth';
 import { createDemoCli } from './commands/demo';
 import { createMppCli } from './commands/mpp';
@@ -7,6 +6,11 @@ import { createOnboardCli } from './commands/onboard';
 import { createPaymentMethodsCli } from './commands/payment-methods';
 import { createSpendRequestCli } from './commands/spend-request';
 import { ResourceFactory } from './utils/resource-factory';
+import {
+  createAgentUpdateInfoProvider,
+  createInteractiveUpdateInfoProvider,
+  renderInteractiveUpdateNotice,
+} from './utils/update-info';
 
 declare const __CLI_VERSION__: string;
 declare const __BUILD_NUMBER__: string;
@@ -25,17 +29,29 @@ const factory = new ResourceFactory({ verbose, defaultHeaders });
 const authRepo = factory.createAuthResource();
 const spendRequestRepo = factory.createSpendRequestResource();
 
-const notifier = updateNotifier({
-  pkg: { name: cliName, version: cliVersion },
-});
-
 const cli = Cli.create('link-cli', {
   description:
     'Create a secure, one-time payment credential from a Link wallet to let agents complete purchases on behalf of users.',
   version: `${cliVersion} (build ${buildNumber})`,
 });
 
-cli.command(createAuthCli(authRepo, notifier.update));
+const isAgent =
+  process.argv.includes('--format') || process.argv.includes('--mcp');
+const agentUpdateInfoProvider = createAgentUpdateInfoProvider(
+  cliName,
+  cliVersion,
+);
+let getUpdateInfo = agentUpdateInfoProvider;
+
+if (!isAgent && process.stdout.isTTY) {
+  const updateInfo = await agentUpdateInfoProvider({ polling: false });
+  getUpdateInfo = createInteractiveUpdateInfoProvider(updateInfo);
+  if (updateInfo) {
+    process.stderr.write(renderInteractiveUpdateNotice(updateInfo));
+  }
+}
+
+cli.command(createAuthCli(authRepo, getUpdateInfo));
 cli.command(createSpendRequestCli(spendRequestRepo));
 cli.command(
   createPaymentMethodsCli(() => factory.createPaymentMethodsResource()),
@@ -51,12 +67,6 @@ cli.command(
     factory.createPaymentMethodsResource(),
   ),
 );
-
-const isAgent =
-  process.argv.includes('--format') || process.argv.includes('--mcp');
-if (!isAgent) {
-  notifier.notify({ defer: false });
-}
 
 cli.serve();
 

@@ -3,6 +3,7 @@ import { Cli } from 'incur';
 import { render } from 'ink';
 import React from 'react';
 import type { IAuthResource } from '../../auth/types';
+import type { UpdateInfoProvider } from '../../utils/update-info';
 import { Login } from './login';
 import { Logout } from './logout';
 import { loginOptions, statusOptions } from './schema';
@@ -10,7 +11,7 @@ import { AuthStatus } from './status';
 
 export function createAuthCli(
   authResource: IAuthResource,
-  updateInfo?: { current: string; latest: string },
+  getUpdateInfo?: UpdateInfoProvider,
 ) {
   const cli = Cli.create('auth', {
     description: 'Authentication commands',
@@ -103,6 +104,21 @@ export function createAuthCli(
     options: statusOptions,
     outputPolicy: 'agent-only' as const,
     async *run(c) {
+      const opts = c.options;
+      const interval = opts.interval;
+      const maxAttempts = opts.maxAttempts;
+      const deadline = Date.now() + opts.timeout * 1000;
+      const updateInfo = await getUpdateInfo?.({
+        polling: interval > 0,
+      });
+      const update = updateInfo
+        ? {
+            current_version: updateInfo.current,
+            latest_version: updateInfo.latest,
+            update_command: 'npm install -g @stripe/link-cli',
+          }
+        : undefined;
+
       if (!c.agent && !c.formatExplicit) {
         return new Promise((resolve) => {
           const { waitUntilExit } = render(
@@ -119,15 +135,12 @@ export function createAuthCli(
                   }
                 : {}),
               credentials_path: storage.getPath(),
+              ...(update && { update }),
             });
           });
         });
       }
 
-      const opts = c.options;
-      const interval = opts.interval;
-      const maxAttempts = opts.maxAttempts;
-      const deadline = Date.now() + opts.timeout * 1000;
       let attempts = 0;
       let previousAttemptData: string | undefined;
 
@@ -143,13 +156,6 @@ export function createAuthCli(
         }
 
         const auth = storage.getAuth();
-        const update = updateInfo
-          ? {
-              current_version: updateInfo.current,
-              latest_version: updateInfo.latest,
-              update_command: 'npm install -g @stripe/link-cli',
-            }
-          : undefined;
         if (auth) {
           yield {
             authenticated: true,
