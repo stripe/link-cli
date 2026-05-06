@@ -45,8 +45,7 @@ export function createAuthCli(
         );
       }
 
-      // Agent mode: initiate device auth, store pending state, return immediately.
-      // The agent drives the polling loop via `auth status --interval`.
+      // Agent mode: initiate device auth, store pending state, yield code immediately.
       const authRequest = await authResource.initiateDeviceAuth(clientName);
       storage.setPendingDeviceAuth({
         device_code: authRequest.device_code,
@@ -55,17 +54,83 @@ export function createAuthCli(
         verification_url: authRequest.verification_url_complete,
         phrase: authRequest.user_code,
       });
+
+      const interval = c.options.interval;
+      const maxAttempts = c.options.maxAttempts;
+
+      if (interval <= 0) {
+        // No polling requested: return code with _next hint (original behavior).
+        yield {
+          verification_url: authRequest.verification_url_complete,
+          phrase: authRequest.user_code,
+          instruction:
+            'Present the verification_url to the user and ask them to approve in the Link app. Then call `auth status --interval 5 --max-attempts 60` to poll until authenticated. Do not wait for the user to reply — start polling immediately.',
+          _next: {
+            command: 'auth status --interval 5 --max-attempts 60',
+            poll_interval_seconds: authRequest.interval,
+            until: 'authenticated is true',
+          },
+        };
+        return;
+      }
+
+      // Inline polling: emit code to stderr (visible immediately even while
+      // stdout is buffered), then yield it as structured output for MCP streaming.
+      process.stderr.write(
+        `\nVerification URL: ${authRequest.verification_url_complete}\nPhrase: ${authRequest.user_code}\n\nOpen the URL, log in to Link, and enter the phrase to approve.\nPolling for approval...\n\n`,
+      );
       yield {
         verification_url: authRequest.verification_url_complete,
         phrase: authRequest.user_code,
         instruction:
-          'Present the verification_url to the user and ask them to approve in the Link app. Then call `auth status --interval 5 --max-attempts 60` to poll until authenticated. Do not wait for the user to reply — start polling immediately.',
-        _next: {
-          command: 'auth status --interval 5 --max-attempts 60',
-          poll_interval_seconds: authRequest.interval,
-          until: 'authenticated is true',
-        },
+          'Present the verification_url to the user and ask them to approve in the Link app. Polling has started automatically — no further action needed.',
       };
+
+      const deadline = Date.now() + c.options.timeout * 1000;
+      let attempts = 0;
+
+      while (true) {
+        await new Promise((resolve) => setTimeout(resolve, interval * 1000));
+
+        const pending = storage.getPendingDeviceAuth();
+        if (!pending) {
+          return c.error({
+            code: 'AUTH_EXPIRED',
+            message:
+              'Device authorization expired. Please run auth login again.',
+          });
+        }
+
+        try {
+          const tokens = await authResource.pollDeviceAuth(pending.device_code);
+          if (tokens) {
+            storage.setAuth(tokens);
+            storage.clearPendingDeviceAuth();
+            yield {
+              authenticated: true,
+              token_type: tokens.token_type,
+              credentials_path: storage.getPath(),
+            };
+            return;
+          }
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          return c.error({ code: 'AUTH_FAILED', message });
+        }
+
+        attempts++;
+        const shouldStop =
+          (maxAttempts > 0 && attempts >= maxAttempts) ||
+          Date.now() >= deadline;
+
+        if (shouldStop) {
+          return c.error({
+            code: 'POLLING_TIMEOUT',
+            message:
+              'Timed out waiting for user approval. The verification code may have expired — run auth login again to get a new one.',
+          });
+        }
+      }
     },
   });
 

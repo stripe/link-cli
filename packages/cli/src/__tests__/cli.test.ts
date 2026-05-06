@@ -905,6 +905,81 @@ describe('production mode', () => {
       expect(next.command).toContain('auth status');
       expect(next.until).toContain('authenticated');
     });
+
+    it('with --interval, yields code first then polls until authenticated', async () => {
+      storage.clearAuth();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+      setResponseForUrl('/device/token', 200, TOKEN_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--client-name',
+        'Polling Agent',
+        '--interval',
+        '1',
+        '--timeout',
+        '10',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const output = parseJson(result.stdout) as Record<string, unknown>[];
+      expect(output.length).toBe(2);
+      expect(output[0].verification_url).toBe(
+        'https://app.link.com/device/setup?code=apple-grape',
+      );
+      expect(output[0].phrase).toBe('apple-grape');
+      expect(output[0]._next).toBeUndefined();
+      expect(output[1].authenticated).toBe(true);
+      expect(output[1].token_type).toBe('Bearer');
+    });
+
+    it('with --interval, exits with POLLING_TIMEOUT when approval never comes', async () => {
+      storage.clearAuth();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+      setResponseForUrl('/device/token', 400, {
+        error: 'authorization_pending',
+      });
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--client-name',
+        'Timeout Agent',
+        '--interval',
+        '1',
+        '--timeout',
+        '2',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      const output = result.stdout + result.stderr;
+      expect(output).toContain('POLLING_TIMEOUT');
+    });
+
+    it('with --interval, exits with AUTH_FAILED on access_denied', async () => {
+      storage.clearAuth();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+      setResponseForUrl('/device/token', 400, { error: 'access_denied' });
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--client-name',
+        'Denied Agent',
+        '--interval',
+        '1',
+        '--timeout',
+        '5',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      const output = result.stdout + result.stderr;
+      expect(output).toContain('AUTH_FAILED');
+    });
   });
 
   describe('auth logout', () => {
