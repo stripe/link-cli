@@ -1,7 +1,7 @@
 ---
 name: create-payment-credential
 description: |
-  Gets secure, one-time-use payment credentials (cards, tokens) from a Link wallet so agents can complete purchases on behalf of users. Use when the user says "get me a card", "buy something", "pay for X", "make a purchase", "I need to pay", "complete checkout", or asks to transact on any merchant site. Use when the user asks to connect or log in to or sign up for their Link account.
+  Gets secure, one-time-use payment credentials (cards, tokens) from a Link wallet so agents can complete purchases on behalf of users. Use when the user says "get me a card", "buy something", "pay for X", "make a purchase", "I need to pay", "complete checkout", or asks to transact on any merchant site. Use when the user asks to connect or log in to or sign up for their Link account. Also provides saved shipping addresses from the user's Link wallet for filling checkout forms.
 allowed-tools:
  - Bash(link-cli:*)
  - Bash(npx:*)
@@ -130,13 +130,21 @@ link-cli mpp decode --challenge '<raw WWW-Authenticate header>'
 
 This validates the Stripe challenge, decodes the `request` payload, and returns both the extracted `network_id` and the decoded request JSON. Pass the full header exactly as received, even if it also contains non-Stripe or multiple `Payment` challenges.
 
-### Step 3: Get payment methods
+### Step 3: Get payment methods and shipping addresses
 
 Use the default payment method, unless the user explicitly asks to select a different one.
 
 ```bash
 link-cli payment-methods list
 ```
+
+If the merchant checkout requires a shipping or delivery address, fetch the user's saved shipping addresses:
+
+```bash
+link-cli shipping-address list
+```
+
+This returns an array of shipping address records. Each record has `id`, `is_default`, `nickname`, and an `address` object with fields: `name`, `line_1`, `line_2`, `locality` (city), `administrative_area` (state/province), `postal_code`, `sorting_code`, `dependent_locality`, and `country_code`. Use the default address unless the user specifies otherwise. Factor the shipping destination into total cost calculations (shipping fees, taxes) before creating the spend request.
 
 ### Step 4: Create the spend request with the right credential type
 
@@ -183,7 +191,7 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 
 ## Important
 
-- Treat the user's payment methods and credentials extremely carefully — card numbers and SPTs grant real spending power; leaking them outside a secure checkout could result in unauthorized charges the user cannot reverse.
+- Treat the user's payment methods, credentials, and shipping addresses as sensitive — card numbers and SPTs grant real spending power; shipping addresses are PII. Mask or abbreviate addresses when displaying to the user (e.g. show city and zip only) unless they request full details.
 - Respect `/agents.txt` and `/llm.txt` and other directives on sites you browse — these files declare whether the site permits automated agent interactions; ignoring them may violate the merchant's terms.
 - Avoid suspicious merchants, checkout pages and websites — phishing pages that mimic legitimate merchants can steal credentials; if anything about the page feels off (mismatched domain, unusual redirect, unexpected login prompt), stop and ask the user to verify.
 - When outputting card information to the user apply basic masking to the card number and address to protect their information. Only reveal the raw values if directly requested to do so.
