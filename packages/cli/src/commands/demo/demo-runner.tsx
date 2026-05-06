@@ -1,8 +1,9 @@
 import type {
+  AuthStorage,
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
-import { storage } from '@stripe/link-sdk';
+import { storage as defaultStorage } from '@stripe/link-sdk';
 import { Box, Text, useInput } from 'ink';
 import type React from 'react';
 import { useCallback, useState } from 'react';
@@ -27,6 +28,7 @@ interface DemoRunnerProps {
   authRepo: IAuthResource;
   spendRequestRepo: ISpendRequestResource;
   paymentMethodsResource: IPaymentMethodsResource;
+  authStorage?: AuthStorage;
   paymentMethodId?: string;
   onlyCard?: boolean;
   onlySpt?: boolean;
@@ -37,11 +39,13 @@ export const DemoRunner: React.FC<DemoRunnerProps> = ({
   authRepo,
   spendRequestRepo,
   paymentMethodsResource,
+  authStorage = defaultStorage,
   paymentMethodId: preselectedPmId,
   onlyCard,
   onlySpt,
   onComplete,
 }) => {
+  const storage = authStorage;
   const preselected = onlyCard ? 'card' : onlySpt ? 'spt' : null;
   const [choice, setChoice] = useState<Choice | null>(preselected);
   const [menuIndex, setMenuIndex] = useState(0);
@@ -112,6 +116,7 @@ export const DemoRunner: React.FC<DemoRunnerProps> = ({
         <Login
           authResource={authRepo}
           clientName={O.auth.clientName}
+          authStorage={storage}
           onComplete={() => setPhase(postAuthPhase)}
         />
       )}

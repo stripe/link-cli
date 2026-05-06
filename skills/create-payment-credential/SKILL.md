@@ -64,6 +64,7 @@ Call `tools/list` to see all available MCP tools.
 - Multi-step commands return a `_next` action. For example, authenticating or creating a spend request returns a `_next.command` that must be run to complete the flow.
 - By default all output is in `toon` format. Pass `--format [json|md|yaml]` to change output format.
 - Some commands return a verification or approval URL. **These** must be presented to the user clearly for their action.
+- `--auth <path>` — global flag to read/write auth credentials to a specific file instead of the default location. Useful when running multiple sessions or isolating credentials from the agent's context. Also available as `LINK_AUTH_FILE` env var.
 
 _Recommended_: Run `link-cli --llms` to understand all the available commands. The `--llms-full` output is the canonical reference for parameter names, types, and valid values. Pass `--schema` before invoking a command to understand its parameters and constraints.
 

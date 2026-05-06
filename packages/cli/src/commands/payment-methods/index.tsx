@@ -1,5 +1,5 @@
-import type { IPaymentMethodsResource } from '@stripe/link-sdk';
-import { storage } from '@stripe/link-sdk';
+import type { AuthStorage, IPaymentMethodsResource } from '@stripe/link-sdk';
+import { storage as defaultStorage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import { render } from 'ink';
 import React from 'react';
@@ -8,7 +8,9 @@ import { PaymentMethodsList } from './list';
 
 export function createPaymentMethodsCli(
   createResource: () => IPaymentMethodsResource,
+  authStorage?: AuthStorage,
 ) {
+  const storage = authStorage ?? defaultStorage;
   const cli = Cli.create('payment-methods', {
     description: 'Payment methods management commands',
   });

@@ -1,4 +1,4 @@
-import { storage } from '@stripe/link-sdk';
+import { type AuthStorage, storage as defaultStorage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import { render } from 'ink';
 import React from 'react';
@@ -12,7 +12,9 @@ import { AuthStatus } from './status';
 export function createAuthCli(
   authResource: IAuthResource,
   getUpdateInfo?: UpdateInfoProvider,
+  authStorage?: AuthStorage,
 ) {
+  const storage = authStorage ?? defaultStorage;
   const cli = Cli.create('auth', {
     description: 'Authentication commands',
   });
@@ -36,6 +38,7 @@ export function createAuthCli(
             <Login
               authResource={authResource}
               clientName={clientName}
+              authStorage={storage}
               onComplete={() => {}}
             />,
           );
@@ -89,7 +92,11 @@ export function createAuthCli(
       if (!c.agent && !c.formatExplicit) {
         return new Promise((resolve) => {
           const { waitUntilExit } = render(
-            <Logout authResource={authResource} onComplete={() => {}} />,
+            <Logout
+              authResource={authResource}
+              authStorage={storage}
+              onComplete={() => {}}
+            />,
           );
           waitUntilExit().then(() => resolve(result));
         });
@@ -122,7 +129,7 @@ export function createAuthCli(
       if (!c.agent && !c.formatExplicit) {
         return new Promise((resolve) => {
           const { waitUntilExit } = render(
-            <AuthStatus onComplete={() => {}} />,
+            <AuthStatus authStorage={storage} onComplete={() => {}} />,
           );
           waitUntilExit().then(() => {
             const auth = storage.getAuth();

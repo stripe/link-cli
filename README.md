@@ -226,10 +226,17 @@ link-cli mpp decode \
   --challenge 'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge", request="..."'
 ```
 
+### Global flags
+
+| Flag | Effect |
+|------|--------|
+| `--auth <path>` | Read/write auth credentials to a specific file instead of the default location. Useful for running multiple sessions with separate identities. |
+
 ### Environment variables
 
 | Variable | Effect |
 |----------|--------|
+| `LINK_AUTH_FILE` | Same as `--auth` — override the auth credential file path (flag takes precedence) |
 | `LINK_API_BASE_URL` | Override the API base URL |
 | `LINK_AUTH_BASE_URL` | Override the auth base URL |
 | `LINK_HTTP_PROXY` | Route all requests through an HTTP proxy (requires `undici`) |

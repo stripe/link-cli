@@ -7,5 +7,9 @@ export * from './resources/interfaces';
 export * from './resources/auth';
 export * from './resources/spend-request';
 export * from './resources/payment-methods';
-export { MemoryStorage, storage } from './utils/storage';
-export type { AuthStorage, PendingDeviceAuth } from './utils/storage';
+export { MemoryStorage, Storage, storage } from './utils/storage';
+export type {
+  AuthStorage,
+  PendingDeviceAuth,
+  StorageOptions,
+} from './utils/storage';

@@ -104,6 +104,41 @@ describePosix('Storage (disk-backed) file permissions', () => {
     expect(fs.statSync(configPath).mode & 0o777).toBe(0o600);
   });
 
+  it('configPath option writes to the specified file path', () => {
+    const customPath = path.join(tmpDir, 'custom-creds.json');
+    const storage = new Storage({ configPath: customPath });
+
+    storage.setAuth({
+      access_token: 'at_custom',
+      refresh_token: 'rt_custom',
+      expires_in: 3600,
+      token_type: 'Bearer',
+    });
+
+    expect(storage.getPath()).toBe(customPath);
+    expect(fs.existsSync(customPath)).toBe(true);
+    expect(storage.getAuth()?.access_token).toBe('at_custom');
+
+    const mode = fs.statSync(customPath).mode & 0o777;
+    expect(mode).toBe(0o600);
+  });
+
+  it('configPath takes precedence over cwd', () => {
+    const customPath = path.join(tmpDir, 'override.json');
+    const otherDir = fs.mkdtempSync(path.join(os.tmpdir(), 'link-cli-other-'));
+    const storage = new Storage({ configPath: customPath, cwd: otherDir });
+
+    storage.setAuth({
+      access_token: 'at_override',
+      refresh_token: 'rt_override',
+      expires_in: 3600,
+      token_type: 'Bearer',
+    });
+
+    expect(storage.getPath()).toBe(customPath);
+    fs.rmSync(otherDir, { recursive: true, force: true });
+  });
+
   it('also restricts pendingDeviceAuth, which is written to the same file', () => {
     const storage = new Storage({ cwd: tmpDir });
 

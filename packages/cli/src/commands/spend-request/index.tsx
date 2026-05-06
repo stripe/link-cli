@@ -1,11 +1,12 @@
 import type {
+  AuthStorage,
   CredentialType,
   ISpendRequestResource,
   LineItem,
   SpendRequest,
   Total,
 } from '@stripe/link-sdk';
-import { storage } from '@stripe/link-sdk';
+import { storage as defaultStorage } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import { render } from 'ink';
 import React from 'react';
@@ -43,7 +44,11 @@ async function applyOutputFile(
   } as SpendRequest & { card_output_file?: string };
 }
 
-export function createSpendRequestCli(repository: ISpendRequestResource) {
+export function createSpendRequestCli(
+  repository: ISpendRequestResource,
+  authStorage?: AuthStorage,
+) {
+  const storage = authStorage ?? defaultStorage;
   const cli = Cli.create('spend-request', {
     description: 'Spend request management commands',
   });
