@@ -13,6 +13,11 @@ interface ShippingAddressListProps {
   onComplete: () => void;
 }
 
+function formatStreetLine(address: ShippingAddress): string | null {
+  const parts = [address.line_1, address.line_2].filter(Boolean);
+  return parts.length > 0 ? parts.join(', ') : null;
+}
+
 function formatLocalityLine(address: ShippingAddress): string | null {
   const locality = [
     address.dependent_locality,
@@ -25,11 +30,16 @@ function formatLocalityLine(address: ShippingAddress): string | null {
     .filter(Boolean)
     .join(' ');
 
-  if (locality && postal) {
-    return `${locality} ${postal}`;
+  const localityPostal =
+    locality && postal
+      ? `${locality} ${postal}`
+      : locality || postal || null;
+
+  if (localityPostal && address.country_code) {
+    return `${localityPostal}, ${address.country_code}`;
   }
 
-  return locality || postal || null;
+  return localityPostal || address.country_code || null;
 }
 
 function formatAddressLines(addressRecord: ShippingAddressRecord): string[] {
@@ -39,10 +49,8 @@ function formatAddressLines(addressRecord: ShippingAddressRecord): string[] {
 
   const address = addressRecord.address;
   const lines = [
-    address.line_1,
-    address.line_2,
+    formatStreetLine(address),
     formatLocalityLine(address),
-    address.country_code,
   ].filter((line): line is string => Boolean(line));
 
   return lines.length > 0 ? lines : ['Address details unavailable'];
@@ -110,11 +118,9 @@ export const ShippingAddressList: React.FC<ShippingAddressListProps> = ({
       <Box flexDirection="column" marginTop={1}>
         {shippingAddresses.map((shippingAddress) => {
           const addressName = shippingAddress.address?.name;
-          const headerParts = [
-            shippingAddress.id,
-            addressName,
-            shippingAddress.nickname ? `(${shippingAddress.nickname})` : null,
-          ].filter(Boolean);
+          const nickname = shippingAddress.nickname
+            ? ` (${shippingAddress.nickname})`
+            : '';
 
           return (
             <Box
@@ -124,15 +130,18 @@ export const ShippingAddressList: React.FC<ShippingAddressListProps> = ({
               marginBottom={1}
             >
               <Text>
-                <Text dimColor>{headerParts.shift()}</Text>
-                {headerParts.length > 0 ? `  ${headerParts.join(' ')}` : ''}
+                <Text dimColor>{shippingAddress.id}</Text>
+                {nickname}
                 {shippingAddress.is_default ? (
                   <Text color="green"> (default)</Text>
                 ) : null}
               </Text>
-              {formatAddressLines(shippingAddress).map((line) => (
-                <Text key={`${shippingAddress.id}:${line}`}>{line}</Text>
-              ))}
+              <Box flexDirection="column" marginTop={1}>
+                {addressName ? <Text bold>{addressName}</Text> : null}
+                {formatAddressLines(shippingAddress).map((line) => (
+                  <Text key={`${shippingAddress.id}:${line}`}>{line}</Text>
+                ))}
+              </Box>
             </Box>
           );
         })}
