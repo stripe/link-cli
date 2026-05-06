@@ -5,6 +5,7 @@ import type {
   LineItem,
   PaymentMethod,
   RequestApprovalResponse,
+  ShippingAddressRecord,
   SpendRequest,
   Total,
 } from '@/types/index';
@@ -72,4 +73,9 @@ export interface ISpendRequestResource {
 export interface IPaymentMethodsResource {
   list(): Promise<PaymentMethod[]>;
   listPaymentMethods(): Promise<PaymentMethod[]>;
+}
+
+export interface IShippingAddressResource {
+  list(): Promise<ShippingAddressRecord[]>;
+  listShippingAddresses(): Promise<ShippingAddressRecord[]>;
 }

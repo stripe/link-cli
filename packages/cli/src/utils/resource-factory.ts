@@ -1,7 +1,9 @@
 import {
   type IPaymentMethodsResource,
+  type IShippingAddressResource,
   type ISpendRequestResource,
   PaymentMethodsResource,
+  ShippingAddressResource,
   SpendRequestResource,
 } from '@stripe/link-sdk';
 import { LinkAuthResource } from '../auth/auth-resource';
@@ -20,6 +22,7 @@ export class ResourceFactory {
   private accessTokenProvider?: ReturnType<typeof createAccessTokenProvider>;
   private spendRequestResource?: ISpendRequestResource;
   private paymentMethodsResource?: IPaymentMethodsResource;
+  private shippingAddressResource?: IShippingAddressResource;
 
   constructor(options: ResourceFactoryOptions = {}) {
     this.verbose = options.verbose ?? false;
@@ -78,5 +81,20 @@ export class ResourceFactory {
     });
 
     return this.paymentMethodsResource;
+  }
+
+  createShippingAddressResource(): IShippingAddressResource {
+    if (this.shippingAddressResource) {
+      return this.shippingAddressResource;
+    }
+
+    const getAccessToken = this.createSdkAccessTokenProvider();
+    this.shippingAddressResource = new ShippingAddressResource({
+      verbose: this.verbose,
+      defaultHeaders: this.defaultHeaders,
+      getAccessToken,
+    });
+
+    return this.shippingAddressResource;
   }
 }

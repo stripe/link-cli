@@ -4,6 +4,7 @@ import { createDemoCli } from './commands/demo';
 import { createMppCli } from './commands/mpp';
 import { createOnboardCli } from './commands/onboard';
 import { createPaymentMethodsCli } from './commands/payment-methods';
+import { createShippingAddressCli } from './commands/shipping-address';
 import { createSpendRequestCli } from './commands/spend-request';
 import { ResourceFactory } from './utils/resource-factory';
 import {
@@ -55,6 +56,9 @@ cli.command(createAuthCli(authRepo, getUpdateInfo));
 cli.command(createSpendRequestCli(spendRequestRepo));
 cli.command(
   createPaymentMethodsCli(() => factory.createPaymentMethodsResource()),
+);
+cli.command(
+  createShippingAddressCli(() => factory.createShippingAddressResource()),
 );
 cli.command(createMppCli(spendRequestRepo));
 cli.command(

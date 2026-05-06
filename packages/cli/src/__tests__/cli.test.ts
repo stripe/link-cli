@@ -724,6 +724,67 @@ describe('production mode', () => {
     });
   });
 
+  describe('shipping-address list', () => {
+    it('sends GET to /shipping_addresses and returns the API response as JSON output', async () => {
+      setResponseForUrl('/shipping_addresses', 200, {
+        shipping_addresses: [
+          {
+            id: 'shad_abc123',
+            is_default: true,
+            nickname: 'Home',
+            address: {
+              name: 'Jane Doe',
+              line_1: '123 Main St',
+              line_2: 'Apt 4B',
+              locality: 'San Francisco',
+              dependent_locality: null,
+              administrative_area: 'CA',
+              postal_code: '94105',
+              sorting_code: null,
+              country_code: 'US',
+            },
+          },
+          {
+            id: 'shad_def456',
+            is_default: false,
+            nickname: null,
+            address: null,
+          },
+        ],
+      });
+
+      const result = await runProdCli('shipping-address', 'list', '--json');
+
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.method).toBe('GET');
+      expect(lastRequest.url).toBe('/shipping_addresses');
+      expect(lastRequest.headers.authorization).toBe(
+        'Bearer prod_test_access_token',
+      );
+
+      const output = parseJson(result.stdout) as Record<string, unknown>[];
+      expect(output[0].id).toBe('shad_abc123');
+      expect(output[0].nickname).toBe('Home');
+      expect(output[1].id).toBe('shad_def456');
+      expect(output[1].nickname).toBeNull();
+      expect(output[1].address).toBeNull();
+    });
+
+    it('rejects unauthenticated requests before hitting the API', async () => {
+      storage.clearAuth();
+
+      const result = await runProdCli('shipping-address', 'list', '--json');
+
+      expect(result.exitCode).toBe(1);
+      const output = result.stdout + result.stderr;
+      expect(output).toContain('Not authenticated');
+      const shippingAddressRequest = requests.find(
+        (r) => r.url === '/shipping_addresses',
+      );
+      expect(shippingAddressRequest).toBeUndefined();
+    });
+  });
+
   describe('auth login', () => {
     const DEVICE_CODE_RESPONSE = {
       device_code: 'test_device_code',
