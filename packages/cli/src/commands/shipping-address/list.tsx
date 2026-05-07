@@ -31,9 +31,7 @@ function formatLocalityLine(address: ShippingAddress): string | null {
     .join(' ');
 
   const localityPostal =
-    locality && postal
-      ? `${locality} ${postal}`
-      : locality || postal || null;
+    locality && postal ? `${locality} ${postal}` : locality || postal || null;
 
   if (localityPostal && address.country_code) {
     return `${localityPostal}, ${address.country_code}`;
@@ -48,10 +46,9 @@ function formatAddressLines(addressRecord: ShippingAddressRecord): string[] {
   }
 
   const address = addressRecord.address;
-  const lines = [
-    formatStreetLine(address),
-    formatLocalityLine(address),
-  ].filter((line): line is string => Boolean(line));
+  const lines = [formatStreetLine(address), formatLocalityLine(address)].filter(
+    (line): line is string => Boolean(line),
+  );
 
   return lines.length > 0 ? lines : ['Address details unavailable'];
 }
