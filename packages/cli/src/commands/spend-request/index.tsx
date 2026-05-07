@@ -381,10 +381,7 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
 
         if (result.terminal) {
           // Terminal due to isTerminal or interval <= 0 — apply output file
-          if (
-            terminalStatuses.has(result.value.status) ||
-            !result.reason
-          ) {
+          if (terminalStatuses.has(result.value.status) || !result.reason) {
             try {
               yield await applyOutputFile(
                 result.value,
