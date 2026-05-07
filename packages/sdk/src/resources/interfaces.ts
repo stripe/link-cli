@@ -8,6 +8,7 @@ import type {
   ShippingAddressRecord,
   SpendRequest,
   Total,
+  UserInfo,
 } from '@/types/index';
 
 export interface IAuthResource {
@@ -80,4 +81,8 @@ export interface IPaymentMethodsResource {
 export interface IShippingAddressResource {
   list(): Promise<ShippingAddressRecord[]>;
   listShippingAddresses(): Promise<ShippingAddressRecord[]>;
+}
+
+export interface IUserInfoResource {
+  retrieve(): Promise<UserInfo>;
 }

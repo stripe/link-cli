@@ -111,6 +111,14 @@ export interface BankAccountDetails {
   bank_name?: string;
 }
 
+export interface UserInfo {
+  email?: string | null;
+  name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
+}
+
 export interface PaymentMethod {
   id: string;
   type: string;
