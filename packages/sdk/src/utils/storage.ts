@@ -87,7 +87,10 @@ export class Storage implements AuthStorage {
   }
 
   isAuthenticated(): boolean {
-    return this.getAuth() !== null;
+    const auth = this.getAuth();
+    if (!auth) return false;
+    if (auth.expires_at && Date.now() >= auth.expires_at) return false;
+    return true;
   }
 
   getPendingDeviceAuth(): PendingDeviceAuth | null {
@@ -130,6 +133,10 @@ export class MemoryStorage implements AuthStorage {
   private pendingAuth: PendingDeviceAuth | null = null;
 
   constructor(initialAuth: AuthTokens | null = null) {
+    // withComputedExpiry stamps expires_at with Date.now() at construction time.
+    // In tests that use vi.useFakeTimers(), call setAuth() *after* installing
+    // fake timers rather than passing initialAuth here, otherwise expires_at
+    // will be computed from real wall-clock time, not the mocked value.
     this.auth = initialAuth ? withComputedExpiry(initialAuth) : null;
   }
 
@@ -146,7 +153,10 @@ export class MemoryStorage implements AuthStorage {
   }
 
   isAuthenticated(): boolean {
-    return this.auth !== null;
+    const auth = this.getAuth();
+    if (!auth) return false;
+    if (auth.expires_at && Date.now() >= auth.expires_at) return false;
+    return true;
   }
 
   getPendingDeviceAuth(): PendingDeviceAuth | null {
