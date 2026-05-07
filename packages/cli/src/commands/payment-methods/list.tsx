@@ -55,9 +55,7 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
             'Bank account';
           const last4 =
             pm.card_details?.last4 ?? pm.bank_account_details?.last4;
-          const suffix = [pm.nickname ? `(${pm.nickname})` : '']
-            .filter(Boolean)
-            .join(' ');
+          const suffix = pm.nickname ? `(${pm.nickname})` : '';
           return (
             <Box key={pm.id} paddingX={2}>
               <Text>
