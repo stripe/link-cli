@@ -6,7 +6,7 @@ interface AuthErrorOptions {
   cta?: { commands: { command: string; description: string }[] };
 }
 
-const NOT_AUTHENTICATED_ERROR: AuthErrorOptions = {
+export const NOT_AUTHENTICATED_ERROR: AuthErrorOptions = {
   code: 'NOT_AUTHENTICATED',
   message: 'Not authenticated. Run "link-cli auth login" first.',
   cta: {

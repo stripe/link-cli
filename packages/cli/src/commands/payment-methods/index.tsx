@@ -1,8 +1,8 @@
 import type { IPaymentMethodsResource } from '@stripe/link-sdk';
-import { storage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import { render } from 'ink';
 import React from 'react';
+import { requireAuth } from '../../utils/require-auth';
 import { AddPaymentMethod, WALLET_URL } from './add';
 import { PaymentMethodsList } from './list';
 
@@ -17,17 +17,8 @@ export function createPaymentMethodsCli(
     description: 'List all payment methods on your account',
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      if (!storage.isAuthenticated()) {
-        return c.error({
-          code: 'NOT_AUTHENTICATED',
-          message: 'Not authenticated. Run "link-cli auth login" first.',
-          cta: {
-            commands: [
-              { command: 'auth login', description: 'Log in to Link' },
-            ],
-          },
-        });
-      }
+      const authError = requireAuth(c);
+      if (authError) return authError;
 
       const resource = createResource();
 
@@ -50,17 +41,8 @@ export function createPaymentMethodsCli(
     description: 'Open the Link wallet to add a new payment method',
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      if (!storage.isAuthenticated()) {
-        return c.error({
-          code: 'NOT_AUTHENTICATED',
-          message: 'Not authenticated. Run "link-cli auth login" first.',
-          cta: {
-            commands: [
-              { command: 'auth login', description: 'Log in to Link' },
-            ],
-          },
-        });
-      }
+      const authError = requireAuth(c);
+      if (authError) return authError;
 
       if (!c.agent && !c.formatExplicit) {
         return new Promise((resolve) => {

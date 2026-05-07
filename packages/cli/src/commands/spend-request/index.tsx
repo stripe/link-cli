@@ -5,7 +5,6 @@ import type {
   SpendRequest,
   Total,
 } from '@stripe/link-sdk';
-import { storage } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import { render } from 'ink';
 import React from 'react';
@@ -56,17 +55,8 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
     alias: { merchantName: 'm' },
     outputPolicy: 'agent-only' as const,
     async *run(c) {
-      if (!storage.isAuthenticated()) {
-        return c.error({
-          code: 'NOT_AUTHENTICATED',
-          message: 'Not authenticated. Run "link-cli auth login" first.',
-          cta: {
-            commands: [
-              { command: 'auth login', description: 'Log in to Link' },
-            ],
-          },
-        });
-      }
+      const authError = requireAuth(c);
+      if (authError) return authError;
 
       const opts = c.options;
       const requestApproval = !!opts.requestApproval;
@@ -194,17 +184,8 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
     options: updateOptions,
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      if (!storage.isAuthenticated()) {
-        return c.error({
-          code: 'NOT_AUTHENTICATED',
-          message: 'Not authenticated. Run "link-cli auth login" first.',
-          cta: {
-            commands: [
-              { command: 'auth login', description: 'Log in to Link' },
-            ],
-          },
-        });
-      }
+      const authError = requireAuth(c);
+      if (authError) return authError;
 
       const id = c.args.id;
       const opts = c.options;
@@ -257,17 +238,8 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
     }),
     outputPolicy: 'agent-only' as const,
     async *run(c) {
-      if (!storage.isAuthenticated()) {
-        return c.error({
-          code: 'NOT_AUTHENTICATED',
-          message: 'Not authenticated. Run "link-cli auth login" first.',
-          cta: {
-            commands: [
-              { command: 'auth login', description: 'Log in to Link' },
-            ],
-          },
-        });
-      }
+      const authError = requireAuth(c);
+      if (authError) return authError;
 
       const id = c.args.id;
 
@@ -311,17 +283,8 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
     options: retrieveOptions,
     outputPolicy: 'agent-only' as const,
     async *run(c) {
-      if (!storage.isAuthenticated()) {
-        return c.error({
-          code: 'NOT_AUTHENTICATED',
-          message: 'Not authenticated. Run "link-cli auth login" first.',
-          cta: {
-            commands: [
-              { command: 'auth login', description: 'Log in to Link' },
-            ],
-          },
-        });
-      }
+      const authError = requireAuth(c);
+      if (authError) return authError;
 
       const id = c.args.id;
       const opts = c.options;
