@@ -2,7 +2,8 @@ import type { ISpendRequestResource, SpendRequest } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
+import { useAsyncAction } from '../../hooks/use-async-action';
 
 interface CancelSpendRequestProps {
   repository: ISpendRequestResource;
@@ -15,28 +16,11 @@ export const CancelSpendRequest: React.FC<CancelSpendRequestProps> = ({
   id,
   onComplete,
 }) => {
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(
-    'loading',
+  const action = useCallback(
+    () => repository.cancelSpendRequest(id),
+    [repository, id],
   );
-  const [request, setRequest] = useState<SpendRequest | null>(null);
-  const [error, setError] = useState<string>('');
-
-  useEffect(() => {
-    const run = async () => {
-      try {
-        const result = await repository.cancelSpendRequest(id);
-        setRequest(result);
-        setStatus('success');
-        setTimeout(() => onComplete(result), 1500);
-      } catch (err) {
-        setError((err as Error).message);
-        setStatus('error');
-        setTimeout(() => onComplete(null), 1500);
-      }
-    };
-
-    run();
-  }, [repository, id, onComplete]);
+  const { status, data: request, error } = useAsyncAction(action, onComplete);
 
   if (status === 'loading') {
     return (
