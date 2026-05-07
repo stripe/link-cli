@@ -430,18 +430,21 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
       const id = c.args.id;
 
       if (!c.agent && !c.formatExplicit) {
-        let capturedResult: SpendRequest | null = null;
-        const { waitUntilExit } = render(
-          <CancelSpendRequest
-            repository={repository}
-            id={id}
-            onComplete={(result) => {
-              capturedResult = result;
-            }}
-          />,
-        );
-        await waitUntilExit();
-        return capturedResult!;
+        return new Promise((resolve) => {
+          let capturedResult: SpendRequest | null = null;
+          const { waitUntilExit } = render(
+            <CancelSpendRequest
+              repository={repository}
+              id={id}
+              onComplete={(result) => {
+                capturedResult = result;
+              }}
+            />,
+          );
+          waitUntilExit().then(() => {
+            resolve(capturedResult as SpendRequest);
+          });
+        });
       }
 
       return repository.cancelSpendRequest(id);
