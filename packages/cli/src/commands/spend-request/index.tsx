@@ -14,6 +14,7 @@ import {
   parseLineItemFlag,
   parseTotalFlag,
 } from '../../utils/line-item-parser';
+import { requireAuth } from '../../utils/require-auth';
 import { CancelSpendRequest } from './cancel';
 import { CreateSpendRequest } from './create';
 import { RequestApproval } from './request-approval';
@@ -423,36 +424,24 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
     }),
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      if (!storage.isAuthenticated()) {
-        return c.error({
-          code: 'NOT_AUTHENTICATED',
-          message: 'Not authenticated. Run "link-cli auth login" first.',
-          cta: {
-            commands: [
-              { command: 'auth login', description: 'Log in to Link' },
-            ],
-          },
-        });
-      }
+      const authError = requireAuth(c);
+      if (authError) return authError;
 
       const id = c.args.id;
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          let capturedResult: SpendRequest | null = null;
-          const { waitUntilExit } = render(
-            <CancelSpendRequest
-              repository={repository}
-              id={id}
-              onComplete={(result) => {
-                capturedResult = result;
-              }}
-            />,
-          );
-          waitUntilExit().then(() => {
-            resolve(capturedResult as SpendRequest);
-          });
-        });
+        let capturedResult: SpendRequest | null = null;
+        const { waitUntilExit } = render(
+          <CancelSpendRequest
+            repository={repository}
+            id={id}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+        );
+        await waitUntilExit();
+        return capturedResult as SpendRequest;
       }
 
       return repository.cancelSpendRequest(id);
