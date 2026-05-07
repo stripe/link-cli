@@ -186,6 +186,8 @@ When you provide `--client-name`, the Link app displays it when you approve the 
 
 Set `NO_UPDATE_NOTIFIER=1` to suppress update checks (for example, in CI).
 
+All commands accept `--auth <path>` to read/write auth credentials to a specific file instead of the default location. Useful for running multiple sessions with separate identities.
+
 ### Spend request lifecycle
 
 A spend request moves through: **create** → **request approval** → **approved** (with credentials).
@@ -225,12 +227,6 @@ Use `mpp decode` to validate a raw `WWW-Authenticate` header and extract the `ne
 link-cli mpp decode \
   --challenge 'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge", request="..."'
 ```
-
-### Global flags
-
-| Flag | Effect |
-|------|--------|
-| `--auth <path>` | Read/write auth credentials to a specific file instead of the default location. Useful for running multiple sessions with separate identities. |
 
 ### Environment variables
 
