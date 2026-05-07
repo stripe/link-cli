@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export type AsyncActionStatus = 'loading' | 'success' | 'error';
 
@@ -7,6 +7,8 @@ interface AsyncActionResult<T> {
   data: T | null;
   error: string;
 }
+
+const DELAY = 1500;
 
 /**
  * Runs an async action on mount, manages loading/success/error state,
@@ -20,23 +22,36 @@ export function useAsyncAction<T>(
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string>('');
 
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
     const run = async () => {
       try {
         const result = await action();
+        if (cancelled) return;
         setData(result);
         setStatus('success');
-        setTimeout(() => onComplete(result), 1500);
+        timeoutId = setTimeout(() => onCompleteRef.current(result), DELAY);
       } catch (err) {
-        const message = (err as Error).message;
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : String(err);
         setError(message);
         setStatus('error');
-        setTimeout(() => onComplete(null), 1500);
+        timeoutId = setTimeout(() => onCompleteRef.current(null), DELAY);
       }
     };
 
     run();
-  }, [action, onComplete]);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [action]);
 
   return { status, data, error };
 }
