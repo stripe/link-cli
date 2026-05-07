@@ -7,7 +7,7 @@ export interface PollUntilOptions<T> {
   interval: number;
   /** Maximum number of non-terminal iterations before stopping. 0 = unlimited. */
   maxAttempts: number;
-  /** Timeout in seconds. Polling stops once this duration has elapsed. */
+  /** Timeout in seconds. Polling stops once this duration has elapsed. 0 = immediate timeout after first non-terminal result. */
   timeout: number;
 }
 
@@ -29,7 +29,10 @@ export async function* pollUntil<T>(
   options: PollUntilOptions<T>,
 ): AsyncGenerator<PollUntilResult<T>> {
   const { fn, isTerminal, interval, timeout, maxAttempts } = options;
-  const deadline = timeout ? Date.now() + timeout * 1000 : undefined;
+  const deadline =
+    timeout !== undefined && timeout >= 0
+      ? Date.now() + timeout * 1000
+      : undefined;
 
   let attempts = 0;
   let previousSnapshot: string | undefined;
