@@ -1,8 +1,8 @@
 import { storage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
-import { render } from 'ink';
 import React from 'react';
 import type { IAuthResource } from '../../auth/types';
+import { renderInteractive } from '../../utils/render-interactive';
 import type { UpdateInfoProvider } from '../../utils/update-info';
 import { Login } from './login';
 import { Logout } from './logout';
@@ -31,18 +31,14 @@ export function createAuthCli(
       }
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          const { waitUntilExit } = render(
-            <Login
-              authResource={authResource}
-              clientName={clientName}
-              onComplete={() => {}}
-            />,
-          );
-          waitUntilExit().then(() =>
-            resolve({ authenticated: true, token_type: 'Bearer' }),
-          );
-        });
+        return renderInteractive(
+          <Login
+            authResource={authResource}
+            clientName={clientName}
+            onComplete={() => {}}
+          />,
+          () => ({ authenticated: true, token_type: 'Bearer' }),
+        );
       }
 
       // Agent mode: initiate device auth, store pending state, return immediately.
@@ -87,12 +83,10 @@ export function createAuthCli(
       const result = { authenticated: false };
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          const { waitUntilExit } = render(
-            <Logout authResource={authResource} onComplete={() => {}} />,
-          );
-          waitUntilExit().then(() => resolve(result));
-        });
+        return renderInteractive(
+          <Logout authResource={authResource} onComplete={() => {}} />,
+          () => result,
+        );
       }
 
       return result;
@@ -120,13 +114,11 @@ export function createAuthCli(
         : undefined;
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          const { waitUntilExit } = render(
-            <AuthStatus onComplete={() => {}} />,
-          );
-          waitUntilExit().then(() => {
+        return renderInteractive(
+          <AuthStatus onComplete={() => {}} />,
+          () => {
             const auth = storage.getAuth();
-            resolve({
+            return {
               authenticated: !!auth,
               ...(auth
                 ? {
@@ -136,9 +128,9 @@ export function createAuthCli(
                 : {}),
               credentials_path: storage.getPath(),
               ...(update && { update }),
-            });
-          });
-        });
+            };
+          },
+        );
       }
 
       let attempts = 0;

@@ -7,13 +7,13 @@ import type {
 } from '@stripe/link-sdk';
 import { storage } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
-import { render } from 'ink';
 import React from 'react';
 import { writeCredentialFile } from '../../utils/credential-output';
 import {
   parseLineItemFlag,
   parseTotalFlag,
 } from '../../utils/line-item-parser';
+import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
 import { CancelSpendRequest } from './cancel';
 import { CreateSpendRequest } from './create';
@@ -140,24 +140,20 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
       const forceOverwrite = opts.force;
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          let capturedResult: SpendRequest | null = null;
-          const { waitUntilExit } = render(
-            <CreateSpendRequest
-              repository={repository}
-              params={createParams}
-              requestApproval={requestApproval}
-              outputFile={outputFile}
-              force={forceOverwrite}
-              onComplete={(result) => {
-                capturedResult = result;
-              }}
-            />,
-          );
-          waitUntilExit().then(() => {
-            resolve(capturedResult as SpendRequest);
-          });
-        });
+        let capturedResult: SpendRequest | null = null;
+        return renderInteractive(
+          <CreateSpendRequest
+            repository={repository}
+            params={createParams}
+            requestApproval={requestApproval}
+            outputFile={outputFile}
+            force={forceOverwrite}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => capturedResult as SpendRequest,
+        );
       }
 
       // Agent mode: create, return immediately with _next polling hint.
@@ -228,22 +224,18 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
         );
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          let capturedResult: SpendRequest | null = null;
-          const { waitUntilExit } = render(
-            <UpdateSpendRequest
-              repository={repository}
-              id={id}
-              params={params}
-              onComplete={(result) => {
-                capturedResult = result;
-              }}
-            />,
-          );
-          waitUntilExit().then(() => {
-            resolve(capturedResult as SpendRequest);
-          });
-        });
+        let capturedResult: SpendRequest | null = null;
+        return renderInteractive(
+          <UpdateSpendRequest
+            repository={repository}
+            id={id}
+            params={params}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => capturedResult as SpendRequest,
+        );
       }
 
       return repository.updateSpendRequest(id, params);
@@ -272,21 +264,17 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
       const id = c.args.id;
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          let capturedResult: SpendRequest | null = null;
-          const { waitUntilExit } = render(
-            <RequestApproval
-              repository={repository}
-              id={id}
-              onComplete={(result) => {
-                capturedResult = result;
-              }}
-            />,
-          );
-          waitUntilExit().then(() => {
-            resolve(capturedResult as SpendRequest);
-          });
-        });
+        let capturedResult: SpendRequest | null = null;
+        return renderInteractive(
+          <RequestApproval
+            repository={repository}
+            id={id}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => capturedResult as SpendRequest,
+        );
       }
 
       // Agent mode: request approval, return immediately with _next polling hint.
@@ -334,25 +322,21 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
       const forceOverwrite = opts.force;
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          let capturedResult: SpendRequest | null = null;
-          const { waitUntilExit } = render(
-            <RetrieveSpendRequest
-              repository={repository}
-              id={id}
-              timeout={timeout}
-              include={include}
-              outputFile={outputFile}
-              force={forceOverwrite}
-              onComplete={(result) => {
-                capturedResult = result;
-              }}
-            />,
-          );
-          waitUntilExit().then(() => {
-            resolve(capturedResult as SpendRequest);
-          });
-        });
+        let capturedResult: SpendRequest | null = null;
+        return renderInteractive(
+          <RetrieveSpendRequest
+            repository={repository}
+            id={id}
+            timeout={timeout}
+            include={include}
+            outputFile={outputFile}
+            force={forceOverwrite}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => capturedResult as SpendRequest,
+        );
       }
 
       const terminalStatuses = new Set([
@@ -430,21 +414,17 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
       const id = c.args.id;
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          let capturedResult: SpendRequest | null = null;
-          const { waitUntilExit } = render(
-            <CancelSpendRequest
-              repository={repository}
-              id={id}
-              onComplete={(result) => {
-                capturedResult = result;
-              }}
-            />,
-          );
-          waitUntilExit().then(() => {
-            resolve(capturedResult as SpendRequest);
-          });
-        });
+        let capturedResult: SpendRequest | null = null;
+        return renderInteractive(
+          <CancelSpendRequest
+            repository={repository}
+            id={id}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => capturedResult as SpendRequest,
+        );
       }
 
       return repository.cancelSpendRequest(id);

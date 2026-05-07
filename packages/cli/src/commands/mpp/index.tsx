@@ -1,8 +1,8 @@
 import type { ISpendRequestResource } from '@stripe/link-sdk';
 import { storage } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
-import { render } from 'ink';
 import React from 'react';
+import { renderInteractive } from '../../utils/render-interactive';
 import { decodeStripeChallenge } from './decode';
 import { DecodeChallengeView } from './decode-view';
 import { MppPay, runMppPay } from './pay';
@@ -42,31 +42,26 @@ export function createMppCli(repository: ISpendRequestResource) {
       const headers = opts.header?.length ? opts.header : undefined;
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          const { waitUntilExit } = render(
-            <MppPay
-              url={url}
-              spendRequestId={opts.spendRequestId}
-              method={method}
-              data={data}
-              headers={headers}
-              repository={repository}
-              onComplete={() => {}}
-            />,
-          );
-          waitUntilExit().then(async () => {
-            resolve(
-              await runMppPay(
-                url,
-                opts.spendRequestId,
-                method,
-                data,
-                headers,
-                repository,
-              ),
-            );
-          });
-        });
+        return renderInteractive(
+          <MppPay
+            url={url}
+            spendRequestId={opts.spendRequestId}
+            method={method}
+            data={data}
+            headers={headers}
+            repository={repository}
+            onComplete={() => {}}
+          />,
+          () =>
+            runMppPay(
+              url,
+              opts.spendRequestId,
+              method,
+              data,
+              headers,
+              repository,
+            ),
+        );
       }
 
       return runMppPay(
@@ -89,12 +84,10 @@ export function createMppCli(repository: ISpendRequestResource) {
       const decoded = decodeStripeChallenge(c.options.challenge);
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          const { waitUntilExit } = render(
-            <DecodeChallengeView decoded={decoded} />,
-          );
-          waitUntilExit().then(() => resolve(decoded));
-        });
+        return renderInteractive(
+          <DecodeChallengeView decoded={decoded} />,
+          () => decoded,
+        );
       }
 
       return decoded;

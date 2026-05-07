@@ -1,8 +1,8 @@
 import type { IPaymentMethodsResource } from '@stripe/link-sdk';
 import { storage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
-import { render } from 'ink';
 import React from 'react';
+import { renderInteractive } from '../../utils/render-interactive';
 import { AddPaymentMethod, WALLET_URL } from './add';
 import { PaymentMethodsList } from './list';
 
@@ -32,14 +32,10 @@ export function createPaymentMethodsCli(
       const resource = createResource();
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          const { waitUntilExit } = render(
-            <PaymentMethodsList resource={resource} onComplete={() => {}} />,
-          );
-          waitUntilExit().then(async () => {
-            resolve(await resource.listPaymentMethods());
-          });
-        });
+        return renderInteractive(
+          <PaymentMethodsList resource={resource} onComplete={() => {}} />,
+          () => resource.listPaymentMethods(),
+        );
       }
 
       return resource.listPaymentMethods();
@@ -63,10 +59,10 @@ export function createPaymentMethodsCli(
       }
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          const { waitUntilExit } = render(<AddPaymentMethod />);
-          waitUntilExit().then(() => resolve({ url: WALLET_URL }));
-        });
+        return renderInteractive(
+          <AddPaymentMethod />,
+          () => ({ url: WALLET_URL }),
+        );
       }
 
       return { url: WALLET_URL };
