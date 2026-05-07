@@ -441,7 +441,7 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
           />,
         );
         await waitUntilExit();
-        return capturedResult as SpendRequest;
+        return capturedResult!;
       }
 
       return repository.cancelSpendRequest(id);
