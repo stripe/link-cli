@@ -47,7 +47,7 @@ Commands in `packages/cli/src/cli.tsx` (incur framework). Each has two output mo
 - **Interactive** (default): Ink/React components from `packages/cli/src/commands/`
 - **JSON** (`--format json`): JSON to stdout, errors as JSON with `code` and `message` fields with exit code 1
 
-Commands: `auth login|logout|status`, `spend-request create|update|retrieve|request-approval`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`.
+Commands: `auth login|logout|status`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`.
 
 The CLI also runs as an MCP server (`--mcp`) and serves skill files via `skills` subcommand, both provided by incur.
 
@@ -67,8 +67,9 @@ Key input field notes:
 - CLI input uses `payment_method_id`; mapped to `payment_details` when calling the SDK
 - `context` requires min 100 characters; `amount` is in cents with max 50000
 - `--test` flag creates testmode credentials (real testmode SPT from test card data) instead of livemode ones
-- `create --request-approval` and `request-approval` both show an approval URL in interactive mode and poll until approved/denied/expired/failed. In JSON mode (`--format json`), they return immediately with an `_next.command` for `spend-request retrieve`.
-- `retrieve --interval <seconds>` polls until approved/denied/expired/succeeded/failed. If `--timeout` is reached or `--max-attempts` is exhausted while the request is still non-terminal, it exits non-zero with `POLLING_TIMEOUT`.
+- `create --request-approval` and `request-approval` both show an approval URL in interactive mode and poll until approved/denied/expired/failed/canceled. In JSON mode (`--format json`), they return immediately with an `_next.command` for `spend-request retrieve`.
+- `retrieve --interval <seconds>` polls until approved/denied/expired/succeeded/failed/canceled. If `--timeout` is reached or `--max-attempts` is exhausted while the request is still non-terminal, it exits non-zero with `POLLING_TIMEOUT`.
+- `cancel <id>` cancels a spend request. Can cancel from `created`, `pending_approval`, or `approved` states. Returns the spend request with `status: "canceled"`.
 - `card` credentials include `billing_address` (name, line1, line2, city, state, postal_code, country) and `valid_until` (ISO date string — when the card expires/stops working)
 - `--output-file <path>` on `retrieve` or `create` writes full card credentials to a local file (0600 permissions) and redacts card data in stdout. `--force` allows overwriting an existing file.
 

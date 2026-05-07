@@ -250,6 +250,70 @@ describe('SpendRequestResource', () => {
     });
   });
 
+  describe('cancelSpendRequest', () => {
+    it('sends POST to cancel endpoint with Bearer auth and no body', async () => {
+      const canceledResponse = { ...spendRequestResponse, status: 'canceled' };
+      mockFetchResponse(200, canceledResponse);
+
+      await repo.cancelSpendRequest('si_123');
+
+      const [url, opts] = mockFetch.mock.calls[0];
+      expect(url).toBe('https://api.link.com/spend_requests/si_123/cancel');
+      expect(opts.method).toBe('POST');
+      expect(opts.headers.Authorization).toBe('Bearer test_token');
+      expect(opts.body).toBeUndefined();
+    });
+
+    it('returns SpendRequest with canceled status on success', async () => {
+      const canceledResponse = { ...spendRequestResponse, status: 'canceled' };
+      mockFetchResponse(200, canceledResponse);
+
+      const result = await repo.cancelSpendRequest('si_123');
+
+      expect(result.status).toBe('canceled');
+      expect(result.id).toBe('si_123');
+    });
+
+    it('throws on 404 not found', async () => {
+      mockFetchResponse(404, { error: { message: 'Spend request not found' } });
+
+      await expect(repo.cancelSpendRequest('si_nonexistent')).rejects.toThrow(
+        'Failed to cancel spend request (404): Spend request not found',
+      );
+    });
+
+    it('throws on 409 terminal state', async () => {
+      mockFetchResponse(409, {
+        error: {
+          message:
+            'Spend request is in a terminal state and cannot be canceled',
+        },
+      });
+
+      await expect(repo.cancelSpendRequest('si_123')).rejects.toThrow(
+        'Failed to cancel spend request (409): Spend request is in a terminal state and cannot be canceled',
+      );
+    });
+
+    it('throws on 422 expired', async () => {
+      mockFetchResponse(422, {
+        error: { message: 'Spend request expired' },
+      });
+
+      await expect(repo.cancelSpendRequest('si_123')).rejects.toThrow(
+        'Failed to cancel spend request (422): Spend request expired',
+      );
+    });
+
+    it('throws when no access token is available', async () => {
+      getAccessToken.mockRejectedValueOnce(new Error('Missing access token'));
+
+      await expect(repo.cancelSpendRequest('si_123')).rejects.toThrow(
+        'Missing access token',
+      );
+    });
+  });
+
   describe('getSpendRequest', () => {
     it('sends GET to retrieve endpoint', async () => {
       mockFetchResponse(200, spendRequestResponse);

@@ -14,6 +14,8 @@ import {
   parseLineItemFlag,
   parseTotalFlag,
 } from '../../utils/line-item-parser';
+import { requireAuth } from '../../utils/require-auth';
+import { CancelSpendRequest } from './cancel';
 import { CreateSpendRequest } from './create';
 import { RequestApproval } from './request-approval';
 import { RetrieveSpendRequest } from './retrieve';
@@ -359,6 +361,7 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
         'expired',
         'succeeded',
         'failed',
+        'canceled',
       ]);
       const deadline = Date.now() + timeout * 1000;
       let attempts = 0;
@@ -411,6 +414,40 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
         }
         await new Promise((resolve) => setTimeout(resolve, interval * 1000));
       }
+    },
+  });
+
+  cli.command('cancel', {
+    description: 'Cancel a spend request',
+    args: z.object({
+      id: z.string().describe('Spend request ID'),
+    }),
+    outputPolicy: 'agent-only' as const,
+    async run(c) {
+      const authError = requireAuth(c);
+      if (authError) return authError;
+
+      const id = c.args.id;
+
+      if (!c.agent && !c.formatExplicit) {
+        return new Promise((resolve) => {
+          let capturedResult: SpendRequest | null = null;
+          const { waitUntilExit } = render(
+            <CancelSpendRequest
+              repository={repository}
+              id={id}
+              onComplete={(result) => {
+                capturedResult = result;
+              }}
+            />,
+          );
+          waitUntilExit().then(() => {
+            resolve(capturedResult as SpendRequest);
+          });
+        });
+      }
+
+      return repository.cancelSpendRequest(id);
     },
   });
 

@@ -162,7 +162,11 @@ link-cli spend-request create \
 
 **`--total` keys:** `type` (required; one of: `subtotal`, `tax`, `total`), `display_text` (required), `amount` (required). Repeatable (e.g. subtotal + tax + total).
 
-Do not proceed to payment while the request is still `created` or `pending_approval`. If polling exits with `POLLING_TIMEOUT`, keep waiting or ask the user whether to continue polling. If they deny, ask for clarification what to do next.
+Do not proceed to payment while the request is still `created` or `pending_approval`. If polling exits with `POLLING_TIMEOUT`, keep waiting or ask the user whether to continue polling. If they deny, ask for clarification what to do next. If the user wants to abort, cancel the spend request:
+
+```bash
+link-cli spend-request cancel <id>
+```
 
 Recommend the user approves with the [Link app](https://link.com/download). Show the download URL.
 
@@ -206,7 +210,7 @@ All errors are output as JSON with `code` and `message` fields, with exit code 1
 | `context` validation error on `spend-request create` | `context` field is under 100 characters | Rewrite `context` as a full sentence explaining what is being purchased and why; the user reads this when approving |
 | API rejects `merchant_name` or `merchant_url` | These fields are forbidden when `credential_type` is `shared_payment_token` | Remove both fields from the request; SPT flows identify the merchant via `network_id` instead |
 | Spend request approved but payment fails immediately | Wrong credential type for the merchant (e.g. `card` on a 402-only endpoint) | Go back to Step 2, re-evaluate the merchant, create a new spend request with the correct `credential_type` |
-| Auth token expired mid-session (exit code 1 during approval polling) | Token refresh failure during background polling | Re-authenticate with `auth login`, then retrieve the existing spend request or resume polling. Only create a new spend request if the original one expired, was denied, or its shared payment token was already consumed |
+| Auth token expired mid-session (exit code 1 during approval polling) | Token refresh failure during background polling | Re-authenticate with `auth login`, then retrieve the existing spend request or resume polling. Only create a new spend request if the original one expired, was denied, was canceled, or its shared payment token was already consumed |
 
 ## Further docs
 

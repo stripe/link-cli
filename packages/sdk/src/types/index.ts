@@ -62,7 +62,8 @@ export type SpendRequestStatus =
   | 'approved'
   | 'denied'
   | 'succeeded'
-  | 'failed';
+  | 'failed'
+  | 'canceled';
 
 export type CredentialType = 'shared_payment_token' | 'card';
 

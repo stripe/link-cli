@@ -60,6 +60,8 @@ export interface ISpendRequestResource {
     params: UpdateSpendRequestParams,
   ): Promise<SpendRequest>;
   requestApproval(id: string): Promise<RequestApprovalResponse>;
+  cancel(id: string): Promise<SpendRequest>;
+  cancelSpendRequest(id: string): Promise<SpendRequest>;
   retrieve(
     id: string,
     opts?: { include?: string[] },
