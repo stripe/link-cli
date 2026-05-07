@@ -64,9 +64,6 @@ export const CancelSpendRequest: React.FC<CancelSpendRequestProps> = ({
         <Text>
           ID: <Text bold>{request?.id}</Text>
         </Text>
-        <Text>
-          Status: <Text bold>{request?.status}</Text>
-        </Text>
       </Box>
     </Box>
   );
