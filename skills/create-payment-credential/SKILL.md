@@ -1,7 +1,7 @@
 ---
 name: create-payment-credential
 description: |
-  Gets secure, one-time-use payment credentials (cards, tokens) from a Link wallet so agents can complete purchases on behalf of users. Use when the user says "get me a card", "buy something", "pay for X", "make a purchase", "I need to pay", "complete checkout", or asks to transact on any merchant site. Use when the user asks to connect or log in to or sign up for their Link account. Also provides saved shipping addresses from the user's Link wallet for filling checkout forms.
+  Gets secure, one-time-use payment credentials (cards, tokens) from a Link wallet so agents can complete purchases on behalf of users. Use when the user says "get me a card", "buy something", "pay for X", "make a purchase", "I need to pay", "complete checkout", or asks to transact on any merchant site. Use when the user asks to connect or log in to or sign up for their Link account.
 allowed-tools:
  - Bash(link-cli:*)
  - Bash(npx:*)
@@ -130,7 +130,7 @@ link-cli mpp decode --challenge '<raw WWW-Authenticate header>'
 
 This validates the Stripe challenge, decodes the `request` payload, and returns both the extracted `network_id` and the decoded request JSON. Pass the full header exactly as received, even if it also contains non-Stripe or multiple `Payment` challenges.
 
-### Step 3: Get payment methods and shipping addresses
+### Step 3: Get payment methods and potentially shipping addresses
 
 Use the default payment method, unless the user explicitly asks to select a different one.
 
@@ -138,13 +138,11 @@ Use the default payment method, unless the user explicitly asks to select a diff
 link-cli payment-methods list
 ```
 
-If the merchant checkout requires a shipping or delivery address, fetch the user's saved shipping addresses:
+If the merchant checkout requires a shipping or delivery address, fetch the user's saved shipping addresses. Use the default address unless the user specifies otherwise.
 
 ```bash
 link-cli shipping-address list
 ```
-
-This returns an array of shipping address records. Each record has `id`, `is_default`, `nickname`, and an `address` object with fields: `name`, `line_1`, `line_2`, `locality` (city), `administrative_area` (state/province), `postal_code`, `sorting_code`, `dependent_locality`, and `country_code`. Use the default address unless the user specifies otherwise. Factor the shipping destination into total cost calculations (shipping fees, taxes) before creating the spend request.
 
 ### Step 4: Create the spend request with the right credential type
 
