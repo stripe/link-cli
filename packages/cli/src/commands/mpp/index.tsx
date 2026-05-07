@@ -5,7 +5,7 @@ import React from 'react';
 import { renderInteractive } from '../../utils/render-interactive';
 import { decodeStripeChallenge } from './decode';
 import { DecodeChallengeView } from './decode-view';
-import { type PayResult, MppPay, runMppPay } from './pay';
+import { MppPay, type PayResult, runMppPay } from './pay';
 import { decodeOptions, payOptions } from './schema';
 
 export function createMppCli(repository: ISpendRequestResource) {

@@ -59,10 +59,9 @@ export function createPaymentMethodsCli(
       }
 
       if (!c.agent && !c.formatExplicit) {
-        return renderInteractive(
-          <AddPaymentMethod />,
-          () => ({ url: WALLET_URL }),
-        );
+        return renderInteractive(<AddPaymentMethod />, () => ({
+          url: WALLET_URL,
+        }));
       }
 
       return { url: WALLET_URL };

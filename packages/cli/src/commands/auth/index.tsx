@@ -114,23 +114,20 @@ export function createAuthCli(
         : undefined;
 
       if (!c.agent && !c.formatExplicit) {
-        return renderInteractive(
-          <AuthStatus onComplete={() => {}} />,
-          () => {
-            const auth = storage.getAuth();
-            return {
-              authenticated: !!auth,
-              ...(auth
-                ? {
-                    access_token: `${auth.access_token.substring(0, 20)}...`,
-                    token_type: auth.token_type,
-                  }
-                : {}),
-              credentials_path: storage.getPath(),
-              ...(update && { update }),
-            };
-          },
-        );
+        return renderInteractive(<AuthStatus onComplete={() => {}} />, () => {
+          const auth = storage.getAuth();
+          return {
+            authenticated: !!auth,
+            ...(auth
+              ? {
+                  access_token: `${auth.access_token.substring(0, 20)}...`,
+                  token_type: auth.token_type,
+                }
+              : {}),
+            credentials_path: storage.getPath(),
+            ...(update && { update }),
+          };
+        });
       }
 
       let attempts = 0;

@@ -19,7 +19,7 @@ export async function renderInteractive<T>(
 export async function renderInteractive<T>(
   element: React.ReactElement,
   getResult?: () => T | Promise<T>,
-): Promise<T | void> {
+): Promise<T | undefined> {
   const { waitUntilExit } = render(element);
   await waitUntilExit();
   if (getResult) {
