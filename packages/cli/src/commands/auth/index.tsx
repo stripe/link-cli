@@ -108,7 +108,6 @@ export function createAuthCli(
       const opts = c.options;
       const interval = opts.interval;
       const maxAttempts = opts.maxAttempts;
-      const deadline = Date.now() + opts.timeout * 1000;
       const updateInfo = await getUpdateInfo?.({
         polling: interval > 0,
       });
@@ -184,7 +183,7 @@ export function createAuthCli(
         isTerminal: (status) => status.authenticated,
         interval,
         maxAttempts,
-        deadline,
+        timeout: opts.timeout,
       })) {
         yield result.value;
       }

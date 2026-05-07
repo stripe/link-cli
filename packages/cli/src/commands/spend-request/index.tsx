@@ -370,7 +370,7 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
         isTerminal: (req) => req === null || terminalStatuses.has(req.status),
         interval,
         maxAttempts,
-        deadline: Date.now() + timeout * 1000,
+        timeout,
       })) {
         if (result.value === null) {
           return c.error({
@@ -379,24 +379,29 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
           });
         }
 
-        if (result.done && terminalStatuses.has(result.value.status)) {
-          try {
-            yield await applyOutputFile(
-              result.value,
-              outputFile,
-              forceOverwrite,
-            );
-          } catch (err) {
-            const message = (err as Error).message;
-            if (message.startsWith('OUTPUT_FILE_EXISTS')) {
-              return c.error({ code: 'OUTPUT_FILE_EXISTS', message });
+        if (result.terminal) {
+          // Terminal due to isTerminal or interval <= 0 — apply output file
+          if (
+            terminalStatuses.has(result.value.status) ||
+            !result.reason
+          ) {
+            try {
+              yield await applyOutputFile(
+                result.value,
+                outputFile,
+                forceOverwrite,
+              );
+            } catch (err) {
+              const message = (err as Error).message;
+              if (message.startsWith('OUTPUT_FILE_EXISTS')) {
+                return c.error({ code: 'OUTPUT_FILE_EXISTS', message });
+              }
+              return c.error({ code: 'OUTPUT_FILE_WRITE_ERROR', message });
             }
-            return c.error({ code: 'OUTPUT_FILE_WRITE_ERROR', message });
+            return;
           }
-          return;
-        }
 
-        if (result.done && result.reason) {
+          // Terminal due to max_attempts or timeout
           const reason =
             result.reason === 'max_attempts'
               ? `max attempts (${maxAttempts}) exhausted`
