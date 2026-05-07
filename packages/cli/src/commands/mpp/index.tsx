@@ -5,7 +5,7 @@ import React from 'react';
 import { renderInteractive } from '../../utils/render-interactive';
 import { decodeStripeChallenge } from './decode';
 import { DecodeChallengeView } from './decode-view';
-import { MppPay, runMppPay } from './pay';
+import { type PayResult, MppPay, runMppPay } from './pay';
 import { decodeOptions, payOptions } from './schema';
 
 export function createMppCli(repository: ISpendRequestResource) {
@@ -42,6 +42,7 @@ export function createMppCli(repository: ISpendRequestResource) {
       const headers = opts.header?.length ? opts.header : undefined;
 
       if (!c.agent && !c.formatExplicit) {
+        let capturedResult: PayResult | null = null;
         return renderInteractive(
           <MppPay
             url={url}
@@ -50,17 +51,15 @@ export function createMppCli(repository: ISpendRequestResource) {
             data={data}
             headers={headers}
             repository={repository}
-            onComplete={() => {}}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
           />,
-          () =>
-            runMppPay(
-              url,
-              opts.spendRequestId,
-              method,
-              data,
-              headers,
-              repository,
-            ),
+          () => {
+            if (!capturedResult)
+              throw new Error('Component exited without producing a result');
+            return capturedResult;
+          },
         );
       }
 

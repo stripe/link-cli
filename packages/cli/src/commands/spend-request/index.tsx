@@ -152,7 +152,11 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
               capturedResult = result;
             }}
           />,
-          () => capturedResult as SpendRequest,
+          () => {
+            if (!capturedResult)
+              throw new Error('Component exited without producing a result');
+            return capturedResult;
+          },
         );
       }
 
@@ -234,7 +238,11 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
               capturedResult = result;
             }}
           />,
-          () => capturedResult as SpendRequest,
+          () => {
+            if (!capturedResult)
+              throw new Error('Component exited without producing a result');
+            return capturedResult;
+          },
         );
       }
 
@@ -273,7 +281,11 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
               capturedResult = result;
             }}
           />,
-          () => capturedResult as SpendRequest,
+          () => {
+            if (!capturedResult)
+              throw new Error('Component exited without producing a result');
+            return capturedResult;
+          },
         );
       }
 
@@ -335,7 +347,11 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
               capturedResult = result;
             }}
           />,
-          () => capturedResult as SpendRequest,
+          () => {
+            if (!capturedResult)
+              throw new Error('Component exited without producing a result');
+            return capturedResult;
+          },
         );
       }
 
@@ -423,7 +439,11 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
               capturedResult = result;
             }}
           />,
-          () => capturedResult as SpendRequest,
+          () => {
+            if (!capturedResult)
+              throw new Error('Component exited without producing a result');
+            return capturedResult;
+          },
         );
       }
 
