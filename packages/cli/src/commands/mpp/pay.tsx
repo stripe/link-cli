@@ -31,19 +31,9 @@ function buildHeaders(
   return result;
 }
 
-async function readPayResult(
-  response: Response,
-  options?: { failOnError?: boolean },
-): Promise<PayResult> {
+async function readPayResult(response: Response): Promise<PayResult> {
   const responseHeaders = Object.fromEntries(response.headers.entries());
   const body = await response.text();
-
-  if (options?.failOnError && !response.ok) {
-    throw new Error(
-      `Payment submission failed with status ${response.status}: ${body}`,
-    );
-  }
-
   return { status: response.status, headers: responseHeaders, body };
 }
 
@@ -139,7 +129,7 @@ export async function runMppPay(
     },
   });
 
-  return readPayResult(retryResponse, { failOnError: true });
+  return readPayResult(retryResponse);
 }
 
 type Step = 'retrieving' | 'probing' | 'signing' | 'submitting' | 'done';
@@ -226,9 +216,7 @@ export function MppPay({
           },
         });
 
-        const payResult = await readPayResult(retryResponse, {
-          failOnError: true,
-        });
+        const payResult = await readPayResult(retryResponse);
         setResult(payResult);
         setStep('done');
         onComplete(payResult);
@@ -262,7 +250,17 @@ export function MppPay({
       )}
       {result && (
         <Box flexDirection="column">
-          <Text color="green">HTTP {result.status}</Text>
+          <Text
+            color={
+              result.status >= 400
+                ? 'red'
+                : result.status >= 300
+                  ? 'yellow'
+                  : 'green'
+            }
+          >
+            HTTP {result.status}
+          </Text>
           <Text>{result.body}</Text>
         </Box>
       )}

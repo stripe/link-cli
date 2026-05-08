@@ -1041,7 +1041,7 @@ describe('production mode', () => {
       expect(merchantRequests[1].headers.authorization).toMatch(/^Payment /);
     });
 
-    it('exits 1 when the paid retry fails', async () => {
+    it('returns structured response when the paid retry fails', async () => {
       setNextResponse(200, APPROVED_SPT_REQUEST);
       setMerchantResponse(402, '{"error":"payment required"}', {
         'www-authenticate': WWW_AUTHENTICATE_STRIPE,
@@ -1058,12 +1058,14 @@ describe('production mode', () => {
         'json',
       );
 
-      expect(result.exitCode).toBe(1);
-      const err = parseJson(result.stdout) as { message: string };
-      expect(err.message).toContain(
-        'Payment submission failed with status 401',
-      );
-      expect(err.message).toContain('spt rejected');
+      expect(result.exitCode).toBe(0);
+      const parsed = parseJson(result.stdout) as {
+        status: number;
+        headers: Record<string, string>;
+        body: string;
+      };
+      expect(parsed.status).toBe(401);
+      expect(parsed.body).toContain('spt rejected');
       expect(merchantRequests).toHaveLength(2);
     });
 
