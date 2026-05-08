@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const pkg = JSON.parse(readFileSync(resolve(root, 'packages/cli/package.json'), 'utf8'));
+const pkg = JSON.parse(
+  readFileSync(resolve(root, 'packages/cli/package.json'), 'utf8'),
+);
 const skillPath = resolve(root, 'skills/create-payment-credential/SKILL.md');
 const skill = readFileSync(skillPath, 'utf8');
 
