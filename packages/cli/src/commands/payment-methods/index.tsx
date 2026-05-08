@@ -16,10 +16,8 @@ export function createPaymentMethodsCli(
   cli.command('list', {
     description: 'List all payment methods on your account',
     outputPolicy: 'agent-only' as const,
+    middleware: [requireAuth],
     async run(c) {
-      const authError = requireAuth(c);
-      if (authError) return authError;
-
       const resource = createResource();
 
       if (!c.agent && !c.formatExplicit) {
@@ -40,10 +38,8 @@ export function createPaymentMethodsCli(
   cli.command('add', {
     description: 'Open the Link wallet to add a new payment method',
     outputPolicy: 'agent-only' as const,
+    middleware: [requireAuth],
     async run(c) {
-      const authError = requireAuth(c);
-      if (authError) return authError;
-
       if (!c.agent && !c.formatExplicit) {
         return new Promise((resolve) => {
           const { waitUntilExit } = render(<AddPaymentMethod />);

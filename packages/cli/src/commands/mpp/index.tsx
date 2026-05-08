@@ -22,10 +22,8 @@ export function createMppCli(repository: ISpendRequestResource) {
     options: payOptions,
     alias: { method: 'X', data: 'd', header: 'H' },
     outputPolicy: 'agent-only' as const,
+    middleware: [requireAuth],
     async run(c) {
-      const authError = requireAuth(c);
-      if (authError) return authError;
-
       const url = c.args.url;
       const opts = c.options;
       const method = opts.method;

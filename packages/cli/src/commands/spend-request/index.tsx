@@ -13,7 +13,7 @@ import {
   parseLineItemFlag,
   parseTotalFlag,
 } from '../../utils/line-item-parser';
-import { requireAuth } from '../../utils/require-auth';
+import { requireAuth, requireAuthGuard } from '../../utils/require-auth';
 import { CancelSpendRequest } from './cancel';
 import { CreateSpendRequest } from './create';
 import { RequestApproval } from './request-approval';
@@ -55,8 +55,7 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
     alias: { merchantName: 'm' },
     outputPolicy: 'agent-only' as const,
     async *run(c) {
-      const authError = requireAuth(c);
-      if (authError) return authError;
+      requireAuthGuard(c);
 
       const opts = c.options;
       const requestApproval = !!opts.requestApproval;
@@ -183,10 +182,8 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
     }),
     options: updateOptions,
     outputPolicy: 'agent-only' as const,
+    middleware: [requireAuth],
     async run(c) {
-      const authError = requireAuth(c);
-      if (authError) return authError;
-
       const id = c.args.id;
       const opts = c.options;
 
@@ -238,8 +235,7 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
     }),
     outputPolicy: 'agent-only' as const,
     async *run(c) {
-      const authError = requireAuth(c);
-      if (authError) return authError;
+      requireAuthGuard(c);
 
       const id = c.args.id;
 
@@ -283,8 +279,7 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
     options: retrieveOptions,
     outputPolicy: 'agent-only' as const,
     async *run(c) {
-      const authError = requireAuth(c);
-      if (authError) return authError;
+      requireAuthGuard(c);
 
       const id = c.args.id;
       const opts = c.options;
@@ -386,10 +381,8 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
       id: z.string().describe('Spend request ID'),
     }),
     outputPolicy: 'agent-only' as const,
+    middleware: [requireAuth],
     async run(c) {
-      const authError = requireAuth(c);
-      if (authError) return authError;
-
       const id = c.args.id;
 
       if (!c.agent && !c.formatExplicit) {
