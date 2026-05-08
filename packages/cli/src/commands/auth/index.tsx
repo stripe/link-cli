@@ -2,6 +2,7 @@ import { type AuthStorage, storage as defaultStorage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import React from 'react';
 import type { IAuthResource } from '../../auth/types';
+import { pollUntil } from '../../utils/poll-until';
 import { renderInteractive } from '../../utils/render-interactive';
 import type { UpdateInfoProvider } from '../../utils/update-info';
 import { Login } from './login';
@@ -108,7 +109,6 @@ export function createAuthCli(
       const opts = c.options;
       const interval = opts.interval;
       const maxAttempts = opts.maxAttempts;
-      const deadline = Date.now() + opts.timeout * 1000;
       const updateInfo = await getUpdateInfo?.({
         polling: interval > 0,
       });
@@ -140,64 +140,51 @@ export function createAuthCli(
         );
       }
 
-      let attempts = 0;
-      let previousAttemptData: string | undefined;
-
-      while (true) {
-        // If there's a pending device auth, try one poll to see if the user approved.
-        const pending = storage.getPendingDeviceAuth();
-        if (pending && !storage.isAuthenticated()) {
-          const tokens = await authResource.pollDeviceAuth(pending.device_code);
-          if (tokens) {
-            storage.setAuth(tokens);
-            storage.clearPendingDeviceAuth();
+      for await (const result of pollUntil({
+        fn: async () => {
+          // If there's a pending device auth, try one poll to see if the user approved.
+          const pending = storage.getPendingDeviceAuth();
+          if (pending && !storage.isAuthenticated()) {
+            const tokens = await authResource.pollDeviceAuth(
+              pending.device_code,
+            );
+            if (tokens) {
+              storage.setAuth(tokens);
+              storage.clearPendingDeviceAuth();
+            }
           }
-        }
 
-        const auth = storage.getAuth();
-        if (auth) {
-          yield {
-            authenticated: true,
-            access_token: `${auth.access_token.substring(0, 20)}...`,
-            token_type: auth.token_type,
+          const auth = storage.getAuth();
+          if (auth) {
+            return {
+              authenticated: true as const,
+              access_token: `${auth.access_token.substring(0, 20)}...`,
+              token_type: auth.token_type,
+              credentials_path: storage.getPath(),
+              ...(update && { update }),
+            };
+          }
+
+          const currentPending = storage.getPendingDeviceAuth();
+          return {
+            authenticated: false as const,
             credentials_path: storage.getPath(),
             ...(update && { update }),
+            ...(currentPending
+              ? {
+                  pending: true,
+                  verification_url: currentPending.verification_url,
+                  phrase: currentPending.phrase,
+                }
+              : {}),
           };
-          return;
-        }
-
-        const currentPending = storage.getPendingDeviceAuth();
-        const status = {
-          authenticated: false,
-          credentials_path: storage.getPath(),
-          ...(update && { update }),
-          ...(currentPending
-            ? {
-                pending: true,
-                verification_url: currentPending.verification_url,
-                phrase: currentPending.phrase,
-              }
-            : {}),
-        };
-
-        attempts++;
-        const shouldStop =
-          interval <= 0 ||
-          (maxAttempts > 0 && attempts >= maxAttempts) ||
-          Date.now() >= deadline;
-
-        if (shouldStop) {
-          yield status;
-          return;
-        }
-
-        // Only yield when status has changed to avoid noisy agent transcripts
-        const snapshot = JSON.stringify(status);
-        if (snapshot !== previousAttemptData) {
-          previousAttemptData = snapshot;
-          yield status;
-        }
-        await new Promise((resolve) => setTimeout(resolve, interval * 1000));
+        },
+        isTerminal: (status) => status.authenticated,
+        interval,
+        maxAttempts,
+        timeout: opts.timeout,
+      })) {
+        yield result.value;
       }
     },
   });
