@@ -4,9 +4,9 @@ import type {
   ISpendRequestResource,
 } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
-import { render } from 'ink';
 import React from 'react';
 import type { IAuthResource } from '../../auth/types';
+import { renderInteractive } from '../../utils/render-interactive';
 import { DemoRunner } from './demo-runner';
 
 const demoOptions = z.object({
@@ -41,20 +41,18 @@ export function createDemoCli(
 
       const paymentMethodsResource = createPaymentMethodsResource();
 
-      return new Promise((resolve) => {
-        const { waitUntilExit, unmount } = render(
-          <DemoRunner
-            authRepo={authRepo}
-            spendRequestRepo={spendRequestRepo}
-            paymentMethodsResource={paymentMethodsResource}
-            authStorage={authStorage}
-            onlyCard={c.options.onlyCard}
-            onlySpt={c.options.onlySpt}
-            onComplete={() => unmount()}
-          />,
-        );
-        waitUntilExit().then(() => resolve({}));
-      });
+      return renderInteractive(
+        <DemoRunner
+          authRepo={authRepo}
+          spendRequestRepo={spendRequestRepo}
+          paymentMethodsResource={paymentMethodsResource}
+          authStorage={authStorage}
+          onlyCard={c.options.onlyCard}
+          onlySpt={c.options.onlySpt}
+          onComplete={() => {}}
+        />,
+        () => ({}),
+      );
     },
   });
 }

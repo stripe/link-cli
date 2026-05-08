@@ -4,9 +4,9 @@ import type {
   ISpendRequestResource,
 } from '@stripe/link-sdk';
 import { Cli } from 'incur';
-import { render } from 'ink';
 import React from 'react';
 import type { IAuthResource } from '../../auth/types';
+import { renderInteractive } from '../../utils/render-interactive';
 import { OnboardRunner } from './onboard-runner';
 
 export function createOnboardCli(
@@ -29,18 +29,16 @@ export function createOnboardCli(
 
       const paymentMethodsResource = createPaymentMethodsResource();
 
-      return new Promise((resolve) => {
-        const { waitUntilExit, unmount } = render(
-          <OnboardRunner
-            authRepo={authRepo}
-            spendRequestRepo={spendRequestRepo}
-            paymentMethodsResource={paymentMethodsResource}
-            authStorage={authStorage}
-            onComplete={() => unmount()}
-          />,
-        );
-        waitUntilExit().then(() => resolve({}));
-      });
+      return renderInteractive(
+        <OnboardRunner
+          authRepo={authRepo}
+          spendRequestRepo={spendRequestRepo}
+          paymentMethodsResource={paymentMethodsResource}
+          authStorage={authStorage}
+          onComplete={() => {}}
+        />,
+        () => ({}),
+      );
     },
   });
 }

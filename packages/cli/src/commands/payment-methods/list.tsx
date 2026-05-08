@@ -2,40 +2,20 @@ import type { IPaymentMethodsResource, PaymentMethod } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
-import { useEffect, useState } from 'react';
-import { DISPLAY_DELAY_MS } from '../../utils/constants';
+import { useCallback } from 'react';
+import { useAsyncAction } from '../../hooks/use-async-action';
 
 interface PaymentMethodsListProps {
   resource: IPaymentMethodsResource;
-  onComplete: () => void;
+  onComplete: (result: PaymentMethod[] | null) => void;
 }
 
 export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
   resource,
   onComplete,
 }) => {
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(
-    'loading',
-  );
-  const [methods, setMethods] = useState<PaymentMethod[]>([]);
-  const [error, setError] = useState<string>('');
-
-  useEffect(() => {
-    const fetch = async () => {
-      try {
-        const result = await resource.listPaymentMethods();
-        setMethods(result);
-        setStatus('success');
-        setTimeout(onComplete, DISPLAY_DELAY_MS);
-      } catch (err) {
-        setError((err as Error).message);
-        setStatus('error');
-        setTimeout(onComplete, DISPLAY_DELAY_MS);
-      }
-    };
-
-    fetch();
-  }, [resource, onComplete]);
+  const action = useCallback(() => resource.listPaymentMethods(), [resource]);
+  const { status, data: methods, error } = useAsyncAction(action, onComplete);
 
   if (status === 'loading') {
     return (
@@ -56,7 +36,7 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
     );
   }
 
-  if (methods.length === 0) {
+  if (!methods || methods.length === 0) {
     return (
       <Box>
         <Text dimColor>No payment methods found</Text>

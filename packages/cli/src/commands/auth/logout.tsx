@@ -1,9 +1,10 @@
 import { type AuthStorage, storage as defaultStorage } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
+import Spinner from 'ink-spinner';
 import type React from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import type { IAuthResource } from '../../auth/types';
-import { DISPLAY_DELAY_MS } from '../../utils/constants';
+import { useAsyncAction } from '../../hooks/use-async-action';
 
 interface LogoutProps {
   authResource: IAuthResource;
@@ -17,28 +18,30 @@ export const Logout: React.FC<LogoutProps> = ({
   onComplete,
 }) => {
   const storage = authStorage;
-  const [done, setDone] = useState(false);
 
-  useEffect(() => {
-    const run = async () => {
-      const auth = storage.getAuth();
-      if (auth?.refresh_token) {
-        try {
-          await authResource.revokeToken(auth.refresh_token);
-        } catch {
-          // best-effort: clear local storage regardless
-        }
+  const action = useCallback(async () => {
+    const auth = storage.getAuth();
+    if (auth?.refresh_token) {
+      try {
+        await authResource.revokeToken(auth.refresh_token);
+      } catch {
+        // best-effort: clear local storage regardless
       }
-      storage.clearAuth();
-      storage.deleteConfig();
-      setDone(true);
-      setTimeout(onComplete, DISPLAY_DELAY_MS);
-    };
-    run();
-  }, [authResource, onComplete, storage]);
+    }
+    storage.clearAuth();
+    storage.deleteConfig();
+  }, [authResource, storage]);
 
-  if (!done) {
-    return null;
+  const { status } = useAsyncAction(action, onComplete);
+
+  if (status === 'loading') {
+    return (
+      <Box>
+        <Text color="cyan">
+          <Spinner type="dots" /> Logging out...
+        </Text>
+      </Box>
+    );
   }
 
   return (
