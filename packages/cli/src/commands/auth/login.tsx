@@ -1,22 +1,26 @@
-import { storage } from '@stripe/link-sdk';
+import { type AuthStorage, storage as defaultStorage } from '@stripe/link-sdk';
 import { Box, Text, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import type { IAuthResource } from '../../auth/types';
+import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { openUrl } from '../../utils/open-url';
 
 interface LoginProps {
   authResource: IAuthResource;
   clientName?: string;
+  authStorage?: AuthStorage;
   onComplete: () => void;
 }
 
 export const Login: React.FC<LoginProps> = ({
   authResource,
   clientName,
+  authStorage = defaultStorage,
   onComplete,
 }) => {
+  const storage = authStorage;
   const [status, setStatus] = useState<
     'initiating' | 'waiting' | 'polling' | 'success' | 'error'
   >('initiating');
@@ -65,7 +69,7 @@ export const Login: React.FC<LoginProps> = ({
             clearInterval(pollInterval);
             storage.setAuth(tokens);
             setStatus('success');
-            setTimeout(onComplete, 1000);
+            setTimeout(onComplete, DISPLAY_DELAY_MS);
           }
         } catch (err) {
           clearInterval(pollInterval);
@@ -81,7 +85,7 @@ export const Login: React.FC<LoginProps> = ({
     // Wait 1 second before starting to poll
     const timeout = setTimeout(startPolling, 1000);
     return () => clearTimeout(timeout);
-  }, [status, deviceCode, authResource, onComplete]);
+  }, [status, deviceCode, authResource, onComplete, storage]);
 
   if (status === 'initiating') {
     return (

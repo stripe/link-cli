@@ -1,15 +1,22 @@
-import { storage } from '@stripe/link-sdk';
+import { type AuthStorage, storage as defaultStorage } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import type { IAuthResource } from '../../auth/types';
+import { DISPLAY_DELAY_MS } from '../../utils/constants';
 
 interface LogoutProps {
   authResource: IAuthResource;
+  authStorage?: AuthStorage;
   onComplete: () => void;
 }
 
-export const Logout: React.FC<LogoutProps> = ({ authResource, onComplete }) => {
+export const Logout: React.FC<LogoutProps> = ({
+  authResource,
+  authStorage = defaultStorage,
+  onComplete,
+}) => {
+  const storage = authStorage;
   const [done, setDone] = useState(false);
 
   useEffect(() => {
@@ -25,10 +32,10 @@ export const Logout: React.FC<LogoutProps> = ({ authResource, onComplete }) => {
       storage.clearAuth();
       storage.deleteConfig();
       setDone(true);
-      setTimeout(onComplete, 1000);
+      setTimeout(onComplete, DISPLAY_DELAY_MS);
     };
     run();
-  }, [authResource, onComplete]);
+  }, [authResource, onComplete, storage]);
 
   if (!done) {
     return null;

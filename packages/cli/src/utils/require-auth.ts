@@ -1,4 +1,6 @@
-import { storage } from '@stripe/link-sdk';
+import type { AuthStorage } from '@stripe/link-sdk';
+import { storage as defaultStorage } from '@stripe/link-sdk';
+import type { MiddlewareHandler } from 'incur';
 
 interface AuthErrorOptions {
   code: string;
@@ -6,7 +8,7 @@ interface AuthErrorOptions {
   cta?: { commands: { command: string; description: string }[] };
 }
 
-const NOT_AUTHENTICATED_ERROR: AuthErrorOptions = {
+export const NOT_AUTHENTICATED_ERROR: AuthErrorOptions = {
   code: 'NOT_AUTHENTICATED',
   message: 'Not authenticated. Run "link-cli auth login" first.',
   cta: {
@@ -14,9 +16,22 @@ const NOT_AUTHENTICATED_ERROR: AuthErrorOptions = {
   },
 };
 
-export function requireAuth(c: { error: (err: AuthErrorOptions) => never }) {
-  if (!storage.isAuthenticated()) {
-    return c.error(NOT_AUTHENTICATED_ERROR);
+export function requireAuth(authStorage?: AuthStorage): MiddlewareHandler {
+  const store = authStorage ?? defaultStorage;
+  return (c, next) => {
+    if (!store.isAuthenticated()) {
+      return c.error(NOT_AUTHENTICATED_ERROR);
+    }
+    return next();
+  };
+}
+
+export function requireAuthGuard(
+  c: { error: (err: AuthErrorOptions) => never },
+  authStorage?: AuthStorage,
+) {
+  const store = authStorage ?? defaultStorage;
+  if (!store.isAuthenticated()) {
+    c.error(NOT_AUTHENTICATED_ERROR);
   }
-  return null;
 }

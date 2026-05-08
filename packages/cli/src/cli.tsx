@@ -1,10 +1,13 @@
+import { type AuthStorage, Storage, storage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import { createAuthCli } from './commands/auth';
 import { createDemoCli } from './commands/demo';
 import { createMppCli } from './commands/mpp';
 import { createOnboardCli } from './commands/onboard';
 import { createPaymentMethodsCli } from './commands/payment-methods';
+import { createShippingAddressCli } from './commands/shipping-address';
 import { createSpendRequestCli } from './commands/spend-request';
+import { createUserInfoCli } from './commands/user-info';
 import { ResourceFactory } from './utils/resource-factory';
 import {
   createAgentUpdateInfoProvider,
@@ -25,7 +28,20 @@ const defaultHeaders = {
 };
 
 const verbose = process.argv.includes('--verbose');
-const factory = new ResourceFactory({ verbose, defaultHeaders });
+
+const authFileIndex = process.argv.indexOf('--auth');
+const credentialFilePath =
+  authFileIndex !== -1
+    ? process.argv[authFileIndex + 1]
+    : process.env.LINK_AUTH_FILE;
+if (authFileIndex !== -1) {
+  process.argv.splice(authFileIndex, 2);
+}
+const authStorage: AuthStorage = credentialFilePath
+  ? new Storage({ configPath: credentialFilePath })
+  : storage;
+
+const factory = new ResourceFactory({ verbose, defaultHeaders, authStorage });
 const authRepo = factory.createAuthResource();
 const spendRequestRepo = factory.createSpendRequestResource();
 
@@ -51,20 +67,33 @@ if (!isAgent && process.stdout.isTTY) {
   }
 }
 
-cli.command(createAuthCli(authRepo, getUpdateInfo));
-cli.command(createSpendRequestCli(spendRequestRepo));
+cli.command(createAuthCli(authRepo, getUpdateInfo, authStorage));
+cli.command(createSpendRequestCli(spendRequestRepo, authStorage));
 cli.command(
-  createPaymentMethodsCli(() => factory.createPaymentMethodsResource()),
-);
-cli.command(createMppCli(spendRequestRepo));
-cli.command(
-  createDemoCli(authRepo, spendRequestRepo, () =>
-    factory.createPaymentMethodsResource(),
+  createPaymentMethodsCli(
+    () => factory.createPaymentMethodsResource(),
+    authStorage,
   ),
 );
 cli.command(
-  createOnboardCli(authRepo, spendRequestRepo, () =>
-    factory.createPaymentMethodsResource(),
+  createShippingAddressCli(() => factory.createShippingAddressResource()),
+);
+cli.command(createUserInfoCli(() => factory.createUserInfoResource()));
+cli.command(createMppCli(spendRequestRepo, authStorage));
+cli.command(
+  createDemoCli(
+    authRepo,
+    spendRequestRepo,
+    () => factory.createPaymentMethodsResource(),
+    authStorage,
+  ),
+);
+cli.command(
+  createOnboardCli(
+    authRepo,
+    spendRequestRepo,
+    () => factory.createPaymentMethodsResource(),
+    authStorage,
   ),
 );
 

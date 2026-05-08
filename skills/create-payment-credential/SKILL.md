@@ -64,6 +64,7 @@ Call `tools/list` to see all available MCP tools.
 - Multi-step commands return a `_next` action. For example, authenticating or creating a spend request returns a `_next.command` that must be run to complete the flow.
 - By default all output is in `toon` format. Pass `--format [json|md|yaml]` to change output format.
 - Some commands return a verification or approval URL. **These** must be presented to the user clearly for their action.
+- `--auth <path>` flag to store auth credentials in a specific file instead of the default location. `auth login` writes to this file; all other commands read from it. Example: `link-cli auth login --auth credentials.json`
 
 _Recommended_: Run `link-cli --llms` to understand all the available commands. The `--llms-full` output is the canonical reference for parameter names, types, and valid values. Pass `--schema` before invoking a command to understand its parameters and constraints.
 
@@ -130,12 +131,18 @@ link-cli mpp decode --challenge '<raw WWW-Authenticate header>'
 
 This validates the Stripe challenge, decodes the `request` payload, and returns both the extracted `network_id` and the decoded request JSON. Pass the full header exactly as received, even if it also contains non-Stripe or multiple `Payment` challenges.
 
-### Step 3: Get payment methods
+### Step 3: Get payment methods and potentially shipping addresses
 
 Use the default payment method, unless the user explicitly asks to select a different one.
 
 ```bash
 link-cli payment-methods list
+```
+
+If the merchant checkout requires a shipping or delivery address, fetch the user's saved shipping addresses. Use the default address unless the user specifies otherwise.
+
+```bash
+link-cli shipping-address list
 ```
 
 ### Step 4: Create the spend request with the right credential type
@@ -187,7 +194,7 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 
 ## Important
 
-- Treat the user's payment methods and credentials extremely carefully — card numbers and SPTs grant real spending power; leaking them outside a secure checkout could result in unauthorized charges the user cannot reverse.
+- Treat the user's payment methods, credentials, and shipping addresses as sensitive — card numbers and SPTs grant real spending power; shipping addresses are PII. Mask or abbreviate addresses when displaying to the user (e.g. show city and zip only) unless they request full details.
 - Respect `/agents.txt` and `/llm.txt` and other directives on sites you browse — these files declare whether the site permits automated agent interactions; ignoring them may violate the merchant's terms.
 - Avoid suspicious merchants, checkout pages and websites — phishing pages that mimic legitimate merchants can steal credentials; if anything about the page feels off (mismatched domain, unusual redirect, unexpected login prompt), stop and ask the user to verify.
 - When outputting card information to the user apply basic masking to the card number and address to protect their information. Only reveal the raw values if directly requested to do so.

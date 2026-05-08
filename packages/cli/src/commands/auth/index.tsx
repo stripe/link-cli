@@ -1,4 +1,4 @@
-import { storage } from '@stripe/link-sdk';
+import { type AuthStorage, storage as defaultStorage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import React from 'react';
 import type { IAuthResource } from '../../auth/types';
@@ -12,7 +12,9 @@ import { AuthStatus } from './status';
 export function createAuthCli(
   authResource: IAuthResource,
   getUpdateInfo?: UpdateInfoProvider,
+  authStorage?: AuthStorage,
 ) {
+  const storage = authStorage ?? defaultStorage;
   const cli = Cli.create('auth', {
     description: 'Authentication commands',
   });
@@ -35,6 +37,7 @@ export function createAuthCli(
           <Login
             authResource={authResource}
             clientName={clientName}
+            authStorage={storage}
             onComplete={() => {}}
           />,
           () => ({ authenticated: true, token_type: 'Bearer' }),
@@ -84,7 +87,11 @@ export function createAuthCli(
 
       if (!c.agent && !c.formatExplicit) {
         return renderInteractive(
-          <Logout authResource={authResource} onComplete={() => {}} />,
+          <Logout
+            authResource={authResource}
+            authStorage={storage}
+            onComplete={() => {}}
+          />,
           () => result,
         );
       }
@@ -114,20 +121,23 @@ export function createAuthCli(
         : undefined;
 
       if (!c.agent && !c.formatExplicit) {
-        return renderInteractive(<AuthStatus onComplete={() => {}} />, () => {
-          const auth = storage.getAuth();
-          return {
-            authenticated: !!auth,
-            ...(auth
-              ? {
-                  access_token: `${auth.access_token.substring(0, 20)}...`,
-                  token_type: auth.token_type,
-                }
-              : {}),
-            credentials_path: storage.getPath(),
-            ...(update && { update }),
-          };
-        });
+        return renderInteractive(
+          <AuthStatus authStorage={storage} onComplete={() => {}} />,
+          () => {
+            const auth = storage.getAuth();
+            return {
+              authenticated: !!auth,
+              ...(auth
+                ? {
+                    access_token: `${auth.access_token.substring(0, 20)}...`,
+                    token_type: auth.token_type,
+                  }
+                : {}),
+              credentials_path: storage.getPath(),
+              ...(update && { update }),
+            };
+          },
+        );
       }
 
       let attempts = 0;

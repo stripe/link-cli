@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import type { AuthTokens } from '@/types/index';
 import Conf from 'conf';
 
@@ -48,6 +49,9 @@ export interface StorageOptions {
   // conf resolves to the platform user-config directory. Tests pass a temp
   // dir so they don't touch the real location.
   cwd?: string;
+  // Full file path for the credential file. When set, takes precedence over
+  // cwd. The file is split into directory + config name for conf.
+  configPath?: string;
 }
 
 export class Storage implements AuthStorage {
@@ -60,10 +64,20 @@ export class Storage implements AuthStorage {
 
   private getConfig(): Conf<StorageSchema> {
     if (!this.config) {
+      let locationOverride: { cwd: string; configName?: string } | undefined;
+      if (this.options.configPath) {
+        const parsed = path.parse(path.resolve(this.options.configPath));
+        // conf appends `.json` to configName, so strip it to avoid double extension
+        const configName = parsed.ext === '.json' ? parsed.name : parsed.base;
+        locationOverride = { cwd: parsed.dir, configName };
+      } else if (this.options.cwd) {
+        locationOverride = { cwd: this.options.cwd };
+      }
+
       this.config = new Conf<StorageSchema>({
         projectName: 'link-cli',
         configFileMode: CONFIG_FILE_MODE,
-        ...(this.options.cwd ? { cwd: this.options.cwd } : {}),
+        ...locationOverride,
         defaults: {
           auth: null,
           pendingDeviceAuth: null,

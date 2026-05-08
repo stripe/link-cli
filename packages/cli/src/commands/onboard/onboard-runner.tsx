@@ -1,8 +1,9 @@
 import type {
+  AuthStorage,
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
-import { storage } from '@stripe/link-sdk';
+import { storage as defaultStorage } from '@stripe/link-sdk';
 import { Box, Text, useInput } from 'ink';
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -17,6 +18,7 @@ interface OnboardRunnerProps {
   authRepo: IAuthResource;
   spendRequestRepo: ISpendRequestResource;
   paymentMethodsResource: IPaymentMethodsResource;
+  authStorage?: AuthStorage;
   onComplete: () => void;
 }
 
@@ -24,8 +26,10 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
   authRepo,
   spendRequestRepo,
   paymentMethodsResource,
+  authStorage = defaultStorage,
   onComplete,
 }) => {
+  const storage = authStorage;
   const [phase, setPhase] = useState<Phase>('welcome');
   const [authSkipped, setAuthSkipped] = useState(false);
   const [pmMissing, setPmMissing] = useState(false);
@@ -121,6 +125,7 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
           <Login
             authResource={authRepo}
             clientName={O.auth.clientName}
+            authStorage={storage}
             onComplete={() => authResolver.current?.()}
           />
         ) : null}
@@ -163,6 +168,7 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
             authRepo={authRepo}
             spendRequestRepo={spendRequestRepo}
             paymentMethodsResource={paymentMethodsResource}
+            authStorage={storage}
             onComplete={onComplete}
           />
         </Box>
