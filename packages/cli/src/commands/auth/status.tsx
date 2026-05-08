@@ -2,6 +2,7 @@ import { storage } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import { DISPLAY_DELAY_MS } from '../../utils/constants';
 
 interface AuthStatusProps {
   onComplete: () => void;
@@ -24,7 +25,7 @@ export const AuthStatus: React.FC<AuthStatusProps> = ({ onComplete }) => {
     }
     setCredentialsPath(credentialsPath);
     setChecked(true);
-    setTimeout(onComplete, 1000);
+    setTimeout(onComplete, DISPLAY_DELAY_MS);
   }, [onComplete]);
 
   if (!checked) {

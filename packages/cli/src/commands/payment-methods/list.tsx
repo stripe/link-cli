@@ -3,6 +3,7 @@ import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import { DISPLAY_DELAY_MS } from '../../utils/constants';
 
 interface PaymentMethodsListProps {
   resource: IPaymentMethodsResource;
@@ -25,11 +26,11 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
         const result = await resource.listPaymentMethods();
         setMethods(result);
         setStatus('success');
-        setTimeout(onComplete, 1500);
+        setTimeout(onComplete, DISPLAY_DELAY_MS);
       } catch (err) {
         setError((err as Error).message);
         setStatus('error');
-        setTimeout(onComplete, 1500);
+        setTimeout(onComplete, DISPLAY_DELAY_MS);
       }
     };
 

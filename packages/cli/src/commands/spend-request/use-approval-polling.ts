@@ -1,6 +1,7 @@
 import type { ISpendRequestResource, SpendRequest } from '@stripe/link-sdk';
 import { useInput } from 'ink';
 import { useEffect } from 'react';
+import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { openUrl } from '../../utils/open-url';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
 
@@ -53,7 +54,7 @@ export function useApprovalPolling({
         if (!cancelled) {
           onSuccess(final);
           setStatus('success');
-          setTimeout(() => onComplete(final), 1000);
+          setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
         }
       } catch (err) {
         if (!cancelled) {

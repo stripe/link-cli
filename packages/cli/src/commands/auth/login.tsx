@@ -4,6 +4,7 @@ import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import type { IAuthResource } from '../../auth/types';
+import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { openUrl } from '../../utils/open-url';
 
 interface LoginProps {
@@ -65,7 +66,7 @@ export const Login: React.FC<LoginProps> = ({
             clearInterval(pollInterval);
             storage.setAuth(tokens);
             setStatus('success');
-            setTimeout(onComplete, 1000);
+            setTimeout(onComplete, DISPLAY_DELAY_MS);
           }
         } catch (err) {
           clearInterval(pollInterval);

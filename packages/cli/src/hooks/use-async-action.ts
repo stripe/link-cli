@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { DISPLAY_DELAY_MS } from '../utils/constants';
 
 export type AsyncActionStatus = 'loading' | 'success' | 'error';
 
@@ -8,12 +9,6 @@ interface AsyncActionResult<T> {
   error: string;
 }
 
-const DELAY = 1500;
-
-/**
- * Runs an async action on mount, manages loading/success/error state,
- * and calls onComplete after a brief delay to allow the UI to render.
- */
 export function useAsyncAction<T>(
   action: () => Promise<T>,
   onComplete: (result: T | null) => void,
@@ -35,13 +30,13 @@ export function useAsyncAction<T>(
         if (cancelled) return;
         setData(result);
         setStatus('success');
-        timeoutId = setTimeout(() => onCompleteRef.current(result), DELAY);
+        timeoutId = setTimeout(() => onCompleteRef.current(result), DISPLAY_DELAY_MS);
       } catch (err) {
         if (cancelled) return;
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
         setStatus('error');
-        timeoutId = setTimeout(() => onCompleteRef.current(null), DELAY);
+        timeoutId = setTimeout(() => onCompleteRef.current(null), DISPLAY_DELAY_MS);
       }
     };
 
