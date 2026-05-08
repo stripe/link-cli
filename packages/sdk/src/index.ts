@@ -7,6 +7,8 @@ export * from './resources/interfaces';
 export * from './resources/auth';
 export * from './resources/spend-request';
 export * from './resources/payment-methods';
+export * from './resources/shipping-address';
+export * from './resources/user-info';
 export { MemoryStorage, Storage, storage } from './utils/storage';
 export type {
   AuthStorage,

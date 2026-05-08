@@ -192,6 +192,26 @@ export class SpendRequestResource implements ISpendRequestResource {
     return normalizeSpendRequest(data);
   }
 
+  cancel(id: string): Promise<SpendRequest> {
+    return this.cancelSpendRequest(id);
+  }
+
+  async cancelSpendRequest(id: string): Promise<SpendRequest> {
+    const { status, data, rawBody } = await this.apiFetch({
+      method: 'POST',
+      url: `${this.spendRequestsEndpoint}/${id}/cancel`,
+    });
+
+    if (status < 200 || status >= 300) {
+      throw new LinkApiError(
+        `Failed to cancel spend request (${status}): ${extractApiError(data, rawBody)}`,
+        { status, rawBody, details: data },
+      );
+    }
+
+    return normalizeSpendRequest(data);
+  }
+
   async requestApproval(id: string): Promise<RequestApprovalResponse> {
     const { status, data, rawBody } = await this.apiFetch({
       method: 'POST',

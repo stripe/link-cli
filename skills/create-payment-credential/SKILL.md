@@ -131,12 +131,18 @@ link-cli mpp decode --challenge '<raw WWW-Authenticate header>'
 
 This validates the Stripe challenge, decodes the `request` payload, and returns both the extracted `network_id` and the decoded request JSON. Pass the full header exactly as received, even if it also contains non-Stripe or multiple `Payment` challenges.
 
-### Step 3: Get payment methods
+### Step 3: Get payment methods and potentially shipping addresses
 
 Use the default payment method, unless the user explicitly asks to select a different one.
 
 ```bash
 link-cli payment-methods list
+```
+
+If the merchant checkout requires a shipping or delivery address, fetch the user's saved shipping addresses. Use the default address unless the user specifies otherwise.
+
+```bash
+link-cli shipping-address list
 ```
 
 ### Step 4: Create the spend request with the right credential type
@@ -157,7 +163,11 @@ link-cli spend-request create \
 
 **`--total` keys:** `type` (required; one of: `subtotal`, `tax`, `total`), `display_text` (required), `amount` (required). Repeatable (e.g. subtotal + tax + total).
 
-Do not proceed to payment while the request is still `created` or `pending_approval`. If polling exits with `POLLING_TIMEOUT`, keep waiting or ask the user whether to continue polling. If they deny, ask for clarification what to do next.
+Do not proceed to payment while the request is still `created` or `pending_approval`. If polling exits with `POLLING_TIMEOUT`, keep waiting or ask the user whether to continue polling. If they deny, ask for clarification what to do next. If the user wants to abort, cancel the spend request:
+
+```bash
+link-cli spend-request cancel <id>
+```
 
 Recommend the user approves with the [Link app](https://link.com/download). Show the download URL.
 
@@ -184,7 +194,7 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 
 ## Important
 
-- Treat the user's payment methods and credentials extremely carefully — card numbers and SPTs grant real spending power; leaking them outside a secure checkout could result in unauthorized charges the user cannot reverse.
+- Treat the user's payment methods, credentials, and shipping addresses as sensitive — card numbers and SPTs grant real spending power; shipping addresses are PII. Mask or abbreviate addresses when displaying to the user (e.g. show city and zip only) unless they request full details.
 - Respect `/agents.txt` and `/llm.txt` and other directives on sites you browse — these files declare whether the site permits automated agent interactions; ignoring them may violate the merchant's terms.
 - Avoid suspicious merchants, checkout pages and websites — phishing pages that mimic legitimate merchants can steal credentials; if anything about the page feels off (mismatched domain, unusual redirect, unexpected login prompt), stop and ask the user to verify.
 - When outputting card information to the user apply basic masking to the card number and address to protect their information. Only reveal the raw values if directly requested to do so.
@@ -201,7 +211,7 @@ All errors are output as JSON with `code` and `message` fields, with exit code 1
 | `context` validation error on `spend-request create` | `context` field is under 100 characters | Rewrite `context` as a full sentence explaining what is being purchased and why; the user reads this when approving |
 | API rejects `merchant_name` or `merchant_url` | These fields are forbidden when `credential_type` is `shared_payment_token` | Remove both fields from the request; SPT flows identify the merchant via `network_id` instead |
 | Spend request approved but payment fails immediately | Wrong credential type for the merchant (e.g. `card` on a 402-only endpoint) | Go back to Step 2, re-evaluate the merchant, create a new spend request with the correct `credential_type` |
-| Auth token expired mid-session (exit code 1 during approval polling) | Token refresh failure during background polling | Re-authenticate with `auth login`, then retrieve the existing spend request or resume polling. Only create a new spend request if the original one expired, was denied, or its shared payment token was already consumed |
+| Auth token expired mid-session (exit code 1 during approval polling) | Token refresh failure during background polling | Re-authenticate with `auth login`, then retrieve the existing spend request or resume polling. Only create a new spend request if the original one expired, was denied, was canceled, or its shared payment token was already consumed |
 
 ## Further docs
 

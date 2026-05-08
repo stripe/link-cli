@@ -3,6 +3,7 @@ import { Box, Text } from 'ink';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import type { IAuthResource } from '../../auth/types';
+import { DISPLAY_DELAY_MS } from '../../utils/constants';
 
 interface LogoutProps {
   authResource: IAuthResource;
@@ -31,7 +32,7 @@ export const Logout: React.FC<LogoutProps> = ({
       storage.clearAuth();
       storage.deleteConfig();
       setDone(true);
-      setTimeout(onComplete, 1000);
+      setTimeout(onComplete, DISPLAY_DELAY_MS);
     };
     run();
   }, [authResource, onComplete, storage]);

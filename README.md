@@ -84,6 +84,14 @@ link-cli payment-methods list
 
 Returns the cards and bank accounts saved to your Link account. Use the `id` field as `payment_method_id` in the next step. If you have no payment methods, [add new ones in Link](https://app.link.com/wallet).
 
+### List shipping addresses
+
+```bash
+link-cli shipping-address list
+```
+
+Returns the shipping addresses saved to your Link account. The response preserves nullable `nickname`, `address`, and address fields exactly as returned by the API.
+
 ### Create a spend request
 
 Create a spend request with a payment method, merchant details, line items, and amounts:
@@ -148,7 +156,7 @@ For agent polling, pass `--interval` and optionally `--max-attempts`:
 link-cli spend-request retrieve lsrq_001 --interval 2 --max-attempts 150
 ```
 
-Polling exits successfully only after the request reaches a terminal status such as `approved`, `denied`, or `expired`. If polling reaches `--timeout` or exhausts `--max-attempts` while the request is still non-terminal, the command exits non-zero with `code: "POLLING_TIMEOUT"` so callers do not treat a still-pending request as complete.
+Polling exits successfully only after the request reaches a terminal status such as `approved`, `denied`, `expired`, or `canceled`. If polling reaches `--timeout` or exhausts `--max-attempts` while the request is still non-terminal, the command exits non-zero with `code: "POLLING_TIMEOUT"` so callers do not treat a still-pending request as complete.
 
 If the merchant supports MPP, use `link-cli mpp pay` instead:
 
@@ -207,6 +215,9 @@ link-cli spend-request request-approval lsrq_001
 
 # Retrieve at any time (includes card credentials after approval)
 link-cli spend-request retrieve lsrq_001
+
+# Cancel a spend request (from created, pending_approval, or approved state)
+link-cli spend-request cancel lsrq_001
 ```
 
 ### MPP

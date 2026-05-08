@@ -7,6 +7,7 @@ import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
+import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { writeCredentialFile } from '../../utils/credential-output';
 import { AppDownloadQrCodes } from './app-download-qr-codes';
 import { ApprovalWaitingView } from './approval-waiting-view';
@@ -66,12 +67,12 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
           setStatus('waiting');
         } else {
           setStatus('success');
-          setTimeout(() => onComplete(result), 1500);
+          setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
         }
       } catch (err) {
         setError((err as Error).message);
         setStatus('error');
-        setTimeout(() => onComplete(null), 1500);
+        setTimeout(() => onComplete(null), DISPLAY_DELAY_MS);
       }
     };
 

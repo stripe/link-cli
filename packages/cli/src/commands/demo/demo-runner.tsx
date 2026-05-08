@@ -8,6 +8,7 @@ import { Box, Text, useInput } from 'ink';
 import type React from 'react';
 import { useCallback, useState } from 'react';
 import type { IAuthResource } from '../../auth/types';
+import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { MarkdownText } from '../../utils/markdown-text';
 import { Login } from '../auth/login';
 import { AppDownloadQrCodes } from '../spend-request/app-download-qr-codes';
@@ -87,7 +88,7 @@ export const DemoRunner: React.FC<DemoRunnerProps> = ({
 
       if (!runSpt) {
         setPhase('summary');
-        setTimeout(onComplete, 1500);
+        setTimeout(onComplete, DISPLAY_DELAY_MS);
       } else {
         setPhase('card-done');
       }
@@ -99,7 +100,7 @@ export const DemoRunner: React.FC<DemoRunnerProps> = ({
     (success: boolean) => {
       setSptSuccess(success);
       setPhase('summary');
-      setTimeout(onComplete, 1500);
+      setTimeout(onComplete, DISPLAY_DELAY_MS);
     },
     [onComplete],
   );

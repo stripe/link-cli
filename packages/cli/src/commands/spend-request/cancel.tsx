@@ -1,25 +1,19 @@
-import type {
-  ISpendRequestResource,
-  SpendRequest,
-  UpdateSpendRequestParams,
-} from '@stripe/link-sdk';
+import type { ISpendRequestResource, SpendRequest } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 
-interface UpdateSpendRequestProps {
+interface CancelSpendRequestProps {
   repository: ISpendRequestResource;
   id: string;
-  params: UpdateSpendRequestParams;
   onComplete: (result: SpendRequest | null) => void;
 }
 
-export const UpdateSpendRequest: React.FC<UpdateSpendRequestProps> = ({
+export const CancelSpendRequest: React.FC<CancelSpendRequestProps> = ({
   repository,
   id,
-  params,
   onComplete,
 }) => {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>(
@@ -29,9 +23,9 @@ export const UpdateSpendRequest: React.FC<UpdateSpendRequestProps> = ({
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
-    const update = async () => {
+    const run = async () => {
       try {
-        const result = await repository.updateSpendRequest(id, params);
+        const result = await repository.cancelSpendRequest(id);
         setRequest(result);
         setStatus('success');
         setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
@@ -42,14 +36,14 @@ export const UpdateSpendRequest: React.FC<UpdateSpendRequestProps> = ({
       }
     };
 
-    update();
-  }, [repository, id, params, onComplete]);
+    run();
+  }, [repository, id, onComplete]);
 
   if (status === 'loading') {
     return (
       <Box>
         <Text color="cyan">
-          <Spinner type="dots" /> Updating spend request {id}...
+          <Spinner type="dots" /> Canceling spend request {id}...
         </Text>
       </Box>
     );
@@ -58,7 +52,7 @@ export const UpdateSpendRequest: React.FC<UpdateSpendRequestProps> = ({
   if (status === 'error') {
     return (
       <Box flexDirection="column">
-        <Text color="red">✗ Failed to update spend request</Text>
+        <Text color="red">✗ Failed to cancel spend request</Text>
         <Text color="red">{error}</Text>
       </Box>
     );
@@ -66,31 +60,10 @@ export const UpdateSpendRequest: React.FC<UpdateSpendRequestProps> = ({
 
   return (
     <Box flexDirection="column">
-      <Text color="green">✓ Spend request updated</Text>
+      <Text color="green">✓ Spend request canceled</Text>
       <Box flexDirection="column" marginTop={1} paddingX={2}>
         <Text>
           ID: <Text bold>{request?.id}</Text>
-        </Text>
-        <Text>
-          Status: <Text bold>{request?.status}</Text>
-        </Text>
-        <Text>
-          Amount:{' '}
-          <Text bold>
-            {(() => {
-              const t = request?.totals.find((t) => t.type === 'total');
-              return t ? String(t.amount) : 'N/A';
-            })()}
-          </Text>
-        </Text>
-        <Text>
-          Merchant: <Text bold>{request?.merchant_name}</Text>
-        </Text>
-        <Text>
-          Line Items:{' '}
-          <Text bold>
-            {request?.line_items.map((li) => li.name).join(', ')}
-          </Text>
         </Text>
       </Box>
     </Box>

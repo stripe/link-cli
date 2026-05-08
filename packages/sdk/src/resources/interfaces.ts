@@ -5,8 +5,10 @@ import type {
   LineItem,
   PaymentMethod,
   RequestApprovalResponse,
+  ShippingAddressRecord,
   SpendRequest,
   Total,
+  UserInfo,
 } from '@/types/index';
 
 export interface IAuthResource {
@@ -59,6 +61,8 @@ export interface ISpendRequestResource {
     params: UpdateSpendRequestParams,
   ): Promise<SpendRequest>;
   requestApproval(id: string): Promise<RequestApprovalResponse>;
+  cancel(id: string): Promise<SpendRequest>;
+  cancelSpendRequest(id: string): Promise<SpendRequest>;
   retrieve(
     id: string,
     opts?: { include?: string[] },
@@ -72,4 +76,13 @@ export interface ISpendRequestResource {
 export interface IPaymentMethodsResource {
   list(): Promise<PaymentMethod[]>;
   listPaymentMethods(): Promise<PaymentMethod[]>;
+}
+
+export interface IShippingAddressResource {
+  list(): Promise<ShippingAddressRecord[]>;
+  listShippingAddresses(): Promise<ShippingAddressRecord[]>;
+}
+
+export interface IUserInfoResource {
+  retrieve(): Promise<UserInfo>;
 }
