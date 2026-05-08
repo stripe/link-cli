@@ -5,7 +5,6 @@ import type {
   SpendRequest,
   Total,
 } from '@stripe/link-sdk';
-import { storage } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import { render } from 'ink';
 import React from 'react';
@@ -15,7 +14,7 @@ import {
   parseTotalFlag,
 } from '../../utils/line-item-parser';
 import { pollUntil } from '../../utils/poll-until';
-import { requireAuth } from '../../utils/require-auth';
+import { requireAuth, requireAuthGuard } from '../../utils/require-auth';
 import { CancelSpendRequest } from './cancel';
 import { CreateSpendRequest } from './create';
 import { RequestApproval } from './request-approval';
@@ -57,17 +56,7 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
     alias: { merchantName: 'm' },
     outputPolicy: 'agent-only' as const,
     async *run(c) {
-      if (!storage.isAuthenticated()) {
-        return c.error({
-          code: 'NOT_AUTHENTICATED',
-          message: 'Not authenticated. Run "link-cli auth login" first.',
-          cta: {
-            commands: [
-              { command: 'auth login', description: 'Log in to Link' },
-            ],
-          },
-        });
-      }
+      requireAuthGuard(c);
 
       const opts = c.options;
       const requestApproval = !!opts.requestApproval;
@@ -194,19 +183,8 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
     }),
     options: updateOptions,
     outputPolicy: 'agent-only' as const,
+    middleware: [requireAuth],
     async run(c) {
-      if (!storage.isAuthenticated()) {
-        return c.error({
-          code: 'NOT_AUTHENTICATED',
-          message: 'Not authenticated. Run "link-cli auth login" first.',
-          cta: {
-            commands: [
-              { command: 'auth login', description: 'Log in to Link' },
-            ],
-          },
-        });
-      }
-
       const id = c.args.id;
       const opts = c.options;
 
@@ -258,17 +236,7 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
     }),
     outputPolicy: 'agent-only' as const,
     async *run(c) {
-      if (!storage.isAuthenticated()) {
-        return c.error({
-          code: 'NOT_AUTHENTICATED',
-          message: 'Not authenticated. Run "link-cli auth login" first.',
-          cta: {
-            commands: [
-              { command: 'auth login', description: 'Log in to Link' },
-            ],
-          },
-        });
-      }
+      requireAuthGuard(c);
 
       const id = c.args.id;
 
@@ -312,17 +280,7 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
     options: retrieveOptions,
     outputPolicy: 'agent-only' as const,
     async *run(c) {
-      if (!storage.isAuthenticated()) {
-        return c.error({
-          code: 'NOT_AUTHENTICATED',
-          message: 'Not authenticated. Run "link-cli auth login" first.',
-          cta: {
-            commands: [
-              { command: 'auth login', description: 'Log in to Link' },
-            ],
-          },
-        });
-      }
+      requireAuthGuard(c);
 
       const id = c.args.id;
       const opts = c.options;
@@ -421,10 +379,8 @@ export function createSpendRequestCli(repository: ISpendRequestResource) {
       id: z.string().describe('Spend request ID'),
     }),
     outputPolicy: 'agent-only' as const,
+    middleware: [requireAuth],
     async run(c) {
-      const authError = requireAuth(c);
-      if (authError) return authError;
-
       const id = c.args.id;
 
       if (!c.agent && !c.formatExplicit) {

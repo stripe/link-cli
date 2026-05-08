@@ -111,6 +111,14 @@ export interface BankAccountDetails {
   bank_name?: string;
 }
 
+export interface UserInfo {
+  email?: string | null;
+  name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
+}
+
 export interface PaymentMethod {
   id: string;
   type: string;
@@ -118,4 +126,23 @@ export interface PaymentMethod {
   nickname?: string;
   card_details?: CardDetails;
   bank_account_details?: BankAccountDetails;
+}
+
+export interface ShippingAddress {
+  name: string | null;
+  line_1: string | null;
+  line_2: string | null;
+  locality: string | null;
+  dependent_locality: string | null;
+  administrative_area: string | null;
+  postal_code: string | null;
+  sorting_code: string | null;
+  country_code: string | null;
+}
+
+export interface ShippingAddressRecord {
+  id: string;
+  is_default: boolean;
+  nickname: string | null;
+  address: ShippingAddress | null;
 }

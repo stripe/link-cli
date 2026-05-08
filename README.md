@@ -84,6 +84,14 @@ link-cli payment-methods list
 
 Returns the cards and bank accounts saved to your Link account. Use the `id` field as `payment_method_id` in the next step. If you have no payment methods, [add new ones in Link](https://app.link.com/wallet).
 
+### List shipping addresses
+
+```bash
+link-cli shipping-address list
+```
+
+Returns the shipping addresses saved to your Link account. The response preserves nullable `nickname`, `address`, and address fields exactly as returned by the API.
+
 ### Create a spend request
 
 Create a spend request with a payment method, merchant details, line items, and amounts:
