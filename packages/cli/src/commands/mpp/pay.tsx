@@ -159,7 +159,7 @@ export function MppPay({
   data?: string;
   headers?: string[];
   repository: ISpendRequestResource;
-  onComplete: () => void;
+  onComplete: (result: PayResult | null) => void;
 }) {
   const [step, setStep] = useState<Step>('retrieving');
   const [result, setResult] = useState<PayResult | null>(null);
@@ -203,9 +203,10 @@ export function MppPay({
         });
 
         if (initialResponse.status !== 402) {
-          setResult(await readPayResult(initialResponse));
+          const payResult = await readPayResult(initialResponse);
+          setResult(payResult);
           setStep('done');
-          onComplete();
+          onComplete(payResult);
           return;
         }
 
@@ -225,12 +226,15 @@ export function MppPay({
           },
         });
 
-        setResult(await readPayResult(retryResponse, { failOnError: true }));
+        const payResult = await readPayResult(retryResponse, {
+          failOnError: true,
+        });
+        setResult(payResult);
         setStep('done');
-        onComplete();
+        onComplete(payResult);
       } catch (err) {
         setError((err as Error).message);
-        onComplete();
+        onComplete(null);
       }
     })();
   }, [url, spendRequestId, method, data, headers, repository, onComplete]);

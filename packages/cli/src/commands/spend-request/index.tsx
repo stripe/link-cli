@@ -7,7 +7,6 @@ import type {
   Total,
 } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
-import { render } from 'ink';
 import React from 'react';
 import { writeCredentialFile } from '../../utils/credential-output';
 import {
@@ -15,6 +14,7 @@ import {
   parseTotalFlag,
 } from '../../utils/line-item-parser';
 import { pollUntil } from '../../utils/poll-until';
+import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth, requireAuthGuard } from '../../utils/require-auth';
 import { CancelSpendRequest } from './cancel';
 import { CreateSpendRequest } from './create';
@@ -134,24 +134,24 @@ export function createSpendRequestCli(
       const forceOverwrite = opts.force;
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          let capturedResult: SpendRequest | null = null;
-          const { waitUntilExit } = render(
-            <CreateSpendRequest
-              repository={repository}
-              params={createParams}
-              requestApproval={requestApproval}
-              outputFile={outputFile}
-              force={forceOverwrite}
-              onComplete={(result) => {
-                capturedResult = result;
-              }}
-            />,
-          );
-          waitUntilExit().then(() => {
-            resolve(capturedResult as SpendRequest);
-          });
-        });
+        let capturedResult: SpendRequest | null = null;
+        return renderInteractive(
+          <CreateSpendRequest
+            repository={repository}
+            params={createParams}
+            requestApproval={requestApproval}
+            outputFile={outputFile}
+            force={forceOverwrite}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => {
+            if (!capturedResult)
+              throw new Error('Component exited without producing a result');
+            return capturedResult;
+          },
+        );
       }
 
       // Agent mode: create, return immediately with _next polling hint.
@@ -211,22 +211,22 @@ export function createSpendRequestCli(
         );
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          let capturedResult: SpendRequest | null = null;
-          const { waitUntilExit } = render(
-            <UpdateSpendRequest
-              repository={repository}
-              id={id}
-              params={params}
-              onComplete={(result) => {
-                capturedResult = result;
-              }}
-            />,
-          );
-          waitUntilExit().then(() => {
-            resolve(capturedResult as SpendRequest);
-          });
-        });
+        let capturedResult: SpendRequest | null = null;
+        return renderInteractive(
+          <UpdateSpendRequest
+            repository={repository}
+            id={id}
+            params={params}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => {
+            if (!capturedResult)
+              throw new Error('Component exited without producing a result');
+            return capturedResult;
+          },
+        );
       }
 
       return repository.updateSpendRequest(id, params);
@@ -245,21 +245,21 @@ export function createSpendRequestCli(
       const id = c.args.id;
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          let capturedResult: SpendRequest | null = null;
-          const { waitUntilExit } = render(
-            <RequestApproval
-              repository={repository}
-              id={id}
-              onComplete={(result) => {
-                capturedResult = result;
-              }}
-            />,
-          );
-          waitUntilExit().then(() => {
-            resolve(capturedResult as SpendRequest);
-          });
-        });
+        let capturedResult: SpendRequest | null = null;
+        return renderInteractive(
+          <RequestApproval
+            repository={repository}
+            id={id}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => {
+            if (!capturedResult)
+              throw new Error('Component exited without producing a result');
+            return capturedResult;
+          },
+        );
       }
 
       // Agent mode: request approval, return immediately with _next polling hint.
@@ -297,25 +297,25 @@ export function createSpendRequestCli(
       const forceOverwrite = opts.force;
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          let capturedResult: SpendRequest | null = null;
-          const { waitUntilExit } = render(
-            <RetrieveSpendRequest
-              repository={repository}
-              id={id}
-              timeout={timeout}
-              include={include}
-              outputFile={outputFile}
-              force={forceOverwrite}
-              onComplete={(result) => {
-                capturedResult = result;
-              }}
-            />,
-          );
-          waitUntilExit().then(() => {
-            resolve(capturedResult as SpendRequest);
-          });
-        });
+        let capturedResult: SpendRequest | null = null;
+        return renderInteractive(
+          <RetrieveSpendRequest
+            repository={repository}
+            id={id}
+            timeout={timeout}
+            include={include}
+            outputFile={outputFile}
+            force={forceOverwrite}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => {
+            if (!capturedResult)
+              throw new Error('Component exited without producing a result');
+            return capturedResult;
+          },
+        );
       }
 
       const terminalStatuses = new Set([
@@ -388,21 +388,21 @@ export function createSpendRequestCli(
       const id = c.args.id;
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          let capturedResult: SpendRequest | null = null;
-          const { waitUntilExit } = render(
-            <CancelSpendRequest
-              repository={repository}
-              id={id}
-              onComplete={(result) => {
-                capturedResult = result;
-              }}
-            />,
-          );
-          waitUntilExit().then(() => {
-            resolve(capturedResult as SpendRequest);
-          });
-        });
+        let capturedResult: SpendRequest | null = null;
+        return renderInteractive(
+          <CancelSpendRequest
+            repository={repository}
+            id={id}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => {
+            if (!capturedResult)
+              throw new Error('Component exited without producing a result');
+            return capturedResult;
+          },
+        );
       }
 
       return repository.cancelSpendRequest(id);

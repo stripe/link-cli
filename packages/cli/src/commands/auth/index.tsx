@@ -1,9 +1,9 @@
 import { type AuthStorage, storage as defaultStorage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
-import { render } from 'ink';
 import React from 'react';
 import type { IAuthResource } from '../../auth/types';
 import { pollUntil } from '../../utils/poll-until';
+import { renderInteractive } from '../../utils/render-interactive';
 import type { UpdateInfoProvider } from '../../utils/update-info';
 import { Login } from './login';
 import { Logout } from './logout';
@@ -34,19 +34,15 @@ export function createAuthCli(
       }
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          const { waitUntilExit } = render(
-            <Login
-              authResource={authResource}
-              clientName={clientName}
-              authStorage={storage}
-              onComplete={() => {}}
-            />,
-          );
-          waitUntilExit().then(() =>
-            resolve({ authenticated: true, token_type: 'Bearer' }),
-          );
-        });
+        return renderInteractive(
+          <Login
+            authResource={authResource}
+            clientName={clientName}
+            authStorage={storage}
+            onComplete={() => {}}
+          />,
+          () => ({ authenticated: true, token_type: 'Bearer' }),
+        );
       }
 
       // Agent mode: initiate device auth, store pending state, return immediately.
@@ -91,16 +87,14 @@ export function createAuthCli(
       const result = { authenticated: false };
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          const { waitUntilExit } = render(
-            <Logout
-              authResource={authResource}
-              authStorage={storage}
-              onComplete={() => {}}
-            />,
-          );
-          waitUntilExit().then(() => resolve(result));
-        });
+        return renderInteractive(
+          <Logout
+            authResource={authResource}
+            authStorage={storage}
+            onComplete={() => {}}
+          />,
+          () => result,
+        );
       }
 
       return result;
@@ -127,13 +121,11 @@ export function createAuthCli(
         : undefined;
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          const { waitUntilExit } = render(
-            <AuthStatus authStorage={storage} onComplete={() => {}} />,
-          );
-          waitUntilExit().then(() => {
+        return renderInteractive(
+          <AuthStatus authStorage={storage} onComplete={() => {}} />,
+          () => {
             const auth = storage.getAuth();
-            resolve({
+            return {
               authenticated: !!auth,
               ...(auth
                 ? {
@@ -143,9 +135,9 @@ export function createAuthCli(
                 : {}),
               credentials_path: storage.getPath(),
               ...(update && { update }),
-            });
-          });
-        });
+            };
+          },
+        );
       }
 
       for await (const result of pollUntil({

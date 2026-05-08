@@ -1,11 +1,11 @@
 import type { AuthStorage, ISpendRequestResource } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
-import { render } from 'ink';
 import React from 'react';
+import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
 import { decodeStripeChallenge } from './decode';
 import { DecodeChallengeView } from './decode-view';
-import { MppPay, runMppPay } from './pay';
+import { MppPay, type PayResult, runMppPay } from './pay';
 import { decodeOptions, payOptions } from './schema';
 
 export function createMppCli(
@@ -34,31 +34,25 @@ export function createMppCli(
       const headers = opts.header?.length ? opts.header : undefined;
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          const { waitUntilExit } = render(
-            <MppPay
-              url={url}
-              spendRequestId={opts.spendRequestId}
-              method={method}
-              data={data}
-              headers={headers}
-              repository={repository}
-              onComplete={() => {}}
-            />,
-          );
-          waitUntilExit().then(async () => {
-            resolve(
-              await runMppPay(
-                url,
-                opts.spendRequestId,
-                method,
-                data,
-                headers,
-                repository,
-              ),
-            );
-          });
-        });
+        let capturedResult: PayResult | null = null;
+        return renderInteractive(
+          <MppPay
+            url={url}
+            spendRequestId={opts.spendRequestId}
+            method={method}
+            data={data}
+            headers={headers}
+            repository={repository}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => {
+            if (!capturedResult)
+              throw new Error('Component exited without producing a result');
+            return capturedResult;
+          },
+        );
       }
 
       return runMppPay(
@@ -81,12 +75,10 @@ export function createMppCli(
       const decoded = decodeStripeChallenge(c.options.challenge);
 
       if (!c.agent && !c.formatExplicit) {
-        return new Promise((resolve) => {
-          const { waitUntilExit } = render(
-            <DecodeChallengeView decoded={decoded} />,
-          );
-          waitUntilExit().then(() => resolve(decoded));
-        });
+        return renderInteractive(
+          <DecodeChallengeView decoded={decoded} />,
+          () => decoded,
+        );
       }
 
       return decoded;
