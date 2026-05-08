@@ -14,6 +14,7 @@ import {
   parseLineItemFlag,
   parseTotalFlag,
 } from '../../utils/line-item-parser';
+import { pollUntil } from '../../utils/poll-until';
 import { requireAuth, requireAuthGuard } from '../../utils/require-auth';
 import { CancelSpendRequest } from './cancel';
 import { CreateSpendRequest } from './create';
@@ -325,56 +326,53 @@ export function createSpendRequestCli(
         'failed',
         'canceled',
       ]);
-      const deadline = Date.now() + timeout * 1000;
-      let attempts = 0;
-      let previousAttemptData: string | undefined;
 
-      while (true) {
-        const request = await repository.getSpendRequest(id, { include });
-        if (!request) {
+      for await (const result of pollUntil<SpendRequest | null>({
+        fn: () => repository.getSpendRequest(id, { include }),
+        isTerminal: (req) => req === null || terminalStatuses.has(req.status),
+        interval,
+        maxAttempts,
+        timeout,
+      })) {
+        if (result.value === null) {
           return c.error({
             code: 'NOT_FOUND',
             message: `Spend request ${id} not found`,
           });
         }
 
-        const shouldEmitFinal =
-          terminalStatuses.has(request.status) || interval <= 0;
-        if (shouldEmitFinal) {
-          try {
-            yield await applyOutputFile(request, outputFile, forceOverwrite);
-          } catch (err) {
-            const message = (err as Error).message;
-            if (message.startsWith('OUTPUT_FILE_EXISTS')) {
-              return c.error({ code: 'OUTPUT_FILE_EXISTS', message });
+        if (result.terminal) {
+          // Terminal due to isTerminal or interval <= 0 — apply output file
+          if (terminalStatuses.has(result.value.status) || !result.reason) {
+            try {
+              yield await applyOutputFile(
+                result.value,
+                outputFile,
+                forceOverwrite,
+              );
+            } catch (err) {
+              const message = (err as Error).message;
+              if (message.startsWith('OUTPUT_FILE_EXISTS')) {
+                return c.error({ code: 'OUTPUT_FILE_EXISTS', message });
+              }
+              return c.error({ code: 'OUTPUT_FILE_WRITE_ERROR', message });
             }
-            return c.error({ code: 'OUTPUT_FILE_WRITE_ERROR', message });
+            return;
           }
-          return;
-        }
 
-        attempts++;
-
-        const maxAttemptsExhausted = maxAttempts > 0 && attempts >= maxAttempts;
-        const timeoutReached = Date.now() >= deadline;
-        if (maxAttemptsExhausted || timeoutReached) {
-          const reason = maxAttemptsExhausted
-            ? `max attempts (${maxAttempts}) exhausted`
-            : `timeout (${timeout}s) reached`;
+          // Terminal due to max_attempts or timeout
+          const reason =
+            result.reason === 'max_attempts'
+              ? `max attempts (${maxAttempts}) exhausted`
+              : `timeout (${timeout}s) reached`;
           return c.error({
             code: 'POLLING_TIMEOUT',
-            message: `Polling stopped before spend request ${id} reached a terminal status: ${reason}; current status is ${request.status}.`,
+            message: `Polling stopped before spend request ${id} reached a terminal status: ${reason}; current status is ${result.value.status}.`,
             retryable: true,
           });
         }
 
-        // Only yield when the response has changed to avoid noisy agent transcripts
-        const snapshot = JSON.stringify(request);
-        if (snapshot !== previousAttemptData) {
-          previousAttemptData = snapshot;
-          yield request;
-        }
-        await new Promise((resolve) => setTimeout(resolve, interval * 1000));
+        yield result.value;
       }
     },
   });
