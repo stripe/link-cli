@@ -30,13 +30,19 @@ export function useAsyncAction<T>(
         if (cancelled) return;
         setData(result);
         setStatus('success');
-        timeoutId = setTimeout(() => onCompleteRef.current(result), DISPLAY_DELAY_MS);
+        timeoutId = setTimeout(
+          () => onCompleteRef.current(result),
+          DISPLAY_DELAY_MS,
+        );
       } catch (err) {
         if (cancelled) return;
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
         setStatus('error');
-        timeoutId = setTimeout(() => onCompleteRef.current(null), DISPLAY_DELAY_MS);
+        timeoutId = setTimeout(
+          () => onCompleteRef.current(null),
+          DISPLAY_DELAY_MS,
+        );
       }
     };
 
