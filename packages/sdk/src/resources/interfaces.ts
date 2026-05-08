@@ -86,3 +86,25 @@ export interface IShippingAddressResource {
 export interface IUserInfoResource {
   retrieve(): Promise<UserInfo>;
 }
+
+export interface CreateReportParams {
+  domain: string;
+  outcome: 'success' | 'blocked' | 'abandoned';
+  spend_request_id: string;
+  tags?: string[];
+  step?: string;
+  freeform_context?: string;
+}
+
+export interface ReportRecord {
+  object: string;
+  created_at: string;
+  domain: string;
+  outcome: string;
+  spend_request_id: string;
+  status: string;
+}
+
+export interface IReportResource {
+  create(params: CreateReportParams): Promise<ReportRecord>;
+}
