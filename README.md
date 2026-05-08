@@ -186,7 +186,7 @@ When you provide `--client-name`, the Link app displays it when you approve the 
 
 Set `NO_UPDATE_NOTIFIER=1` to suppress update checks (for example, in CI).
 
-All commands accept `--auth <path>` to read/write auth credentials to a specific file instead of the default location. Useful for running multiple sessions with separate identities.
+All commands accept `--auth <path>` to store auth credentials in a specific file instead of the default location. `auth login` writes to this file; all other commands read from it. Useful for running multiple sessions with separate identities.
 
 ### Spend request lifecycle
 

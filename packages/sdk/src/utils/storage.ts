@@ -67,6 +67,7 @@ export class Storage implements AuthStorage {
       let locationOverride: { cwd: string; configName?: string } | undefined;
       if (this.options.configPath) {
         const parsed = path.parse(path.resolve(this.options.configPath));
+        // conf appends `.json` to configName, so strip it to avoid double extension
         const configName = parsed.ext === '.json' ? parsed.name : parsed.base;
         locationOverride = { cwd: parsed.dir, configName };
       } else if (this.options.cwd) {

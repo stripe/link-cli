@@ -101,7 +101,7 @@ Key input field notes:
 
 | Flag | Effect |
 |------|--------|
-| `--auth <path>` | Read/write auth credentials to a specific file instead of the default platform config location. Parsed from `process.argv` and stripped before incur processes flags. |
+| `--auth <path>` | Store auth credentials in a specific file instead of the default platform config location. `auth login` writes to this file; all other commands read from it. Parsed from `process.argv` and stripped before incur processes flags. |
 
 ## Environment Variables
 
