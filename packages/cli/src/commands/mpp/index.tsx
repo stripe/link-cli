@@ -1,8 +1,8 @@
 import type { AuthStorage, ISpendRequestResource } from '@stripe/link-sdk';
-import { storage as defaultStorage } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import { render } from 'ink';
 import React from 'react';
+import { requireAuth } from '../../utils/require-auth';
 import { decodeStripeChallenge } from './decode';
 import { DecodeChallengeView } from './decode-view';
 import { MppPay, runMppPay } from './pay';
@@ -12,7 +12,6 @@ export function createMppCli(
   repository: ISpendRequestResource,
   authStorage?: AuthStorage,
 ) {
-  const storage = authStorage ?? defaultStorage;
   const cli = Cli.create('mpp', {
     description: 'Machine payment protocol (MPP) commands',
   });
@@ -26,19 +25,8 @@ export function createMppCli(
     options: payOptions,
     alias: { method: 'X', data: 'd', header: 'H' },
     outputPolicy: 'agent-only' as const,
+    middleware: [requireAuth(authStorage)],
     async run(c) {
-      if (!storage.isAuthenticated()) {
-        return c.error({
-          code: 'NOT_AUTHENTICATED',
-          message: 'Not authenticated. Run "link-cli auth login" first.',
-          cta: {
-            commands: [
-              { command: 'auth login', description: 'Log in to Link' },
-            ],
-          },
-        });
-      }
-
       const url = c.args.url;
       const opts = c.options;
       const method = opts.method;

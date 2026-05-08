@@ -1,8 +1,8 @@
 import type { AuthStorage, IPaymentMethodsResource } from '@stripe/link-sdk';
-import { storage as defaultStorage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import { render } from 'ink';
 import React from 'react';
+import { requireAuth } from '../../utils/require-auth';
 import { AddPaymentMethod, WALLET_URL } from './add';
 import { PaymentMethodsList } from './list';
 
@@ -10,7 +10,6 @@ export function createPaymentMethodsCli(
   createResource: () => IPaymentMethodsResource,
   authStorage?: AuthStorage,
 ) {
-  const storage = authStorage ?? defaultStorage;
   const cli = Cli.create('payment-methods', {
     description: 'Payment methods management commands',
   });
@@ -18,19 +17,8 @@ export function createPaymentMethodsCli(
   cli.command('list', {
     description: 'List all payment methods on your account',
     outputPolicy: 'agent-only' as const,
+    middleware: [requireAuth(authStorage)],
     async run(c) {
-      if (!storage.isAuthenticated()) {
-        return c.error({
-          code: 'NOT_AUTHENTICATED',
-          message: 'Not authenticated. Run "link-cli auth login" first.',
-          cta: {
-            commands: [
-              { command: 'auth login', description: 'Log in to Link' },
-            ],
-          },
-        });
-      }
-
       const resource = createResource();
 
       if (!c.agent && !c.formatExplicit) {
@@ -51,19 +39,8 @@ export function createPaymentMethodsCli(
   cli.command('add', {
     description: 'Open the Link wallet to add a new payment method',
     outputPolicy: 'agent-only' as const,
+    middleware: [requireAuth(authStorage)],
     async run(c) {
-      if (!storage.isAuthenticated()) {
-        return c.error({
-          code: 'NOT_AUTHENTICATED',
-          message: 'Not authenticated. Run "link-cli auth login" first.',
-          cta: {
-            commands: [
-              { command: 'auth login', description: 'Log in to Link' },
-            ],
-          },
-        });
-      }
-
       if (!c.agent && !c.formatExplicit) {
         return new Promise((resolve) => {
           const { waitUntilExit } = render(<AddPaymentMethod />);
