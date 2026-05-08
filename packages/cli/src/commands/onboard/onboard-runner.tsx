@@ -4,7 +4,7 @@ import type {
   ISpendRequestResource,
 } from '@stripe/link-sdk';
 import { storage as defaultStorage } from '@stripe/link-sdk';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text, useApp, useInput } from 'ink';
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import type { IAuthResource } from '../../auth/types';
@@ -29,6 +29,7 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
   authStorage = defaultStorage,
   onComplete,
 }) => {
+  const { exit } = useApp();
   const storage = authStorage;
   const [phase, setPhase] = useState<Phase>('welcome');
   const [authSkipped, setAuthSkipped] = useState(false);
@@ -90,6 +91,7 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
         setPhase('demo');
       } catch (err) {
         setError((err as Error).message);
+        setTimeout(exit, 2000);
       }
     };
     run();

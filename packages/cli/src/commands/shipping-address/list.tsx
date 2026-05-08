@@ -6,11 +6,12 @@ import type {
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
+import { useAsyncAction } from '../../hooks/use-async-action';
 
 interface ShippingAddressListProps {
   resource: IShippingAddressResource;
-  onComplete: () => void;
+  onComplete: (result: ShippingAddressRecord[] | null) => void;
 }
 
 function formatStreetLine(address: ShippingAddress): string | null {
@@ -57,30 +58,15 @@ export const ShippingAddressList: React.FC<ShippingAddressListProps> = ({
   resource,
   onComplete,
 }) => {
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(
-    'loading',
+  const action = useCallback(
+    () => resource.listShippingAddresses(),
+    [resource],
   );
-  const [shippingAddresses, setShippingAddresses] = useState<
-    ShippingAddressRecord[]
-  >([]);
-  const [error, setError] = useState<string>('');
-
-  useEffect(() => {
-    const fetch = async () => {
-      try {
-        const result = await resource.listShippingAddresses();
-        setShippingAddresses(result);
-        setStatus('success');
-        setTimeout(onComplete, 1500);
-      } catch (err) {
-        setError((err as Error).message);
-        setStatus('error');
-        setTimeout(onComplete, 1500);
-      }
-    };
-
-    fetch();
-  }, [resource, onComplete]);
+  const {
+    status,
+    data: shippingAddresses,
+    error,
+  } = useAsyncAction(action, onComplete);
 
   if (status === 'loading') {
     return (
@@ -101,7 +87,7 @@ export const ShippingAddressList: React.FC<ShippingAddressListProps> = ({
     );
   }
 
-  if (shippingAddresses.length === 0) {
+  if (!shippingAddresses || shippingAddresses.length === 0) {
     return (
       <Box>
         <Text dimColor>No shipping addresses found</Text>

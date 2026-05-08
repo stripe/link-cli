@@ -76,9 +76,14 @@ cli.command(
   ),
 );
 cli.command(
-  createShippingAddressCli(() => factory.createShippingAddressResource()),
+  createShippingAddressCli(
+    () => factory.createShippingAddressResource(),
+    authStorage,
+  ),
 );
-cli.command(createUserInfoCli(() => factory.createUserInfoResource()));
+cli.command(
+  createUserInfoCli(() => factory.createUserInfoResource(), authStorage),
+);
 cli.command(createMppCli(spendRequestRepo, authStorage));
 cli.command(
   createDemoCli(

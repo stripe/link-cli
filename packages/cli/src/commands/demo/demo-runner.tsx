@@ -4,7 +4,7 @@ import type {
   ISpendRequestResource,
 } from '@stripe/link-sdk';
 import { storage as defaultStorage } from '@stripe/link-sdk';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text, useApp, useInput } from 'ink';
 import type React from 'react';
 import { useCallback, useState } from 'react';
 import type { IAuthResource } from '../../auth/types';
@@ -46,6 +46,7 @@ export const DemoRunner: React.FC<DemoRunnerProps> = ({
   onlySpt,
   onComplete,
 }) => {
+  const { exit } = useApp();
   const storage = authStorage;
   const preselected = onlyCard ? 'card' : onlySpt ? 'spt' : null;
   const [choice, setChoice] = useState<Choice | null>(preselected);
@@ -88,21 +89,27 @@ export const DemoRunner: React.FC<DemoRunnerProps> = ({
 
       if (!runSpt) {
         setPhase('summary');
-        setTimeout(onComplete, DISPLAY_DELAY_MS);
+        setTimeout(() => {
+          onComplete();
+          exit();
+        }, DISPLAY_DELAY_MS);
       } else {
         setPhase('card-done');
       }
     },
-    [runSpt, onComplete],
+    [runSpt, onComplete, exit],
   );
 
   const onSptComplete = useCallback(
     (success: boolean) => {
       setSptSuccess(success);
       setPhase('summary');
-      setTimeout(onComplete, DISPLAY_DELAY_MS);
+      setTimeout(() => {
+        onComplete();
+        exit();
+      }, DISPLAY_DELAY_MS);
     },
-    [onComplete],
+    [onComplete, exit],
   );
 
   return (

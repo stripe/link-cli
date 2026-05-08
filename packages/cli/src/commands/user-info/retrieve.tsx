@@ -2,39 +2,20 @@ import type { IUserInfoResource, UserInfo } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
+import { useAsyncAction } from '../../hooks/use-async-action';
 
 interface UserInfoRetrieveProps {
   resource: IUserInfoResource;
-  onComplete: () => void;
+  onComplete: (result: UserInfo | null) => void;
 }
 
 export const UserInfoRetrieve: React.FC<UserInfoRetrieveProps> = ({
   resource,
   onComplete,
 }) => {
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(
-    'loading',
-  );
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [error, setError] = useState<string>('');
-
-  useEffect(() => {
-    const fetch = async () => {
-      try {
-        const result = await resource.retrieve();
-        setUserInfo(result);
-        setStatus('success');
-        setTimeout(onComplete, 1500);
-      } catch (err) {
-        setError((err as Error).message);
-        setStatus('error');
-        setTimeout(onComplete, 1500);
-      }
-    };
-
-    fetch();
-  }, [resource, onComplete]);
+  const action = useCallback(() => resource.retrieve(), [resource]);
+  const { status, data: userInfo, error } = useAsyncAction(action, onComplete);
 
   if (status === 'loading') {
     return (
