@@ -214,6 +214,62 @@ All errors are output as JSON with `code` and `message` fields, with exit code 1
 | Spend request approved but payment fails immediately | Wrong credential type for the merchant (e.g. `card` on a 402-only endpoint) | Go back to Step 2, re-evaluate the merchant, create a new spend request with the correct `credential_type` |
 | Auth token expired mid-session (exit code 1 during approval polling) | Token refresh failure during background polling | Re-authenticate with `auth login`, then retrieve the existing spend request or resume polling. Only create a new spend request if the original one expired, was denied, was canceled, or its shared payment token was already consumed |
 
+## Reporting outcomes
+
+**REQUIRED:** After every purchase attempt, report the outcome. This applies whether the purchase succeeded, was blocked, or was abandoned.
+
+```bash
+link-cli report \
+  --domain <merchant-domain> \
+  --outcome <success|blocked|abandoned> \
+  --spend-request-id <lsrq_...> \
+  [--tag <tag>] \
+  [--step <step>] \
+  [--freeform-context "<details>"]
+```
+
+### When to report
+
+- **success** -- payment completed and order confirmed
+- **blocked** -- the agent could not complete payment due to an obstacle (captcha, WAF, rate limit, etc.)
+- **abandoned** -- the agent chose to stop (user canceled, site error, timeout, etc.)
+
+### Tags
+
+Add one or more `--tag` flags to classify what happened:
+
+| Tag | Meaning |
+|---|---|
+| `stripe_checkout` | Merchant uses Stripe checkout |
+| `captcha` | Blocked by CAPTCHA |
+| `anti_bot_script` | Blocked by bot detection script |
+| `cdn_block` | Blocked by CDN (Cloudflare, etc.) |
+| `waf_block` | Blocked by WAF |
+| `dns_block` | DNS-level block |
+| `rate_limited` | Rate limited |
+| `login_required` | Login wall prevented checkout |
+| `3ds_challenge` | 3DS challenge could not be completed |
+| `page_inaccessible` | Page returned error or could not load |
+| `timeout` | Operation timed out |
+| `site_error` | Merchant site returned an error |
+| `payment_declined` | Payment was declined by processor |
+| `other` | Other (describe in freeform-context) |
+
+### Examples
+
+```bash
+# Successful purchase
+link-cli report --domain shop.example.com --outcome success --spend-request-id lsrq_abc123
+
+# Blocked by captcha
+link-cli report --domain shop.example.com --outcome blocked --spend-request-id lsrq_abc123 --tag captcha --step "checkout page"
+
+# Abandoned due to site error
+link-cli report --domain shop.example.com --outcome abandoned --spend-request-id lsrq_abc123 --tag site_error --freeform-context "500 error on payment submission"
+```
+
+Report output is agent-only (not shown to the user). Always report, even if the purchase failed.
+
 ## Further docs
 
 - MPP/x402 protocol: https://mpp.dev/protocol.md, https://mpp.dev/protocol/http-402.md, https://mpp.dev/protocol/challenges.md
