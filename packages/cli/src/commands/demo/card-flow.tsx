@@ -189,7 +189,12 @@ export const CardFlow: React.FC<CardFlowProps> = ({
         setStep('await-approval');
         for (;;) {
           try {
-            await pollUntilApproved(spendRequestRepo, result.id);
+            const final = await pollUntilApproved(spendRequestRepo, result.id);
+            if (final.status !== 'approved') {
+              throw new Error(
+                `Spend request did not reach approved (status: ${final.status})`,
+              );
+            }
             break;
           } catch (err) {
             if ((err as Error).message === 'Approval polling timed out') {

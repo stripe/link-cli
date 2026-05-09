@@ -187,6 +187,11 @@ export const SptFlow: React.FC<SptFlowProps> = ({
               spendRequestRepo,
               result.id,
             );
+            if (approved.status !== 'approved') {
+              throw new Error(
+                `Spend request did not reach approved (status: ${approved.status})`,
+              );
+            }
             setSpendRequest(approved);
             break;
           } catch (err) {

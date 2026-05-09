@@ -51,11 +51,18 @@ export function useApprovalPolling({
     const poll = async () => {
       try {
         const final = await pollUntilApproved(repository, requestId);
-        if (!cancelled) {
-          onSuccess(final);
-          setStatus('success');
+        if (cancelled) return;
+        if (final.status !== 'approved') {
+          onError(
+            `Spend request did not reach approved (status: ${final.status})`,
+          );
+          setStatus('error');
           setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
+          return;
         }
+        onSuccess(final);
+        setStatus('success');
+        setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
       } catch (err) {
         if (!cancelled) {
           onError((err as Error).message);

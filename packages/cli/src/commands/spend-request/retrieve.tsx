@@ -21,13 +21,26 @@ type Phase =
   | 'polling'
   | 'success'
   | 'declined'
+  | 'finalized'
   | 'timeout'
   | 'error';
+
+// Statuses past which polling should stop. Mirrors the JSON path in
+// commands/spend-request/index.tsx so an `expired`/`canceled`/`failed` request
+// doesn't keep the TUI spinning until the local timeout fires.
+const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
+  'approved',
+  'denied',
+  'expired',
+  'succeeded',
+  'failed',
+  'canceled',
+]);
 
 export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
   repository,
   id,
-  timeout = 300,
+  timeout = 600,
   include,
   outputFile,
   force,
@@ -87,6 +100,9 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
         } else if (result.status === 'denied') {
           setPhase('declined');
           setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
+        } else if (TERMINAL_STATUSES.has(result.status)) {
+          setPhase('finalized');
+          setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
         } else {
           startTimeRef.current = Date.now();
           setPhase('polling');
@@ -135,6 +151,11 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
           if (pollRef.current) clearInterval(pollRef.current);
           if (timerRef.current) clearInterval(timerRef.current);
           setPhase('declined');
+          setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
+        } else if (TERMINAL_STATUSES.has(result.status)) {
+          if (pollRef.current) clearInterval(pollRef.current);
+          if (timerRef.current) clearInterval(timerRef.current);
+          setPhase('finalized');
           setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
         }
       } catch {
@@ -201,6 +222,24 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
             </Text>
           </Box>
         )}
+      </Box>
+    );
+  }
+
+  if (phase === 'finalized') {
+    return (
+      <Box flexDirection="column">
+        <Text color="yellow">
+          Spend request reached terminal status: {request?.status}
+        </Text>
+        <Box flexDirection="column" marginTop={1} paddingX={2}>
+          <Text>
+            ID: <Text bold>{request?.id}</Text>
+          </Text>
+          <Text>
+            Status: <Text bold>{request?.status}</Text>
+          </Text>
+        </Box>
       </Box>
     );
   }
