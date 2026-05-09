@@ -171,9 +171,9 @@ export function createSpendRequestCli(
       }
       yield {
         ...created,
-        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${created.id} --interval 2 --max-attempts 150\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
+        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${created.id} --interval 2 --max-attempts 300\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
         _next: {
-          command: `spend-request retrieve ${created.id} --interval 2 --max-attempts 150`,
+          command: `spend-request retrieve ${created.id} --interval 2 --max-attempts 300`,
           until: 'status changes from pending_approval',
         },
       };
@@ -267,9 +267,9 @@ export function createSpendRequestCli(
       const approval = await repository.requestApproval(id);
       yield {
         ...approval,
-        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${id} --interval 2 --max-attempts 150\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
+        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${id} --interval 2 --max-attempts 300\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
         _next: {
-          command: `spend-request retrieve ${id} --interval 2 --max-attempts 150`,
+          command: `spend-request retrieve ${id} --interval 2 --max-attempts 300`,
           until: 'status changes from pending_approval',
         },
       };

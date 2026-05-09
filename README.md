@@ -153,7 +153,7 @@ The file is created with `0600` permissions. If the file already exists, the com
 For agent polling, pass `--interval` and optionally `--max-attempts`:
 
 ```bash
-link-cli spend-request retrieve lsrq_001 --interval 2 --max-attempts 150
+link-cli spend-request retrieve lsrq_001 --interval 2 --max-attempts 300
 ```
 
 Polling exits successfully only after the request reaches a terminal status such as `approved`, `denied`, `expired`, or `canceled`. If polling reaches `--timeout` or exhausts `--max-attempts` while the request is still non-terminal, the command exits non-zero with `code: "POLLING_TIMEOUT"` so callers do not treat a still-pending request as complete.

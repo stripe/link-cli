@@ -76,9 +76,9 @@ export const createOptions = z.object({
 export const retrieveOptions = z.object({
   timeout: z.coerce
     .number()
-    .default(300)
+    .default(600)
     .describe(
-      'Polling timeout in seconds. When reached during active polling, exits non-zero with POLLING_TIMEOUT.',
+      'Polling timeout in seconds. When reached during active polling, exits non-zero with POLLING_TIMEOUT. Default exceeds the server-side spend-request expiry so polling outlives the request itself.',
     ),
   interval: z.coerce
     .number()
