@@ -9,27 +9,13 @@ export async function writeCredentialFile(
 ): Promise<string> {
   const resolved = path.resolve(filePath);
 
-  // Atomically create the output file with O_EXCL | O_NOFOLLOW so we never
-  // write through a pre-existing symlink. The previous implementation used
-  // fs.access() then fs.writeFile() which followed symlinks: an attacker on
-  // a shared filesystem (CI runner, multi-user host, container with shared
-  // tmp) could pre-plant a symlink at the operator's --output-file path,
-  // pre-open a file descriptor against the symlink target while it was
-  // world-readable, then read the credential through that fd after the
-  // operator's writeFile resolved the symlink and wrote the card data.
-  // The follow-up fs.chmod(resolved, 0o600) would then race-finalize the
-  // target permissions to owner-only — too late, the attacker's fd was
-  // open before chmod and survives it.
-  //
-  // O_NOFOLLOW makes open() refuse to traverse the final path component
-  // when it is a symbolic link (returns ELOOP). O_EXCL makes open() refuse
-  // to operate on a pre-existing file (returns EEXIST). The mode argument
-  // is only consulted when O_CREAT actually creates the file — combined
-  // with O_EXCL this guarantees the file is created here and nowhere else.
+  // Atomically create the credential file so we never write through a
+  // pre-existing output path. On POSIX, O_NOFOLLOW refuses to follow a
+  // symlink at the final path component; O_EXCL makes create fail if an
+  // entry already exists. The 0o600 mode is applied at create time, so
+  // the file is owner-only the moment it exists.
   if (force) {
-    // Remove any pre-existing entry, including a symlink. Use fs.unlink
-    // which operates on the symlink itself rather than its target. ENOENT
-    // is fine; anything else (EISDIR, EACCES) surfaces to the caller.
+    // fs.unlink operates on the symlink itself rather than its target.
     try {
       await fs.unlink(resolved);
     } catch (err) {
@@ -37,12 +23,17 @@ export async function writeCredentialFile(
     }
   }
 
+  // O_NOFOLLOW is POSIX-only. On Windows, Node exposes it as 0, so the
+  // bitwise OR is a no-op there: O_EXCL still prevents overwriting a
+  // pre-existing entry, but open() does not provide full no-follow
+  // semantics on Windows.
+  const noFollowFlag = constants.O_NOFOLLOW ?? 0;
+
   let handle: fs.FileHandle | undefined;
   try {
     handle = await fs.open(
       resolved,
-      // biome-ignore lint/suspicious/noBitwiseInsideUnaryExpression: standard open(2) flag composition
-      constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW,
+      constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | noFollowFlag,
       0o600,
     );
   } catch (err) {
