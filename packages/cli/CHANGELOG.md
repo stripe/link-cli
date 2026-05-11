@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.5.0
+
+### Minor Changes
+
+- 4121c7b: many improvements, bug fixes, and new abilities for shipping addresses and phone numbers
+
 ## 0.4.3
 
 ### Patch Changes
