@@ -49,7 +49,7 @@ export const createOptions = z.object({
     .array(z.union([z.string(), z.record(z.string(), z.unknown())]))
     .default([])
     .describe(
-      'Total (repeatable, key:value format). Keys: type (required; one of: subtotal, tax, total), display_text (required), amount (required). Example: "type:total,display_text:Total,amount:5000"',
+      'Total (repeatable, key:value format). Keys: type (required; one of: subtotal, tax, total, items_base_amount, items_discount, discount, fulfillment, shipping, fee, gift_wrap, tip, store_credit), display_text (required), amount (required). Example: "type:total,display_text:Total,amount:5000"',
     ),
   requestApproval: z
     .boolean()
@@ -125,6 +125,6 @@ export const updateOptions = z.object({
     .array(z.union([z.string(), z.record(z.string(), z.unknown())]))
     .default([])
     .describe(
-      'Total (repeatable, key:value format). Keys: type (required; one of: subtotal, tax, total), display_text (required), amount (required). Example: "type:total,display_text:Total,amount:5000"',
+      'Total (repeatable, key:value format). Keys: type (required; one of: subtotal, tax, total, items_base_amount, items_discount, discount, fulfillment, shipping, fee, gift_wrap, tip, store_credit), display_text (required), amount (required). Example: "type:total,display_text:Total,amount:5000"',
     ),
 });
