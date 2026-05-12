@@ -74,11 +74,18 @@ export function createAuthCli(
         return;
       }
 
-      // Inline polling: emit code to stderr (visible immediately even while
-      // stdout is buffered), then yield it as structured output for MCP streaming.
-      process.stderr.write(
-        `\nVerification URL: ${authRequest.verification_url_complete}\nPhrase: ${authRequest.user_code}\n\nOpen the URL, log in to Link, and enter the phrase to approve.\nPolling for approval...\n\n`,
-      );
+      // Inline polling: emit code to stderr immediately (stdout is buffered
+      // until command exits), then poll using the shared pollUntil utility.
+      if (c.format === 'json') {
+        process.stderr.write(
+          `${JSON.stringify({ verification_url: authRequest.verification_url_complete, phrase: authRequest.user_code })}\n`,
+        );
+      } else {
+        process.stderr.write(
+          `\nVerification URL: ${authRequest.verification_url_complete}\nPhrase: ${authRequest.user_code}\n\nOpen the URL, log in to Link, and enter the phrase to approve.\nPolling for approval...\n\n`,
+        );
+      }
+
       yield {
         verification_url: authRequest.verification_url_complete,
         phrase: authRequest.user_code,
@@ -86,50 +93,53 @@ export function createAuthCli(
           'Present the verification_url to the user and ask them to approve in the Link app. Polling has started automatically — no further action needed.',
       };
 
-      const deadline = Date.now() + c.options.timeout * 1000;
-      let attempts = 0;
+      try {
+        for await (const result of pollUntil({
+          fn: async () => {
+            const pending = storage.getPendingDeviceAuth();
+            if (!pending) {
+              throw new Error(
+                'Device authorization expired. Please run auth login again.',
+              );
+            }
 
-      while (true) {
-        await new Promise((resolve) => setTimeout(resolve, interval * 1000));
-
-        const pending = storage.getPendingDeviceAuth();
-        if (!pending) {
-          return c.error({
-            code: 'AUTH_EXPIRED',
-            message:
-              'Device authorization expired. Please run auth login again.',
-          });
-        }
-
-        try {
-          const tokens = await authResource.pollDeviceAuth(pending.device_code);
-          if (tokens) {
-            storage.setAuth(tokens);
-            storage.clearPendingDeviceAuth();
+            const tokens = await authResource.pollDeviceAuth(
+              pending.device_code,
+            );
+            if (tokens) {
+              storage.setAuth(tokens);
+              storage.clearPendingDeviceAuth();
+              return {
+                authenticated: true as const,
+                token_type: tokens.token_type,
+              };
+            }
+            return { authenticated: false as const };
+          },
+          isTerminal: (status) => status.authenticated,
+          interval,
+          maxAttempts,
+          timeout: c.options.timeout,
+        })) {
+          if (result.terminal && result.value.authenticated) {
             yield {
               authenticated: true,
-              token_type: tokens.token_type,
+              token_type: result.value.token_type,
               credentials_path: storage.getPath(),
             };
             return;
           }
-        } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : String(err);
-          return c.error({ code: 'AUTH_FAILED', message });
+          if (result.terminal) {
+            return c.error({
+              code: 'POLLING_TIMEOUT',
+              message:
+                'Timed out waiting for user approval. The verification code may have expired — run auth login again to get a new one.',
+            });
+          }
         }
-
-        attempts++;
-        const shouldStop =
-          (maxAttempts > 0 && attempts >= maxAttempts) ||
-          Date.now() >= deadline;
-
-        if (shouldStop) {
-          return c.error({
-            code: 'POLLING_TIMEOUT',
-            message:
-              'Timed out waiting for user approval. The verification code may have expired — run auth login again to get a new one.',
-          });
-        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return c.error({ code: 'AUTH_FAILED', message });
       }
     },
   });

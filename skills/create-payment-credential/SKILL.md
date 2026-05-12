@@ -92,12 +92,12 @@ If the response includes an `update` field, a newer version of `link-cli` is ava
 If not authenticated:
 
 ```bash
-link-cli auth login --client-name "<your-agent-name>" --interval 5 --timeout 300
+link-cli auth login --client-name "<your-agent-name>"
 ```
 
 Replace `<your-agent-name>` with the name of your agent or application (for example, `"Personal Assistant"`, `"Shopping Bot"`). This name appears in the user's Link app when they approve the connection. Use a clear, unique, identifiable name.
 
-With `--interval 5 --timeout 300`, the command yields the verification code immediately (present it to the user right away), then polls inline until authenticated or timed out. No separate `auth status` call is needed.
+The response includes a `_next` command — run it to poll until authenticated. If your environment cannot relay the verification code while a separate polling command blocks I/O, use inline polling instead: `auth login --client-name "<name>" --interval 5 --timeout 300`. This yields the code immediately then polls in the same command.
 
 DO NOT PROCEED until the user is authenticated with Link.
 
