@@ -1,4 +1,4 @@
-import type { ISpendRequestResource } from '@stripe/link-sdk';
+import type { ISpendRequestResource, IWebBotAuthResource } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import { Credential, Method } from 'mppx';
@@ -74,6 +74,7 @@ export async function runMppPay(
   data: string | undefined,
   headers: string[] | undefined,
   repository: ISpendRequestResource,
+  webBotAuth: IWebBotAuthResource,
 ): Promise<PayResult> {
   // 1. Retrieve the approved spend request with SPT
   const spendRequest = await repository.getSpendRequest(spendRequestId, {
@@ -99,9 +100,10 @@ export async function runMppPay(
   }
   const spt = spendRequest.shared_payment_token.id;
 
-  // 2. Determine method
+  // 2. Determine method and build headers with Web Bot Auth signatures
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
-  const requestHeaders = buildHeaders(data, headers);
+  const sigHeaders = await webBotAuth.getHeaders(url);
+  const requestHeaders = { ...buildHeaders(data, headers), ...sigHeaders };
 
   // 3. Make the initial request
   const initialResponse = await fetch(url, {
@@ -110,8 +112,15 @@ export async function runMppPay(
     headers: requestHeaders,
   });
 
-  // 4. If not 402, return as-is
+  // 4. If not 402, check for bot-block and return
   if (initialResponse.status !== 402) {
+    const contentType = initialResponse.headers.get('content-type') ?? '';
+    if (initialResponse.status === 403 && contentType.includes('text/html')) {
+      throw new Error(
+        'BOT_BLOCKED: Request blocked by bot detection (received HTML instead of merchant response). ' +
+          'Web Bot Auth signatures may not be registered with Cloudflare yet.',
+      );
+    }
     return readPayResult(initialResponse);
   }
 
@@ -119,7 +128,7 @@ export async function runMppPay(
   const authHeader =
     await createStripePaymentClient(spt).createCredential(initialResponse);
 
-  // 7. Retry with Authorization header
+  // 6. Retry with Authorization header (sigHeaders are reused from cache — same domain)
   const retryResponse = await fetch(url, {
     method: httpMethod,
     body: data,
@@ -141,6 +150,7 @@ export function MppPay({
   data,
   headers,
   repository,
+  webBotAuth,
   onComplete,
 }: {
   url: string;
@@ -149,6 +159,7 @@ export function MppPay({
   data?: string;
   headers?: string[];
   repository: ISpendRequestResource;
+  webBotAuth: IWebBotAuthResource;
   onComplete: (result: PayResult | null) => void;
 }) {
   const [step, setStep] = useState<Step>('retrieving');
@@ -183,7 +194,8 @@ export function MppPay({
 
         const spt = spendRequest.shared_payment_token.id;
         const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
-        const requestHeaders = buildHeaders(data, headers);
+        const sigHeaders = await webBotAuth.getHeaders(url);
+        const requestHeaders = { ...buildHeaders(data, headers), ...sigHeaders };
 
         setStep('probing');
         const initialResponse = await fetch(url, {
@@ -193,6 +205,13 @@ export function MppPay({
         });
 
         if (initialResponse.status !== 402) {
+          const contentType = initialResponse.headers.get('content-type') ?? '';
+          if (initialResponse.status === 403 && contentType.includes('text/html')) {
+            throw new Error(
+              'BOT_BLOCKED: Request blocked by bot detection (received HTML instead of merchant response). ' +
+                'Web Bot Auth signatures may not be registered with Cloudflare yet.',
+            );
+          }
           const payResult = await readPayResult(initialResponse);
           setResult(payResult);
           setStep('done');
@@ -225,7 +244,7 @@ export function MppPay({
         onComplete(null);
       }
     })();
-  }, [url, spendRequestId, method, data, headers, repository, onComplete]);
+  }, [url, spendRequestId, method, data, headers, repository, webBotAuth, onComplete]);
 
   const stepLabels: Record<Step, string> = {
     retrieving: 'Retrieving spend request',

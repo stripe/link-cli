@@ -2,6 +2,7 @@ import type {
   AuthStorage,
   IPaymentMethodsResource,
   ISpendRequestResource,
+  IWebBotAuthResource,
 } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import React from 'react';
@@ -24,6 +25,7 @@ export function createDemoCli(
   authRepo: IAuthResource,
   spendRequestRepo: ISpendRequestResource,
   createPaymentMethodsResource: () => IPaymentMethodsResource,
+  webBotAuth: IWebBotAuthResource,
   authStorage?: AuthStorage,
 ) {
   return Cli.create('demo', {
@@ -46,6 +48,7 @@ export function createDemoCli(
           authRepo={authRepo}
           spendRequestRepo={spendRequestRepo}
           paymentMethodsResource={paymentMethodsResource}
+          webBotAuth={webBotAuth}
           authStorage={authStorage}
           onlyCard={c.options.onlyCard}
           onlySpt={c.options.onlySpt}

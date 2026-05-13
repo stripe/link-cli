@@ -132,6 +132,34 @@ link-cli mpp decode --challenge '<raw WWW-Authenticate header>'
 
 This validates the Stripe challenge, decodes the `request` payload, and returns both the extracted `network_id` and the decoded request JSON. Pass the full header exactly as received, even if it also contains non-Stripe or multiple `Payment` challenges.
 
+### Browsing merchant sites (bot detection)
+
+Before browsing merchant sites protected by Cloudflare or other bot detection, get Web Bot Auth signature headers so your requests are recognized as an authenticated Link agent:
+
+```bash
+link-cli web-bot-auth sign --url "https://merchant.com/products"
+```
+
+Output includes `Signature`, `Signature-Input`, and `Signature-Agent`. Attach all three to your outbound requests using your browser automation tool:
+
+```js
+// Playwright
+await page.setExtraHTTPHeaders({
+  'Signature': '<value from sign>',
+  'Signature-Input': '<value from sign>',
+  'Signature-Agent': '<value from sign>',
+});
+
+// Or via CDP (Chrome DevTools Protocol)
+await cdp.send('Network.setExtraHTTPHeaders', { headers: { ... } });
+```
+
+These headers are valid for ~5 minutes on that exact host. Reuse them for all requests within that window. Call `web-bot-auth sign` again when:
+- The `expires_at` timestamp has passed
+- You visit a different host or subdomain (e.g. `api.merchant.com` requires a separate signature from `www.merchant.com`)
+
+If you are using `mpp pay` (direct HTTP, not browser), signing is handled automatically.
+
 ### Step 3: Get payment methods and potentially shipping addresses
 
 Use the default payment method, unless the user explicitly asks to select a different one.

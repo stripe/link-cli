@@ -86,3 +86,16 @@ export interface IShippingAddressResource {
 export interface IUserInfoResource {
   retrieve(): Promise<UserInfo>;
 }
+
+export interface SignatureHeaders {
+  signature: string;
+  signature_input: string;
+  signature_agent: string;
+  authority: string;
+  expires_at: number;
+}
+
+export interface IWebBotAuthResource {
+  sign(url: string): Promise<SignatureHeaders>;
+  getHeaders(url: string): Promise<Record<string, string>>;
+}

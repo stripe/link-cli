@@ -991,6 +991,23 @@ describe('production mode', () => {
       network_id: 'net_001',
     };
 
+    const WEB_BOT_AUTH_MOCK = {
+      identity_token: 'test_ait',
+      web_bot_auth: {
+        signature: 'sig1=:dGVzdA==:',
+        signature_input:
+          'sig1=("@authority");created=1000000;keyid="test_kid";alg="ed25519";expires=9999999999;tag="web-bot-auth"',
+        signature_agent:
+          'https://api.link.com/.well-known/http-message-signatures-directory',
+        authority: '127.0.0.1',
+        expires_at: 9999999999,
+      },
+    };
+
+    beforeEach(() => {
+      setResponseForUrl('/v1/agent_identity/credentials', 200, WEB_BOT_AUTH_MOCK);
+    });
+
     const WWW_AUTHENTICATE_STRIPE = [
       'Payment id="ch_001",',
       'realm="127.0.0.1",',

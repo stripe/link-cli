@@ -4,6 +4,7 @@ import { createAuthCli } from './commands/auth';
 import { createDemoCli } from './commands/demo';
 import { createMppCli } from './commands/mpp';
 import { createOnboardCli } from './commands/onboard';
+import { createWebBotAuthCli } from './commands/web-bot-auth';
 import { createPaymentMethodsCli } from './commands/payment-methods';
 import { createShippingAddressCli } from './commands/shipping-address';
 import { createSpendRequestCli } from './commands/spend-request';
@@ -44,6 +45,7 @@ const authStorage: AuthStorage = credentialFilePath
 const factory = new ResourceFactory({ verbose, defaultHeaders, authStorage });
 const authRepo = factory.createAuthResource();
 const spendRequestRepo = factory.createSpendRequestResource();
+const webBotAuthRepo = factory.createWebBotAuthResource();
 
 const cli = Cli.create('link-cli', {
   description:
@@ -84,12 +86,14 @@ cli.command(
 cli.command(
   createUserInfoCli(() => factory.createUserInfoResource(), authStorage),
 );
-cli.command(createMppCli(spendRequestRepo, authStorage));
+cli.command(createWebBotAuthCli(webBotAuthRepo, authStorage));
+cli.command(createMppCli(spendRequestRepo, webBotAuthRepo, authStorage));
 cli.command(
   createDemoCli(
     authRepo,
     spendRequestRepo,
     () => factory.createPaymentMethodsResource(),
+    webBotAuthRepo,
     authStorage,
   ),
 );
@@ -98,6 +102,7 @@ cli.command(
     authRepo,
     spendRequestRepo,
     () => factory.createPaymentMethodsResource(),
+    webBotAuthRepo,
     authStorage,
   ),
 );

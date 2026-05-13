@@ -1,4 +1,4 @@
-import type { AuthStorage, ISpendRequestResource } from '@stripe/link-sdk';
+import type { AuthStorage, ISpendRequestResource, IWebBotAuthResource } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import React from 'react';
 import { renderInteractive } from '../../utils/render-interactive';
@@ -10,6 +10,7 @@ import { decodeOptions, payOptions } from './schema';
 
 export function createMppCli(
   repository: ISpendRequestResource,
+  webBotAuth: IWebBotAuthResource,
   authStorage?: AuthStorage,
 ) {
   const cli = Cli.create('mpp', {
@@ -43,6 +44,7 @@ export function createMppCli(
             data={data}
             headers={headers}
             repository={repository}
+            webBotAuth={webBotAuth}
             onComplete={(result) => {
               capturedResult = result;
             }}
@@ -62,6 +64,7 @@ export function createMppCli(
         data,
         headers,
         repository,
+        webBotAuth,
       );
     },
   });
