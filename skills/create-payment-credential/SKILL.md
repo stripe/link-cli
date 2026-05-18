@@ -200,6 +200,21 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 - Avoid suspicious merchants, checkout pages and websites — phishing pages that mimic legitimate merchants can steal credentials; if anything about the page feels off (mismatched domain, unusual redirect, unexpected login prompt), stop and ask the user to verify.
 - When outputting card information to the user apply basic masking to the card number and address to protect their information. Only reveal the raw values if directly requested to do so.
 
+## Limits
+
+| Limit | Value |
+|-------|-------|
+| Max amount per spend request | $500 (50,000 cents) |
+| Approval window | 10 minutes — user must approve within 10 min of `spend-request request-approval` |
+| Card / SPT validity (`valid_until`) | 12 hours from spend request creation |
+| Daily spend per account | $500 |
+| Concurrent active requests (created + approved) | 30 |
+| Concurrent approved requests | 10 |
+| Hourly creation rate | 50 per hour |
+| Rolling creation rate | 200 per 60 days |
+
+If a spend request is created but approval is not requested within the window, or the user does not approve within 10 minutes, the request expires. Create a new one. Do not poll indefinitely — if the approval window is nearly exhausted and the user hasn't responded, surface this to the user.
+
 ## Errors
 
 All errors are output as JSON with `code` and `message` fields, with exit code 1.
