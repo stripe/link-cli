@@ -1,3 +1,4 @@
+import { LinkApiError, LinkSdkError } from '@/errors';
 import type { WebBotAuthBlock } from '@/types/index';
 import { WebBotAuthResource } from '@/resources/web-bot-auth';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -137,17 +138,17 @@ describe('WebBotAuthResource', () => {
     it('throws LinkApiError on HTTP error', async () => {
       mockFetchResponse(422, { error: 'Invalid URL' });
 
-      await expect(resource.getHeaders(validUrl)).rejects.toThrow(
-        'Failed to get web bot auth headers (422)',
-      );
+      const err = await resource.getHeaders(validUrl).catch((e) => e);
+      expect(err).toBeInstanceOf(LinkApiError);
+      expect(err.message).toMatch('Failed to get web bot auth headers (422)');
     });
 
-    it('throws when response is missing web_bot_auth block', async () => {
+    it('throws LinkSdkError when response is missing web_bot_auth block', async () => {
       mockFetchResponse(200, { identity_token: 'tok_test123' });
 
-      await expect(resource.getHeaders(validUrl)).rejects.toThrow(
-        'Credentials response missing web_bot_auth block',
-      );
+      const err = await resource.getHeaders(validUrl).catch((e) => e);
+      expect(err).toBeInstanceOf(LinkSdkError);
+      expect(err.message).toMatch('Credentials response missing web_bot_auth block');
     });
 
     it('throws when access token is unavailable', async () => {
@@ -158,10 +159,10 @@ describe('WebBotAuthResource', () => {
       );
     });
 
-    it('throws on invalid URL', async () => {
-      await expect(resource.getHeaders('not-a-url')).rejects.toThrow(
-        'Invalid URL',
-      );
+    it('throws LinkSdkError on invalid URL', async () => {
+      const err = await resource.getHeaders('not-a-url').catch((e) => e);
+      expect(err).toBeInstanceOf(LinkSdkError);
+      expect(err.message).toMatch('Invalid URL');
     });
   });
 });

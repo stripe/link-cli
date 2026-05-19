@@ -3,7 +3,7 @@ import {
   requireFetchImplementation,
   resolveLinkSdkConfig,
 } from '@/config';
-import { LinkApiError, LinkTransportError } from '@/errors';
+import { LinkApiError, LinkSdkError, LinkTransportError } from '@/errors';
 import type {
   AccessTokenProvider,
   IWebBotAuthResource,
@@ -24,6 +24,9 @@ interface CacheEntry {
 
 const EXPIRY_BUFFER_MS = 30_000;
 
+// TODO: rawFetch/apiFetch is duplicated across all SDK resources. Extract into
+// a shared ApiClient utility before adding more resources. Each copy has already
+// diverged slightly (e.g. body support), making bugs harder to fix consistently.
 export class WebBotAuthResource implements IWebBotAuthResource {
   private readonly verbose: boolean;
   private readonly getAccessToken: AccessTokenProvider;
@@ -111,12 +114,29 @@ export class WebBotAuthResource implements IWebBotAuthResource {
     return res;
   }
 
+  /**
+   * Returns Web Bot Auth signature headers for the given URL's authority.
+   *
+   * Pass the full merchant URL (e.g. `https://merchant.com/checkout`). The
+   * authority (hostname) is extracted and used as the cache key — repeated
+   * calls for the same domain within the 10-minute signature window are served
+   * from cache without a network round-trip.
+   *
+   * Attach the returned `signature` and `signature_input` values as the
+   * `Signature` and `Signature-Input` HTTP headers on outbound requests to
+   * the merchant site.
+   *
+   * @throws {LinkSdkError} if `url` is not a valid URL
+   * @throws {LinkSdkError} if the credentials response is missing the web_bot_auth block
+   * @throws {LinkApiError} if the credentials endpoint returns a non-2xx status
+   * @throws {LinkTransportError} if the network request fails
+   */
   async getHeaders(url: string): Promise<WebBotAuthBlock> {
     let authority: string;
     try {
       authority = new URL(url).hostname;
     } catch {
-      throw new Error(`Invalid URL: ${url}`);
+      throw new LinkSdkError(`Invalid URL: ${url}`);
     }
 
     const cached = this.cache.get(authority);
@@ -146,11 +166,9 @@ export class WebBotAuthResource implements IWebBotAuthResource {
     const body = data as Record<string, unknown> | null;
     const webBotAuth = body?.web_bot_auth as WebBotAuthBlock | undefined;
     if (!webBotAuth) {
-      throw new LinkApiError('Credentials response missing web_bot_auth block', {
-        status,
-        rawBody,
-        details: data,
-      });
+      throw new LinkSdkError(
+        `Credentials response missing web_bot_auth block (status ${status})`,
+      );
     }
 
     this.cache.set(authority, {
