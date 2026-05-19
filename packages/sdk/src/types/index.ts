@@ -146,3 +146,11 @@ export interface ShippingAddressRecord {
   nickname: string | null;
   address: ShippingAddress | null;
 }
+
+export interface WebBotAuthBlock {
+  signature: string;
+  signature_input: string;
+  signature_agent: string;
+  authority: string;
+  expires_at: string;
+}
