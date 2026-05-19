@@ -1,6 +1,6 @@
 import { LinkApiError, LinkSdkError } from '@/errors';
-import type { WebBotAuthBlock } from '@/types/index';
 import { WebBotAuthResource } from '@/resources/web-bot-auth';
+import type { WebBotAuthBlock } from '@/types/index';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockFetch = vi.fn();
@@ -148,7 +148,9 @@ describe('WebBotAuthResource', () => {
 
       const err = await resource.getHeaders(validUrl).catch((e) => e);
       expect(err).toBeInstanceOf(LinkSdkError);
-      expect(err.message).toMatch('Credentials response missing web_bot_auth block');
+      expect(err.message).toMatch(
+        'Credentials response missing web_bot_auth block',
+      );
     });
 
     it('throws when access token is unavailable', async () => {
