@@ -9,6 +9,7 @@ import type {
   SpendRequest,
   Total,
   UserInfo,
+  WebBotAuthBlock,
 } from '@/types/index';
 
 export interface IAuthResource {
@@ -85,4 +86,8 @@ export interface IShippingAddressResource {
 
 export interface IUserInfoResource {
   retrieve(): Promise<UserInfo>;
+}
+
+export interface IWebBotAuthResource {
+  getHeaders(url: string): Promise<WebBotAuthBlock>;
 }

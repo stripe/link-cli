@@ -4,10 +4,12 @@ import {
   type IShippingAddressResource,
   type ISpendRequestResource,
   type IUserInfoResource,
+  type IWebBotAuthResource,
   PaymentMethodsResource,
   ShippingAddressResource,
   SpendRequestResource,
   UserInfoResource,
+  WebBotAuthResource,
 } from '@stripe/link-sdk';
 import { LinkAuthResource } from '../auth/auth-resource';
 import { createAccessTokenProvider } from '../auth/session';
@@ -67,6 +69,7 @@ export class ResourceFactory {
   private paymentMethodsResource?: IPaymentMethodsResource;
   private shippingAddressResource?: IShippingAddressResource;
   private userInfoResource?: IUserInfoResource;
+  private webBotAuthResource?: IWebBotAuthResource;
 
   constructor(options: ResourceFactoryOptions = {}) {
     this.verbose = options.verbose ?? false;
@@ -169,5 +172,22 @@ export class ResourceFactory {
     );
 
     return this.userInfoResource;
+  }
+
+  createWebBotAuthResource(): IWebBotAuthResource {
+    if (this.webBotAuthResource) {
+      return this.webBotAuthResource;
+    }
+
+    const getAccessToken = this.createSdkAccessTokenProvider();
+    this.webBotAuthResource = sanitizeResource(
+      new WebBotAuthResource({
+        verbose: this.verbose,
+        defaultHeaders: this.defaultHeaders,
+        getAccessToken,
+      }),
+    );
+
+    return this.webBotAuthResource;
   }
 }
