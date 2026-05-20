@@ -9,6 +9,7 @@ import { Login } from './login';
 import { Logout } from './logout';
 import { loginOptions, statusOptions } from './schema';
 import { AuthStatus } from './status';
+import { resolveAuthInfo } from './utils';
 
 export function createAuthCli(
   authResource: IAuthResource,
@@ -129,24 +130,21 @@ export function createAuthCli(
             onComplete={() => {}}
           />,
           () => {
-            if (envAccessToken) {
+            const info = resolveAuthInfo(envAccessToken, storage);
+            if (info.authenticated) {
               return {
-                authenticated: true,
-                access_token: `${envAccessToken.substring(0, 20)}...`,
-                token_type: 'Bearer',
+                authenticated: true as const,
+                access_token: info.tokenPreview,
+                token_type: info.tokenType,
+                ...(info.source === 'storage' && {
+                  credentials_path: info.credentialsPath,
+                }),
                 ...(update && { update }),
               };
             }
-            const auth = storage.getAuth();
             return {
-              authenticated: !!auth,
-              ...(auth
-                ? {
-                    access_token: `${auth.access_token.substring(0, 20)}...`,
-                    token_type: auth.token_type,
-                  }
-                : {}),
-              credentials_path: storage.getPath(),
+              authenticated: false as const,
+              credentials_path: info.credentialsPath,
               ...(update && { update }),
             };
           },
