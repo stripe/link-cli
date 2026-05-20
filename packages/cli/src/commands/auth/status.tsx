@@ -6,11 +6,13 @@ import { DISPLAY_DELAY_MS } from '../../utils/constants';
 
 interface AuthStatusProps {
   authStorage?: AuthStorage;
+  envAccessToken?: string;
   onComplete: () => void;
 }
 
 export const AuthStatus: React.FC<AuthStatusProps> = ({
   authStorage = defaultStorage,
+  envAccessToken,
   onComplete,
 }) => {
   const storage = authStorage;
@@ -19,19 +21,27 @@ export const AuthStatus: React.FC<AuthStatusProps> = ({
   const [tokenPreview, setTokenPreview] = useState('');
   const [tokenType, setTokenType] = useState('');
   const [credentialsPath, setCredentialsPath] = useState('');
+  const [fromEnv, setFromEnv] = useState(false);
 
   useEffect(() => {
-    const auth = storage.getAuth();
-    const credentialsPath = storage.getPath();
-    if (auth) {
+    if (envAccessToken) {
       setAuthenticated(true);
-      setTokenPreview(`${auth.access_token.substring(0, 20)}...`);
-      setTokenType(auth.token_type);
+      setTokenPreview(`${envAccessToken.substring(0, 20)}...`);
+      setTokenType('Bearer');
+      setFromEnv(true);
+    } else {
+      const auth = storage.getAuth();
+      const credentialsPath = storage.getPath();
+      if (auth) {
+        setAuthenticated(true);
+        setTokenPreview(`${auth.access_token.substring(0, 20)}...`);
+        setTokenType(auth.token_type);
+      }
+      setCredentialsPath(credentialsPath);
     }
-    setCredentialsPath(credentialsPath);
     setChecked(true);
     setTimeout(onComplete, DISPLAY_DELAY_MS);
-  }, [onComplete, storage]);
+  }, [onComplete, storage, envAccessToken]);
 
   if (!checked) {
     return null;
@@ -48,9 +58,15 @@ export const AuthStatus: React.FC<AuthStatusProps> = ({
           <Text>
             Token type: <Text bold>{tokenType}</Text>
           </Text>
-          <Text>
-            Credentials: <Text bold>{credentialsPath}</Text>
-          </Text>
+          {fromEnv ? (
+            <Text>
+              Source: <Text bold>LINK_ACCESS_TOKEN</Text>
+            </Text>
+          ) : (
+            <Text>
+              Credentials: <Text bold>{credentialsPath}</Text>
+            </Text>
+          )}
         </Box>
       </Box>
     );

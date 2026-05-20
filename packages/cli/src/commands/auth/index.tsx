@@ -14,6 +14,7 @@ export function createAuthCli(
   authResource: IAuthResource,
   getUpdateInfo?: UpdateInfoProvider,
   authStorage?: AuthStorage,
+  envAccessToken?: string,
 ) {
   const storage = authStorage ?? defaultStorage;
   const cli = Cli.create('auth', {
@@ -122,8 +123,20 @@ export function createAuthCli(
 
       if (!c.agent && !c.formatExplicit) {
         return renderInteractive(
-          <AuthStatus authStorage={storage} onComplete={() => {}} />,
+          <AuthStatus
+            authStorage={storage}
+            envAccessToken={envAccessToken}
+            onComplete={() => {}}
+          />,
           () => {
+            if (envAccessToken) {
+              return {
+                authenticated: true,
+                access_token: `${envAccessToken.substring(0, 20)}...`,
+                token_type: 'Bearer',
+                ...(update && { update }),
+              };
+            }
             const auth = storage.getAuth();
             return {
               authenticated: !!auth,
@@ -138,6 +151,16 @@ export function createAuthCli(
             };
           },
         );
+      }
+
+      if (envAccessToken) {
+        yield {
+          authenticated: true as const,
+          access_token: `${envAccessToken.substring(0, 20)}...`,
+          token_type: 'Bearer',
+          ...(update && { update }),
+        };
+        return;
       }
 
       for await (const result of pollUntil({
