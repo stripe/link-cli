@@ -117,6 +117,9 @@ JSON output mode (`--format json`) is **not** affected — `JSON.stringify` enco
 | Variable | Effect |
 |----------|--------|
 | `LINK_AUTH_FILE` | Same as `--auth` — override the auth credential file path (flag takes precedence) |
+| `LINK_ACCESS_TOKEN` | Use this access token directly, bypassing auth storage |
+| `LINK_REFRESH_TOKEN` | Refresh token to use when `LINK_ACCESS_TOKEN` is expired |
+| `LINK_NO_REFRESH` | When set, never auto-refresh the access token — error instead |
 | `LINK_API_BASE_URL` | Override API base URL |
 | `LINK_AUTH_BASE_URL` | Override auth base URL |
 | `LINK_HTTP_PROXY` | Route all SDK requests through an HTTP proxy (requires `undici` installed) |
