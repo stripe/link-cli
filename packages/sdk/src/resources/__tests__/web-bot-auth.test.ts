@@ -143,6 +143,17 @@ describe('WebBotAuthResource', () => {
       expect(err.message).toMatch('Failed to get web bot auth headers (422)');
     });
 
+    it('throws LinkSdkError when expires_at is malformed', async () => {
+      mockFetchResponse(200, {
+        ...credentialsResponse,
+        web_bot_auth: { ...webBotAuthBlock, expires_at: 'not-a-date' },
+      });
+
+      const err = await resource.getHeaders(validUrl).catch((e) => e);
+      expect(err).toBeInstanceOf(LinkSdkError);
+      expect(err.message).toMatch('invalid expires_at');
+    });
+
     it('throws LinkSdkError when response is missing web_bot_auth block', async () => {
       mockFetchResponse(200, { identity_token: 'tok_test123' });
 

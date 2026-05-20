@@ -39,6 +39,8 @@ export class WebBotAuthResource implements IWebBotAuthResource {
     const config = resolveLinkSdkConfig(options);
     this.verbose = config.verbose;
     this.getAccessToken = config.getAccessToken;
+    // defaultHeaders (if any) are baked into config.fetch by resolveLinkSdkConfig
+    // via createDefaultHeadersFetch — no separate field needed.
     this.fetchImpl = requireFetchImplementation(config);
     this.credentialsEndpoint = `${config.apiBaseUrl}/v1/agent_identity/credentials`;
     this.logger = config.logger;
@@ -171,10 +173,14 @@ export class WebBotAuthResource implements IWebBotAuthResource {
       );
     }
 
-    this.cache.set(authority, {
-      block: webBotAuth,
-      expiresAt: Date.parse(webBotAuth.expires_at),
-    });
+    const expiresAt = Date.parse(webBotAuth.expires_at);
+    if (Number.isNaN(expiresAt)) {
+      throw new LinkSdkError(
+        `Credentials response has invalid expires_at: ${webBotAuth.expires_at}`,
+      );
+    }
+
+    this.cache.set(authority, { block: webBotAuth, expiresAt });
 
     return webBotAuth;
   }
