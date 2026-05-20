@@ -18,6 +18,7 @@ import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth, requireAuthGuard } from '../../utils/require-auth';
 import { CancelSpendRequest } from './cancel';
 import { CreateSpendRequest } from './create';
+import { SpendRequestList } from './list';
 import { RequestApproval } from './request-approval';
 import { RetrieveSpendRequest } from './retrieve';
 import { createOptions, retrieveOptions, updateOptions } from './schema';
@@ -52,6 +53,22 @@ export function createSpendRequestCli(
 ) {
   const cli = Cli.create('spend-request', {
     description: 'Spend request management commands',
+  });
+
+  cli.command('list', {
+    description: 'List active spend requests (created, pending_approval, approved)',
+    outputPolicy: 'agent-only' as const,
+    middleware: [requireAuth(authStorage)],
+    async run(c) {
+      if (!c.agent && !c.formatExplicit) {
+        return renderInteractive(
+          <SpendRequestList repository={repository} onComplete={() => {}} />,
+          () => repository.listSpendRequests(),
+        );
+      }
+
+      return repository.listSpendRequests();
+    },
   });
 
   cli.command('create', {

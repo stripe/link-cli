@@ -599,6 +599,76 @@ describe('production mode', () => {
     });
   });
 
+  describe('spend-request list', () => {
+    it('sends GET to /spend_requests and returns the API response as JSON output', async () => {
+      const requests_list = [
+        { ...BASE_REQUEST, id: 'lsrq_001', status: 'approved' },
+        { ...BASE_REQUEST, id: 'lsrq_002', status: 'pending_approval' },
+        { ...BASE_REQUEST, id: 'lsrq_003', status: 'created' },
+      ];
+      setNextResponse(200, { data: requests_list });
+
+      const result = await runProdCli('spend-request', 'list', '--json');
+
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.method).toBe('GET');
+      expect(lastRequest.url).toBe('/spend_requests');
+      expect(lastRequest.headers.authorization).toBe(
+        'Bearer prod_test_access_token',
+      );
+      const output = parseJson(result.stdout) as unknown[];
+      expect(output).toHaveLength(3);
+      expect((output[0] as Record<string, unknown>).id).toBe('lsrq_001');
+      expect((output[0] as Record<string, unknown>).status).toBe('approved');
+    });
+
+    it('returns an empty array when there are no active spend requests', async () => {
+      setNextResponse(200, { data: [] });
+
+      const result = await runProdCli('spend-request', 'list', '--json');
+
+      expect(result.exitCode).toBe(0);
+      const output = parseJson(result.stdout) as unknown[];
+      expect(output).toHaveLength(0);
+    });
+
+    it('surfaces API errors for list', async () => {
+      setNextResponse(403, { error: { message: 'Forbidden' } });
+
+      const result = await runProdCli('spend-request', 'list', '--json');
+
+      expect(result.exitCode).toBe(1);
+      const output = result.stdout + result.stderr;
+      expect(output).toContain('Forbidden');
+    });
+
+    it('exits non-zero with auth error when not logged in', async () => {
+      storage.clearAll();
+
+      const result = await runProdCli('spend-request', 'list', '--json');
+
+      expect(result.exitCode).toBe(1);
+      const output = result.stdout + result.stderr;
+      expect(output).toMatch(/not logged in|auth|login|token/i);
+    });
+
+    it('unwraps data envelope so output is a flat array, not an object with a data key', async () => {
+      const requests_list = [
+        { ...BASE_REQUEST, id: 'lsrq_flat_001', status: 'approved' },
+      ];
+      setNextResponse(200, { data: requests_list });
+
+      const result = await runProdCli('spend-request', 'list', '--json');
+
+      expect(result.exitCode).toBe(0);
+      const output = parseJson(result.stdout);
+      expect(Array.isArray(output)).toBe(true);
+      const arr = output as Record<string, unknown>[];
+      expect(arr[0].id).toBe('lsrq_flat_001');
+      expect((output as Record<string, unknown>).data).toBeUndefined();
+    });
+  });
+
   describe('spend-request retrieve', () => {
     it('sends GET to /spend-requests/:id', async () => {
       const result = await runProdCli(

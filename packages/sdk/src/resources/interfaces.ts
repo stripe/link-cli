@@ -53,6 +53,8 @@ export interface UpdateSpendRequestParams {
 }
 
 export interface ISpendRequestResource {
+  list(): Promise<SpendRequest[]>;
+  listSpendRequests(): Promise<SpendRequest[]>;
   create(params: CreateSpendRequestParams): Promise<SpendRequest>;
   createSpendRequest(params: CreateSpendRequestParams): Promise<SpendRequest>;
   update(id: string, params: UpdateSpendRequestParams): Promise<SpendRequest>;
