@@ -86,4 +86,41 @@ describe('createAccessTokenProvider', () => {
     expect(token).toBe('at_refreshed');
     expect(repo.refreshToken).toHaveBeenCalledWith('rt_123');
   });
+
+  it('throws when noRefresh is true and token is expired', async () => {
+    const storage = new MemoryStorage({
+      access_token: 'at_old',
+      refresh_token: 'rt_123',
+      expires_in: 0,
+      token_type: 'Bearer',
+    });
+    storage.setAuth({
+      access_token: 'at_old',
+      refresh_token: 'rt_123',
+      expires_in: 0,
+      token_type: 'Bearer',
+      expires_at: Date.now() + 30_000,
+    });
+    const repo = createMockAuthRepo();
+    const provider = createAccessTokenProvider(repo, storage, { noRefresh: true });
+
+    await expect(provider()).rejects.toThrow(LinkAuthenticationError);
+    expect(repo.refreshToken).not.toHaveBeenCalled();
+  });
+
+  it('throws when noRefresh is true and forceRefresh is requested', async () => {
+    const storage = new MemoryStorage({
+      access_token: 'at_cached',
+      refresh_token: 'rt_123',
+      expires_in: 3600,
+      token_type: 'Bearer',
+    });
+    const repo = createMockAuthRepo();
+    const provider = createAccessTokenProvider(repo, storage, { noRefresh: true });
+
+    await expect(provider({ forceRefresh: true })).rejects.toThrow(
+      LinkAuthenticationError,
+    );
+    expect(repo.refreshToken).not.toHaveBeenCalled();
+  });
 });

@@ -11,6 +11,7 @@ const EXPIRY_BUFFER_MS = 60_000;
 export function createAccessTokenProvider(
   authResource: IAuthResource,
   authStorage: AuthStorage = storage,
+  options: { noRefresh?: boolean } = {},
 ): AccessTokenProvider {
   return async ({ forceRefresh } = {}) => {
     const auth = authStorage.getAuth();
@@ -26,6 +27,12 @@ export function createAccessTokenProvider(
 
     if (!forceRefresh && !isExpired) {
       return auth.access_token;
+    }
+
+    if (options.noRefresh) {
+      throw new LinkAuthenticationError(
+        'Access token expired. Re-authenticate with "link-cli auth login".',
+      );
     }
 
     const refreshed = await authResource.refreshToken(auth.refresh_token);
