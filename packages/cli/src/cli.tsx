@@ -8,6 +8,7 @@ import { createPaymentMethodsCli } from './commands/payment-methods';
 import { createShippingAddressCli } from './commands/shipping-address';
 import { createSpendRequestCli } from './commands/spend-request';
 import { createUserInfoCli } from './commands/user-info';
+import { createWebBotAuthCli } from './commands/web-bot-auth';
 import { ResourceFactory } from './utils/resource-factory';
 import {
   createAgentUpdateInfoProvider,
@@ -82,6 +83,9 @@ cli.command(
   createUserInfoCli(() => factory.createUserInfoResource(), authStorage),
 );
 cli.command(createMppCli(spendRequestRepo, authStorage));
+cli.command(
+  createWebBotAuthCli(() => factory.createWebBotAuthResource(), authStorage),
+);
 cli.command(
   createDemoCli(
     authRepo,
