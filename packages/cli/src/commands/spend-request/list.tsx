@@ -7,7 +7,7 @@ import { useAsyncAction } from '../../hooks/use-async-action';
 
 interface SpendRequestListProps {
   repository: ISpendRequestResource;
-  onComplete: (result: SpendRequest[]) => void;
+  onComplete: (result: SpendRequest[] | null) => void;
 }
 
 export const SpendRequestList: React.FC<SpendRequestListProps> = ({
