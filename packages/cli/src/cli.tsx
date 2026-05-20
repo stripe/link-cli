@@ -38,7 +38,18 @@ const authStorage: AuthStorage = credentialFilePath
   ? new Storage({ configPath: credentialFilePath })
   : storage;
 
-const factory = new ResourceFactory({ verbose, defaultHeaders, authStorage });
+const envAccessToken = process.env.LINK_ACCESS_TOKEN;
+const envRefreshToken = process.env.LINK_REFRESH_TOKEN;
+const noRefresh = Boolean(process.env.LINK_NO_REFRESH);
+
+const factory = new ResourceFactory({
+  verbose,
+  defaultHeaders,
+  authStorage,
+  envAccessToken,
+  envRefreshToken,
+  noRefresh,
+});
 const authRepo = factory.createAuthResource();
 const spendRequestRepo = factory.createSpendRequestResource();
 
