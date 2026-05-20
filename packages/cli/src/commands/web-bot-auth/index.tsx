@@ -1,4 +1,8 @@
-import type { AuthStorage, IWebBotAuthResource } from '@stripe/link-sdk';
+import type {
+  AuthStorage,
+  IWebBotAuthResource,
+  WebBotAuthBlock,
+} from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import React from 'react';
 import { renderInteractive } from '../../utils/render-interactive';
@@ -30,13 +34,20 @@ export function createWebBotAuthCli(
       const { url } = c.args;
 
       if (!c.agent && !c.formatExplicit) {
+        let capturedBlock: WebBotAuthBlock | null = null;
         return renderInteractive(
           <WebBotAuthSign
             resource={resource}
             url={url}
-            onComplete={() => {}}
+            onComplete={(result) => {
+              capturedBlock = result;
+            }}
           />,
-          () => resource.getHeaders(url),
+          () => {
+            if (!capturedBlock)
+              throw new Error('Component exited without producing a result');
+            return capturedBlock;
+          },
         );
       }
 

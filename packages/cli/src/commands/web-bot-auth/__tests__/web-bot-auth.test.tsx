@@ -46,6 +46,22 @@ describe('web-bot-auth', () => {
   });
 
   describe('WebBotAuthSign', () => {
+    it('renders loading spinner initially', () => {
+      const resource = {
+        getHeaders: vi.fn(() => new Promise(() => {})),
+      } as unknown as IWebBotAuthResource;
+
+      const { lastFrame } = render(
+        <WebBotAuthSign
+          resource={resource}
+          url="https://wine-merchant.com/checkout"
+          onComplete={() => {}}
+        />,
+      );
+
+      expect(lastFrame()).toContain('Getting Web Bot Auth headers');
+    });
+
     it('renders signature fields on success', async () => {
       const resource = {
         getHeaders: vi.fn(async () => webBotAuthBlock),
@@ -62,9 +78,32 @@ describe('web-bot-auth', () => {
       await vi.waitFor(() => {
         const frame = lastFrame();
         expect(frame).toContain('sig1=:stub_sig:');
+        expect(frame).toContain('sig1=("@authority"');
         expect(frame).toContain('wine-merchant.com');
         expect(frame).toContain('2099-12-31');
       });
+    });
+
+    it('calls onComplete with the result block', async () => {
+      const resource = {
+        getHeaders: vi.fn(async () => webBotAuthBlock),
+      } as unknown as IWebBotAuthResource;
+      const onComplete = vi.fn();
+
+      render(
+        <WebBotAuthSign
+          resource={resource}
+          url="https://wine-merchant.com/checkout"
+          onComplete={onComplete}
+        />,
+      );
+
+      await vi.waitFor(
+        () => {
+          expect(onComplete).toHaveBeenCalledWith(webBotAuthBlock);
+        },
+        { timeout: 3000 },
+      );
     });
 
     it('renders error message on failure', async () => {
