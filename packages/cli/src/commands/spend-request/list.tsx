@@ -14,7 +14,10 @@ export const SpendRequestList: React.FC<SpendRequestListProps> = ({
   repository,
   onComplete,
 }) => {
-  const action = useCallback(() => repository.listSpendRequests(), [repository]);
+  const action = useCallback(
+    () => repository.listSpendRequests(),
+    [repository],
+  );
   const { status, data: requests, error } = useAsyncAction(action, onComplete);
 
   if (status === 'loading') {

@@ -56,7 +56,8 @@ export function createSpendRequestCli(
   });
 
   cli.command('list', {
-    description: 'List active spend requests (created, pending_approval, approved)',
+    description:
+      'List active spend requests (created, pending_approval, approved)',
     outputPolicy: 'agent-only' as const,
     middleware: [requireAuth(authStorage)],
     async run(c) {
