@@ -2,6 +2,7 @@ import type {
   AuthStorage,
   IPaymentMethodsResource,
   ISpendRequestResource,
+  IWebBotAuthResource,
 } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import React from 'react';
@@ -13,6 +14,7 @@ export function createOnboardCli(
   authRepo: IAuthResource,
   spendRequestRepo: ISpendRequestResource,
   createPaymentMethodsResource: () => IPaymentMethodsResource,
+  createWebBotAuthResource: () => IWebBotAuthResource,
   authStorage?: AuthStorage,
 ) {
   return Cli.create('onboard', {
@@ -28,12 +30,14 @@ export function createOnboardCli(
       }
 
       const paymentMethodsResource = createPaymentMethodsResource();
+      const webBotAuthResource = createWebBotAuthResource();
 
       return renderInteractive(
         <OnboardRunner
           authRepo={authRepo}
           spendRequestRepo={spendRequestRepo}
           paymentMethodsResource={paymentMethodsResource}
+          webBotAuth={webBotAuthResource}
           authStorage={authStorage}
           onComplete={() => {}}
         />,

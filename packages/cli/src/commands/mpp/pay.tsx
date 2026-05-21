@@ -1,4 +1,7 @@
-import type { ISpendRequestResource } from '@stripe/link-sdk';
+import type {
+  ISpendRequestResource,
+  IWebBotAuthResource,
+} from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import { Credential, Method } from 'mppx';
@@ -74,6 +77,7 @@ export async function runMppPay(
   data: string | undefined,
   headers: string[] | undefined,
   repository: ISpendRequestResource,
+  webBotAuth: IWebBotAuthResource,
 ): Promise<PayResult> {
   // 1. Retrieve the approved spend request with SPT
   const spendRequest = await repository.getSpendRequest(spendRequestId, {
@@ -103,28 +107,45 @@ export async function runMppPay(
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
   const requestHeaders = buildHeaders(data, headers);
 
-  // 3. Make the initial request
+  // 3. Make the initial probe
   const initialResponse = await fetch(url, {
     method: httpMethod,
     body: data,
     headers: requestHeaders,
   });
 
-  // 4. If not 402, return as-is
-  if (initialResponse.status !== 402) {
-    return readPayResult(initialResponse);
+  // 4. If 403, fetch Web Bot Auth headers and retry the probe
+  let probeResponse = initialResponse;
+  let botAuthHeaders: Record<string, string> = {};
+  if (initialResponse.status === 403) {
+    const block = await webBotAuth.getHeaders(url);
+    botAuthHeaders = {
+      Signature: block.signature,
+      'Signature-Input': block.signature_input,
+    };
+    probeResponse = await fetch(url, {
+      method: httpMethod,
+      body: data,
+      headers: { ...requestHeaders, ...botAuthHeaders },
+    });
   }
 
-  // 5. Select the Stripe challenge and build the payment credential
-  const authHeader =
-    await createStripePaymentClient(spt).createCredential(initialResponse);
+  // 5. If not 402, return as-is
+  if (probeResponse.status !== 402) {
+    return readPayResult(probeResponse);
+  }
 
-  // 7. Retry with Authorization header
+  // 6. Sign the 402 challenge with SPT
+  const authHeader =
+    await createStripePaymentClient(spt).createCredential(probeResponse);
+
+  // 7. Retry with SPT credential (and bot auth headers if applicable)
   const retryResponse = await fetch(url, {
     method: httpMethod,
     body: data,
     headers: {
       ...requestHeaders,
+      ...botAuthHeaders,
       Authorization: authHeader,
     },
   });
@@ -132,7 +153,13 @@ export async function runMppPay(
   return readPayResult(retryResponse);
 }
 
-type Step = 'retrieving' | 'probing' | 'signing' | 'submitting' | 'done';
+type Step =
+  | 'retrieving'
+  | 'probing'
+  | 'bypassing'
+  | 'signing'
+  | 'submitting'
+  | 'done';
 
 export function MppPay({
   url,
@@ -141,6 +168,7 @@ export function MppPay({
   data,
   headers,
   repository,
+  webBotAuth,
   onComplete,
 }: {
   url: string;
@@ -149,6 +177,7 @@ export function MppPay({
   data?: string;
   headers?: string[];
   repository: ISpendRequestResource;
+  webBotAuth: IWebBotAuthResource;
   onComplete: (result: PayResult | null) => void;
 }) {
   const [step, setStep] = useState<Step>('retrieving');
@@ -192,8 +221,24 @@ export function MppPay({
           headers: requestHeaders,
         });
 
-        if (initialResponse.status !== 402) {
-          const payResult = await readPayResult(initialResponse);
+        let probeResponse = initialResponse;
+        let botAuthHeaders: Record<string, string> = {};
+        if (initialResponse.status === 403) {
+          setStep('bypassing');
+          const block = await webBotAuth.getHeaders(url);
+          botAuthHeaders = {
+            Signature: block.signature,
+            'Signature-Input': block.signature_input,
+          };
+          probeResponse = await fetch(url, {
+            method: httpMethod,
+            body: data,
+            headers: { ...requestHeaders, ...botAuthHeaders },
+          });
+        }
+
+        if (probeResponse.status !== 402) {
+          const payResult = await readPayResult(probeResponse);
           setResult(payResult);
           setStep('done');
           onComplete(payResult);
@@ -202,9 +247,7 @@ export function MppPay({
 
         setStep('signing');
         const authHeader =
-          await createStripePaymentClient(spt).createCredential(
-            initialResponse,
-          );
+          await createStripePaymentClient(spt).createCredential(probeResponse);
 
         setStep('submitting');
         const retryResponse = await fetch(url, {
@@ -212,6 +255,7 @@ export function MppPay({
           body: data,
           headers: {
             ...requestHeaders,
+            ...botAuthHeaders,
             Authorization: authHeader,
           },
         });
@@ -225,11 +269,21 @@ export function MppPay({
         onComplete(null);
       }
     })();
-  }, [url, spendRequestId, method, data, headers, repository, onComplete]);
+  }, [
+    url,
+    spendRequestId,
+    method,
+    data,
+    headers,
+    repository,
+    webBotAuth,
+    onComplete,
+  ]);
 
   const stepLabels: Record<Step, string> = {
     retrieving: 'Retrieving spend request',
     probing: 'Probing URL',
+    bypassing: 'Bypassing bot protection',
     signing: 'Signing credential',
     submitting: 'Submitting payment',
     done: 'Done',

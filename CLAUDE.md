@@ -75,7 +75,10 @@ Key input field notes:
 
 ### mpp pay
 
-- `mpp pay <url> --spend-request-id <id> [--method <method>] [--data <body>] [--header <header>]...` — completes the 402 flow: retrieves the spend request with `include: ['shared_payment_token']`, probes the URL, parses the `www-authenticate` stripe challenge, builds the `Authorization: Payment` credential, and retries. `--header` is repeatable and uses `"Name: Value"` format. `Content-Type: application/json` is auto-applied when `--data` is provided; user-provided headers take precedence.
+- `mpp pay <url> --spend-request-id <id> [--method <method>] [--data <body>] [--header <header>]...` — completes the full payment flow, handling both bot-blocking and payment challenges automatically:
+  1. Probes the URL. If 403 (bot-blocked), fetches Web Bot Auth headers via `WebBotAuthResource.getHeaders()` and retries the probe with `Signature` and `Signature-Input` headers attached.
+  2. If the probe (or retried probe) returns 402, parses the `www-authenticate` stripe challenge, builds the `Authorization: Payment` credential, and retries with both the credential and any bot auth headers.
+- `--header` is repeatable and uses `"Name: Value"` format. `Content-Type: application/json` is auto-applied when `--data` is provided; user-provided headers take precedence.
 - Requires an approved spend request with `credential_type: "shared_payment_token"`. The SPT is one-time-use — a failed payment requires a new spend request.
 - Implemented in `packages/cli/src/commands/mpp/` — pay.tsx (logic), schema.ts (input/output schema), index.tsx (incur registration).
 
