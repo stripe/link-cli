@@ -935,7 +935,7 @@ describe('production mode', () => {
       expect(output[1].token_type).toBe('Bearer');
     });
 
-    it('with --interval, exits with POLLING_TIMEOUT when approval never comes', async () => {
+    it('with --interval, yields unauthenticated status on timeout (exit 0)', async () => {
       storage.clearAuth();
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
       setResponseForUrl('/device/token', 400, {
@@ -954,12 +954,13 @@ describe('production mode', () => {
         '--json',
       );
 
-      expect(result.exitCode).toBe(1);
-      const output = result.stdout + result.stderr;
-      expect(output).toContain('POLLING_TIMEOUT');
+      expect(result.exitCode).toBe(0);
+      const output = parseJson(result.stdout) as Record<string, unknown>[];
+      const last = output[output.length - 1];
+      expect(last.authenticated).toBe(false);
     });
 
-    it('with --interval, exits with AUTH_FAILED on access_denied', async () => {
+    it('with --interval, exits with error on access_denied', async () => {
       storage.clearAuth();
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
       setResponseForUrl('/device/token', 400, { error: 'access_denied' });
@@ -978,7 +979,7 @@ describe('production mode', () => {
 
       expect(result.exitCode).toBe(1);
       const output = result.stdout + result.stderr;
-      expect(output).toContain('AUTH_FAILED');
+      expect(output).toContain('denied');
     });
   });
 

@@ -82,10 +82,12 @@ export class ResourceFactory {
       return this.authResource;
     }
 
-    this.authResource = new LinkAuthResource({
-      verbose: this.verbose,
-      defaultHeaders: this.defaultHeaders,
-    });
+    this.authResource = sanitizeResource(
+      new LinkAuthResource({
+        verbose: this.verbose,
+        defaultHeaders: this.defaultHeaders,
+      }),
+    );
 
     return this.authResource;
   }

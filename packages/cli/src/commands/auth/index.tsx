@@ -4,11 +4,73 @@ import React from 'react';
 import type { IAuthResource } from '../../auth/types';
 import { pollUntil } from '../../utils/poll-until';
 import { renderInteractive } from '../../utils/render-interactive';
+import { sanitizeDeep } from '../../utils/sanitize-text';
 import type { UpdateInfoProvider } from '../../utils/update-info';
 import { Login } from './login';
 import { Logout } from './logout';
 import { loginOptions, statusOptions } from './schema';
 import { AuthStatus } from './status';
+
+interface PollAuthOptions {
+  interval: number;
+  maxAttempts: number;
+  timeout: number;
+}
+
+async function* pollAuthStatus(
+  authResource: IAuthResource,
+  storage: AuthStorage,
+  opts: PollAuthOptions,
+  update?: {
+    current_version: string;
+    latest_version: string;
+    update_command: string;
+  },
+) {
+  for await (const result of pollUntil({
+    fn: async () => {
+      const pending = storage.getPendingDeviceAuth();
+      if (pending && !storage.isAuthenticated()) {
+        const tokens = await authResource.pollDeviceAuth(pending.device_code);
+        if (tokens) {
+          storage.setAuth(tokens);
+          storage.clearPendingDeviceAuth();
+        }
+      }
+
+      const auth = storage.getAuth();
+      if (auth) {
+        return {
+          authenticated: true as const,
+          access_token: `${auth.access_token.substring(0, 20)}...`,
+          token_type: auth.token_type,
+          credentials_path: storage.getPath(),
+          ...(update && { update }),
+        };
+      }
+
+      const currentPending = storage.getPendingDeviceAuth();
+      return {
+        authenticated: false as const,
+        credentials_path: storage.getPath(),
+        ...(update && { update }),
+        ...(currentPending
+          ? {
+              pending: true,
+              verification_url: currentPending.verification_url,
+              phrase: currentPending.phrase,
+            }
+          : {}),
+      };
+    },
+    isTerminal: (status) => status.authenticated,
+    interval: opts.interval,
+    maxAttempts: opts.maxAttempts,
+    timeout: opts.timeout,
+  })) {
+    yield result.value;
+  }
+}
 
 export function createAuthCli(
   authResource: IAuthResource,
@@ -45,7 +107,6 @@ export function createAuthCli(
         );
       }
 
-      // Agent mode: initiate device auth, store pending state, yield code immediately.
       const authRequest = await authResource.initiateDeviceAuth(clientName);
       storage.setPendingDeviceAuth({
         device_code: authRequest.device_code,
@@ -56,11 +117,9 @@ export function createAuthCli(
       });
 
       const interval = c.options.interval;
-      const maxAttempts = c.options.maxAttempts;
 
       if (interval <= 0) {
-        // No polling requested: return code with _next hint (original behavior).
-        yield {
+        yield sanitizeDeep({
           verification_url: authRequest.verification_url_complete,
           phrase: authRequest.user_code,
           instruction:
@@ -70,77 +129,22 @@ export function createAuthCli(
             poll_interval_seconds: authRequest.interval,
             until: 'authenticated is true',
           },
-        };
+        });
         return;
       }
 
-      // Inline polling: emit code to stderr immediately (stdout is buffered
-      // until command exits), then poll using the shared pollUntil utility.
-      if (c.format === 'json') {
-        process.stderr.write(
-          `${JSON.stringify({ verification_url: authRequest.verification_url_complete, phrase: authRequest.user_code })}\n`,
-        );
-      } else {
-        process.stderr.write(
-          `\nVerification URL: ${authRequest.verification_url_complete}\nPhrase: ${authRequest.user_code}\n\nOpen the URL, log in to Link, and enter the phrase to approve.\nPolling for approval...\n\n`,
-        );
-      }
-
-      yield {
+      yield sanitizeDeep({
         verification_url: authRequest.verification_url_complete,
         phrase: authRequest.user_code,
         instruction:
           'Present the verification_url to the user and ask them to approve in the Link app. Polling has started automatically — no further action needed.',
-      };
+      });
 
-      try {
-        for await (const result of pollUntil({
-          fn: async () => {
-            const pending = storage.getPendingDeviceAuth();
-            if (!pending) {
-              throw new Error(
-                'Device authorization expired. Please run auth login again.',
-              );
-            }
-
-            const tokens = await authResource.pollDeviceAuth(
-              pending.device_code,
-            );
-            if (tokens) {
-              storage.setAuth(tokens);
-              storage.clearPendingDeviceAuth();
-              return {
-                authenticated: true as const,
-                token_type: tokens.token_type,
-              };
-            }
-            return { authenticated: false as const };
-          },
-          isTerminal: (status) => status.authenticated,
-          interval,
-          maxAttempts,
-          timeout: c.options.timeout,
-        })) {
-          if (result.terminal && result.value.authenticated) {
-            yield {
-              authenticated: true,
-              token_type: result.value.token_type,
-              credentials_path: storage.getPath(),
-            };
-            return;
-          }
-          if (result.terminal) {
-            return c.error({
-              code: 'POLLING_TIMEOUT',
-              message:
-                'Timed out waiting for user approval. The verification code may have expired — run auth login again to get a new one.',
-            });
-          }
-        }
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        return c.error({ code: 'AUTH_FAILED', message });
-      }
+      yield* pollAuthStatus(authResource, storage, {
+        interval,
+        maxAttempts: c.options.maxAttempts,
+        timeout: c.options.timeout,
+      });
     },
   });
 
@@ -215,52 +219,16 @@ export function createAuthCli(
         );
       }
 
-      for await (const result of pollUntil({
-        fn: async () => {
-          // If there's a pending device auth, try one poll to see if the user approved.
-          const pending = storage.getPendingDeviceAuth();
-          if (pending && !storage.isAuthenticated()) {
-            const tokens = await authResource.pollDeviceAuth(
-              pending.device_code,
-            );
-            if (tokens) {
-              storage.setAuth(tokens);
-              storage.clearPendingDeviceAuth();
-            }
-          }
-
-          const auth = storage.getAuth();
-          if (auth) {
-            return {
-              authenticated: true as const,
-              access_token: `${auth.access_token.substring(0, 20)}...`,
-              token_type: auth.token_type,
-              credentials_path: storage.getPath(),
-              ...(update && { update }),
-            };
-          }
-
-          const currentPending = storage.getPendingDeviceAuth();
-          return {
-            authenticated: false as const,
-            credentials_path: storage.getPath(),
-            ...(update && { update }),
-            ...(currentPending
-              ? {
-                  pending: true,
-                  verification_url: currentPending.verification_url,
-                  phrase: currentPending.phrase,
-                }
-              : {}),
-          };
+      yield* pollAuthStatus(
+        authResource,
+        storage,
+        {
+          interval,
+          maxAttempts,
+          timeout: opts.timeout,
         },
-        isTerminal: (status) => status.authenticated,
-        interval,
-        maxAttempts,
-        timeout: opts.timeout,
-      })) {
-        yield result.value;
-      }
+        update,
+      );
     },
   });
 
