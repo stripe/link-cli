@@ -70,6 +70,11 @@ function createStripePaymentClient(spt: string) {
   });
 }
 
+// NOTE: The multi-step payment flow (probe → WBA bypass → SPT sign → retry) is
+// implemented twice: once here for agent/format mode, and again inside the
+// MppPay component below for interactive mode. They must be kept in sync.
+// The right fix is to extract a shared flow that accepts progress callbacks,
+// but that refactor belongs in a separate PR.
 export async function runMppPay(
   url: string,
   spendRequestId: string,
@@ -128,6 +133,12 @@ export async function runMppPay(
       body: data,
       headers: { ...requestHeaders, ...botAuthHeaders },
     });
+    if (probeResponse.status === 403) {
+      throw new Error(
+        'Received 403 before and after Web Bot Auth retry. ' +
+          'The merchant is returning 403 for a reason unrelated to bot protection.',
+      );
+    }
   }
 
   // 5. If not 402, return as-is
@@ -235,6 +246,12 @@ export function MppPay({
             body: data,
             headers: { ...requestHeaders, ...botAuthHeaders },
           });
+          if (probeResponse.status === 403) {
+            throw new Error(
+              'Received 403 before and after Web Bot Auth retry. ' +
+                'The merchant is returning 403 for a reason unrelated to bot protection.',
+            );
+          }
         }
 
         if (probeResponse.status !== 402) {

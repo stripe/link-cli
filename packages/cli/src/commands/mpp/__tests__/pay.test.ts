@@ -183,6 +183,28 @@ describe('runMppPay', () => {
     expect(sptInit.headers.Authorization).toMatch(/^Payment /);
   });
 
+  it('throws when WBA retry still returns 403', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response('bot blocked', { status: 403 }))
+        .mockResolvedValueOnce(new Response('still blocked', { status: 403 })),
+    );
+
+    await expect(
+      runMppPay(
+        'https://merchant.com/checkout',
+        'sr_123',
+        undefined,
+        undefined,
+        undefined,
+        makeRepository(),
+        makeWebBotAuth(),
+      ),
+    ).rejects.toThrow('unrelated to bot protection');
+  });
+
   it('propagates error when webBotAuth.getHeaders throws', async () => {
     vi.stubGlobal(
       'fetch',
