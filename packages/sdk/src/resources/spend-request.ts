@@ -143,6 +143,28 @@ export class SpendRequestResource implements ISpendRequestResource {
     return res;
   }
 
+  list(): Promise<SpendRequest[]> {
+    return this.listSpendRequests();
+  }
+
+  async listSpendRequests(): Promise<SpendRequest[]> {
+    const { status, data, rawBody } = await this.apiFetch({
+      method: 'GET',
+      url: this.spendRequestsEndpoint,
+    });
+
+    if (status < 200 || status >= 300) {
+      throw new LinkApiError(
+        `Failed to list spend requests (${status}): ${extractApiError(data, rawBody)}`,
+        { status, rawBody, details: data },
+      );
+    }
+
+    const body = data as Record<string, unknown> | null;
+    const items = (body?.data as unknown[] | undefined) ?? [];
+    return items.map(normalizeSpendRequest);
+  }
+
   create(params: CreateSpendRequestParams): Promise<SpendRequest> {
     return this.createSpendRequest(params);
   }

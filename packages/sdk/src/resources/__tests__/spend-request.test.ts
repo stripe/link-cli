@@ -415,4 +415,59 @@ describe('SpendRequestResource', () => {
       );
     });
   });
+
+  describe('listSpendRequests', () => {
+    it('sends GET to correct endpoint with Bearer auth header', async () => {
+      mockFetchResponse(200, { data: [spendRequestResponse] });
+
+      await repo.listSpendRequests();
+
+      expect(mockFetch).toHaveBeenCalledOnce();
+      const [url, opts] = mockFetch.mock.calls[0];
+      expect(url).toBe('https://api.link.com/spend_requests');
+      expect(opts.method).toBe('GET');
+      expect(opts.headers.Authorization).toBe('Bearer test_token');
+      expect(opts.body).toBeUndefined();
+    });
+
+    it('returns array of SpendRequests unwrapped from data envelope', async () => {
+      const requests = [
+        { ...spendRequestResponse, id: 'si_001', status: 'approved' },
+        { ...spendRequestResponse, id: 'si_002', status: 'pending_approval' },
+        { ...spendRequestResponse, id: 'si_003', status: 'created' },
+      ];
+      mockFetchResponse(200, { data: requests });
+
+      const result = await repo.listSpendRequests();
+
+      expect(result).toHaveLength(3);
+      expect(result[0].id).toBe('si_001');
+      expect(result[1].id).toBe('si_002');
+      expect(result[2].id).toBe('si_003');
+    });
+
+    it('returns empty array when no active spend requests', async () => {
+      mockFetchResponse(200, { data: [] });
+
+      const result = await repo.listSpendRequests();
+
+      expect(result).toEqual([]);
+    });
+
+    it('throws on HTTP error with message from body', async () => {
+      mockFetchResponse(403, { error: { message: 'Forbidden' } });
+
+      await expect(repo.listSpendRequests()).rejects.toThrow(
+        'Failed to list spend requests (403): Forbidden',
+      );
+    });
+
+    it('throws when no access token is available', async () => {
+      getAccessToken.mockRejectedValueOnce(new Error('Missing access token'));
+
+      await expect(repo.listSpendRequests()).rejects.toThrow(
+        'Missing access token',
+      );
+    });
+  });
 });
