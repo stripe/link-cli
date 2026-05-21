@@ -173,11 +173,14 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
 
 ```bash
 link-cli auth login --client-name "Claude Code"   # identify the connecting agent
+link-cli auth login --client-name "Claude Code" --interval 5 --timeout 300  # login + poll in one call
 link-cli auth status                               # check auth status
 link-cli auth logout                               # disconnect
 ```
 
 When you provide `--client-name`, the Link app displays it when you approve the connection — for example, `Claude Code on my-macbook` instead of `link-cli on my-macbook`.
+
+With `--interval`, the login command yields the verification code immediately and then polls inline until authenticated or timed out — no separate `auth status` call needed. This is recommended for agents that cannot relay the code while a separate polling command blocks their I/O channel.
 
 `auth status` includes an `update` field when a newer version is available:
 

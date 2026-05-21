@@ -97,6 +97,8 @@ link-cli auth login --client-name "<your-agent-name>"
 
 Replace `<your-agent-name>` with the name of your agent or application (for example, `"Personal Assistant"`, `"Shopping Bot"`). This name appears in the user's Link app when they approve the connection. Use a clear, unique, identifiable name.
 
+The response includes a `_next` command — run it to poll until authenticated. If your environment cannot relay the verification code while a separate polling command blocks I/O, use inline polling instead: `auth login --client-name "<name>" --interval 5 --timeout 300`. This yields the code immediately then polls in the same command.
+
 DO NOT PROCEED until the user is authenticated with Link.
 
 Always check the current authentication status before starting a new login flow — the user might already be logged in.

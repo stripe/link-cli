@@ -4,11 +4,73 @@ import React from 'react';
 import type { IAuthResource } from '../../auth/types';
 import { pollUntil } from '../../utils/poll-until';
 import { renderInteractive } from '../../utils/render-interactive';
+import { sanitizeDeep } from '../../utils/sanitize-text';
 import type { UpdateInfoProvider } from '../../utils/update-info';
 import { Login } from './login';
 import { Logout } from './logout';
 import { loginOptions, statusOptions } from './schema';
 import { AuthStatus } from './status';
+
+interface PollAuthOptions {
+  interval: number;
+  maxAttempts: number;
+  timeout: number;
+}
+
+async function* pollAuthStatus(
+  authResource: IAuthResource,
+  storage: AuthStorage,
+  opts: PollAuthOptions,
+  update?: {
+    current_version: string;
+    latest_version: string;
+    update_command: string;
+  },
+) {
+  for await (const result of pollUntil({
+    fn: async () => {
+      const pending = storage.getPendingDeviceAuth();
+      if (pending && !storage.isAuthenticated()) {
+        const tokens = await authResource.pollDeviceAuth(pending.device_code);
+        if (tokens) {
+          storage.setAuth(tokens);
+          storage.clearPendingDeviceAuth();
+        }
+      }
+
+      const auth = storage.getAuth();
+      if (auth) {
+        return {
+          authenticated: true as const,
+          access_token: `${auth.access_token.substring(0, 20)}...`,
+          token_type: auth.token_type,
+          credentials_path: storage.getPath(),
+          ...(update && { update }),
+        };
+      }
+
+      const currentPending = storage.getPendingDeviceAuth();
+      return {
+        authenticated: false as const,
+        credentials_path: storage.getPath(),
+        ...(update && { update }),
+        ...(currentPending
+          ? {
+              pending: true,
+              verification_url: currentPending.verification_url,
+              phrase: currentPending.phrase,
+            }
+          : {}),
+      };
+    },
+    isTerminal: (status) => status.authenticated,
+    interval: opts.interval,
+    maxAttempts: opts.maxAttempts,
+    timeout: opts.timeout,
+  })) {
+    yield result.value;
+  }
+}
 
 export function createAuthCli(
   authResource: IAuthResource,
@@ -45,8 +107,6 @@ export function createAuthCli(
         );
       }
 
-      // Agent mode: initiate device auth, store pending state, return immediately.
-      // The agent drives the polling loop via `auth status --interval`.
       const authRequest = await authResource.initiateDeviceAuth(clientName);
       storage.setPendingDeviceAuth({
         device_code: authRequest.device_code,
@@ -55,17 +115,36 @@ export function createAuthCli(
         verification_url: authRequest.verification_url_complete,
         phrase: authRequest.user_code,
       });
-      yield {
+
+      const interval = c.options.interval;
+
+      if (interval <= 0) {
+        yield sanitizeDeep({
+          verification_url: authRequest.verification_url_complete,
+          phrase: authRequest.user_code,
+          instruction:
+            'Present the verification_url to the user and ask them to approve in the Link app. Then call `auth status --interval 5 --max-attempts 60` to poll until authenticated. Do not wait for the user to reply — start polling immediately.',
+          _next: {
+            command: 'auth status --interval 5 --max-attempts 60',
+            poll_interval_seconds: authRequest.interval,
+            until: 'authenticated is true',
+          },
+        });
+        return;
+      }
+
+      yield sanitizeDeep({
         verification_url: authRequest.verification_url_complete,
         phrase: authRequest.user_code,
         instruction:
-          'Present the verification_url to the user and ask them to approve in the Link app. Then call `auth status --interval 5 --max-attempts 60` to poll until authenticated. Do not wait for the user to reply — start polling immediately.',
-        _next: {
-          command: 'auth status --interval 5 --max-attempts 60',
-          poll_interval_seconds: authRequest.interval,
-          until: 'authenticated is true',
-        },
-      };
+          'Present the verification_url to the user and ask them to approve in the Link app. Polling has started automatically — no further action needed.',
+      });
+
+      yield* pollAuthStatus(authResource, storage, {
+        interval,
+        maxAttempts: c.options.maxAttempts,
+        timeout: c.options.timeout,
+      });
     },
   });
 
@@ -140,52 +219,16 @@ export function createAuthCli(
         );
       }
 
-      for await (const result of pollUntil({
-        fn: async () => {
-          // If there's a pending device auth, try one poll to see if the user approved.
-          const pending = storage.getPendingDeviceAuth();
-          if (pending && !storage.isAuthenticated()) {
-            const tokens = await authResource.pollDeviceAuth(
-              pending.device_code,
-            );
-            if (tokens) {
-              storage.setAuth(tokens);
-              storage.clearPendingDeviceAuth();
-            }
-          }
-
-          const auth = storage.getAuth();
-          if (auth) {
-            return {
-              authenticated: true as const,
-              access_token: `${auth.access_token.substring(0, 20)}...`,
-              token_type: auth.token_type,
-              credentials_path: storage.getPath(),
-              ...(update && { update }),
-            };
-          }
-
-          const currentPending = storage.getPendingDeviceAuth();
-          return {
-            authenticated: false as const,
-            credentials_path: storage.getPath(),
-            ...(update && { update }),
-            ...(currentPending
-              ? {
-                  pending: true,
-                  verification_url: currentPending.verification_url,
-                  phrase: currentPending.phrase,
-                }
-              : {}),
-          };
+      yield* pollAuthStatus(
+        authResource,
+        storage,
+        {
+          interval,
+          maxAttempts,
+          timeout: opts.timeout,
         },
-        isTerminal: (status) => status.authenticated,
-        interval,
-        maxAttempts,
-        timeout: opts.timeout,
-      })) {
-        yield result.value;
-      }
+        update,
+      );
     },
   });
 
