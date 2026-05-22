@@ -1,5 +1,5 @@
 import type { ISpendRequestResource, SpendRequest } from '@stripe/link-sdk';
-import { Box, Text } from 'ink';
+import { Box, Text, useApp } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback } from 'react';
@@ -14,11 +14,22 @@ export const SpendRequestList: React.FC<SpendRequestListProps> = ({
   repository,
   onComplete,
 }) => {
+  const { exit } = useApp();
   const action = useCallback(
     () => repository.listSpendRequests(),
     [repository],
   );
-  const { status, data: requests, error } = useAsyncAction(action, onComplete);
+  const wrappedOnComplete = useCallback(
+    (result: SpendRequest[] | null) => {
+      onComplete(result);
+      exit();
+    },
+    [onComplete, exit],
+  );
+  const { status, data: requests, error } = useAsyncAction(
+    action,
+    wrappedOnComplete,
+  );
 
   if (status === 'loading') {
     return (
