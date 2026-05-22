@@ -136,3 +136,46 @@ export interface ReportRecord {
 export interface IReportResource {
   create(params: CreateReportParams): Promise<ReportRecord>;
 }
+
+export const REPORT_OUTCOMES = ['success', 'blocked', 'abandoned'] as const;
+export type ReportOutcome = (typeof REPORT_OUTCOMES)[number];
+
+export const REPORT_TAGS = [
+  'stripe_checkout',
+  'captcha',
+  'anti_bot_script',
+  'cdn_block',
+  'waf_block',
+  'dns_block',
+  'rate_limited',
+  'login_required',
+  '3ds_challenge',
+  'page_inaccessible',
+  'timeout',
+  'site_error',
+  'payment_declined',
+  'other',
+] as const;
+export type ReportTag = (typeof REPORT_TAGS)[number];
+
+export interface CreateReportParams {
+  domain: string;
+  outcome: ReportOutcome;
+  spend_request_id: string;
+  tags?: ReportTag[];
+  step?: string;
+  freeform_context?: string;
+}
+
+export interface ReportRecord {
+  object: string;
+  created_at: string;
+  domain: string;
+  outcome: string;
+  spend_request_id: string;
+  status: string;
+}
+
+export interface IReportResource {
+  create(params: CreateReportParams): Promise<ReportRecord>;
+}
