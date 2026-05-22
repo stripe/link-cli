@@ -70,8 +70,32 @@ function createStripePaymentClient(spt: string) {
   });
 }
 
-// NOTE: The multi-step payment flow (probe → WBA bypass → SPT sign → retry) is
-// implemented twice: once here for agent/format mode, and again inside the
+const WBA_TIMEOUT_MS = 3_000;
+
+// Fetches Web Bot Auth headers with a timeout. Returns empty object on any
+// failure so callers can proceed without bot-bypass rather than hard-failing.
+async function tryGetBotAuthHeaders(
+  webBotAuth: IWebBotAuthResource,
+  url: string,
+): Promise<Record<string, string>> {
+  try {
+    const block = await Promise.race([
+      webBotAuth.getHeaders(url),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), WBA_TIMEOUT_MS),
+      ),
+    ]);
+    return {
+      Signature: block.signature,
+      'Signature-Input': block.signature_input,
+    };
+  } catch {
+    return {};
+  }
+}
+
+// NOTE: The multi-step payment flow (WBA prefetch → probe → SPT sign → retry)
+// is implemented twice: once here for agent/format mode, and again inside the
 // MppPay component below for interactive mode. They must be kept in sync.
 // The right fix is to extract a shared flow that accepts progress callbacks,
 // but that refactor belongs in a separate PR.
@@ -112,34 +136,15 @@ export async function runMppPay(
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
   const requestHeaders = buildHeaders(data, headers);
 
-  // 3. Make the initial probe
-  const initialResponse = await fetch(url, {
+  // 3. Fetch Web Bot Auth headers proactively (gracefully skipped on failure/timeout)
+  const botAuthHeaders = await tryGetBotAuthHeaders(webBotAuth, url);
+
+  // 4. Probe the URL with WBA headers included
+  const probeResponse = await fetch(url, {
     method: httpMethod,
     body: data,
-    headers: requestHeaders,
+    headers: { ...requestHeaders, ...botAuthHeaders },
   });
-
-  // 4. If 403, fetch Web Bot Auth headers and retry the probe
-  let probeResponse = initialResponse;
-  let botAuthHeaders: Record<string, string> = {};
-  if (initialResponse.status === 403) {
-    const block = await webBotAuth.getHeaders(url);
-    botAuthHeaders = {
-      Signature: block.signature,
-      'Signature-Input': block.signature_input,
-    };
-    probeResponse = await fetch(url, {
-      method: httpMethod,
-      body: data,
-      headers: { ...requestHeaders, ...botAuthHeaders },
-    });
-    if (probeResponse.status === 403) {
-      throw new Error(
-        'Received 403 before and after Web Bot Auth retry. ' +
-          'The merchant is returning 403 for a reason unrelated to bot protection.',
-      );
-    }
-  }
 
   // 5. If not 402, return as-is
   if (probeResponse.status !== 402) {
@@ -150,7 +155,7 @@ export async function runMppPay(
   const authHeader =
     await createStripePaymentClient(spt).createCredential(probeResponse);
 
-  // 7. Retry with SPT credential (and bot auth headers if applicable)
+  // 7. Retry with SPT credential (WBA headers carried through)
   const retryResponse = await fetch(url, {
     method: httpMethod,
     body: data,
@@ -164,13 +169,7 @@ export async function runMppPay(
   return readPayResult(retryResponse);
 }
 
-type Step =
-  | 'retrieving'
-  | 'probing'
-  | 'bypassing'
-  | 'signing'
-  | 'submitting'
-  | 'done';
+type Step = 'retrieving' | 'probing' | 'signing' | 'submitting' | 'done';
 
 export function MppPay({
   url,
@@ -226,33 +225,12 @@ export function MppPay({
         const requestHeaders = buildHeaders(data, headers);
 
         setStep('probing');
-        const initialResponse = await fetch(url, {
+        const botAuthHeaders = await tryGetBotAuthHeaders(webBotAuth, url);
+        const probeResponse = await fetch(url, {
           method: httpMethod,
           body: data,
-          headers: requestHeaders,
+          headers: { ...requestHeaders, ...botAuthHeaders },
         });
-
-        let probeResponse = initialResponse;
-        let botAuthHeaders: Record<string, string> = {};
-        if (initialResponse.status === 403) {
-          setStep('bypassing');
-          const block = await webBotAuth.getHeaders(url);
-          botAuthHeaders = {
-            Signature: block.signature,
-            'Signature-Input': block.signature_input,
-          };
-          probeResponse = await fetch(url, {
-            method: httpMethod,
-            body: data,
-            headers: { ...requestHeaders, ...botAuthHeaders },
-          });
-          if (probeResponse.status === 403) {
-            throw new Error(
-              'Received 403 before and after Web Bot Auth retry. ' +
-                'The merchant is returning 403 for a reason unrelated to bot protection.',
-            );
-          }
-        }
 
         if (probeResponse.status !== 402) {
           const payResult = await readPayResult(probeResponse);
@@ -300,7 +278,6 @@ export function MppPay({
   const stepLabels: Record<Step, string> = {
     retrieving: 'Retrieving spend request',
     probing: 'Probing URL',
-    bypassing: 'Bypassing bot protection',
     signing: 'Signing credential',
     submitting: 'Submitting payment',
     done: 'Done',

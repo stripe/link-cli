@@ -51,9 +51,10 @@ describe('runMppPay', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
-  it('returns result directly when merchant responds 200', async () => {
+  it('includes WBA Signature headers on the initial probe', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(new Response('ok', { status: 200 }));
@@ -71,70 +72,24 @@ describe('runMppPay', () => {
     );
 
     expect(result.status).toBe(200);
-    expect(result.body).toBe('ok');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(webBotAuth.getHeaders).not.toHaveBeenCalled();
-  });
-
-  it('does not call webBotAuth for non-403 error responses', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(new Response('not found', { status: 404 })),
-    );
-
-    const webBotAuth = makeWebBotAuth();
-    const result = await runMppPay(
-      'https://merchant.com/checkout',
-      'sr_123',
-      undefined,
-      undefined,
-      undefined,
-      makeRepository(),
-      webBotAuth,
-    );
-
-    expect(result.status).toBe(404);
-    expect(webBotAuth.getHeaders).not.toHaveBeenCalled();
-  });
-
-  it('retries with Signature headers when merchant returns 403', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(new Response('bot blocked', { status: 403 }))
-      .mockResolvedValueOnce(new Response('ok', { status: 200 }));
-    vi.stubGlobal('fetch', fetchMock);
-
-    const webBotAuth = makeWebBotAuth();
-    const result = await runMppPay(
-      'https://merchant.com/checkout',
-      'sr_123',
-      undefined,
-      undefined,
-      undefined,
-      makeRepository(),
-      webBotAuth,
-    );
-
-    expect(result.status).toBe(200);
     expect(webBotAuth.getHeaders).toHaveBeenCalledWith(
       'https://merchant.com/checkout',
     );
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    const [, retryInit] = fetchMock.mock.calls[1] as [
+    const [, probeInit] = fetchMock.mock.calls[0] as [
       string,
       RequestInit & { headers: Record<string, string> },
     ];
-    expect(retryInit.headers.Signature).toBe(WEB_BOT_AUTH_BLOCK.signature);
-    expect(retryInit.headers['Signature-Input']).toBe(
+    expect(probeInit.headers.Signature).toBe(WEB_BOT_AUTH_BLOCK.signature);
+    expect(probeInit.headers['Signature-Input']).toBe(
       WEB_BOT_AUTH_BLOCK.signature_input,
     );
   });
 
-  it('handles full 403→402→SPT flow: bot auth headers carry through to the SPT retry', async () => {
+  it('handles 402→SPT flow with WBA headers carried through to the SPT retry', async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(new Response('bot blocked', { status: 403 }))
       .mockResolvedValueOnce(
         new Response('payment required', {
           status: 402,
@@ -156,60 +111,33 @@ describe('runMppPay', () => {
     );
 
     expect(result.status).toBe(200);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(webBotAuth.getHeaders).toHaveBeenCalledWith(
-      'https://merchant.com/checkout',
-    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
 
-    // Second call (bot auth retry) must have Signature headers
-    const [, botAuthInit] = fetchMock.mock.calls[1] as [
+    // Both probe and SPT retry must carry WBA headers
+    for (const call of fetchMock.mock.calls) {
+      const [, init] = call as [
+        string,
+        RequestInit & { headers: Record<string, string> },
+      ];
+      expect(init.headers.Signature).toBe(WEB_BOT_AUTH_BLOCK.signature);
+      expect(init.headers['Signature-Input']).toBe(
+        WEB_BOT_AUTH_BLOCK.signature_input,
+      );
+    }
+
+    // SPT retry must also carry Authorization: Payment
+    const [, sptInit] = fetchMock.mock.calls[1] as [
       string,
       RequestInit & { headers: Record<string, string> },
     ];
-    expect(botAuthInit.headers.Signature).toBe(WEB_BOT_AUTH_BLOCK.signature);
-    expect(botAuthInit.headers['Signature-Input']).toBe(
-      WEB_BOT_AUTH_BLOCK.signature_input,
-    );
-
-    // Third call (SPT retry) must carry BOTH bot auth headers AND Authorization: Payment
-    const [, sptInit] = fetchMock.mock.calls[2] as [
-      string,
-      RequestInit & { headers: Record<string, string> },
-    ];
-    expect(sptInit.headers.Signature).toBe(WEB_BOT_AUTH_BLOCK.signature);
-    expect(sptInit.headers['Signature-Input']).toBe(
-      WEB_BOT_AUTH_BLOCK.signature_input,
-    );
     expect(sptInit.headers.Authorization).toMatch(/^Payment /);
   });
 
-  it('throws when WBA retry still returns 403', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn()
-        .mockResolvedValueOnce(new Response('bot blocked', { status: 403 }))
-        .mockResolvedValueOnce(new Response('still blocked', { status: 403 })),
-    );
-
-    await expect(
-      runMppPay(
-        'https://merchant.com/checkout',
-        'sr_123',
-        undefined,
-        undefined,
-        undefined,
-        makeRepository(),
-        makeWebBotAuth(),
-      ),
-    ).rejects.toThrow('unrelated to bot protection');
-  });
-
-  it('propagates error when webBotAuth.getHeaders throws', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(new Response('bot blocked', { status: 403 })),
-    );
+  it('gracefully skips WBA headers when getHeaders throws', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response('ok', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
 
     const webBotAuth = {
       getHeaders: vi.fn(async () => {
@@ -217,17 +145,77 @@ describe('runMppPay', () => {
       }),
     } as unknown as IWebBotAuthResource;
 
-    await expect(
-      runMppPay(
-        'https://merchant.com/checkout',
-        'sr_123',
-        undefined,
-        undefined,
-        undefined,
-        makeRepository(),
-        webBotAuth,
-      ),
-    ).rejects.toThrow('Not authenticated');
+    const result = await runMppPay(
+      'https://merchant.com/checkout',
+      'sr_123',
+      undefined,
+      undefined,
+      undefined,
+      makeRepository(),
+      webBotAuth,
+    );
+
+    expect(result.status).toBe(200);
+
+    const [, probeInit] = fetchMock.mock.calls[0] as [
+      string,
+      RequestInit & { headers: Record<string, string> },
+    ];
+    expect(probeInit.headers.Signature).toBeUndefined();
+    expect(probeInit.headers['Signature-Input']).toBeUndefined();
+  });
+
+  it('gracefully skips WBA headers when getHeaders times out', async () => {
+    vi.useFakeTimers();
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response('ok', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const webBotAuth = {
+      getHeaders: vi.fn(() => new Promise(() => {})),
+    } as unknown as IWebBotAuthResource;
+
+    const resultPromise = runMppPay(
+      'https://merchant.com/checkout',
+      'sr_123',
+      undefined,
+      undefined,
+      undefined,
+      makeRepository(),
+      webBotAuth,
+    );
+
+    await vi.advanceTimersByTimeAsync(3001);
+
+    const result = await resultPromise;
+    expect(result.status).toBe(200);
+
+    const [, probeInit] = fetchMock.mock.calls[0] as [
+      string,
+      RequestInit & { headers: Record<string, string> },
+    ];
+    expect(probeInit.headers.Signature).toBeUndefined();
+  });
+
+  it('returns 403 as-is when merchant blocks even with WBA headers', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('forbidden', { status: 403 })),
+    );
+
+    const result = await runMppPay(
+      'https://merchant.com/checkout',
+      'sr_123',
+      undefined,
+      undefined,
+      undefined,
+      makeRepository(),
+      makeWebBotAuth(),
+    );
+
+    expect(result.status).toBe(403);
   });
 
   it('throws when spend request is not found', async () => {
