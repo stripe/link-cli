@@ -10,6 +10,7 @@ import { createServeCli } from './commands/serve';
 import { createShippingAddressCli } from './commands/shipping-address';
 import { createSpendRequestCli } from './commands/spend-request';
 import { createUserInfoCli } from './commands/user-info';
+import { createReportCli } from './commands/report';
 import { createWebBotAuthCli } from './commands/web-bot-auth';
 import { ResourceFactory } from './utils/resource-factory';
 import {
@@ -110,6 +111,9 @@ cli.command(createMppCli(spendRequestRepo, authStorage, envAccessToken));
 //   createWebBotAuthCli(() => factory.createWebBotAuthResource(), authStorage),
 // );
 cli.command(createReportCli(() => factory.createReportResource(), authStorage));
+cli.command(
+  createReportCli(() => factory.createReportResource(), authStorage),
+);
 cli.command(
   createDemoCli(
     authRepo,
