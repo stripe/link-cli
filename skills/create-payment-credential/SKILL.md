@@ -200,7 +200,7 @@ link-cli spend-request retrieve <id> --include card --output-file /tmp/link-card
 link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount":100}'] [--header 'Name: Value']
 ```
 
-`mpp pay` handles the full flow automatically: if the merchant returns **403** (bot protection), it fetches Web Bot Auth headers and retries transparently; if it then returns **402**, it parses the `www-authenticate` header, builds the `Authorization: Payment` credential using the SPT, and retries. No manual `web-bot-auth sign` call is needed when using `mpp pay`.
+`mpp pay` handles the full 402 flow automatically: probes the URL, parses the `www-authenticate` header, builds the `Authorization: Payment` credential using the SPT, and retries.
 
 
 ## Important
@@ -224,7 +224,6 @@ All errors are output as JSON with `code` and `message` fields, with exit code 1
 | Spend request approved but payment fails immediately | Wrong credential type for the merchant (e.g. `card` on a 402-only endpoint) | Go back to Step 2, re-evaluate the merchant, create a new spend request with the correct `credential_type` |
 | Auth token expired mid-session (exit code 1 during approval polling) | Token refresh failure during background polling | Re-authenticate with `auth login`, then retrieve the existing spend request or resume polling. Only create a new spend request if the original one expired, was denied, was canceled, or its shared payment token was already consumed |
 | 403 when browsing merchant site in Step 2 | Bot protection (Cloudflare/Vercel) blocking automated requests | Run `link-cli web-bot-auth sign <url>` and attach the returned `Signature` and `Signature-Input` headers to your browsing requests |
-| `Received 403 before and after Web Bot Auth retry` from `mpp pay` | Merchant returns 403 for a reason unrelated to bot protection (auth, geo-block, etc.) | Cannot proceed with this URL — report to the user that the merchant is blocking access |
 
 ## Further docs
 
