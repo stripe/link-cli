@@ -8,6 +8,7 @@ import { createPaymentMethodsCli } from './commands/payment-methods';
 import { createShippingAddressCli } from './commands/shipping-address';
 import { createSpendRequestCli } from './commands/spend-request';
 import { createUserInfoCli } from './commands/user-info';
+import { createServeCli } from './commands/serve';
 import { createWebBotAuthCli } from './commands/web-bot-auth';
 import { ResourceFactory } from './utils/resource-factory';
 import {
@@ -102,6 +103,7 @@ cli.command(
     authStorage,
   ),
 );
+cli.command(createServeCli(cli));
 
 cli.serve();
 
