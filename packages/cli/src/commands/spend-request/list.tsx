@@ -26,10 +26,11 @@ export const SpendRequestList: React.FC<SpendRequestListProps> = ({
     },
     [onComplete, exit],
   );
-  const { status, data: requests, error } = useAsyncAction(
-    action,
-    wrappedOnComplete,
-  );
+  const {
+    status,
+    data: requests,
+    error,
+  } = useAsyncAction(action, wrappedOnComplete);
 
   if (status === 'loading') {
     return (
