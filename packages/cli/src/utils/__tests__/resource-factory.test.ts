@@ -2,8 +2,10 @@ import {
   LinkAuthenticationError,
   PaymentMethodsResource,
   SpendRequestResource,
+  WebBotAuthResource,
 } from '@stripe/link-sdk';
 import { describe, expect, it, vi } from 'vitest';
+import { LinkAuthResource } from '../../auth/auth-resource';
 import type { IAuthResource } from '../../auth/types';
 import { ResourceFactory } from '../resource-factory';
 
@@ -34,11 +36,18 @@ describe('ResourceFactory', () => {
     expect(factory.createPaymentMethodsResource()).toBe(
       factory.createPaymentMethodsResource(),
     );
+    expect(factory.createWebBotAuthResource()).toBe(
+      factory.createWebBotAuthResource(),
+    );
+    expect(factory.createAuthResource()).toBeInstanceOf(LinkAuthResource);
     expect(factory.createSpendRequestResource()).toBeInstanceOf(
       SpendRequestResource,
     );
     expect(factory.createPaymentMethodsResource()).toBeInstanceOf(
       PaymentMethodsResource,
+    );
+    expect(factory.createWebBotAuthResource()).toBeInstanceOf(
+      WebBotAuthResource,
     );
   });
 
