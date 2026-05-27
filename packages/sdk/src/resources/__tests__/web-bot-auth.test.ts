@@ -26,7 +26,6 @@ const webBotAuthBlock: WebBotAuthBlock = {
 };
 
 const credentialsResponse = {
-  identity_token: 'tok_test123',
   web_bot_auth: webBotAuthBlock,
 };
 
@@ -45,14 +44,14 @@ describe('WebBotAuthResource', () => {
   });
 
   describe('getHeaders', () => {
-    it('sends POST to credentials endpoint with JSON body and Bearer auth', async () => {
+    it('sends POST to /web_bot_auth/sign with JSON body and Bearer auth', async () => {
       mockFetchResponse(200, credentialsResponse);
 
       await resource.getHeaders(validUrl);
 
       expect(mockFetch).toHaveBeenCalledOnce();
       const [url, opts] = mockFetch.mock.calls[0];
-      expect(url).toBe('https://api.link.com/v1/agent_identity/credentials');
+      expect(url).toBe('https://api.link.com/web_bot_auth/sign');
       expect(opts.method).toBe('POST');
       expect(opts.headers['Content-Type']).toBe('application/json');
       expect(opts.headers.Authorization).toBe('Bearer test_token');
@@ -160,7 +159,7 @@ describe('WebBotAuthResource', () => {
       const err = await resource.getHeaders(validUrl).catch((e) => e);
       expect(err).toBeInstanceOf(LinkSdkError);
       expect(err.message).toMatch(
-        'Credentials response missing web_bot_auth block',
+        'Sign response missing web_bot_auth block',
       );
     });
 
