@@ -78,8 +78,9 @@ export function createServeCli(rootCli: {
             const webRes = await rootCli.fetch(webReq);
             await sendWebResponse(webRes, res);
           } catch (err) {
+            console.error('Request handling failed:', err);
             res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: String(err) }));
+            res.end(JSON.stringify({ error: 'Internal server error' }));
           }
         },
       );
