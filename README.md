@@ -58,6 +58,17 @@ Link CLI can run as a local MCP server. Add the following to your MCP client con
 }
 ```
 
+#### HTTP MCP Server
+
+Use `serve` to expose link-cli as an MCP endpoint over HTTP. This is useful for remote or containerised agents that can't launch a local subprocess.
+
+```bash
+link-cli serve            # listens on port 54321 by default
+link-cli serve --port 8080
+```
+
+The MCP endpoint is available at `/mcp` on the chosen port.
+
 ## Quickstart
 
 Run a guided onboarding and demo flow:
