@@ -102,7 +102,9 @@ describe('createAccessTokenProvider', () => {
       expires_at: Date.now() + 30_000,
     });
     const repo = createMockAuthRepo();
-    const provider = createAccessTokenProvider(repo, storage, { noRefresh: true });
+    const provider = createAccessTokenProvider(repo, storage, {
+      noRefresh: true,
+    });
 
     await expect(provider()).rejects.toThrow(LinkAuthenticationError);
     expect(repo.refreshToken).not.toHaveBeenCalled();
@@ -116,7 +118,9 @@ describe('createAccessTokenProvider', () => {
       token_type: 'Bearer',
     });
     const repo = createMockAuthRepo();
-    const provider = createAccessTokenProvider(repo, storage, { noRefresh: true });
+    const provider = createAccessTokenProvider(repo, storage, {
+      noRefresh: true,
+    });
 
     await expect(provider({ forceRefresh: true })).rejects.toThrow(
       LinkAuthenticationError,

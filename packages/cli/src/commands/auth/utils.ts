@@ -1,7 +1,12 @@
 import type { AuthStorage } from '@stripe/link-sdk';
 
 export type AuthInfo =
-  | { authenticated: true; source: 'env'; tokenPreview: string; tokenType: string }
+  | {
+      authenticated: true;
+      source: 'env';
+      tokenPreview: string;
+      tokenType: string;
+    }
   | {
       authenticated: true;
       source: 'storage';

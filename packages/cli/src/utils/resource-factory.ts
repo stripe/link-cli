@@ -4,8 +4,8 @@ import {
   type IShippingAddressResource,
   type ISpendRequestResource,
   type IUserInfoResource,
-  LinkAuthenticationError,
   type IWebBotAuthResource,
+  LinkAuthenticationError,
   PaymentMethodsResource,
   ShippingAddressResource,
   SpendRequestResource,
@@ -121,7 +121,6 @@ export class ResourceFactory {
       const envAccessToken = this.envAccessToken;
       const envRefreshToken = this.envRefreshToken;
       const noRefresh = this.noRefresh;
-      const factory = this;
 
       this.accessTokenProvider = async ({ forceRefresh } = {}) => {
         if (forceRefresh) {
@@ -130,7 +129,8 @@ export class ResourceFactory {
               'Access token expired. Update LINK_ACCESS_TOKEN and retry.',
             );
           }
-          const refreshed = await factory.createAuthResource().refreshToken(envRefreshToken);
+          const refreshed =
+            await this.createAuthResource().refreshToken(envRefreshToken);
           return refreshed.access_token;
         }
         return envAccessToken;

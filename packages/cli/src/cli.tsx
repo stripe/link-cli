@@ -76,7 +76,9 @@ if (!isAgent && process.stdout.isTTY) {
   }
 }
 
-cli.command(createAuthCli(authRepo, getUpdateInfo, authStorage, envAccessToken));
+cli.command(
+  createAuthCli(authRepo, getUpdateInfo, authStorage, envAccessToken),
+);
 cli.command(createSpendRequestCli(spendRequestRepo, authStorage));
 cli.command(
   createPaymentMethodsCli(
