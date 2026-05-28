@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.6.0
+
+### Minor Changes
+
+- list prior spend requests, get user information
+
 ## 0.5.0
 
 ### Minor Changes
