@@ -21,6 +21,9 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
+          MAX_ATTEMPTS=4
+          RETRY_DELAY=120
+
           # Build the JSON body using jq for safe escaping of special characters
           BODY=$(jq -n \
             --arg title "$ISSUE_TITLE" \
@@ -36,11 +39,41 @@ jobs:
               labels: ["project-LINK_AI_WALLET"]
             }')
 
-          # Compute HMAC-SHA256 signature of the body using the secret as a hex key
           SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -mac HMAC -macopt hexkey:$API_KEY -binary | openssl base64 -A)
 
-          # Send the signed request
-          curl -X POST "$API_ENDPOINT" \
+          for ATTEMPT in $(seq 1 $MAX_ATTEMPTS); do
+            echo "--- Attempt $ATTEMPT of $MAX_ATTEMPTS ---"
+
+            HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+              -X POST "$API_ENDPOINT" \
+              -H "Content-Type: application/json" \
+              -H "X-TM-Signature: $SIG" \
+              --data-raw "$BODY")
+
+            echo "HTTP Status: $HTTP_STATUS"
+            echo "Response: $(cat /tmp/response.txt)"
+
+            if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+              echo "Request succeeded on attempt $ATTEMPT."
+              exit 0
+            fi
+
+            echo "Request failed with HTTP $HTTP_STATUS."
+
+            if [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
+              echo "Waiting 15 minutes before retry..."
+              sleep $RETRY_DELAY
+            fi
+          done
+
+          echo "All $MAX_ATTEMPTS attempts failed. Marking job as failed."
+          exit 1
+
+      - name: Send Slack Failure Notification via Webhook
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_LINK_PQ_WEBHOOK_URL }}
+        run: |
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
-            -H "X-TM-Signature: $SIG" \
-            --data-raw "$BODY"
+            --data-raw '{"text": "❌ ACTION REQUIRED: Jira sync failed for ${{ github.event.issue.html_url }}. Re-run the failed jobs via https://github.com/stripe/link-cli/actions/workflows/issue-triggered-create-jira.yml."}'
