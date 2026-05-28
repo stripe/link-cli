@@ -268,9 +268,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
               {psd.created && (
                 <Text>
                   {'  '}Charged At:{' '}
-                  <Text bold>
-                    {new Date(psd.created * 1000).toISOString()}
-                  </Text>
+                  <Text bold>{new Date(psd.created * 1000).toISOString()}</Text>
                 </Text>
               )}
               {psd.refund_details && (
