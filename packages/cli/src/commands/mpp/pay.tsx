@@ -1,4 +1,7 @@
-import type { ISpendRequestResource } from '@stripe/link-sdk';
+import type {
+  ISpendRequestResource,
+  IWebBotAuthResource,
+} from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import { Credential, Method } from 'mppx';
@@ -67,6 +70,35 @@ function createStripePaymentClient(spt: string) {
   });
 }
 
+const WBA_TIMEOUT_MS = 3_000;
+
+// Fetches Web Bot Auth headers with a timeout. Returns empty object on any
+// failure so callers can proceed without bot-bypass rather than hard-failing.
+async function tryGetBotAuthHeaders(
+  webBotAuth: IWebBotAuthResource,
+  url: string,
+): Promise<Record<string, string>> {
+  try {
+    const block = await Promise.race([
+      webBotAuth.getHeaders(url),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), WBA_TIMEOUT_MS),
+      ),
+    ]);
+    return {
+      Signature: block.signature,
+      'Signature-Input': block.signature_input,
+    };
+  } catch {
+    return {};
+  }
+}
+
+// NOTE: The multi-step payment flow (WBA prefetch → probe → SPT sign → retry)
+// is implemented twice: once here for agent/format mode, and again inside the
+// MppPay component below for interactive mode. They must be kept in sync.
+// The right fix is to extract a shared flow that accepts progress callbacks,
+// but that refactor belongs in a separate PR.
 export async function runMppPay(
   url: string,
   spendRequestId: string,
@@ -74,6 +106,7 @@ export async function runMppPay(
   data: string | undefined,
   headers: string[] | undefined,
   repository: ISpendRequestResource,
+  webBotAuth: IWebBotAuthResource,
 ): Promise<PayResult> {
   // 1. Retrieve the approved spend request with SPT
   const spendRequest = await repository.getSpendRequest(spendRequestId, {
@@ -103,28 +136,32 @@ export async function runMppPay(
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
   const requestHeaders = buildHeaders(data, headers);
 
-  // 3. Make the initial request
-  const initialResponse = await fetch(url, {
+  // 3. Fetch Web Bot Auth headers proactively (gracefully skipped on failure/timeout)
+  const botAuthHeaders = await tryGetBotAuthHeaders(webBotAuth, url);
+
+  // 4. Probe the URL with WBA headers included
+  const probeResponse = await fetch(url, {
     method: httpMethod,
     body: data,
-    headers: requestHeaders,
+    headers: { ...requestHeaders, ...botAuthHeaders },
   });
 
-  // 4. If not 402, return as-is
-  if (initialResponse.status !== 402) {
-    return readPayResult(initialResponse);
+  // 5. If not 402, return as-is
+  if (probeResponse.status !== 402) {
+    return readPayResult(probeResponse);
   }
 
-  // 5. Select the Stripe challenge and build the payment credential
+  // 6. Sign the 402 challenge with SPT
   const authHeader =
-    await createStripePaymentClient(spt).createCredential(initialResponse);
+    await createStripePaymentClient(spt).createCredential(probeResponse);
 
-  // 7. Retry with Authorization header
+  // 7. Retry with SPT credential (WBA headers carried through)
   const retryResponse = await fetch(url, {
     method: httpMethod,
     body: data,
     headers: {
       ...requestHeaders,
+      ...botAuthHeaders,
       Authorization: authHeader,
     },
   });
@@ -141,6 +178,7 @@ export function MppPay({
   data,
   headers,
   repository,
+  webBotAuth,
   onComplete,
 }: {
   url: string;
@@ -149,6 +187,7 @@ export function MppPay({
   data?: string;
   headers?: string[];
   repository: ISpendRequestResource;
+  webBotAuth: IWebBotAuthResource;
   onComplete: (result: PayResult | null) => void;
 }) {
   const [step, setStep] = useState<Step>('retrieving');
@@ -186,14 +225,15 @@ export function MppPay({
         const requestHeaders = buildHeaders(data, headers);
 
         setStep('probing');
-        const initialResponse = await fetch(url, {
+        const botAuthHeaders = await tryGetBotAuthHeaders(webBotAuth, url);
+        const probeResponse = await fetch(url, {
           method: httpMethod,
           body: data,
-          headers: requestHeaders,
+          headers: { ...requestHeaders, ...botAuthHeaders },
         });
 
-        if (initialResponse.status !== 402) {
-          const payResult = await readPayResult(initialResponse);
+        if (probeResponse.status !== 402) {
+          const payResult = await readPayResult(probeResponse);
           setResult(payResult);
           setStep('done');
           onComplete(payResult);
@@ -202,9 +242,7 @@ export function MppPay({
 
         setStep('signing');
         const authHeader =
-          await createStripePaymentClient(spt).createCredential(
-            initialResponse,
-          );
+          await createStripePaymentClient(spt).createCredential(probeResponse);
 
         setStep('submitting');
         const retryResponse = await fetch(url, {
@@ -212,6 +250,7 @@ export function MppPay({
           body: data,
           headers: {
             ...requestHeaders,
+            ...botAuthHeaders,
             Authorization: authHeader,
           },
         });
@@ -225,7 +264,16 @@ export function MppPay({
         onComplete(null);
       }
     })();
-  }, [url, spendRequestId, method, data, headers, repository, onComplete]);
+  }, [
+    url,
+    spendRequestId,
+    method,
+    data,
+    headers,
+    repository,
+    webBotAuth,
+    onComplete,
+  ]);
 
   const stepLabels: Record<Step, string> = {
     retrieving: 'Retrieving spend request',

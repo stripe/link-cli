@@ -1,6 +1,7 @@
 import type {
   IPaymentMethodsResource,
   ISpendRequestResource,
+  IWebBotAuthResource,
   PaymentMethod,
   SpendRequest,
 } from '@stripe/link-sdk';
@@ -37,6 +38,7 @@ type Step =
 interface SptFlowProps {
   spendRequestRepo: ISpendRequestResource;
   paymentMethodsResource: IPaymentMethodsResource;
+  webBotAuth: IWebBotAuthResource;
   paymentMethodId?: string;
   onComplete: (success: boolean) => void;
 }
@@ -44,6 +46,7 @@ interface SptFlowProps {
 export const SptFlow: React.FC<SptFlowProps> = ({
   spendRequestRepo,
   paymentMethodsResource,
+  webBotAuth,
   paymentMethodId: initialPaymentMethodId,
   onComplete,
 }) => {
@@ -219,6 +222,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
           JSON.stringify({ amount: DEMO_SPT_AMOUNT }),
           undefined,
           spendRequestRepo,
+          webBotAuth,
         );
         setPayResult(payResponse);
         setStep('done');

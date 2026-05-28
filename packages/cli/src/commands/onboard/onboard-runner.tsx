@@ -2,6 +2,7 @@ import type {
   AuthStorage,
   IPaymentMethodsResource,
   ISpendRequestResource,
+  IWebBotAuthResource,
 } from '@stripe/link-sdk';
 import { storage as defaultStorage } from '@stripe/link-sdk';
 import { Box, Text, useApp, useInput } from 'ink';
@@ -18,6 +19,7 @@ interface OnboardRunnerProps {
   authRepo: IAuthResource;
   spendRequestRepo: ISpendRequestResource;
   paymentMethodsResource: IPaymentMethodsResource;
+  webBotAuth: IWebBotAuthResource;
   authStorage?: AuthStorage;
   onComplete: () => void;
 }
@@ -26,6 +28,7 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
   authRepo,
   spendRequestRepo,
   paymentMethodsResource,
+  webBotAuth,
   authStorage = defaultStorage,
   onComplete,
 }) => {
@@ -170,6 +173,7 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
             authRepo={authRepo}
             spendRequestRepo={spendRequestRepo}
             paymentMethodsResource={paymentMethodsResource}
+            webBotAuth={webBotAuth}
             authStorage={storage}
             onComplete={onComplete}
           />

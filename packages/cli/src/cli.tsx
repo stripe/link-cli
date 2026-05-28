@@ -95,7 +95,13 @@ cli.command(
 cli.command(
   createUserInfoCli(() => factory.createUserInfoResource(), authStorage),
 );
-cli.command(createMppCli(spendRequestRepo, authStorage));
+cli.command(
+  createMppCli(
+    spendRequestRepo,
+    factory.createWebBotAuthResource(),
+    authStorage,
+  ),
+);
 cli.command(
   createWebBotAuthCli(() => factory.createWebBotAuthResource(), authStorage),
 );
@@ -104,6 +110,7 @@ cli.command(
     authRepo,
     spendRequestRepo,
     () => factory.createPaymentMethodsResource(),
+    () => factory.createWebBotAuthResource(),
     authStorage,
   ),
 );
@@ -112,6 +119,7 @@ cli.command(
     authRepo,
     spendRequestRepo,
     () => factory.createPaymentMethodsResource(),
+    () => factory.createWebBotAuthResource(),
     authStorage,
   ),
 );

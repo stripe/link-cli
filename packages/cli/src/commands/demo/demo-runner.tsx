@@ -2,6 +2,7 @@ import type {
   AuthStorage,
   IPaymentMethodsResource,
   ISpendRequestResource,
+  IWebBotAuthResource,
 } from '@stripe/link-sdk';
 import { storage as defaultStorage } from '@stripe/link-sdk';
 import { Box, Text, useApp, useInput } from 'ink';
@@ -29,6 +30,7 @@ interface DemoRunnerProps {
   authRepo: IAuthResource;
   spendRequestRepo: ISpendRequestResource;
   paymentMethodsResource: IPaymentMethodsResource;
+  webBotAuth: IWebBotAuthResource;
   authStorage?: AuthStorage;
   paymentMethodId?: string;
   onlyCard?: boolean;
@@ -40,6 +42,7 @@ export const DemoRunner: React.FC<DemoRunnerProps> = ({
   authRepo,
   spendRequestRepo,
   paymentMethodsResource,
+  webBotAuth,
   authStorage = defaultStorage,
   paymentMethodId: preselectedPmId,
   onlyCard,
@@ -189,6 +192,7 @@ export const DemoRunner: React.FC<DemoRunnerProps> = ({
           <SptFlow
             spendRequestRepo={spendRequestRepo}
             paymentMethodsResource={paymentMethodsResource}
+            webBotAuth={webBotAuth}
             paymentMethodId={paymentMethodId || undefined}
             onComplete={onSptComplete}
           />
