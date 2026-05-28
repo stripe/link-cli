@@ -43,11 +43,11 @@ describe('WebBotAuthResource', () => {
     vi.unstubAllGlobals();
   });
 
-  describe('getHeaders', () => {
+  describe('signUrl', () => {
     it('sends POST to /web_bot_auth/sign with JSON body and Bearer auth', async () => {
       mockFetchResponse(200, credentialsResponse);
 
-      await resource.getHeaders(validUrl);
+      await resource.signUrl(validUrl);
 
       expect(mockFetch).toHaveBeenCalledOnce();
       const [url, opts] = mockFetch.mock.calls[0];
@@ -61,7 +61,7 @@ describe('WebBotAuthResource', () => {
     it('returns the web_bot_auth block on success', async () => {
       mockFetchResponse(200, credentialsResponse);
 
-      const result = await resource.getHeaders(validUrl);
+      const result = await resource.signUrl(validUrl);
 
       expect(result).toEqual(webBotAuthBlock);
     });
@@ -69,8 +69,8 @@ describe('WebBotAuthResource', () => {
     it('caches result per authority and skips re-fetch for same hostname', async () => {
       mockFetchResponse(200, credentialsResponse);
 
-      const first = await resource.getHeaders(validUrl);
-      const second = await resource.getHeaders(
+      const first = await resource.signUrl(validUrl);
+      const second = await resource.signUrl(
         'https://wine-merchant.com/other-page',
       );
 
@@ -80,10 +80,10 @@ describe('WebBotAuthResource', () => {
 
     it('does not share cache across different authorities', async () => {
       mockFetchResponse(200, credentialsResponse);
-      await resource.getHeaders(validUrl);
+      await resource.signUrl(validUrl);
 
       mockFetchResponse(200, credentialsResponse);
-      await resource.getHeaders('https://other-merchant.com/page');
+      await resource.signUrl('https://other-merchant.com/page');
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
@@ -98,10 +98,10 @@ describe('WebBotAuthResource', () => {
         web_bot_auth: nearlyExpiredBlock,
       });
 
-      await resource.getHeaders(validUrl);
+      await resource.signUrl(validUrl);
 
       mockFetchResponse(200, credentialsResponse);
-      await resource.getHeaders(validUrl);
+      await resource.signUrl(validUrl);
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
@@ -109,8 +109,8 @@ describe('WebBotAuthResource', () => {
     it('does not re-fetch when cached entry is still fresh', async () => {
       mockFetchResponse(200, credentialsResponse);
 
-      await resource.getHeaders(validUrl);
-      await resource.getHeaders(validUrl);
+      await resource.signUrl(validUrl);
+      await resource.signUrl(validUrl);
 
       expect(mockFetch).toHaveBeenCalledOnce();
     });
@@ -126,7 +126,7 @@ describe('WebBotAuthResource', () => {
         .mockResolvedValueOnce('expired_token')
         .mockResolvedValueOnce('fresh_token');
 
-      const result = await resource.getHeaders(validUrl);
+      const result = await resource.signUrl(validUrl);
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
       const [, secondOpts] = mockFetch.mock.calls[1];
@@ -137,7 +137,7 @@ describe('WebBotAuthResource', () => {
     it('throws LinkApiError on HTTP error', async () => {
       mockFetchResponse(422, { error: 'Invalid URL' });
 
-      const err = await resource.getHeaders(validUrl).catch((e) => e);
+      const err = await resource.signUrl(validUrl).catch((e) => e);
       expect(err).toBeInstanceOf(LinkApiError);
       expect(err.message).toMatch('Failed to get web bot auth headers (422)');
     });
@@ -148,7 +148,7 @@ describe('WebBotAuthResource', () => {
         web_bot_auth: { ...webBotAuthBlock, expires_at: 'not-a-date' },
       });
 
-      const err = await resource.getHeaders(validUrl).catch((e) => e);
+      const err = await resource.signUrl(validUrl).catch((e) => e);
       expect(err).toBeInstanceOf(LinkSdkError);
       expect(err.message).toMatch('invalid expires_at');
     });
@@ -156,23 +156,21 @@ describe('WebBotAuthResource', () => {
     it('throws LinkSdkError when response is missing web_bot_auth block', async () => {
       mockFetchResponse(200, { identity_token: 'tok_test123' });
 
-      const err = await resource.getHeaders(validUrl).catch((e) => e);
+      const err = await resource.signUrl(validUrl).catch((e) => e);
       expect(err).toBeInstanceOf(LinkSdkError);
-      expect(err.message).toMatch(
-        'Sign response missing web_bot_auth block',
-      );
+      expect(err.message).toMatch('Sign response missing web_bot_auth block');
     });
 
     it('throws when access token is unavailable', async () => {
       getAccessToken.mockRejectedValueOnce(new Error('Missing access token'));
 
-      await expect(resource.getHeaders(validUrl)).rejects.toThrow(
+      await expect(resource.signUrl(validUrl)).rejects.toThrow(
         'Missing access token',
       );
     });
 
     it('throws LinkSdkError on invalid URL', async () => {
-      const err = await resource.getHeaders('not-a-url').catch((e) => e);
+      const err = await resource.signUrl('not-a-url').catch((e) => e);
       expect(err).toBeInstanceOf(LinkSdkError);
       expect(err.message).toMatch('Invalid URL');
     });

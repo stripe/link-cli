@@ -21,7 +21,7 @@ describe('web-bot-auth', () => {
   describe('sanitization', () => {
     it('sanitizes escape sequences in signature fields', async () => {
       const resource = sanitizeResource({
-        getHeaders: vi.fn(async () => ({
+        signUrl: vi.fn(async () => ({
           ...webBotAuthBlock,
           signature: `sig1=:${ESCAPE_PAYLOAD}:`,
           authority: ESCAPE_PAYLOAD,
@@ -48,7 +48,7 @@ describe('web-bot-auth', () => {
   describe('WebBotAuthSign', () => {
     it('renders loading spinner initially', () => {
       const resource = {
-        getHeaders: vi.fn(() => new Promise(() => {})),
+        signUrl: vi.fn(() => new Promise(() => {})),
       } as unknown as IWebBotAuthResource;
 
       const { lastFrame } = render(
@@ -64,7 +64,7 @@ describe('web-bot-auth', () => {
 
     it('renders signature fields on success', async () => {
       const resource = {
-        getHeaders: vi.fn(async () => webBotAuthBlock),
+        signUrl: vi.fn(async () => webBotAuthBlock),
       } as unknown as IWebBotAuthResource;
 
       const { lastFrame } = render(
@@ -86,7 +86,7 @@ describe('web-bot-auth', () => {
 
     it('calls onComplete with the result block', async () => {
       const resource = {
-        getHeaders: vi.fn(async () => webBotAuthBlock),
+        signUrl: vi.fn(async () => webBotAuthBlock),
       } as unknown as IWebBotAuthResource;
       const onComplete = vi.fn();
 
@@ -108,7 +108,7 @@ describe('web-bot-auth', () => {
 
     it('renders error message on failure', async () => {
       const resource = {
-        getHeaders: vi.fn(async () => {
+        signUrl: vi.fn(async () => {
           throw new Error('Not authenticated');
         }),
       } as unknown as IWebBotAuthResource;

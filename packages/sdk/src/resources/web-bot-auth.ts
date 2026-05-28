@@ -133,7 +133,7 @@ export class WebBotAuthResource implements IWebBotAuthResource {
    * @throws {LinkApiError} if the sign endpoint returns a non-2xx status
    * @throws {LinkTransportError} if the network request fails
    */
-  async getHeaders(url: string): Promise<WebBotAuthBlock> {
+  async signUrl(url: string): Promise<WebBotAuthBlock> {
     let authority: string;
     try {
       authority = new URL(url).hostname;

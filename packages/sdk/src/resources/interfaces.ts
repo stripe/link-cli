@@ -89,5 +89,5 @@ export interface IUserInfoResource {
 }
 
 export interface IWebBotAuthResource {
-  getHeaders(url: string): Promise<WebBotAuthBlock>;
+  signUrl(url: string): Promise<WebBotAuthBlock>;
 }

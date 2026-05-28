@@ -51,7 +51,7 @@ export function createWebBotAuthCli(
         );
       }
 
-      return resource.getHeaders(url);
+      return resource.signUrl(url);
     },
   });
 
