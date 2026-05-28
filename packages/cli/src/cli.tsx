@@ -97,9 +97,9 @@ cli.command(
   createUserInfoCli(() => factory.createUserInfoResource(), authStorage),
 );
 cli.command(createMppCli(spendRequestRepo, authStorage));
-cli.command(
-  createWebBotAuthCli(() => factory.createWebBotAuthResource(), authStorage),
-);
+// cli.command(
+//   createWebBotAuthCli(() => factory.createWebBotAuthResource(), authStorage),
+// );
 cli.command(
   createDemoCli(
     authRepo,
