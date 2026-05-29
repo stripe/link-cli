@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "link": {
-      "command": "pnpx",
+      "command": "npx",
       "args": ["@stripe/link-cli", "--mcp"]
     }
   }

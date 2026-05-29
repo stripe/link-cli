@@ -1,0 +1,17 @@
+{
+  "name": "link-cli",
+  "owner": {
+    "name": "Stripe",
+    "email": "agent-spend@stripe.com"
+  },
+  "metadata": {
+    "description": "Stripe Link plugin — lets agents get secure, one-time-use payment credentials from a Link wallet to complete purchases on your behalf."
+  },
+  "plugins": [
+    {
+      "name": "link",
+      "source": "plugins/link",
+      "description": "Get secure, one-time-use payment credentials from a Link wallet so agents can complete purchases on your behalf."
+    }
+  ]
+}
