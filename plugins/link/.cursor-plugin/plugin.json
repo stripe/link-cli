@@ -1,7 +1,7 @@
 {
   "name": "link",
   "displayName": "Stripe Link",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Get secure, one-time-use payment credentials from a Link wallet so agents can complete purchases on your behalf.",
   "author": {
     "name": "Stripe"
@@ -24,7 +24,6 @@
     "agents",
     "mcp"
   ],
-  "skills": "../../skills/",
-  "agents": "./agents/",
-  "mcpServers": "./mcp.json"
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
 }
