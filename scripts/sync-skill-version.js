@@ -25,14 +25,26 @@ function syncPluginJsonVersion(label, path) {
   const json = JSON.parse(readFileSync(path, 'utf8'));
   if (json.version !== version) {
     json.version = version;
-    writeFileSync(path, JSON.stringify(json, null, 2) + '\n');
+    writeFileSync(path, `${JSON.stringify(json, null, 2)}\n`);
     console.log(`Updated ${label} version to ${version}`);
   } else {
     console.log(`${label} version already at ${version}`);
   }
 }
 
-syncSkillVersion('SKILL.md', resolve(root, 'skills/create-payment-credential/SKILL.md'));
-syncPluginJsonVersion('.cursor-plugin/plugin.json', resolve(root, 'plugins/link/.cursor-plugin/plugin.json'));
-syncPluginJsonVersion('.claude-plugin/plugin.json', resolve(root, 'plugins/link/.claude-plugin/plugin.json'));
-syncPluginJsonVersion('.codex-plugin/plugin.json', resolve(root, 'plugins/link/.codex-plugin/plugin.json'));
+syncSkillVersion(
+  'SKILL.md',
+  resolve(root, 'skills/create-payment-credential/SKILL.md'),
+);
+syncPluginJsonVersion(
+  '.cursor-plugin/plugin.json',
+  resolve(root, 'plugins/link/.cursor-plugin/plugin.json'),
+);
+syncPluginJsonVersion(
+  '.claude-plugin/plugin.json',
+  resolve(root, 'plugins/link/.claude-plugin/plugin.json'),
+);
+syncPluginJsonVersion(
+  '.codex-plugin/plugin.json',
+  resolve(root, 'plugins/link/.codex-plugin/plugin.json'),
+);
