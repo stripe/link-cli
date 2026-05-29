@@ -28,7 +28,7 @@
     "dev": "tsx src/cli.tsx"
   },
   "dependencies": {
-    "incur": "^0.4.5",
+    "incur": "^0.4.6",
     "ink": "^5.2.1",
     "ink-spinner": "^5.0.0",
     "mppx": "0.6.16",
@@ -36,20 +36,20 @@
     "react": "^18.3.1",
     "strip-ansi": "^7.2.0",
     "update-notifier": "^7.3.1",
-    "viem": "^2.47.5",
-    "zod": "^4.3.6"
+    "viem": "^2.50.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@stripe/link-sdk": "workspace:*",
     "@stripe/link-typescript-config": "workspace:*",
-    "@types/node": "^22.19.15",
-    "@types/qrcode": "^1.5.5",
-    "@types/react": "^18.3.28",
+    "@types/node": "^22.19.19",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^18.3.29",
     "@types/update-notifier": "^6.0.8",
     "ink-testing-library": "^4.0.0",
     "tsup": "^8.5.1",
-    "tsx": "^4.21.0",
+    "tsx": "^4.22.3",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.7"
   }
 }
