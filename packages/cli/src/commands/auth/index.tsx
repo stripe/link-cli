@@ -73,6 +73,22 @@ async function* pollAuthStatus(
   }
 }
 
+async function maybeRevokeAndClearAuth(
+  authResource: IAuthResource,
+  storage: AuthStorage,
+) {
+  const auth = storage.getAuth();
+  if (auth?.refresh_token) {
+    try {
+      await authResource.revokeToken(auth.refresh_token);
+    } catch {
+      // best-effort: clear local storage regardless
+    }
+  }
+  storage.clearAuth();
+  storage.clearPendingDeviceAuth();
+}
+
 export function createAuthCli(
   authResource: IAuthResource,
   getUpdateInfo?: UpdateInfoProvider,
@@ -96,6 +112,8 @@ export function createAuthCli(
           message: 'client-name must be a non-empty string',
         });
       }
+
+      await maybeRevokeAndClearAuth(authResource, storage);
 
       if (!c.agent && !c.formatExplicit) {
         return renderInteractive(
@@ -154,16 +172,7 @@ export function createAuthCli(
     description: 'Log out from Link',
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      const auth = storage.getAuth();
-      if (auth?.refresh_token) {
-        try {
-          await authResource.revokeToken(auth.refresh_token);
-        } catch {
-          // best-effort: clear local storage regardless
-        }
-      }
-      storage.clearAuth();
-      storage.clearPendingDeviceAuth();
+      await maybeRevokeAndClearAuth(authResource, storage);
       storage.deleteConfig();
       const result = { authenticated: false };
 

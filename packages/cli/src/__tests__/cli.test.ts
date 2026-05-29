@@ -976,8 +976,67 @@ describe('production mode', () => {
       expect(next.until).toContain('authenticated');
     });
 
+    it('revokes existing session before starting new login', async () => {
+      setResponseForUrl('/device/revoke', 200, 'ok');
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--client-name',
+        'New Agent',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const revokeRequest = requests.find((r) =>
+        r.url.includes('/device/revoke'),
+      );
+      expect(revokeRequest).toBeDefined();
+      expect(revokeRequest?.method).toBe('POST');
+      const params = new URLSearchParams(revokeRequest?.body);
+      expect(params.get('token')).toBe(PROD_AUTH_TOKENS.refresh_token);
+    });
+
+    it('proceeds with login even if revoke fails', async () => {
+      setResponseForUrl('/device/revoke', 500, { error: 'server_error' });
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--client-name',
+        'New Agent',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const output = parseJson(result.stdout) as Record<string, unknown>[];
+      expect(output[0].verification_url).toBeDefined();
+    });
+
+    it('skips revoke when not previously authenticated', async () => {
+      storage.clearAuth();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--client-name',
+        'Fresh Agent',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const revokeRequest = requests.find((r) =>
+        r.url.includes('/device/revoke'),
+      );
+      expect(revokeRequest).toBeUndefined();
+    });
+
     it('with --interval, yields code first then polls until authenticated', async () => {
       storage.clearAuth();
+      setResponseForUrl('/device/revoke', 200, 'ok');
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
       setResponseForUrl('/device/token', 200, TOKEN_RESPONSE);
 
@@ -1032,6 +1091,7 @@ describe('production mode', () => {
 
     it('with --interval, exits with error on access_denied', async () => {
       storage.clearAuth();
+      setResponseForUrl('/device/revoke', 200, 'ok');
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
       setResponseForUrl('/device/token', 400, { error: 'access_denied' });
 
