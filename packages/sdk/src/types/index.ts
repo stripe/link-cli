@@ -73,6 +73,23 @@ export interface SharedPaymentToken {
   valid_until?: string;
 }
 
+export interface RefundDetails {
+  amount: number;
+  currency: string;
+  state: string;
+  created: number;
+}
+
+export interface PaymentStatusDetails {
+  outcome: 'success' | 'failure';
+  code?: string | null;
+  decline_code?: string | null;
+  amount: number;
+  currency: string;
+  created?: number | null;
+  refund_details?: RefundDetails | null;
+}
+
 export interface SpendRequest {
   id: string;
   merchant_name?: string;
@@ -90,6 +107,7 @@ export interface SpendRequest {
   approval_url?: string;
   card?: Card;
   shared_payment_token?: SharedPaymentToken;
+  payment_status_details?: PaymentStatusDetails | null;
   created_at: string;
   updated_at: string;
 }

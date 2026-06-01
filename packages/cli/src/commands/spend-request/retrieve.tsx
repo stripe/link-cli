@@ -227,6 +227,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
   }
 
   if (phase === 'finalized') {
+    const psd = request?.payment_status_details;
     return (
       <Box flexDirection="column">
         <Text color="yellow">
@@ -239,6 +240,53 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
           <Text>
             Status: <Text bold>{request?.status}</Text>
           </Text>
+          {psd && (
+            <Box flexDirection="column" marginTop={1}>
+              <Text bold>Payment Details:</Text>
+              <Text>
+                {'  '}Outcome:{' '}
+                <Text bold color={psd.outcome === 'success' ? 'green' : 'red'}>
+                  {psd.outcome}
+                </Text>
+              </Text>
+              {psd.code && (
+                <Text>
+                  {'  '}Code: <Text bold>{psd.code}</Text>
+                </Text>
+              )}
+              {psd.decline_code && (
+                <Text>
+                  {'  '}Decline Reason: <Text bold>{psd.decline_code}</Text>
+                </Text>
+              )}
+              <Text>
+                {'  '}Amount:{' '}
+                <Text bold>
+                  {psd.amount} {psd.currency}
+                </Text>
+              </Text>
+              {psd.created && (
+                <Text>
+                  {'  '}Charged At:{' '}
+                  <Text bold>{new Date(psd.created * 1000).toISOString()}</Text>
+                </Text>
+              )}
+              {psd.refund_details && (
+                <Box flexDirection="column" marginTop={1}>
+                  <Text bold>{'  '}Refund:</Text>
+                  <Text>
+                    {'    '}Amount:{' '}
+                    <Text bold>
+                      {psd.refund_details.amount} {psd.refund_details.currency}
+                    </Text>
+                  </Text>
+                  <Text>
+                    {'    '}State: <Text bold>{psd.refund_details.state}</Text>
+                  </Text>
+                </Box>
+              )}
+            </Box>
+          )}
         </Box>
       </Box>
     );
@@ -300,6 +348,36 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
             {request?.line_items.map((li) => li.name).join(', ')}
           </Text>
         </Text>
+        {request?.payment_status_details && (
+          <Box flexDirection="column" marginTop={1}>
+            <Text bold>Last Payment Attempt:</Text>
+            <Text>
+              {'  '}Outcome:{' '}
+              <Text
+                bold
+                color={
+                  request.payment_status_details.outcome === 'success'
+                    ? 'green'
+                    : 'red'
+                }
+              >
+                {request.payment_status_details.outcome}
+              </Text>
+            </Text>
+            {request.payment_status_details.code && (
+              <Text>
+                {'  '}Code:{' '}
+                <Text bold>{request.payment_status_details.code}</Text>
+              </Text>
+            )}
+            {request.payment_status_details.decline_code && (
+              <Text>
+                {'  '}Decline Reason:{' '}
+                <Text bold>{request.payment_status_details.decline_code}</Text>
+              </Text>
+            )}
+          </Box>
+        )}
         {request?.shared_payment_token && (
           <Box flexDirection="column" marginTop={1}>
             <Text bold>
