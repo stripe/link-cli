@@ -1,10 +1,12 @@
 import type { ISpendRequestResource, SpendRequest } from '@stripe/link-sdk';
-import { Box, Text } from 'ink';
+import { Box, Text, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { DISPLAY_DELAY_MS } from '../../utils/constants';
+import { startCallbackServer } from '../../utils/local-callback-server';
+import { openUrl } from '../../utils/open-url';
 import { ApprovalWaitingView } from './approval-waiting-view';
-import { useApprovalPolling } from './use-approval-polling';
 
 interface RequestApprovalProps {
   repository: ISpendRequestResource;
@@ -18,40 +20,75 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
   onComplete,
 }) => {
   const [status, setStatus] = useState<
-    'requesting' | 'waiting' | 'polling' | 'success' | 'error'
+    'requesting' | 'waiting' | 'success' | 'error'
   >('requesting');
   const [approvalUrl, setApprovalUrl] = useState<string>('');
   const [result, setResult] = useState<SpendRequest | null>(null);
   const [error, setError] = useState<string>('');
 
-  const onSuccess = useCallback((r: SpendRequest) => setResult(r), []);
-  const onError = useCallback((msg: string) => setError(msg), []);
-
-  useApprovalPolling({
-    status,
-    setStatus,
-    approvalUrl,
-    repository,
-    requestId: id,
-    onComplete,
-    onSuccess,
-    onError,
-  });
+  useInput(
+    (_input, key) => {
+      if (key.return && approvalUrl) openUrl(approvalUrl);
+    },
+    { isActive: status === 'waiting' },
+  );
 
   useEffect(() => {
-    const request = async () => {
+    let close: (() => void) | null = null;
+    let cancelled = false;
+
+    const run = async () => {
       try {
-        const res = await repository.requestApproval(id);
+        const server = await startCallbackServer();
+        close = server.close;
+
+        const res = await repository.requestApproval(id, {
+          redirect_uri: server.redirectUri,
+        });
+        if (cancelled) return;
+
         setApprovalUrl(res.approval_link);
         setStatus('waiting');
+
+        const { approved } = await server.waitForCallback();
+        if (cancelled) return;
+
+        const final = await repository.retrieve(id);
+        if (cancelled) return;
+
+        if (!final) {
+          setError('Spend request not found after approval');
+          setStatus('error');
+          return;
+        }
+
+        if (approved && final.status === 'approved') {
+          setResult(final);
+          setStatus('success');
+          setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
+        } else {
+          setError(
+            `Spend request did not reach approved (status: ${final.status})`,
+          );
+          setStatus('error');
+          setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
+        }
       } catch (err) {
-        setError((err as Error).message);
-        setStatus('error');
+        if (!cancelled) {
+          setError((err as Error).message);
+          setStatus('error');
+        }
+      } finally {
+        close?.();
       }
     };
 
-    request();
-  }, [repository, id]);
+    run();
+    return () => {
+      cancelled = true;
+      close?.();
+    };
+  }, [repository, id, onComplete]);
 
   if (status === 'requesting') {
     return (
@@ -105,10 +142,5 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
     );
   }
 
-  return (
-    <ApprovalWaitingView
-      status={status as 'waiting' | 'polling'}
-      approvalUrl={approvalUrl}
-    />
-  );
+  return <ApprovalWaitingView approvalUrl={approvalUrl} />;
 };
