@@ -16,7 +16,10 @@ export const NOT_AUTHENTICATED_ERROR: AuthErrorOptions = {
   },
 };
 
-export function requireAuth(authStorage?: AuthStorage, envAccessToken?: string): MiddlewareHandler {
+export function requireAuth(
+  authStorage?: AuthStorage,
+  envAccessToken?: string,
+): MiddlewareHandler {
   const store = authStorage ?? defaultStorage;
   return (c, next) => {
     if (!envAccessToken && !store.isAuthenticated()) {

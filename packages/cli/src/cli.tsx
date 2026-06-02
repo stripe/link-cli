@@ -80,7 +80,9 @@ if (!isAgent && process.stdout.isTTY) {
 cli.command(
   createAuthCli(authRepo, getUpdateInfo, authStorage, envAccessToken),
 );
-cli.command(createSpendRequestCli(spendRequestRepo, authStorage, envAccessToken));
+cli.command(
+  createSpendRequestCli(spendRequestRepo, authStorage, envAccessToken),
+);
 cli.command(
   createPaymentMethodsCli(
     () => factory.createPaymentMethodsResource(),
@@ -96,7 +98,11 @@ cli.command(
   ),
 );
 cli.command(
-  createUserInfoCli(() => factory.createUserInfoResource(), authStorage, envAccessToken),
+  createUserInfoCli(
+    () => factory.createUserInfoResource(),
+    authStorage,
+    envAccessToken,
+  ),
 );
 cli.command(createMppCli(spendRequestRepo, authStorage, envAccessToken));
 // cli.command(

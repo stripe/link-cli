@@ -1220,7 +1220,9 @@ describe('production mode', () => {
       expect(output.email).toBe('user@example.com');
       const userInfoRequest = requests.find((r) => r.url === '/userinfo');
       expect(userInfoRequest).toBeDefined();
-      expect(userInfoRequest?.headers.authorization).toBe(`Bearer ${ENV_TOKEN}`);
+      expect(userInfoRequest?.headers.authorization).toBe(
+        `Bearer ${ENV_TOKEN}`,
+      );
     });
 
     it('allows spend-request list with no stored auth', async () => {
@@ -1272,7 +1274,12 @@ describe('production mode', () => {
     });
 
     it('still blocks commands with neither stored auth nor env token', async () => {
-      const result = await runProdCliWithEnv({}, 'user-info', 'retrieve', '--json');
+      const result = await runProdCliWithEnv(
+        {},
+        'user-info',
+        'retrieve',
+        '--json',
+      );
 
       expect(result.exitCode).toBe(1);
       expect(result.stdout + result.stderr).toContain('Not authenticated');

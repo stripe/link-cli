@@ -16,7 +16,11 @@ function makeStorage(authenticated: boolean): AuthStorage {
 function makeContext() {
   const error = vi.fn();
   const next = vi.fn();
-  return { c: { error } as unknown as Parameters<ReturnType<typeof requireAuth>>[0], next, error };
+  return {
+    c: { error } as unknown as Parameters<ReturnType<typeof requireAuth>>[0],
+    next,
+    error,
+  };
 }
 
 describe('requireAuth', () => {
@@ -24,7 +28,9 @@ describe('requireAuth', () => {
     const { c, next, error } = makeContext();
     const handler = requireAuth(makeStorage(false));
     handler(c, next);
-    expect(error).toHaveBeenCalledWith(expect.objectContaining({ code: 'NOT_AUTHENTICATED' }));
+    expect(error).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'NOT_AUTHENTICATED' }),
+    );
     expect(next).not.toHaveBeenCalled();
   });
 
@@ -55,20 +61,30 @@ describe('requireAuth', () => {
 
 describe('requireAuthGuard', () => {
   it('blocks when no stored auth and no env token', () => {
-    const error = vi.fn(() => { throw new Error('auth error'); });
-    expect(() => requireAuthGuard({ error } as never, makeStorage(false))).toThrow('auth error');
-    expect(error).toHaveBeenCalledWith(expect.objectContaining({ code: 'NOT_AUTHENTICATED' }));
+    const error = vi.fn(() => {
+      throw new Error('auth error');
+    });
+    expect(() =>
+      requireAuthGuard({ error } as never, makeStorage(false)),
+    ).toThrow('auth error');
+    expect(error).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'NOT_AUTHENTICATED' }),
+    );
   });
 
   it('does not throw when stored auth is present', () => {
     const error = vi.fn();
-    expect(() => requireAuthGuard({ error } as never, makeStorage(true))).not.toThrow();
+    expect(() =>
+      requireAuthGuard({ error } as never, makeStorage(true)),
+    ).not.toThrow();
     expect(error).not.toHaveBeenCalled();
   });
 
   it('does not throw when envAccessToken is set with no stored auth', () => {
     const error = vi.fn();
-    expect(() => requireAuthGuard({ error } as never, makeStorage(false), 'tok_env_abc')).not.toThrow();
+    expect(() =>
+      requireAuthGuard({ error } as never, makeStorage(false), 'tok_env_abc'),
+    ).not.toThrow();
     expect(error).not.toHaveBeenCalled();
   });
 });
