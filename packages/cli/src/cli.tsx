@@ -80,23 +80,25 @@ if (!isAgent && process.stdout.isTTY) {
 cli.command(
   createAuthCli(authRepo, getUpdateInfo, authStorage, envAccessToken),
 );
-cli.command(createSpendRequestCli(spendRequestRepo, authStorage));
+cli.command(createSpendRequestCli(spendRequestRepo, authStorage, envAccessToken));
 cli.command(
   createPaymentMethodsCli(
     () => factory.createPaymentMethodsResource(),
     authStorage,
+    envAccessToken,
   ),
 );
 cli.command(
   createShippingAddressCli(
     () => factory.createShippingAddressResource(),
     authStorage,
+    envAccessToken,
   ),
 );
 cli.command(
-  createUserInfoCli(() => factory.createUserInfoResource(), authStorage),
+  createUserInfoCli(() => factory.createUserInfoResource(), authStorage, envAccessToken),
 );
-cli.command(createMppCli(spendRequestRepo, authStorage));
+cli.command(createMppCli(spendRequestRepo, authStorage, envAccessToken));
 // cli.command(
 //   createWebBotAuthCli(() => factory.createWebBotAuthResource(), authStorage),
 // );

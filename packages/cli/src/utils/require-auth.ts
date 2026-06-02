@@ -16,10 +16,10 @@ export const NOT_AUTHENTICATED_ERROR: AuthErrorOptions = {
   },
 };
 
-export function requireAuth(authStorage?: AuthStorage): MiddlewareHandler {
+export function requireAuth(authStorage?: AuthStorage, envAccessToken?: string): MiddlewareHandler {
   const store = authStorage ?? defaultStorage;
   return (c, next) => {
-    if (!store.isAuthenticated()) {
+    if (!envAccessToken && !store.isAuthenticated()) {
       return c.error(NOT_AUTHENTICATED_ERROR);
     }
     return next();
@@ -29,9 +29,10 @@ export function requireAuth(authStorage?: AuthStorage): MiddlewareHandler {
 export function requireAuthGuard(
   c: { error: (err: AuthErrorOptions) => never },
   authStorage?: AuthStorage,
+  envAccessToken?: string,
 ) {
   const store = authStorage ?? defaultStorage;
-  if (!store.isAuthenticated()) {
+  if (!envAccessToken && !store.isAuthenticated()) {
     c.error(NOT_AUTHENTICATED_ERROR);
   }
 }

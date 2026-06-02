@@ -8,6 +8,7 @@ import { UserInfoRetrieve } from './retrieve';
 export function createUserInfoCli(
   createResource: () => IUserInfoResource,
   authStorage?: AuthStorage,
+  envAccessToken?: string,
 ) {
   const cli = Cli.create('user-info', {
     description: 'User information commands',
@@ -16,7 +17,7 @@ export function createUserInfoCli(
   cli.command('retrieve', {
     description: 'Retrieve user info (email, name, phone)',
     outputPolicy: 'agent-only' as const,
-    middleware: [requireAuth(authStorage)],
+    middleware: [requireAuth(authStorage, envAccessToken)],
     async run(c) {
       const resource = createResource();
 

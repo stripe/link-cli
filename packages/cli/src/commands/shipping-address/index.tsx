@@ -8,6 +8,7 @@ import { ShippingAddressList } from './list';
 export function createShippingAddressCli(
   createResource: () => IShippingAddressResource,
   authStorage?: AuthStorage,
+  envAccessToken?: string,
 ) {
   const cli = Cli.create('shipping-address', {
     description: 'Shipping address management commands',
@@ -16,7 +17,7 @@ export function createShippingAddressCli(
   cli.command('list', {
     description: 'List all shipping addresses on your account',
     outputPolicy: 'agent-only' as const,
-    middleware: [requireAuth(authStorage)],
+    middleware: [requireAuth(authStorage, envAccessToken)],
     async run(c) {
       const resource = createResource();
 

@@ -50,6 +50,7 @@ async function applyOutputFile(
 export function createSpendRequestCli(
   repository: ISpendRequestResource,
   authStorage?: AuthStorage,
+  envAccessToken?: string,
 ) {
   const cli = Cli.create('spend-request', {
     description: 'Spend request management commands',
@@ -59,7 +60,7 @@ export function createSpendRequestCli(
     description:
       'List active spend requests (created, pending_approval, approved)',
     outputPolicy: 'agent-only' as const,
-    middleware: [requireAuth(authStorage)],
+    middleware: [requireAuth(authStorage, envAccessToken)],
     async run(c) {
       if (!c.agent && !c.formatExplicit) {
         return renderInteractive(
@@ -78,7 +79,7 @@ export function createSpendRequestCli(
     alias: { merchantName: 'm' },
     outputPolicy: 'agent-only' as const,
     async *run(c) {
-      requireAuthGuard(c, authStorage);
+      requireAuthGuard(c, authStorage, envAccessToken);
 
       const opts = c.options;
       const requestApproval = !!opts.requestApproval;
@@ -205,7 +206,7 @@ export function createSpendRequestCli(
     }),
     options: updateOptions,
     outputPolicy: 'agent-only' as const,
-    middleware: [requireAuth(authStorage)],
+    middleware: [requireAuth(authStorage, envAccessToken)],
     async run(c) {
       const id = c.args.id;
       const opts = c.options;
@@ -258,7 +259,7 @@ export function createSpendRequestCli(
     }),
     outputPolicy: 'agent-only' as const,
     async *run(c) {
-      requireAuthGuard(c, authStorage);
+      requireAuthGuard(c, authStorage, envAccessToken);
 
       const id = c.args.id;
 
@@ -302,7 +303,7 @@ export function createSpendRequestCli(
     options: retrieveOptions,
     outputPolicy: 'agent-only' as const,
     async *run(c) {
-      requireAuthGuard(c, authStorage);
+      requireAuthGuard(c, authStorage, envAccessToken);
 
       const id = c.args.id;
       const opts = c.options;
@@ -401,7 +402,7 @@ export function createSpendRequestCli(
       id: z.string().describe('Spend request ID'),
     }),
     outputPolicy: 'agent-only' as const,
-    middleware: [requireAuth(authStorage)],
+    middleware: [requireAuth(authStorage, envAccessToken)],
     async run(c) {
       const id = c.args.id;
 

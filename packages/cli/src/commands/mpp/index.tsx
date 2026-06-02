@@ -11,6 +11,7 @@ import { decodeOptions, payOptions } from './schema';
 export function createMppCli(
   repository: ISpendRequestResource,
   authStorage?: AuthStorage,
+  envAccessToken?: string,
 ) {
   const cli = Cli.create('mpp', {
     description: 'Machine payment protocol (MPP) commands',
@@ -25,7 +26,7 @@ export function createMppCli(
     options: payOptions,
     alias: { method: 'X', data: 'd', header: 'H' },
     outputPolicy: 'agent-only' as const,
-    middleware: [requireAuth(authStorage)],
+    middleware: [requireAuth(authStorage, envAccessToken)],
     async run(c) {
       const url = c.args.url;
       const opts = c.options;

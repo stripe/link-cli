@@ -9,6 +9,7 @@ import { PaymentMethodsList } from './list';
 export function createPaymentMethodsCli(
   createResource: () => IPaymentMethodsResource,
   authStorage?: AuthStorage,
+  envAccessToken?: string,
 ) {
   const cli = Cli.create('payment-methods', {
     description: 'Payment methods management commands',
@@ -17,7 +18,7 @@ export function createPaymentMethodsCli(
   cli.command('list', {
     description: 'List all payment methods on your account',
     outputPolicy: 'agent-only' as const,
-    middleware: [requireAuth(authStorage)],
+    middleware: [requireAuth(authStorage, envAccessToken)],
     async run(c) {
       const resource = createResource();
 
@@ -35,7 +36,7 @@ export function createPaymentMethodsCli(
   cli.command('add', {
     description: 'Open the Link wallet to add a new payment method',
     outputPolicy: 'agent-only' as const,
-    middleware: [requireAuth(authStorage)],
+    middleware: [requireAuth(authStorage, envAccessToken)],
     async run(c) {
       if (!c.agent && !c.formatExplicit) {
         return renderInteractive(<AddPaymentMethod />, () => ({
