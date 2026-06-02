@@ -102,6 +102,13 @@ function setResponseForUrl(url: string, status: number, body: unknown) {
 }
 
 async function runProdCli(...args: string[]): Promise<CliResult> {
+  return runProdCliWithEnv({}, ...args);
+}
+
+async function runProdCliWithEnv(
+  extraEnv: Record<string, string>,
+  ...args: string[]
+): Promise<CliResult> {
   try {
     const { stdout, stderr } = await execFileAsync(
       'node',
@@ -112,6 +119,7 @@ async function runProdCli(...args: string[]): Promise<CliResult> {
           LINK_API_BASE_URL: `http://127.0.0.1:${serverPort}`,
           LINK_AUTH_BASE_URL: `http://127.0.0.1:${serverPort}`,
           XDG_DATA_HOME: '/tmp/link-cli-test-empty',
+          ...extraEnv,
         },
         timeout: 10_000,
       },
@@ -1184,6 +1192,92 @@ describe('production mode', () => {
       expect(result.exitCode).toBe(1);
       const output = result.stdout + result.stderr;
       expect(output).toContain('Not authenticated');
+    });
+  });
+
+  describe('LINK_ACCESS_TOKEN', () => {
+    const ENV_TOKEN = 'env_access_token_abc123';
+
+    beforeEach(() => {
+      storage.clearAuth();
+    });
+
+    it('allows user-info retrieve with no stored auth', async () => {
+      setResponseForUrl('/userinfo', 200, {
+        email: 'user@example.com',
+        name: 'Test User',
+      });
+
+      const result = await runProdCliWithEnv(
+        { LINK_ACCESS_TOKEN: ENV_TOKEN },
+        'user-info',
+        'retrieve',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const output = parseJson(result.stdout) as Record<string, unknown>;
+      expect(output.email).toBe('user@example.com');
+      const userInfoRequest = requests.find((r) => r.url === '/userinfo');
+      expect(userInfoRequest).toBeDefined();
+      expect(userInfoRequest?.headers.authorization).toBe(`Bearer ${ENV_TOKEN}`);
+    });
+
+    it('allows spend-request list with no stored auth', async () => {
+      setNextResponse(200, { data: [] });
+
+      const result = await runProdCliWithEnv(
+        { LINK_ACCESS_TOKEN: ENV_TOKEN },
+        'spend-request',
+        'list',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const spendRequest = requests.find((r) => r.url === '/spend_requests');
+      expect(spendRequest).toBeDefined();
+      expect(spendRequest?.headers.authorization).toBe(`Bearer ${ENV_TOKEN}`);
+    });
+
+    it('allows payment-methods list with no stored auth', async () => {
+      setResponseForUrl('/payment-details', 200, { payment_details: [] });
+
+      const result = await runProdCliWithEnv(
+        { LINK_ACCESS_TOKEN: ENV_TOKEN },
+        'payment-methods',
+        'list',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const pmRequest = requests.find((r) => r.url === '/payment-details');
+      expect(pmRequest).toBeDefined();
+      expect(pmRequest?.headers.authorization).toBe(`Bearer ${ENV_TOKEN}`);
+    });
+
+    it('allows shipping-address list with no stored auth', async () => {
+      setResponseForUrl('/shipping_addresses', 200, { shipping_addresses: [] });
+
+      const result = await runProdCliWithEnv(
+        { LINK_ACCESS_TOKEN: ENV_TOKEN },
+        'shipping-address',
+        'list',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const saRequest = requests.find((r) => r.url === '/shipping_addresses');
+      expect(saRequest).toBeDefined();
+      expect(saRequest?.headers.authorization).toBe(`Bearer ${ENV_TOKEN}`);
+    });
+
+    it('still blocks commands with neither stored auth nor env token', async () => {
+      const result = await runProdCliWithEnv({}, 'user-info', 'retrieve', '--json');
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout + result.stderr).toContain('Not authenticated');
+      const userInfoRequest = requests.find((r) => r.url === '/userinfo');
+      expect(userInfoRequest).toBeUndefined();
     });
   });
 
