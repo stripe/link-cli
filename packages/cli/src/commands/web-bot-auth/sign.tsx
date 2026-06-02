@@ -17,7 +17,7 @@ export const WebBotAuthSign: React.FC<WebBotAuthSignProps> = ({
   onComplete,
 }) => {
   const { exit } = useApp();
-  const action = useCallback(() => resource.getHeaders(url), [resource, url]);
+  const action = useCallback(() => resource.signUrl(url), [resource, url]);
   const handleComplete = useCallback(
     (result: WebBotAuthBlock | null) => {
       onComplete(result);

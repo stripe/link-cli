@@ -31,7 +31,7 @@ export class WebBotAuthResource implements IWebBotAuthResource {
   private readonly verbose: boolean;
   private readonly getAccessToken: AccessTokenProvider;
   private readonly fetchImpl: typeof globalThis.fetch;
-  private readonly credentialsEndpoint: string;
+  private readonly signEndpoint: string;
   private readonly logger: { debug(message: string): void };
   private readonly cache = new Map<string, CacheEntry>();
 
@@ -42,7 +42,7 @@ export class WebBotAuthResource implements IWebBotAuthResource {
     // defaultHeaders (if any) are baked into config.fetch by resolveLinkSdkConfig
     // via createDefaultHeadersFetch — no separate field needed.
     this.fetchImpl = requireFetchImplementation(config);
-    this.credentialsEndpoint = `${config.apiBaseUrl}/v1/agent_identity/credentials`;
+    this.signEndpoint = `${config.apiBaseUrl}/web_bot_auth/sign`;
     this.logger = config.logger;
   }
 
@@ -129,11 +129,11 @@ export class WebBotAuthResource implements IWebBotAuthResource {
    * the merchant site.
    *
    * @throws {LinkSdkError} if `url` is not a valid URL
-   * @throws {LinkSdkError} if the credentials response is missing the web_bot_auth block
-   * @throws {LinkApiError} if the credentials endpoint returns a non-2xx status
+   * @throws {LinkSdkError} if the sign response is missing the web_bot_auth block
+   * @throws {LinkApiError} if the sign endpoint returns a non-2xx status
    * @throws {LinkTransportError} if the network request fails
    */
-  async getHeaders(url: string): Promise<WebBotAuthBlock> {
+  async signUrl(url: string): Promise<WebBotAuthBlock> {
     let authority: string;
     try {
       authority = new URL(url).hostname;
@@ -148,7 +148,7 @@ export class WebBotAuthResource implements IWebBotAuthResource {
 
     const { status, data, rawBody } = await this.apiFetch({
       method: 'POST',
-      url: this.credentialsEndpoint,
+      url: this.signEndpoint,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url }),
     });
@@ -169,7 +169,7 @@ export class WebBotAuthResource implements IWebBotAuthResource {
     const webBotAuth = body?.web_bot_auth as WebBotAuthBlock | undefined;
     if (!webBotAuth) {
       throw new LinkSdkError(
-        `Credentials response missing web_bot_auth block (status ${status})`,
+        `Sign response missing web_bot_auth block (status ${status})`,
       );
     }
 
