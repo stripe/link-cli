@@ -3,16 +3,16 @@ import type {
   ISpendRequestResource,
   SpendRequest,
 } from '@stripe/link-sdk';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { writeCredentialFile } from '../../utils/credential-output';
-import { startCallbackServer } from '../../utils/local-callback-server';
-import { openUrl } from '../../utils/open-url';
+import { tryStartCallbackServer } from '../../utils/local-callback-server';
 import { AppDownloadQrCodes } from './app-download-qr-codes';
 import { ApprovalWaitingView } from './approval-waiting-view';
+import { useApprovalPolling } from './use-approval-polling';
 
 interface CreateSpendRequestProps {
   repository: ISpendRequestResource;
@@ -32,20 +32,37 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
   onComplete,
 }) => {
   const [status, setStatus] = useState<
-    'creating' | 'waiting' | 'success' | 'error'
+    'creating' | 'waiting' | 'polling' | 'success' | 'error'
   >('creating');
   const [request, setRequest] = useState<SpendRequest | null>(null);
   const [approvalUrl, setApprovalUrl] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [outputFilePath, setOutputFilePath] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string>('');
+  const [pollingFallback, setPollingFallback] = useState(false);
 
-  useInput(
-    (_input, key) => {
-      if (key.return && approvalUrl) openUrl(approvalUrl);
+  useApprovalPolling({
+    enabled: pollingFallback,
+    status,
+    setStatus: () => setStatus('polling'),
+    approvalUrl,
+    repository,
+    requestId: request?.id ?? null,
+    onComplete,
+    onTerminal: (final, s) => {
+      if (s === 'approved') {
+        setRequest(final);
+        setStatus('success');
+      } else {
+        setError(`Spend request did not reach approved (status: ${final.status})`);
+        setStatus('error');
+      }
     },
-    { isActive: status === 'waiting' },
-  );
+    onPollError: (msg) => {
+      setError(msg);
+      setStatus('error');
+    },
+  });
 
   useEffect(() => {
     let close: (() => void) | null = null;
@@ -53,12 +70,8 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
 
     const create = async () => {
       try {
-        let server: Awaited<ReturnType<typeof startCallbackServer>> | null =
-          null;
-        if (requestApproval) {
-          server = await startCallbackServer();
-          close = server.close;
-        }
+        const server = requestApproval ? await tryStartCallbackServer() : null;
+        if (server) close = server.close;
 
         // Strip request_approval so the spend request starts in `created` state; we call requestApproval explicitly below.
         const { request_approval: _, ...createParams } = params;
@@ -66,19 +79,25 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
         if (cancelled) return;
         setRequest(result);
 
-        if (!requestApproval || !server) {
+        if (!requestApproval) {
           setStatus('success');
           setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
           return;
         }
 
-        const approval = await repository.requestApproval(result.id, {
-          redirect_uri: server.redirectUri,
-        });
+        const approval = await repository.requestApproval(
+          result.id,
+          server ? { redirect_uri: server.redirectUri } : undefined,
+        );
         if (cancelled) return;
 
         setApprovalUrl(approval.approval_link);
         setStatus('waiting');
+
+        if (!server) {
+          setPollingFallback(true);
+          return;
+        }
 
         const { status: callbackStatus } = await server.waitForCallback();
         if (cancelled) return;

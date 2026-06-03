@@ -1,12 +1,12 @@
 import type { ISpendRequestResource, SpendRequest } from '@stripe/link-sdk';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
-import { startCallbackServer } from '../../utils/local-callback-server';
-import { openUrl } from '../../utils/open-url';
+import { tryStartCallbackServer } from '../../utils/local-callback-server';
 import { ApprovalWaitingView } from './approval-waiting-view';
+import { useApprovalPolling } from './use-approval-polling';
 
 interface RequestApprovalProps {
   repository: ISpendRequestResource;
@@ -20,18 +20,31 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
   onComplete,
 }) => {
   const [status, setStatus] = useState<
-    'requesting' | 'waiting' | 'success' | 'denied' | 'expired' | 'error'
+    'requesting' | 'waiting' | 'polling' | 'success' | 'denied' | 'expired' | 'error'
   >('requesting');
   const [approvalUrl, setApprovalUrl] = useState<string>('');
   const [result, setResult] = useState<SpendRequest | null>(null);
   const [error, setError] = useState<string>('');
+  const [pollingFallback, setPollingFallback] = useState(false);
 
-  useInput(
-    (_input, key) => {
-      if (key.return && approvalUrl) openUrl(approvalUrl);
+  useApprovalPolling({
+    enabled: pollingFallback,
+    status,
+    setStatus: () => setStatus('polling'),
+    approvalUrl,
+    repository,
+    requestId: id,
+    onComplete,
+    onTerminal: (final, s) => {
+      setResult(final);
+      if (s === 'error') setError('An error occurred during approval');
+      setStatus(s === 'approved' ? 'success' : s);
     },
-    { isActive: status === 'waiting' },
-  );
+    onPollError: (msg) => {
+      setError(msg);
+      setStatus('error');
+    },
+  });
 
   useEffect(() => {
     let close: (() => void) | null = null;
@@ -39,16 +52,22 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
 
     const run = async () => {
       try {
-        const server = await startCallbackServer();
-        close = server.close;
+        const server = await tryStartCallbackServer();
+        close = server?.close ?? null;
 
-        const res = await repository.requestApproval(id, {
-          redirect_uri: server.redirectUri,
-        });
+        const res = await repository.requestApproval(
+          id,
+          server ? { redirect_uri: server.redirectUri } : undefined,
+        );
         if (cancelled) return;
 
         setApprovalUrl(res.approval_link);
         setStatus('waiting');
+
+        if (!server) {
+          setPollingFallback(true);
+          return;
+        }
 
         const { status: callbackStatus } = await server.waitForCallback();
         if (cancelled) return;

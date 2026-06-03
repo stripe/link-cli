@@ -26,6 +26,14 @@ const STATUS_MESSAGES: Record<string, string> = {
   expired: 'Spend request expired. You can close this tab.',
 };
 
+export async function tryStartCallbackServer(): Promise<CallbackServer | null> {
+  try {
+    return await startCallbackServer();
+  } catch {
+    return null;
+  }
+}
+
 export function startCallbackServer(): Promise<CallbackServer> {
   return new Promise((resolve, reject) => {
     let resolveCallback: ((result: CallbackResult) => void) | undefined;
