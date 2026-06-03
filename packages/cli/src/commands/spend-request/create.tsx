@@ -54,7 +54,9 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
         setRequest(final);
         setStatus('success');
       } else {
-        setError(`Spend request did not reach approved (status: ${final.status})`);
+        setError(
+          `Spend request did not reach approved (status: ${final.status})`,
+        );
         setStatus('error');
       }
     },

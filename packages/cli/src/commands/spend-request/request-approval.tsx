@@ -20,7 +20,13 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
   onComplete,
 }) => {
   const [status, setStatus] = useState<
-    'requesting' | 'waiting' | 'polling' | 'success' | 'denied' | 'expired' | 'error'
+    | 'requesting'
+    | 'waiting'
+    | 'polling'
+    | 'success'
+    | 'denied'
+    | 'expired'
+    | 'error'
   >('requesting');
   const [approvalUrl, setApprovalUrl] = useState<string>('');
   const [result, setResult] = useState<SpendRequest | null>(null);

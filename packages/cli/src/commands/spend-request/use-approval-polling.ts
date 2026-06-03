@@ -79,5 +79,13 @@ export function useApprovalPolling({
     return () => {
       cancelled = true;
     };
-  }, [enabled, status, requestId, repository, onComplete, onTerminal, onPollError]);
+  }, [
+    enabled,
+    status,
+    requestId,
+    repository,
+    onComplete,
+    onTerminal,
+    onPollError,
+  ]);
 }
