@@ -80,7 +80,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
         setApprovalUrl(approval.approval_link);
         setStatus('waiting');
 
-        const { approved } = await server.waitForCallback();
+        const { status: callbackStatus } = await server.waitForCallback();
         if (cancelled) return;
 
         const final = await repository.retrieve(result.id);
@@ -93,7 +93,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
           return;
         }
 
-        if (approved && final.status === 'approved') {
+        if (callbackStatus === 'approved') {
           setRequest(final);
           setStatus('success');
           setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);

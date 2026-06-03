@@ -20,7 +20,7 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
   onComplete,
 }) => {
   const [status, setStatus] = useState<
-    'requesting' | 'waiting' | 'success' | 'error'
+    'requesting' | 'waiting' | 'success' | 'denied' | 'expired' | 'error'
   >('requesting');
   const [approvalUrl, setApprovalUrl] = useState<string>('');
   const [result, setResult] = useState<SpendRequest | null>(null);
@@ -50,7 +50,7 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
         setApprovalUrl(res.approval_link);
         setStatus('waiting');
 
-        const { approved } = await server.waitForCallback();
+        const { status: callbackStatus } = await server.waitForCallback();
         if (cancelled) return;
 
         const final = await repository.retrieve(id);
@@ -62,14 +62,20 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
           return;
         }
 
-        if (approved && final.status === 'approved') {
+        if (callbackStatus === 'approved') {
           setResult(final);
           setStatus('success');
           setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
+        } else if (callbackStatus === 'denied') {
+          setResult(final);
+          setStatus('denied');
+          setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
+        } else if (callbackStatus === 'expired') {
+          setResult(final);
+          setStatus('expired');
+          setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
         } else {
-          setError(
-            `Spend request did not reach approved (status: ${final.status})`,
-          );
+          setError('An error occurred during approval');
           setStatus('error');
           setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
         }
@@ -105,6 +111,38 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
       <Box flexDirection="column">
         <Text color="red">✗ Failed to request approval</Text>
         <Text color="red">{error}</Text>
+      </Box>
+    );
+  }
+
+  if (status === 'denied') {
+    return (
+      <Box flexDirection="column">
+        <Text color="red">✗ Spend request denied</Text>
+        <Box flexDirection="column" marginTop={1} paddingX={2}>
+          <Text>
+            ID: <Text bold>{result?.id}</Text>
+          </Text>
+          <Text>
+            Status: <Text bold color="red">{result?.status}</Text>
+          </Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  if (status === 'expired') {
+    return (
+      <Box flexDirection="column">
+        <Text color="yellow">✗ Spend request expired</Text>
+        <Box flexDirection="column" marginTop={1} paddingX={2}>
+          <Text>
+            ID: <Text bold>{result?.id}</Text>
+          </Text>
+          <Text>
+            Status: <Text bold>{result?.status}</Text>
+          </Text>
+        </Box>
       </Box>
     );
   }

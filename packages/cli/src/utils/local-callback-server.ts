@@ -1,8 +1,10 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
+export type CallbackStatus = 'approved' | 'denied' | 'expired' | 'error';
+
 export interface CallbackResult {
-  approved: boolean;
+  status: CallbackStatus;
 }
 
 export interface CallbackServer {
@@ -10,6 +12,19 @@ export interface CallbackServer {
   waitForCallback: () => Promise<CallbackResult>;
   close: () => void;
 }
+
+const VALID_STATUSES: ReadonlySet<string> = new Set([
+  'approved',
+  'denied',
+  'expired',
+  'error',
+]);
+
+const STATUS_MESSAGES: Record<string, string> = {
+  approved: 'Spend request approved. You can close this tab.',
+  denied: 'Spend request denied. You can close this tab.',
+  expired: 'Spend request expired. You can close this tab.',
+};
 
 export function startCallbackServer(): Promise<CallbackServer> {
   return new Promise((resolve, reject) => {
@@ -20,9 +35,15 @@ export function startCallbackServer(): Promise<CallbackServer> {
 
     const server = createServer((req, res) => {
       const url = new URL(req.url ?? '/', 'http://localhost');
-      const approved = url.searchParams.get('status') === 'approved';
-      res.writeHead(200).end();
-      resolveCallback?.({ approved });
+      const raw = url.searchParams.get('status') ?? '';
+      const status: CallbackStatus = VALID_STATUSES.has(raw)
+        ? (raw as CallbackStatus)
+        : 'error';
+      const message =
+        STATUS_MESSAGES[raw] ?? 'Something went wrong. You can close this tab.';
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(`<html><body><p>${message}</p></body></html>`);
+      resolveCallback?.({ status });
     });
 
     server.listen(0, '127.0.0.1', () => {
