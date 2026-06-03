@@ -124,7 +124,10 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
             ID: <Text bold>{result?.id}</Text>
           </Text>
           <Text>
-            Status: <Text bold color="red">{result?.status}</Text>
+            Status:{' '}
+            <Text bold color="red">
+              {result?.status}
+            </Text>
           </Text>
         </Box>
       </Box>
