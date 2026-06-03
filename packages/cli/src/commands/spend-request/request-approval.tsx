@@ -5,6 +5,7 @@ import type React from 'react';
 import { useEffect, useState } from 'react';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { tryStartCallbackServer } from '../../utils/local-callback-server';
+import { sanitizeDeep } from '../../utils/sanitize-text';
 import { ApprovalWaitingView } from './approval-waiting-view';
 import { useApprovalPolling } from './use-approval-polling';
 
@@ -42,7 +43,7 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
     requestId: id,
     onComplete,
     onTerminal: (final, s) => {
-      setResult(final);
+      setResult(sanitizeDeep(final));
       if (s === 'error') setError('An error occurred during approval');
       setStatus(s === 'approved' ? 'success' : s);
     },
@@ -67,7 +68,7 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
         );
         if (cancelled) return;
 
-        setApprovalUrl(res.approval_link);
+        setApprovalUrl(sanitizeDeep(res.approval_link));
         setStatus('waiting');
 
         if (!server) {
@@ -92,22 +93,23 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
           return;
         }
 
+        const sanitizedFinal = sanitizeDeep(final);
         if (callbackStatus === 'approved') {
-          setResult(final);
+          setResult(sanitizedFinal);
           setStatus('success');
-          setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
+          setTimeout(() => onComplete(sanitizedFinal), DISPLAY_DELAY_MS);
         } else if (callbackStatus === 'denied') {
-          setResult(final);
+          setResult(sanitizedFinal);
           setStatus('denied');
-          setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
+          setTimeout(() => onComplete(sanitizedFinal), DISPLAY_DELAY_MS);
         } else if (callbackStatus === 'expired') {
-          setResult(final);
+          setResult(sanitizedFinal);
           setStatus('expired');
-          setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
+          setTimeout(() => onComplete(sanitizedFinal), DISPLAY_DELAY_MS);
         } else {
           setError('An error occurred during approval');
           setStatus('error');
-          setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
+          setTimeout(() => onComplete(sanitizedFinal), DISPLAY_DELAY_MS);
         }
       } catch (err) {
         if (!cancelled) {

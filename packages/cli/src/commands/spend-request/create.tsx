@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { writeCredentialFile } from '../../utils/credential-output';
 import { tryStartCallbackServer } from '../../utils/local-callback-server';
+import { sanitizeDeep } from '../../utils/sanitize-text';
 import { AppDownloadQrCodes } from './app-download-qr-codes';
 import { ApprovalWaitingView } from './approval-waiting-view';
 import { useApprovalPolling } from './use-approval-polling';
@@ -32,7 +33,13 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
   onComplete,
 }) => {
   const [status, setStatus] = useState<
-    'creating' | 'waiting' | 'polling' | 'success' | 'error'
+    | 'creating'
+    | 'waiting'
+    | 'polling'
+    | 'success'
+    | 'denied'
+    | 'expired'
+    | 'error'
   >('creating');
   const [request, setRequest] = useState<SpendRequest | null>(null);
   const [approvalUrl, setApprovalUrl] = useState<string>('');
@@ -50,13 +57,15 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
     requestId: request?.id ?? null,
     onComplete,
     onTerminal: (final, s) => {
+      setRequest(sanitizeDeep(final));
       if (s === 'approved') {
-        setRequest(final);
         setStatus('success');
+      } else if (s === 'denied') {
+        setStatus('denied');
+      } else if (s === 'expired') {
+        setStatus('expired');
       } else {
-        setError(
-          `Spend request did not reach approved (status: ${final.status})`,
-        );
+        setError('An error occurred during approval');
         setStatus('error');
       }
     },
@@ -79,7 +88,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
         const { request_approval: _, ...createParams } = params;
         const result = await repository.createSpendRequest(createParams);
         if (cancelled) return;
-        setRequest(result);
+        setRequest(sanitizeDeep(result));
 
         if (!requestApproval) {
           setStatus('success');
@@ -93,7 +102,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
         );
         if (cancelled) return;
 
-        setApprovalUrl(approval.approval_link);
+        setApprovalUrl(sanitizeDeep(approval.approval_link));
         setStatus('waiting');
 
         if (!server) {
@@ -119,17 +128,18 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
           return;
         }
 
+        setRequest(sanitizeDeep(final));
         if (callbackStatus === 'approved') {
-          setRequest(final);
           setStatus('success');
-          setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
+        } else if (callbackStatus === 'denied') {
+          setStatus('denied');
+        } else if (callbackStatus === 'expired') {
+          setStatus('expired');
         } else {
-          setError(
-            `Spend request did not reach approved (status: ${final.status})`,
-          );
+          setError('An error occurred during approval');
           setStatus('error');
-          setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
         }
+        setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
       } catch (err) {
         if (!cancelled) {
           setError((err as Error).message);
@@ -179,6 +189,41 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
       <Box flexDirection="column">
         <Text color="red">✗ Failed to create spend request</Text>
         <Text color="red">{error}</Text>
+      </Box>
+    );
+  }
+
+  if (status === 'denied') {
+    return (
+      <Box flexDirection="column">
+        <Text color="red">✗ Spend request denied</Text>
+        <Box flexDirection="column" marginTop={1} paddingX={2}>
+          <Text>
+            ID: <Text bold>{request?.id}</Text>
+          </Text>
+          <Text>
+            Status:{' '}
+            <Text bold color="red">
+              {request?.status}
+            </Text>
+          </Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  if (status === 'expired') {
+    return (
+      <Box flexDirection="column">
+        <Text color="yellow">✗ Spend request expired</Text>
+        <Box flexDirection="column" marginTop={1} paddingX={2}>
+          <Text>
+            ID: <Text bold>{request?.id}</Text>
+          </Text>
+          <Text>
+            Status: <Text bold>{request?.status}</Text>
+          </Text>
+        </Box>
       </Box>
     );
   }
