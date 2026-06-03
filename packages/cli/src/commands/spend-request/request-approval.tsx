@@ -78,6 +78,11 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
         const { status: callbackStatus } = await server.waitForCallback();
         if (cancelled) return;
 
+        if (callbackStatus === 'timeout') {
+          setPollingFallback(true);
+          return;
+        }
+
         const final = await repository.retrieve(id);
         if (cancelled) return;
 

@@ -104,6 +104,11 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
         const { status: callbackStatus } = await server.waitForCallback();
         if (cancelled) return;
 
+        if (callbackStatus === 'timeout') {
+          setPollingFallback(true);
+          return;
+        }
+
         const final = await repository.retrieve(result.id);
         if (cancelled) return;
 

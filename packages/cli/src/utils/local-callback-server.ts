@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-export type CallbackStatus = 'approved' | 'denied' | 'expired' | 'error';
+export type CallbackStatus = 'approved' | 'denied' | 'expired' | 'error' | 'timeout';
 
 export interface CallbackResult {
   status: CallbackStatus;
@@ -9,9 +9,13 @@ export interface CallbackResult {
 
 export interface CallbackServer {
   redirectUri: string;
-  waitForCallback: () => Promise<CallbackResult>;
+  waitForCallback: (timeoutMs?: number) => Promise<CallbackResult>;
   close: () => void;
 }
+
+// If no browser redirect arrives within this window, fall back to polling.
+// Shorter than the approval window — polling recovers the result either way.
+const DEFAULT_CALLBACK_TIMEOUT_MS = 2 * 60 * 1000;
 
 const VALID_STATUSES: ReadonlySet<string> = new Set([
   'approved',
@@ -59,7 +63,15 @@ export function startCallbackServer(): Promise<CallbackServer> {
         const port = (server.address() as AddressInfo).port;
         resolve({
           redirectUri: `http://localhost:${port}/callback`,
-          waitForCallback: () => callbackPromise,
+          waitForCallback: (timeoutMs = DEFAULT_CALLBACK_TIMEOUT_MS) => {
+            let timerId: ReturnType<typeof setTimeout>;
+            const timeoutPromise = new Promise<CallbackResult>((res) => {
+              timerId = setTimeout(() => res({ status: 'timeout' }), timeoutMs);
+            });
+            return Promise.race([callbackPromise, timeoutPromise]).finally(
+              () => clearTimeout(timerId),
+            );
+          },
           close: () => server.close(),
         });
       });
