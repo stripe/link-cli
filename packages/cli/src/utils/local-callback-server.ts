@@ -1,7 +1,12 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-export type CallbackStatus = 'approved' | 'denied' | 'expired' | 'error' | 'timeout';
+export type CallbackStatus =
+  | 'approved'
+  | 'denied'
+  | 'expired'
+  | 'error'
+  | 'timeout';
 
 export interface CallbackResult {
   status: CallbackStatus;
@@ -68,8 +73,8 @@ export function startCallbackServer(): Promise<CallbackServer> {
             const timeoutPromise = new Promise<CallbackResult>((res) => {
               timerId = setTimeout(() => res({ status: 'timeout' }), timeoutMs);
             });
-            return Promise.race([callbackPromise, timeoutPromise]).finally(
-              () => clearTimeout(timerId),
+            return Promise.race([callbackPromise, timeoutPromise]).finally(() =>
+              clearTimeout(timerId),
             );
           },
           close: () => server.close(),
