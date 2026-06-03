@@ -46,15 +46,26 @@ export function startCallbackServer(): Promise<CallbackServer> {
       resolveCallback?.({ status });
     });
 
-    server.listen(0, '127.0.0.1', () => {
-      const port = (server.address() as AddressInfo).port;
-      resolve({
-        redirectUri: `http://localhost:${port}/callback`,
-        waitForCallback: () => callbackPromise,
-        close: () => server.close(),
+    const startListening = (host: string, fallback?: string) => {
+      server.listen(0, host, () => {
+        const port = (server.address() as AddressInfo).port;
+        resolve({
+          redirectUri: `http://localhost:${port}/callback`,
+          waitForCallback: () => callbackPromise,
+          close: () => server.close(),
+        });
       });
-    });
 
-    server.on('error', reject);
+      server.once('error', (err) => {
+        if (fallback) {
+          server.removeAllListeners('error');
+          startListening(fallback);
+        } else {
+          reject(err);
+        }
+      });
+    };
+
+    startListening('::1', '127.0.0.1');
   });
 }
