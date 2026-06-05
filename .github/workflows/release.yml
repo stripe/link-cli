@@ -30,6 +30,7 @@ jobs:
       - run: pnpm turbo run build
 
       - name: Create release PR or publish
+        id: changesets
         uses: changesets/action@v1
         with:
           publish: pnpm changeset publish
@@ -37,3 +38,14 @@ jobs:
           commit: 'Version Packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload built CLI to GitHub Release
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=$(echo '${{ steps.changesets.outputs.publishedPackages }}' \
+            | jq -r '.[] | select(.name == "@stripe/link-cli") | "@stripe/link-cli@" + .version')
+          if [ -n "$TAG" ]; then
+            sha256sum packages/cli/dist/cli.js > packages/cli/dist/cli.js.sha256
+            gh release upload "$TAG" packages/cli/dist/cli.js packages/cli/dist/cli.js.sha256 --clobber
+          fi
