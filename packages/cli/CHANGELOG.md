@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.7.0
+
+### Minor Changes
+
+- Auth cleanup && environment variables; Cursor plugin; Versions bump
+
 ## 0.6.0
 
 ### Minor Changes
