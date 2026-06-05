@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.7.1
+
+### Patch Changes
+
+- 13fda7e: Update release workflow to upload built cli.js and checksum
+
 ## 0.7.0
 
 ### Minor Changes
