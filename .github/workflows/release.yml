@@ -49,3 +49,83 @@ jobs:
             sha256sum packages/cli/dist/cli.js > packages/cli/dist/cli.js.sha256
             gh release upload "$TAG" packages/cli/dist/cli.js packages/cli/dist/cli.js.sha256 --clobber
           fi
+
+  build-sea:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset_name: link-cli-linux-x64
+          - os: macos-latest
+            asset_name: link-cli-macos-arm64
+          - os: windows-latest
+            asset_name: link-cli-win-x64.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build
+
+      - name: Generate SEA blob
+        run: node --experimental-sea-config packages/cli/sea-config.json
+
+      - name: Copy node binary (Unix)
+        if: runner.os != 'Windows'
+        run: cp "$(node -e 'process.stdout.write(process.execPath)')" ${{ matrix.asset_name }}
+
+      - name: Copy node binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: copy (node -e "process.stdout.write(process.execPath)") ${{ matrix.asset_name }}
+
+      - name: Remove existing signature (macOS only)
+        if: runner.os == 'macOS'
+        run: codesign --remove-signature ${{ matrix.asset_name }}
+
+      - name: Inject SEA blob (Linux/Windows)
+        if: runner.os != 'macOS'
+        run: |
+          npx postject ${{ matrix.asset_name }} NODE_SEA_BLOB sea-prep.blob \
+            --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+
+      - name: Inject SEA blob (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          npx postject ${{ matrix.asset_name }} NODE_SEA_BLOB sea-prep.blob \
+            --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 \
+            --macho-segment-name NODE_SEA
+
+      - name: Re-sign binary (macOS only)
+        if: runner.os == 'macOS'
+        run: codesign --sign - ${{ matrix.asset_name }}
+
+      - name: Make executable (Unix)
+        if: runner.os != 'Windows'
+        run: chmod +x ${{ matrix.asset_name }}
+
+      - name: Generate checksum (Unix)
+        if: runner.os != 'Windows'
+        run: sha256sum ${{ matrix.asset_name }} > ${{ matrix.asset_name }}.sha256
+
+      - name: Generate checksum (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Get-FileHash ${{ matrix.asset_name }} -Algorithm SHA256 | Select-Object -ExpandProperty Hash > ${{ matrix.asset_name }}.sha256
+
+      - name: Upload to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=$(echo '${{ needs.release.outputs.publishedPackages }}' \
+            | jq -r '.[] | select(.name == "@stripe/link-cli") | "@stripe/link-cli@" + .version')
+          gh release upload "$TAG" \
+            ${{ matrix.asset_name }} \
+            ${{ matrix.asset_name }}.sha256 \
+            --clobber

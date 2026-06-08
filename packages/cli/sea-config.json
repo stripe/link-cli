@@ -1,0 +1,5 @@
+{
+    "main": "packages/cli/dist/cli.js",
+    "output": "sea-prep.blob",
+    "disableExperimentalSEAWarning": true
+  }
