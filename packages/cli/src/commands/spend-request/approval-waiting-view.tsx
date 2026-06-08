@@ -4,12 +4,10 @@ import type React from 'react';
 import { AppDownloadQrCodes } from './app-download-qr-codes';
 
 interface ApprovalWaitingViewProps {
-  status: 'waiting' | 'polling';
   approvalUrl: string;
 }
 
 export const ApprovalWaitingView: React.FC<ApprovalWaitingViewProps> = ({
-  status,
   approvalUrl,
 }) => (
   <Box flexDirection="column" paddingY={1}>
@@ -30,13 +28,9 @@ export const ApprovalWaitingView: React.FC<ApprovalWaitingViewProps> = ({
     </Box>
     <AppDownloadQrCodes />
     <Box marginTop={1}>
-      {status === 'polling' ? (
-        <Text color="cyan">
-          <Spinner type="dots" /> Waiting for approval...
-        </Text>
-      ) : (
-        <Text dimColor>Waiting...</Text>
-      )}
+      <Text color="cyan">
+        <Spinner type="dots" /> Waiting for approval...
+      </Text>
     </Box>
   </Box>
 );

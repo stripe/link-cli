@@ -63,7 +63,10 @@ export interface ISpendRequestResource {
     id: string,
     params: UpdateSpendRequestParams,
   ): Promise<SpendRequest>;
-  requestApproval(id: string): Promise<RequestApprovalResponse>;
+  requestApproval(
+    id: string,
+    options?: { redirect_uri?: string },
+  ): Promise<RequestApprovalResponse>;
   cancel(id: string): Promise<SpendRequest>;
   cancelSpendRequest(id: string): Promise<SpendRequest>;
   retrieve(
