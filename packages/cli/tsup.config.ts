@@ -15,6 +15,7 @@ export default defineConfig({
   clean: true,
   sourcemap: false,
   external: ['update-notifier'],
+  noExternal: ['incur'],
   banner: { js: '#!/usr/bin/env node' },
   define: {
     __CLI_VERSION__: JSON.stringify(pkg.version),

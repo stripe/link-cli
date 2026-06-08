@@ -68,47 +68,27 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: 26        # ← required for mainFormat: module + --build-sea
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run build
+      - run: cp packages/cli/dist/cli.js packages/cli/dist/cli.mjs
 
-      - name: Generate SEA blob
-        run: node --experimental-sea-config packages/cli/sea-config.json
+      - name: Build SEA
+        run: node --build-sea packages/cli/sea-config.json
 
-      - name: Copy node binary (Unix)
+      - name: Rename binary (Unix)
         if: runner.os != 'Windows'
-        run: cp "$(node -e 'process.stdout.write(process.execPath)')" ${{ matrix.asset_name }}
+        run: mv sea-output ${{ matrix.asset_name }} && chmod +x ${{ matrix.asset_name }}
 
-      - name: Copy node binary (Windows)
+      - name: Rename binary (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: copy (node -e "process.stdout.write(process.execPath)") ${{ matrix.asset_name }}
+        run: Rename-Item sea-output ${{ matrix.asset_name }}
 
-      - name: Remove existing signature (macOS only)
-        if: runner.os == 'macOS'
-        run: codesign --remove-signature ${{ matrix.asset_name }}
-
-      - name: Inject SEA blob (Linux/Windows)
-        if: runner.os != 'macOS'
-        run: |
-          npx postject ${{ matrix.asset_name }} NODE_SEA_BLOB sea-prep.blob \
-            --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
-
-      - name: Inject SEA blob (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          npx postject ${{ matrix.asset_name }} NODE_SEA_BLOB sea-prep.blob \
-            --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 \
-            --macho-segment-name NODE_SEA
-
-      - name: Re-sign binary (macOS only)
+      - name: Sign binary (macOS only)
         if: runner.os == 'macOS'
         run: codesign --sign - ${{ matrix.asset_name }}
-
-      - name: Make executable (Unix)
-        if: runner.os != 'Windows'
-        run: chmod +x ${{ matrix.asset_name }}
 
       - name: Generate checksum (Unix)
         if: runner.os != 'Windows'

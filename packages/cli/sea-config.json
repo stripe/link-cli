@@ -1,5 +1,6 @@
 {
-    "main": "packages/cli/dist/cli.js",
-    "output": "sea-prep.blob",
-    "disableExperimentalSEAWarning": true
-  }
+  "main": "packages/cli/dist/cli.mjs",
+  "mainFormat": "module",
+  "output": "sea-output",
+  "disableExperimentalSEAWarning": true
+}
