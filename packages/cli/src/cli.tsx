@@ -69,64 +69,63 @@ const agentUpdateInfoProvider = createAgentUpdateInfoProvider(
 );
 let getUpdateInfo = agentUpdateInfoProvider;
 
-async function main() {
-  if (!isAgent && process.stdout.isTTY) {
-    const updateInfo = await agentUpdateInfoProvider({ polling: false });
-    getUpdateInfo = createInteractiveUpdateInfoProvider(updateInfo);
-    if (updateInfo) {
-      process.stderr.write(renderInteractiveUpdateNotice(updateInfo));
-    }
+if (!isAgent && process.stdout.isTTY) {
+  const updateInfo = await agentUpdateInfoProvider({ polling: false });
+  getUpdateInfo = createInteractiveUpdateInfoProvider(updateInfo);
+  if (updateInfo) {
+    process.stderr.write(renderInteractiveUpdateNotice(updateInfo));
   }
-
-  cli.command(
-    createAuthCli(authRepo, getUpdateInfo, authStorage, envAccessToken),
-  );
-  cli.command(
-    createSpendRequestCli(spendRequestRepo, authStorage, envAccessToken),
-  );
-  cli.command(
-    createPaymentMethodsCli(
-      () => factory.createPaymentMethodsResource(),
-      authStorage,
-      envAccessToken,
-    ),
-  );
-  cli.command(
-    createShippingAddressCli(
-      () => factory.createShippingAddressResource(),
-      authStorage,
-      envAccessToken,
-    ),
-  );
-  cli.command(
-    createUserInfoCli(
-      () => factory.createUserInfoResource(),
-      authStorage,
-      envAccessToken,
-    ),
-  );
-  cli.command(createMppCli(spendRequestRepo, authStorage, envAccessToken));
-  cli.command(
-    createDemoCli(
-      authRepo,
-      spendRequestRepo,
-      () => factory.createPaymentMethodsResource(),
-      authStorage,
-    ),
-  );
-  cli.command(
-    createOnboardCli(
-      authRepo,
-      spendRequestRepo,
-      () => factory.createPaymentMethodsResource(),
-      authStorage,
-    ),
-  );
-  cli.command(createServeCli(cli));
-
-  cli.serve();
 }
 
-main();
+cli.command(
+  createAuthCli(authRepo, getUpdateInfo, authStorage, envAccessToken),
+);
+cli.command(
+  createSpendRequestCli(spendRequestRepo, authStorage, envAccessToken),
+);
+cli.command(
+  createPaymentMethodsCli(
+    () => factory.createPaymentMethodsResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+cli.command(
+  createShippingAddressCli(
+    () => factory.createShippingAddressResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+cli.command(
+  createUserInfoCli(
+    () => factory.createUserInfoResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+cli.command(createMppCli(spendRequestRepo, authStorage, envAccessToken));
+// cli.command(
+//   createWebBotAuthCli(() => factory.createWebBotAuthResource(), authStorage),
+// );
+cli.command(
+  createDemoCli(
+    authRepo,
+    spendRequestRepo,
+    () => factory.createPaymentMethodsResource(),
+    authStorage,
+  ),
+);
+cli.command(
+  createOnboardCli(
+    authRepo,
+    spendRequestRepo,
+    () => factory.createPaymentMethodsResource(),
+    authStorage,
+  ),
+);
+cli.command(createServeCli(cli));
+
+cli.serve();
 
 export default cli;
