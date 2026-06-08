@@ -1,5 +1,5 @@
 {
-  "main": "packages/cli/dist/cli.mjs",
+  "main": "packages/cli/dist/sea/cli.js",
   "mainFormat": "module",
   "output": "sea-output",
   "disableExperimentalSEAWarning": true

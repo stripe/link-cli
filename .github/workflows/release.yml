@@ -75,7 +75,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run build
-      - run: cp packages/cli/dist/cli.js packages/cli/dist/cli.mjs
+      - run: pnpm --filter @stripe/link-cli run build:sea
 
       - name: Build SEA
         run: node --build-sea packages/cli/sea-config.json
