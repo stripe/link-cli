@@ -9,21 +9,9 @@
   "homepage": "https://link.com/agents",
   "repository": "https://github.com/stripe/link-cli",
   "license": "MIT",
-  "keywords": [
-    "payment",
-    "link",
-    "stripe",
-    "agentic-commerce",
-    "mcp"
-  ],
+  "keywords": ["payment", "link", "stripe", "agentic-commerce", "mcp"],
   "category": "payments",
-  "tags": [
-    "payments",
-    "stripe",
-    "link",
-    "agents",
-    "mcp"
-  ],
+  "tags": ["payments", "stripe", "link", "agents", "mcp"],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json"
 }
