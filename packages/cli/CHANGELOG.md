@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.7.2
+
+### Patch Changes
+
+- a30d70b: Update release.yml to upload SEA artifacts; update some min versions across configs
+
 ## 0.7.1
 
 ### Patch Changes
