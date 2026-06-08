@@ -14,6 +14,9 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      publishedPackages: ${{ steps.changesets.outputs.publishedPackages }}
     steps:
       - uses: actions/checkout@v6
 
@@ -49,3 +52,59 @@ jobs:
             sha256sum packages/cli/dist/cli.js > packages/cli/dist/cli.js.sha256
             gh release upload "$TAG" packages/cli/dist/cli.js packages/cli/dist/cli.js.sha256 --clobber
           fi
+
+  build-sea:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset_name: link-cli-linux-x64
+          - os: macos-latest
+            asset_name: link-cli-macos-arm64
+          - os: windows-latest
+            asset_name: link-cli-win-x64.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build
+      - run: pnpm --filter @stripe/link-cli run build:sea
+
+      - name: Build SEA
+        run: node --build-sea packages/cli/sea-config.json
+
+      - name: Rename binary (Unix)
+        if: runner.os != 'Windows'
+        run: mv sea-output ${{ matrix.asset_name }} && chmod +x ${{ matrix.asset_name }}
+
+      - name: Rename binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Rename-Item sea-output ${{ matrix.asset_name }}
+
+      - name: Sign binary (macOS only)
+        if: runner.os == 'macOS'
+        run: codesign --sign - ${{ matrix.asset_name }}
+
+      - name: Generate checksum
+        shell: bash
+        run: sha256sum ${{ matrix.asset_name }} > ${{ matrix.asset_name }}.sha256
+
+      - name: Upload to release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=$(echo '${{ needs.release.outputs.publishedPackages }}' \
+            | jq -r '.[] | select(.name == "@stripe/link-cli") | "@stripe/link-cli@" + .version')
+          gh release upload "$TAG" \
+            ${{ matrix.asset_name }} \
+            ${{ matrix.asset_name }}.sha256 \
+            --clobber
