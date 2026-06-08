@@ -1,6 +1,6 @@
 {
   "name": "link",
-  "version": "0.6.0",
+  "version": "0.7.1",
   "description": "Authenticate with Link, create spend requests, and retrieve one-time-use card or shared payment token credentials for user-approved purchases.",
   "author": {
     "name": "Stripe"

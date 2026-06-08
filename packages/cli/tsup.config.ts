@@ -10,7 +10,7 @@ export default defineConfig({
   entry: ['src/cli.tsx'],
   format: ['esm'],
   platform: 'node',
-  target: 'node18',
+  target: 'node22',
   outDir: 'dist',
   clean: true,
   sourcemap: false,

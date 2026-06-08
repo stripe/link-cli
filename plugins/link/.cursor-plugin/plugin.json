@@ -1,7 +1,7 @@
 {
   "name": "link",
   "displayName": "Stripe Link",
-  "version": "0.6.0",
+  "version": "0.7.1",
   "description": "Get secure, one-time-use payment credentials from a Link wallet so agents can complete purchases on your behalf.",
   "author": {
     "name": "Stripe"
@@ -9,9 +9,21 @@
   "homepage": "https://link.com/agents",
   "repository": "https://github.com/stripe/link-cli",
   "license": "MIT",
-  "keywords": ["payment", "link", "stripe", "agentic-commerce", "mcp"],
+  "keywords": [
+    "payment",
+    "link",
+    "stripe",
+    "agentic-commerce",
+    "mcp"
+  ],
   "category": "payments",
-  "tags": ["payments", "stripe", "link", "agents", "mcp"],
+  "tags": [
+    "payments",
+    "stripe",
+    "link",
+    "agents",
+    "mcp"
+  ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json"
 }
