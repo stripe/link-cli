@@ -209,7 +209,8 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 | Max amount per spend request | $500 (50,000 cents) |
 | Approval window | 10 minutes — user must approve within 10 min of `spend-request request-approval` |
 | Card / SPT validity (`valid_until`) | 12 hours from spend request creation |
-| Daily spend per account | $500 |
+| Daily spend per account | $5,000 |
+| Monthly spend per account (30 days) | $20,000 |
 | Concurrent active requests (created + approved) | 30 |
 | Concurrent approved requests | 10 |
 | Hourly creation rate | 50 per hour |

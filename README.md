@@ -241,7 +241,8 @@ link-cli spend-request cancel lsrq_001
 | Max amount per spend request | $500 (50,000 cents) |
 | Approval window | 10 minutes — user must approve within 10 min of `request-approval` |
 | Card / SPT validity | 12 hours from spend request creation |
-| Daily spend | $500 |
+| Daily spend | $5,000 |
+| Monthly spend (30 days) | $20,000 |
 | Concurrent active requests (created + approved) | 30 |
 | Concurrent approved requests | 10 |
 | Hourly creation rate | 50 per hour |
