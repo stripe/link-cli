@@ -1,12 +1,14 @@
 import {
   type AuthStorage,
   type IPaymentMethodsResource,
+  type IReportResource,
   type IShippingAddressResource,
   type ISpendRequestResource,
   type IUserInfoResource,
   type IWebBotAuthResource,
   LinkAuthenticationError,
   PaymentMethodsResource,
+  ReportResource,
   ShippingAddressResource,
   SpendRequestResource,
   UserInfoResource,
@@ -78,6 +80,7 @@ export class ResourceFactory {
   private shippingAddressResource?: IShippingAddressResource;
   private userInfoResource?: IUserInfoResource;
   private webBotAuthResource?: IWebBotAuthResource;
+  private reportResource?: IReportResource;
 
   constructor(options: ResourceFactoryOptions = {}) {
     this.verbose = options.verbose ?? false;
@@ -229,5 +232,22 @@ export class ResourceFactory {
     );
 
     return this.webBotAuthResource;
+  }
+
+  createReportResource(): IReportResource {
+    if (this.reportResource) {
+      return this.reportResource;
+    }
+
+    const getAccessToken = this.createSdkAccessTokenProvider();
+    this.reportResource = sanitizeResource(
+      new ReportResource({
+        verbose: this.verbose,
+        defaultHeaders: this.defaultHeaders,
+        getAccessToken,
+      }),
+    );
+
+    return this.reportResource;
   }
 }

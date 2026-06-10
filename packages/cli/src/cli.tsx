@@ -5,6 +5,7 @@ import { createDemoCli } from './commands/demo';
 import { createMppCli } from './commands/mpp';
 import { createOnboardCli } from './commands/onboard';
 import { createPaymentMethodsCli } from './commands/payment-methods';
+import { createReportCli } from './commands/report';
 import { createServeCli } from './commands/serve';
 import { createShippingAddressCli } from './commands/shipping-address';
 import { createSpendRequestCli } from './commands/spend-request';
@@ -108,6 +109,13 @@ cli.command(createMppCli(spendRequestRepo, authStorage, envAccessToken));
 // cli.command(
 //   createWebBotAuthCli(() => factory.createWebBotAuthResource(), authStorage),
 // );
+cli.command(
+  createReportCli(
+    () => factory.createReportResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
 cli.command(
   createDemoCli(
     authRepo,
