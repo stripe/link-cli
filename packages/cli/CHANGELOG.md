@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.7.3
+
+### Patch Changes
+
+- f83d5cc: Update documented and enforced spend limits
+
 ## 0.7.2
 
 ### Patch Changes
