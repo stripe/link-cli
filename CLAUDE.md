@@ -66,7 +66,7 @@ CLI command is `spend-request` (user-facing). Implemented in `packages/cli/src/c
 
 Key input field notes:
 - CLI input uses `payment_method_id`; mapped to `payment_details` when calling the SDK
-- `context` requires min 100 characters; `amount` is in cents with max 50000
+- `context` requires min 100 characters; `amount` is in cents with max 500000
 - `--test` flag creates testmode credentials (real testmode SPT from test card data) instead of livemode ones
 - `create --request-approval` and `request-approval` both show an approval URL in interactive mode and poll until approved/denied/expired/failed/canceled. In JSON mode (`--format json`), they return immediately with an `_next.command` for `spend-request retrieve`.
 - `retrieve --interval <seconds>` polls until approved/denied/expired/succeeded/failed/canceled. If `--timeout` is reached or `--max-attempts` is exhausted while the request is still non-terminal, it exits non-zero with `POLLING_TIMEOUT`.

@@ -1,5 +1,5 @@
 ---
-version: 0.7.1
+version: 0.7.2
 name: create-payment-credential
 description: |
   Gets secure, one-time-use payment credentials (cards, tokens) from a Link wallet so agents can complete purchases on behalf of users. Use when the user says "get me a card", "buy something", "pay for X", "make a purchase", "I need to pay", "complete checkout", or asks to transact on any merchant site. Use when the user asks to connect or log in to or sign up for their Link account.
@@ -206,7 +206,7 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 
 | Limit | Value |
 |-------|-------|
-| Max amount per spend request | $500 (50,000 cents) |
+| Max amount per spend request | $5,000 (500,000 cents) |
 | Approval window | 10 minutes — user must approve within 10 min of `spend-request request-approval` |
 | Card / SPT validity (`valid_until`) | 12 hours from spend request creation |
 | Daily spend per account | $5,000 |

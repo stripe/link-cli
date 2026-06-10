@@ -18,8 +18,8 @@ export const createOptions = z.object({
     .number()
     .int()
     .positive()
-    .max(50000)
-    .describe('Amount in cents, max 50000 ($500.00)'),
+    .max(500000)
+    .describe('Amount in cents, max 500000 ($5,000.00)'),
   currency: z.string().length(3).default('usd').describe('Currency code'),
   merchantName: z
     .string()
