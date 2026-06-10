@@ -216,7 +216,7 @@ A spend request moves through: **create** → **request approval** → **approve
 
 **Required fields for create:** `payment_method_id`, `merchant_name`, `merchant_url`, `context`, `amount`
 
-**Constraints:** `context` must be at least 100 characters; `amount` must not exceed 50000 (cents); `currency` must be a 3-letter ISO code. The user has 10 minutes from when approval is requested to approve. Approved credentials (card or SPT) are valid for 12 hours from spend request creation.
+**Constraints:** `context` must be at least 100 characters; `amount` must not exceed 500000 (cents); `currency` must be a 3-letter ISO code. The user has 10 minutes from when approval is requested to approve. Approved credentials (card or SPT) are valid for 12 hours from spend request creation.
 **Test mode:** Pass `--test` to create testmode credentials (uses test card `4242424242424242`), useful for development and integration testing without real payment methods.
 
 ```bash
@@ -238,7 +238,7 @@ link-cli spend-request cancel lsrq_001
 
 | Limit | Value |
 |-------|-------|
-| Max amount per spend request | $500 (50,000 cents) |
+| Max amount per spend request | $5,000 (500,000 cents) |
 | Approval window | 10 minutes — user must approve within 10 min of `request-approval` |
 | Card / SPT validity | 12 hours from spend request creation |
 | Daily spend | $5,000 |
