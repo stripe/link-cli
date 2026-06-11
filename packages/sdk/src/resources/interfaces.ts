@@ -40,6 +40,7 @@ export interface CreateSpendRequestParams {
   totals?: Total[];
   request_approval?: boolean;
   test?: boolean;
+  approve?: boolean;
 }
 
 export interface UpdateSpendRequestParams {

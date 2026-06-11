@@ -141,6 +141,26 @@ describe('SpendRequestResource', () => {
       expect(sentBody.test).toBeUndefined();
     });
 
+    it('sends to /spend_requests/create_delegated when approve is true', async () => {
+      mockFetchResponse(200, spendRequestResponse);
+
+      await repo.createSpendRequest({ ...validParams, approve: true });
+
+      const [url, opts] = mockFetch.mock.calls[0];
+      expect(url).toBe('https://api.link.com/spend_requests/create_delegated');
+      const sentBody = JSON.parse(opts.body);
+      expect(sentBody.approve).toBeUndefined();
+    });
+
+    it('sends to /spend_requests when approve is not set', async () => {
+      mockFetchResponse(200, spendRequestResponse);
+
+      await repo.createSpendRequest(validParams);
+
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toBe('https://api.link.com/spend_requests');
+    });
+
     it('throws when no access token is available', async () => {
       getAccessToken.mockRejectedValueOnce(new Error('Missing access token'));
 

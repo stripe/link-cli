@@ -147,6 +147,7 @@ export function createSpendRequestCli(
         totals: totals as Total[] | undefined,
         request_approval: requestApproval || undefined,
         test: opts.test ? true : undefined,
+        approve: opts.approve ? true : undefined,
       };
 
       const outputFile = opts.outputFile;

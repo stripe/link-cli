@@ -61,6 +61,7 @@ export const createOptions = z.object({
     .describe(
       'Use test mode (creates testmode credentials from test card data)',
     ),
+  approve: z.boolean().default(false).describe(''),
   outputFile: z
     .string()
     .optional()

@@ -172,11 +172,15 @@ export class SpendRequestResource implements ISpendRequestResource {
   async createSpendRequest(
     params: CreateSpendRequestParams,
   ): Promise<SpendRequest> {
+    const { approve, ...body } = params;
+    const url = approve
+      ? `${this.spendRequestsEndpoint}/create_delegated`
+      : this.spendRequestsEndpoint;
     const { status, data, rawBody } = await this.apiFetch({
       method: 'POST',
-      url: this.spendRequestsEndpoint,
+      url,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify(body),
     });
 
     if (status < 200 || status >= 300) {
