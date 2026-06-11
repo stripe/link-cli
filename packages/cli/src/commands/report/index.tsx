@@ -1,6 +1,6 @@
 import type { AuthStorage, IReportResource } from '@stripe/link-sdk';
 import { Cli } from 'incur';
-import { requireAuth } from '../../utils/require-auth';
+import { requireAuthGuard } from '../../utils/require-auth';
 import { reportOptions } from './schema';
 
 export function createReportCli(
@@ -9,16 +9,12 @@ export function createReportCli(
   envAccessToken?: string,
 ) {
   const cli = Cli.create('report', {
-    description: 'Report the outcome of a purchase attempt',
-  });
-
-  cli.command('', {
     description:
       'Report the outcome of an agent action on a domain. Call after every purchase attempt.',
     options: reportOptions,
     outputPolicy: 'agent-only' as const,
-    middleware: [requireAuth(authStorage, envAccessToken)],
     async run(c) {
+      requireAuthGuard(c, authStorage, envAccessToken);
       const resource = createResource();
       const result = await resource.create({
         domain: c.options.domain,
