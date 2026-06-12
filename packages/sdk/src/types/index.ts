@@ -107,6 +107,7 @@ export interface SpendRequest {
   approval_url?: string;
   card?: Card;
   shared_payment_token?: SharedPaymentToken;
+  link_pay_token?: string;
   payment_status_details?: PaymentStatusDetails | null;
   created_at: string;
   updated_at: string;
