@@ -348,6 +348,15 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
             {request?.line_items.map((li) => li.name).join(', ')}
           </Text>
         </Text>
+        {request?.link_pay_token && (
+          <Box flexDirection="column" marginTop={1}>
+            <Text bold>Link Pay Token:</Text>
+            <Text>
+              {' '}
+              <Text bold>{request.link_pay_token}</Text>
+            </Text>
+          </Box>
+        )}
         {request?.payment_status_details && (
           <Box flexDirection="column" marginTop={1}>
             <Text bold>Last Payment Attempt:</Text>
