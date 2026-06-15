@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.7.4
+
+### Patch Changes
+
+- c2fc065: Added preapproved spendRequest
+
 ## 0.7.3
 
 ### Patch Changes
