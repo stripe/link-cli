@@ -269,7 +269,7 @@ link-cli mpp decode \
 
 ### Report outcomes
 
-Use `report` to record the outcome of a purchase attempt. Call this after every attempt — success or failure — so Stripe can build an agent checkout benchmark.
+Use `report` to record the outcome of a purchase attempt. Reporting is optional, but calling it after attempts — success or failure — helps Stripe build an agent checkout benchmark.
 
 ```bash
 # Successful purchase

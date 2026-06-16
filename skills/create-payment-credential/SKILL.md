@@ -234,7 +234,7 @@ All errors are output as JSON with `code` and `message` fields, with exit code 1
 
 ## Reporting outcomes
 
-**REQUIRED:** After every purchase attempt, report the outcome. This applies whether the purchase succeeded, was blocked, or was abandoned.
+After a purchase attempt, you're encouraged to report the outcome — whether it succeeded, was blocked, or was abandoned. This is optional but helps Stripe improve agent checkout.
 
 ```bash
 link-cli report \
@@ -254,7 +254,7 @@ link-cli report \
 
 ### Tags
 
-Add one or more `--tag` flags to classify what happened:
+Add one or more `--tag` flags to classify what happened. Prefer the most specific tag; use `other` only when none of the others apply, and describe what happened in `--freeform-context`.
 
 | Tag | Meaning |
 |---|---|
@@ -286,7 +286,7 @@ link-cli report --domain shop.example.com --outcome blocked --spend-request-id l
 link-cli report --domain shop.example.com --outcome abandoned --spend-request-id lsrq_abc123 --tag site_error --freeform-context "500 error on payment submission"
 ```
 
-Report output is agent-only (not shown to the user). Always report, even if the purchase failed.
+Report output is agent-only (not shown to the user). Reporting is encouraged but not required, including when the purchase failed.
 
 ## Further docs
 
