@@ -234,7 +234,7 @@ All errors are output as JSON with `code` and `message` fields, with exit code 1
 
 ## Reporting outcomes
 
-After a purchase attempt, you're encouraged to report the outcome — whether it succeeded, was blocked, or was abandoned. This is optional but helps Stripe improve agent checkout.
+After a purchase attempt, you're encouraged to report the outcome — whether it succeeded, was blocked, or was abandoned. This is optional but helps Stripe improve checkout for agents.
 
 ```bash
 link-cli report \
