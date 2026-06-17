@@ -952,7 +952,32 @@ describe('production mode', () => {
       expect(output).toMatch(/client.?name|non-empty/i);
     });
 
+    it('exits early with already logged in message when valid session exists', async () => {
+      setResponseForUrl('/device/token', 200, {
+        access_token: 'refreshed_access_token',
+        refresh_token: 'refreshed_refresh_token',
+        expires_in: 3600,
+        token_type: 'Bearer',
+      });
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--client-name',
+        'My Agent',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const output = parseJson(result.stdout) as Record<string, unknown>[];
+      expect(output[0].authenticated).toBe(true);
+      expect(output[0].message).toMatch(/already logged in/i);
+      expect(requests.find((r) => r.url.includes('/device/code'))).toBeUndefined();
+      expect(requests.find((r) => r.url.includes('/device/revoke'))).toBeUndefined();
+    });
+
     it('sends client_hint and returns immediately with _next polling hint', async () => {
+      setResponseForUrl('/device/token', 401, { error: 'invalid_grant' });
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
 
       const result = await runProdCli(
@@ -984,7 +1009,8 @@ describe('production mode', () => {
       expect(next.until).toContain('authenticated');
     });
 
-    it('revokes existing session before starting new login', async () => {
+    it('revokes existing session before starting new login when refresh fails', async () => {
+      setResponseForUrl('/device/token', 401, { error: 'invalid_grant' });
       setResponseForUrl('/device/revoke', 200, 'ok');
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
 
@@ -1007,6 +1033,7 @@ describe('production mode', () => {
     });
 
     it('proceeds with login even if revoke fails', async () => {
+      setResponseForUrl('/device/token', 401, { error: 'invalid_grant' });
       setResponseForUrl('/device/revoke', 500, { error: 'server_error' });
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
 
