@@ -972,8 +972,12 @@ describe('production mode', () => {
       const output = parseJson(result.stdout) as Record<string, unknown>[];
       expect(output[0].authenticated).toBe(true);
       expect(output[0].message).toMatch(/already logged in/i);
-      expect(requests.find((r) => r.url.includes('/device/code'))).toBeUndefined();
-      expect(requests.find((r) => r.url.includes('/device/revoke'))).toBeUndefined();
+      expect(
+        requests.find((r) => r.url.includes('/device/code')),
+      ).toBeUndefined();
+      expect(
+        requests.find((r) => r.url.includes('/device/revoke')),
+      ).toBeUndefined();
     });
 
     it('sends client_hint and returns immediately with _next polling hint', async () => {
