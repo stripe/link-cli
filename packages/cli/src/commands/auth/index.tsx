@@ -121,18 +121,15 @@ export function createAuthCli(
             existingAuth.refresh_token,
           );
           storage.setAuth(refreshed);
+          const alreadyLoggedInMessage =
+            'You are already logged in. To switch accounts, run `link-cli auth logout` first.';
           const alreadyLoggedIn = sanitizeDeep({
             authenticated: true,
-            message:
-              'You are already logged in. To switch accounts, run `link-cli auth logout` first.',
+            message: alreadyLoggedInMessage,
           });
           if (!c.agent && !c.formatExplicit) {
             return renderInteractive(
-              <Text color="yellow">
-                {
-                  'You are already logged in. To switch accounts, run `link-cli auth logout` first.'
-                }
-              </Text>,
+              <Text color="yellow">{alreadyLoggedInMessage}</Text>,
               () => alreadyLoggedIn,
             );
           }
