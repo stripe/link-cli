@@ -1,5 +1,6 @@
 import { type AuthStorage, storage as defaultStorage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
+import { Text } from 'ink';
 import React from 'react';
 import type { IAuthResource } from '../../auth/types';
 import { pollUntil } from '../../utils/poll-until';
@@ -111,6 +112,31 @@ export function createAuthCli(
           code: 'INVALID_INPUT',
           message: 'client-name must be a non-empty string',
         });
+      }
+
+      const existingAuth = storage.getAuth();
+      if (existingAuth?.refresh_token) {
+        try {
+          const refreshed = await authResource.refreshToken(existingAuth.refresh_token);
+          storage.setAuth(refreshed);
+          const alreadyLoggedIn = sanitizeDeep({
+            authenticated: true,
+            message:
+              'You are already logged in. To switch accounts, run `link-cli auth logout` first.',
+          });
+          if (!c.agent && !c.formatExplicit) {
+            return renderInteractive(
+              <Text color="yellow">
+                You are already logged in. To switch accounts, run `link-cli auth logout` first.
+              </Text>,
+              () => alreadyLoggedIn,
+            );
+          }
+          yield alreadyLoggedIn;
+          return;
+        } catch {
+          // Session not usable — fall through to full re-auth below
+        }
       }
 
       await maybeRevokeAndClearAuth(authResource, storage);
