@@ -117,7 +117,9 @@ export function createAuthCli(
       const existingAuth = storage.getAuth();
       if (existingAuth?.refresh_token) {
         try {
-          const refreshed = await authResource.refreshToken(existingAuth.refresh_token);
+          const refreshed = await authResource.refreshToken(
+            existingAuth.refresh_token,
+          );
           storage.setAuth(refreshed);
           const alreadyLoggedIn = sanitizeDeep({
             authenticated: true,
@@ -127,7 +129,9 @@ export function createAuthCli(
           if (!c.agent && !c.formatExplicit) {
             return renderInteractive(
               <Text color="yellow">
-                You are already logged in. To switch accounts, run `link-cli auth logout` first.
+                {
+                  'You are already logged in. To switch accounts, run `link-cli auth logout` first.'
+                }
               </Text>,
               () => alreadyLoggedIn,
             );
