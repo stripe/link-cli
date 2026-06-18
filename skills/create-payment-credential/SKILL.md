@@ -1,5 +1,5 @@
 ---
-version: 0.7.2
+version: 0.7.3
 name: create-payment-credential
 description: |
   Gets secure, one-time-use payment credentials (cards, tokens) from a Link wallet so agents can complete purchases on behalf of users. Use when the user says "get me a card", "buy something", "pay for X", "make a purchase", "I need to pay", "complete checkout", or asks to transact on any merchant site. Use when the user asks to connect or log in to or sign up for their Link account.
@@ -7,6 +7,7 @@ allowed-tools:
  - Bash(link-cli:*)
  - Bash(npx:*)
  - Bash(npm:*)
+ - mcp__playwright__*
 license: Complete terms in LICENSE
 metadata:
   author: stripe
@@ -113,14 +114,16 @@ Always check the current authentication status before starting a new login flow 
 **Determine how the merchant accepts payment:**
 
 1. **Navigate to the merchant page** — browse it, read the page content, and understand how the site accepts payment.
-2. **If the page has a credit card form, Stripe Elements, or traditional checkout UI** — use `card`.
-3. **If the page describes an API or programmatic payment flow** — make a request to the relevant endpoint. If it returns **HTTP 402** with a `www-authenticate` header, use `shared_payment_token`.
+2. **If the page has a non-Stripe credit card form** — use `card`.
+3. **If the page uses Stripe's Payment Element** — look for an iframe with `name` starting with `__privateStripeFrame` that contains a hidden input `input[name="link_pay_token"]`. If found, use the **Link Pay Token flow** (Step 5c). This is the most seamless path — no card numbers are exposed. **Requires browser automation (Playwright).** If you do not have browser automation available, fall back to the `card` credential flow instead.
+4. **If the page describes an API or programmatic payment flow** — make a request to the relevant endpoint. If it returns **HTTP 402** with a `www-authenticate` header, use `shared_payment_token`.
 
 What you find determines which credential type to use:
 
 | What you see | Credential type | What to request |
 |---|---|---|
-| Credit card form / Stripe Elements | `card` (default) | Card |
+| Non-Stripe credit card form | `card` (default) | Card |
+| Stripe Payment Element with `input[name="link_pay_token"]` | (none needed) | Link Pay Token flow (Step 5c) |
 | HTTP 402 with `method="stripe"` in `www-authenticate` | `shared_payment_token` | Shared payment token (SPT) |
 | HTTP 402 without `method="stripe"` in `www-authenticate` | not supported | Do not continue |
 
@@ -193,6 +196,39 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 ```
 
 `mpp pay` handles the full 402 flow automatically: probes the URL, parses the `www-authenticate` header, builds the `Authorization: Payment` credential using the SPT, and retries.
+
+**Link Pay Token (Payment Element with Link):** When the merchant uses Stripe's Payment Element with Link enabled, no card numbers are needed. This flow requires browser automation (Playwright or equivalent).
+
+1. Create a spend request (same as Step 4 -- no `--credential-type` flag needed) and get approval.
+
+2. Retrieve the Link Pay Token:
+
+   ```bash
+   link-cli spend-request retrieve <id> --format json
+   ```
+
+   The response includes `link_pay_token: "eyJ..."`.
+
+3. Open the merchant checkout page in a browser.
+
+4. Find the Payment Element iframe (`name` starts with `__privateStripeFrame`) and inject the token into the hidden input:
+
+   ```javascript
+   const input = document.querySelector('input[name="link_pay_token"]');
+   Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')
+     .set.call(input, token);
+   input.dispatchEvent(new Event('input', { bubbles: true }));
+   ```
+
+5. Wait for the Payment Element to transition -- the card form disappears and a saved card appears (e.g. "Visa 0821") with the consumer's email in the Link header. This confirms the token exchange and Link login succeeded.
+
+6. Click the Pay/Submit button. Payment confirms without CVC or CAPTCHA.
+
+**Important notes for the LPT flow:**
+- The token is short-lived -- complete the flow promptly after retrieval.
+- No card numbers are exposed to the agent at any point.
+- If the browser already has a Link session cookie, the Payment Element may show a pre-existing session instead of the card form with the hidden input. Use a fresh browser context (clear cookies or incognito) to ensure the LPT injection triggers.
+- The consumer only sees the card they authorized in the spend request.
 
 
 ## Important
