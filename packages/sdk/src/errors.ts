@@ -38,9 +38,12 @@ export class LinkAuthorizationDeclinedError extends LinkSdkError {
   readonly scopeEligibility: Record<string, ScopeEligibility>;
 
   constructor(scopeEligibility: Record<string, ScopeEligibility>) {
-    super('Authorization declined: account is not eligible for requested scopes', {
-      code: 'authorization_declined',
-    });
+    super(
+      'Authorization declined: account is not eligible for requested scopes',
+      {
+        code: 'authorization_declined',
+      },
+    );
     this.scopeEligibility = scopeEligibility;
   }
 }

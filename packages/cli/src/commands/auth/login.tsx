@@ -33,7 +33,9 @@ export const Login: React.FC<LoginProps> = ({
   const [verificationUrl, setVerificationUrl] = useState<string>('');
   const [deviceCode, setDeviceCode] = useState<string>('');
   const [error, setError] = useState<string>('');
-  const [scopeEligibility, setScopeEligibility] = useState<Record<string, ScopeEligibility>>({});
+  const [scopeEligibility, setScopeEligibility] = useState<
+    Record<string, ScopeEligibility>
+  >({});
 
   const isActive = status === 'waiting' || status === 'polling';
 
@@ -121,9 +123,7 @@ export const Login: React.FC<LoginProps> = ({
                 ? ` (${info.ineligibility_reasons.join(', ')})`
                 : ''}
             </Text>
-            {info.description ? (
-              <Text dimColor>{info.description}</Text>
-            ) : null}
+            {info.description ? <Text dimColor>{info.description}</Text> : null}
           </Box>
         ))}
       </Box>
