@@ -147,7 +147,9 @@ export class SpendRequestResource implements ISpendRequestResource {
     return this.listSpendRequests(opts);
   }
 
-  async listSpendRequests(opts?: { includeHistory?: boolean }): Promise<SpendRequest[]> {
+  async listSpendRequests(opts?: { includeHistory?: boolean }): Promise<
+    SpendRequest[]
+  > {
     const url = opts?.includeHistory
       ? `${this.spendRequestsEndpoint}?include_history=true`
       : this.spendRequestsEndpoint;

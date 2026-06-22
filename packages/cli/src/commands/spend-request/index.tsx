@@ -21,7 +21,12 @@ import { CreateSpendRequest } from './create';
 import { SpendRequestList } from './list';
 import { RequestApproval } from './request-approval';
 import { RetrieveSpendRequest } from './retrieve';
-import { createOptions, listOptions, retrieveOptions, updateOptions } from './schema';
+import {
+  createOptions,
+  listOptions,
+  retrieveOptions,
+  updateOptions,
+} from './schema';
 import { UpdateSpendRequest } from './update';
 
 async function applyOutputFile(
@@ -67,7 +72,11 @@ export function createSpendRequestCli(
 
       if (!c.agent && !c.formatExplicit) {
         return renderInteractive(
-          <SpendRequestList repository={repository} includeHistory={opts.includeHistory} onComplete={() => {}} />,
+          <SpendRequestList
+            repository={repository}
+            includeHistory={opts.includeHistory}
+            onComplete={() => {}}
+          />,
           () => repository.listSpendRequests(opts),
         );
       }

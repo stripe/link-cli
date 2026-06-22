@@ -56,7 +56,11 @@ export const SpendRequestList: React.FC<SpendRequestListProps> = ({
   if (!requests || requests.length === 0) {
     return (
       <Box>
-        <Text dimColor>No spend requests found</Text>
+        <Text dimColor>
+          {includeHistory
+            ? 'No spend requests found'
+            : 'No active spend requests found'}
+        </Text>
       </Box>
     );
   }

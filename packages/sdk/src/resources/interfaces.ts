@@ -56,7 +56,9 @@ export interface UpdateSpendRequestParams {
 
 export interface ISpendRequestResource {
   list(opts?: { includeHistory?: boolean }): Promise<SpendRequest[]>;
-  listSpendRequests(opts?: { includeHistory?: boolean }): Promise<SpendRequest[]>;
+  listSpendRequests(opts?: { includeHistory?: boolean }): Promise<
+    SpendRequest[]
+  >;
   create(params: CreateSpendRequestParams): Promise<SpendRequest>;
   createSpendRequest(params: CreateSpendRequestParams): Promise<SpendRequest>;
   update(id: string, params: UpdateSpendRequestParams): Promise<SpendRequest>;
