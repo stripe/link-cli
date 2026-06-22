@@ -138,6 +138,11 @@ export interface UserInfo {
   phone?: string | null;
 }
 
+export interface ProductCapability {
+  eligible: boolean;
+  ineligibility_reasons: string[];
+}
+
 export interface PaymentMethod {
   id: string;
   type: string;
@@ -145,6 +150,7 @@ export interface PaymentMethod {
   nickname?: string;
   card_details?: CardDetails;
   bank_account_details?: BankAccountDetails;
+  capabilities?: Record<string, ProductCapability>;
 }
 
 export interface ShippingAddress {

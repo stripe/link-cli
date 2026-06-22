@@ -1,5 +1,10 @@
 import { hostname } from 'node:os';
-import { LinkApiError, LinkTransportError } from '@stripe/link-sdk';
+import {
+  LinkApiError,
+  LinkAuthorizationDeclinedError,
+  LinkTransportError,
+  type ScopeEligibility,
+} from '@stripe/link-sdk';
 import {
   type AuthResourceOptions,
   type ResolvedAuthResourceConfig,
@@ -30,6 +35,7 @@ interface TokenResponse {
 interface OAuthError {
   error: string;
   error_description?: string;
+  scope_eligibility?: Record<string, ScopeEligibility>;
 }
 
 function formatOAuthError(
@@ -173,6 +179,8 @@ export class LinkAuthResource implements IAuthResource {
             rawBody,
             details: data,
           });
+        case 'authorization_failed':
+          throw new LinkAuthorizationDeclinedError(err.scope_eligibility ?? {});
       }
     }
 

@@ -56,6 +56,8 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
           const last4 =
             pm.card_details?.last4 ?? pm.bank_account_details?.last4;
           const suffix = pm.nickname ? `(${pm.nickname})` : '';
+          const agenticCap = pm.capabilities?.agentic_payments;
+          const ineligible = agenticCap && !agenticCap.eligible;
           return (
             <Box key={pm.id} paddingX={2}>
               <Text>
@@ -64,6 +66,14 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
                 {label} ****{last4}
                 {suffix ? ` ${suffix}` : ''}
                 {pm.is_default ? <Text color="green"> (default)</Text> : ''}
+                {ineligible ? (
+                  <Text dimColor>
+                    {'  '}agentic_payments: ineligible
+                    {agenticCap.ineligibility_reasons?.length > 0
+                      ? ` (${agenticCap.ineligibility_reasons.join(', ')})`
+                      : ''}
+                  </Text>
+                ) : null}
               </Text>
             </Box>
           );

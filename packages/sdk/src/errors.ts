@@ -28,6 +28,26 @@ export class LinkTransportError extends LinkSdkError {
   }
 }
 
+export interface ScopeEligibility {
+  eligible: boolean;
+  ineligibility_reasons: string[];
+  description?: string;
+}
+
+export class LinkAuthorizationDeclinedError extends LinkSdkError {
+  readonly scopeEligibility: Record<string, ScopeEligibility>;
+
+  constructor(scopeEligibility: Record<string, ScopeEligibility>) {
+    super(
+      'Authorization declined: account is not eligible for requested scopes',
+      {
+        code: 'authorization_declined',
+      },
+    );
+    this.scopeEligibility = scopeEligibility;
+  }
+}
+
 export class LinkApiError extends LinkSdkError {
   readonly status: number;
   readonly rawBody?: string;

@@ -1,4 +1,9 @@
-import { type AuthStorage, storage as defaultStorage } from '@stripe/link-sdk';
+import {
+  type AuthStorage,
+  LinkAuthorizationDeclinedError,
+  type ScopeEligibility,
+  storage as defaultStorage,
+} from '@stripe/link-sdk';
 import { Box, Text, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
@@ -22,12 +27,15 @@ export const Login: React.FC<LoginProps> = ({
 }) => {
   const storage = authStorage;
   const [status, setStatus] = useState<
-    'initiating' | 'waiting' | 'polling' | 'success' | 'error'
+    'initiating' | 'waiting' | 'polling' | 'success' | 'error' | 'declined'
   >('initiating');
   const [userCode, setUserCode] = useState<string>('');
   const [verificationUrl, setVerificationUrl] = useState<string>('');
   const [deviceCode, setDeviceCode] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [scopeEligibility, setScopeEligibility] = useState<
+    Record<string, ScopeEligibility>
+  >({});
 
   const isActive = status === 'waiting' || status === 'polling';
 
@@ -73,8 +81,13 @@ export const Login: React.FC<LoginProps> = ({
           }
         } catch (err) {
           clearInterval(pollInterval);
-          setError((err as Error).message);
-          setStatus('error');
+          if (err instanceof LinkAuthorizationDeclinedError) {
+            setScopeEligibility(err.scopeEligibility);
+            setStatus('declined');
+          } else {
+            setError((err as Error).message);
+            setStatus('error');
+          }
         }
       }, 2000);
 
@@ -93,6 +106,26 @@ export const Login: React.FC<LoginProps> = ({
         <Text color="cyan">
           <Spinner type="dots" /> Initiating authentication...
         </Text>
+      </Box>
+    );
+  }
+
+  if (status === 'declined') {
+    return (
+      <Box flexDirection="column">
+        <Text color="red">✗ Authorization failed</Text>
+        {Object.entries(scopeEligibility).map(([scope, info]) => (
+          <Box key={scope} flexDirection="column" marginLeft={2}>
+            <Text>
+              <Text dimColor>{scope}:</Text>
+              {' ineligible'}
+              {info.ineligibility_reasons.length > 0
+                ? ` (${info.ineligibility_reasons.join(', ')})`
+                : ''}
+            </Text>
+            {info.description ? <Text dimColor>{info.description}</Text> : null}
+          </Box>
+        ))}
       </Box>
     );
   }
