@@ -143,14 +143,18 @@ export class SpendRequestResource implements ISpendRequestResource {
     return res;
   }
 
-  list(): Promise<SpendRequest[]> {
-    return this.listSpendRequests();
+  list(opts?: { includeHistory?: boolean }): Promise<SpendRequest[]> {
+    return this.listSpendRequests(opts);
   }
 
-  async listSpendRequests(): Promise<SpendRequest[]> {
+  async listSpendRequests(opts?: { includeHistory?: boolean }): Promise<SpendRequest[]> {
+    const url = opts?.includeHistory
+      ? `${this.spendRequestsEndpoint}?include_history=true`
+      : this.spendRequestsEndpoint;
+
     const { status, data, rawBody } = await this.apiFetch({
       method: 'GET',
-      url: this.spendRequestsEndpoint,
+      url,
     });
 
     if (status < 200 || status >= 300) {
