@@ -67,7 +67,9 @@ export const SpendRequestList: React.FC<SpendRequestListProps> = ({
 
   return (
     <Box flexDirection="column">
-      <Text bold>Active Spend Requests</Text>
+      <Text bold>
+        {includeHistory ? 'All Spend Requests' : 'Active Spend Requests'}
+      </Text>
       <Box flexDirection="column" marginTop={1}>
         {requests.map((sr) => {
           const statusColor =
