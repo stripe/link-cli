@@ -21,7 +21,12 @@ import { CreateSpendRequest } from './create';
 import { SpendRequestList } from './list';
 import { RequestApproval } from './request-approval';
 import { RetrieveSpendRequest } from './retrieve';
-import { createOptions, retrieveOptions, updateOptions } from './schema';
+import {
+  createOptions,
+  listOptions,
+  retrieveOptions,
+  updateOptions,
+} from './schema';
 import { UpdateSpendRequest } from './update';
 
 async function applyOutputFile(
@@ -58,18 +63,25 @@ export function createSpendRequestCli(
 
   cli.command('list', {
     description:
-      'List active spend requests (created, pending_approval, approved)',
+      'List spend requests. By default returns only active requests (created, pending_approval, approved). Use --include-history to return all spend requests including expired and terminal states.',
     outputPolicy: 'agent-only' as const,
+    options: listOptions,
     middleware: [requireAuth(authStorage, envAccessToken)],
     async run(c) {
+      const opts = { includeHistory: c.options.includeHistory ?? false };
+
       if (!c.agent && !c.formatExplicit) {
         return renderInteractive(
-          <SpendRequestList repository={repository} onComplete={() => {}} />,
-          () => repository.listSpendRequests(),
+          <SpendRequestList
+            repository={repository}
+            includeHistory={opts.includeHistory}
+            onComplete={() => {}}
+          />,
+          () => repository.listSpendRequests(opts),
         );
       }
 
-      return repository.listSpendRequests();
+      return repository.listSpendRequests(opts);
     },
   });
 

@@ -74,6 +74,13 @@ export const createOptions = z.object({
     .describe('Overwrite output file if it already exists'),
 });
 
+export const listOptions = z.object({
+  includeHistory: z
+    .boolean()
+    .default(false)
+    .describe('Include expired and terminal spend requests'),
+});
+
 export const retrieveOptions = z.object({
   timeout: z.coerce
     .number()

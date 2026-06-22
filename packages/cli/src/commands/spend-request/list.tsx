@@ -7,17 +7,19 @@ import { useAsyncAction } from '../../hooks/use-async-action';
 
 interface SpendRequestListProps {
   repository: ISpendRequestResource;
+  includeHistory?: boolean;
   onComplete: (result: SpendRequest[] | null) => void;
 }
 
 export const SpendRequestList: React.FC<SpendRequestListProps> = ({
   repository,
+  includeHistory = false,
   onComplete,
 }) => {
   const { exit } = useApp();
   const action = useCallback(
-    () => repository.listSpendRequests(),
-    [repository],
+    () => repository.listSpendRequests({ includeHistory }),
+    [repository, includeHistory],
   );
   const wrappedOnComplete = useCallback(
     (result: SpendRequest[] | null) => {
@@ -54,14 +56,20 @@ export const SpendRequestList: React.FC<SpendRequestListProps> = ({
   if (!requests || requests.length === 0) {
     return (
       <Box>
-        <Text dimColor>No active spend requests found</Text>
+        <Text dimColor>
+          {includeHistory
+            ? 'No spend requests found'
+            : 'No active spend requests found'}
+        </Text>
       </Box>
     );
   }
 
   return (
     <Box flexDirection="column">
-      <Text bold>Active Spend Requests</Text>
+      <Text bold>
+        {includeHistory ? 'All Spend Requests' : 'Active Spend Requests'}
+      </Text>
       <Box flexDirection="column" marginTop={1}>
         {requests.map((sr) => {
           const statusColor =
