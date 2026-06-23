@@ -267,6 +267,25 @@ link-cli mpp decode \
   --challenge 'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge", request="..."'
 ```
 
+### Report outcomes
+
+Use `report` to record the outcome of a purchase attempt. Reporting is optional, but calling it after attempts — success or failure — helps Stripe improve checkout for agents.
+
+```bash
+# Successful purchase
+link-cli report --domain shop.example.com --outcome success --spend-request-id lsrq_abc123
+
+# Blocked by captcha
+link-cli report --domain shop.example.com --outcome blocked --spend-request-id lsrq_abc123 \
+  --tag captcha --step "checkout page" --freeform-context "Turnstile challenge appeared"
+
+# Abandoned due to timeout
+link-cli report --domain shop.example.com --outcome abandoned --spend-request-id lsrq_abc123 \
+  --tag timeout
+```
+
+Outcomes: `success`, `blocked`, `abandoned`. Tags: `stripe_checkout`, `captcha`, `anti_bot_script`, `cdn_block`, `waf_block`, `dns_block`, `rate_limited`, `login_required`, `3ds_challenge`, `page_inaccessible`, `timeout`, `site_error`, `payment_declined`, `other`.
+
 ### Environment variables
 
 | Variable | Effect |
