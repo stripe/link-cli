@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.8.0
+
+### Minor Changes
+
+- 5827e02: some improvemnts: Add --include-history flag to spend-request list; surface user eligibility in auth login and payment-methods list; add report command for agent observability; skip re-auth when a usable session already exists
+
 ## 0.7.4
 
 ### Patch Changes
