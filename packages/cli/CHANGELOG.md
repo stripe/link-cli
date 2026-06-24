@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.8.1
+
+### Patch Changes
+
+- dd0e303: Document the `report` command: add a "Report outcomes" section to the README and reporting guidance to the create-payment-credential skill, covering the outcome types (`success`, `blocked`, `abandoned`) and the tag reference. Reporting is described as optional.
+
 ## 0.8.0
 
 ### Minor Changes
