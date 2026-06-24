@@ -1,7 +1,7 @@
 import { z } from 'incur';
 
 export const createOptions = z.object({
-  paymentMethodId: z.string().describe('Payment method ID'),
+  paymentMethodId: z.string().optional().describe('Payment method ID'),
   credentialType: z
     .enum(['shared_payment_token', 'card'])
     .default('card')
