@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.8.2
+
+### Patch Changes
+
+- 1a0bf30: Make payment-method-id optional in spend-request create; if omitted, the default payment method will be used, or the first eligible one if no default is set
+
 ## 0.8.1
 
 ### Patch Changes
