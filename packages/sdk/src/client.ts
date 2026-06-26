@@ -3,11 +3,13 @@ import type {
   IPaymentMethodsResource,
   IShippingAddressResource,
   ISpendRequestResource,
+  ITransactionsResource,
   IUserInfoResource,
 } from '@/resources/interfaces';
 import { PaymentMethodsResource } from '@/resources/payment-methods';
 import { ShippingAddressResource } from '@/resources/shipping-address';
 import { SpendRequestResource } from '@/resources/spend-request';
+import { TransactionsResource } from '@/resources/transactions';
 import { UserInfoResource } from '@/resources/user-info';
 
 export class Link {
@@ -15,12 +17,14 @@ export class Link {
   readonly paymentMethods: IPaymentMethodsResource;
   readonly shippingAddresses: IShippingAddressResource;
   readonly userInfo: IUserInfoResource;
+  readonly transactions: ITransactionsResource;
 
   constructor(options: LinkOptions = {}) {
     this.spendRequests = new SpendRequestResource(options);
     this.paymentMethods = new PaymentMethodsResource(options);
     this.shippingAddresses = new ShippingAddressResource(options);
     this.userInfo = new UserInfoResource(options);
+    this.transactions = new TransactionsResource(options);
   }
 }
 

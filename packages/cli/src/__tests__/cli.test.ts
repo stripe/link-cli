@@ -920,6 +920,111 @@ describe('production mode', () => {
     });
   });
 
+  const SAMPLE_TRANSACTION = {
+    id: 'lbctxn_001',
+    source_id: null,
+    amount: -979,
+    currency: 'usd',
+    created_date: '2026-06-08',
+    description: 'Chase',
+    category: 'credit_card_payment',
+    status: 'succeeded',
+  };
+
+  describe('transactions list', () => {
+    it('GETs the Link API endpoint with bearer auth', async () => {
+      setResponseForUrl('/transactions', 200, {
+        data: [SAMPLE_TRANSACTION],
+        has_more: true,
+      });
+
+      const result = await runProdCli('transactions', 'list', '--json');
+
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.method).toBe('GET');
+      expect(lastRequest.url).toBe('/transactions');
+      expect(lastRequest.headers.authorization).toBe(
+        'Bearer prod_test_access_token',
+      );
+
+      const output = parseJson(result.stdout) as Record<string, unknown>;
+      expect(output.has_more).toBe(true);
+      expect(Array.isArray(output.data)).toBe(true);
+      const data = output.data as Record<string, unknown>[];
+      expect(data).toHaveLength(1);
+      expect(data[0].id).toBe('lbctxn_001');
+      expect(data[0].source_id).toBeNull();
+      expect(data[0].created_date).toBe('2026-06-08');
+      expect(output.transactions).toBeUndefined();
+    });
+
+    it('forwards pagination and filter flags into the query string', async () => {
+      setNextResponse(200, { data: [] });
+
+      const result = await runProdCli(
+        'transactions',
+        'list',
+        '--limit',
+        '5',
+        '--starting-after',
+        'lbctxn_cursor',
+        '--ending-before',
+        'lbctxn_prev',
+        '--start-date',
+        '2026-04-01',
+        '--end-date',
+        '2026-04-30',
+        '--category',
+        'other_services',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.url).toContain('/transactions?');
+      expect(lastRequest.url).toContain('limit=5');
+      expect(lastRequest.url).toContain('starting_after=lbctxn_cursor');
+      expect(lastRequest.url).toContain('ending_before=lbctxn_prev');
+      expect(lastRequest.url).toContain('start_date=2026-04-01');
+      expect(lastRequest.url).toContain('end_date=2026-04-30');
+      expect(lastRequest.url).toContain('category=other_services');
+      expect(lastRequest.url).not.toContain('transaction_category');
+    });
+
+    it('accepts --verbose as a global flag', async () => {
+      setResponseForUrl('/transactions', 200, { data: [] });
+
+      const result = await runProdCli(
+        '--verbose',
+        'transactions',
+        'list',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.url).toBe('/transactions');
+    });
+
+    it('rejects unauthenticated requests before hitting the API', async () => {
+      storage.clearAuth();
+
+      const result = await runProdCli('transactions', 'list', '--json');
+
+      expect(result.exitCode).toBe(1);
+      const output = parseJson(result.stdout) as Record<string, unknown>;
+      expect(output.code).toBe('NOT_AUTHENTICATED');
+      expect(String(output.message)).toMatch(/auth login/i);
+      const txnRequest = requests.find((r) => r.url === '/transactions');
+      expect(txnRequest).toBeUndefined();
+    });
+
+    it('does not show transactions in root help', async () => {
+      const result = await runProdCli('--help');
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout + result.stderr).not.toContain('transactions');
+    });
+  });
+
   describe('auth login', () => {
     const DEVICE_CODE_RESPONSE = {
       device_code: 'test_device_code',
@@ -1302,6 +1407,22 @@ describe('production mode', () => {
       const saRequest = requests.find((r) => r.url === '/shipping_addresses');
       expect(saRequest).toBeDefined();
       expect(saRequest?.headers.authorization).toBe(`Bearer ${ENV_TOKEN}`);
+    });
+
+    it('allows transactions list with no stored auth', async () => {
+      setResponseForUrl('/transactions', 200, { data: [] });
+
+      const result = await runProdCliWithEnv(
+        { LINK_ACCESS_TOKEN: ENV_TOKEN },
+        'transactions',
+        'list',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const txnRequest = requests.find((r) => r.url === '/transactions');
+      expect(txnRequest).toBeDefined();
+      expect(txnRequest?.headers.authorization).toBe(`Bearer ${ENV_TOKEN}`);
     });
 
     it('still blocks commands with neither stored auth nor env token', async () => {
