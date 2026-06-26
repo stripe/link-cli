@@ -105,7 +105,7 @@ Returns the shipping addresses saved to your Link account. The response preserve
 
 ### Create a spend request
 
-Create a spend request with a payment method, merchant details, line items, and amounts:
+Create a spend request with merchant details, line items, and amounts. If `--payment-method-id` is omitted, your default payment method will be used, or the first eligible one if no default is set:
 
 ```bash
 link-cli spend-request create \
@@ -214,7 +214,7 @@ All commands accept `--auth <path>` to store auth credentials in a specific file
 
 A spend request moves through: **create** → **request approval** → **approved** (with credentials).
 
-**Required fields for create:** `payment_method_id`, `merchant_name`, `merchant_url`, `context`, `amount`
+**Required fields for create:** `merchant_name`, `merchant_url`, `context`, `amount`. `payment_method_id` is optional — if omitted, your default payment method will be used, or the first eligible one if no default is set.
 
 **Constraints:** `context` must be at least 100 characters; `amount` must not exceed 500000 (cents); `currency` must be a 3-letter ISO code. The user has 10 minutes from when approval is requested to approve. Approved credentials (card or SPT) are valid for 12 hours from spend request creation.
 **Test mode:** Pass `--test` to create testmode credentials (uses test card `4242424242424242`), useful for development and integration testing without real payment methods.
