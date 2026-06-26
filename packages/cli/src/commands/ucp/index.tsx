@@ -34,7 +34,7 @@ export function createUcpCli() {
       business: z
         .string()
         .describe(
-          'Business URL to discover (e.g. https://ucp-demo.myshopify.com)',
+          'Business URL to discover (e.g. https://shop.example.com)',
         ),
     }),
     options: z.object({
