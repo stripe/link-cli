@@ -4,6 +4,7 @@ import {
   type IReportResource,
   type IShippingAddressResource,
   type ISpendRequestResource,
+  type ITransactionsResource,
   type IUserInfoResource,
   type IWebBotAuthResource,
   LinkAuthenticationError,
@@ -11,6 +12,7 @@ import {
   ReportResource,
   ShippingAddressResource,
   SpendRequestResource,
+  TransactionsResource,
   UserInfoResource,
   WebBotAuthResource,
 } from '@stripe/link-sdk';
@@ -79,6 +81,7 @@ export class ResourceFactory {
   private paymentMethodsResource?: IPaymentMethodsResource;
   private shippingAddressResource?: IShippingAddressResource;
   private userInfoResource?: IUserInfoResource;
+  private transactionsResource?: ITransactionsResource;
   private webBotAuthResource?: IWebBotAuthResource;
   private reportResource?: IReportResource;
 
@@ -215,6 +218,23 @@ export class ResourceFactory {
     );
 
     return this.userInfoResource;
+  }
+
+  createTransactionsResource(): ITransactionsResource {
+    if (this.transactionsResource) {
+      return this.transactionsResource;
+    }
+
+    const getAccessToken = this.createSdkAccessTokenProvider();
+    this.transactionsResource = sanitizeResource(
+      new TransactionsResource({
+        verbose: this.verbose,
+        defaultHeaders: this.defaultHeaders,
+        getAccessToken,
+      }),
+    );
+
+    return this.transactionsResource;
   }
 
   createWebBotAuthResource(): IWebBotAuthResource {

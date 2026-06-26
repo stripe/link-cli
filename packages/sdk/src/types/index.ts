@@ -172,6 +172,23 @@ export interface ShippingAddressRecord {
   address: ShippingAddress | null;
 }
 
+export interface Transaction {
+  id: string;
+  source_id: string | null;
+  amount: number;
+  currency: string;
+  created_date: string;
+  description: string;
+  category: string | null;
+  status: string;
+}
+
+export interface TransactionsPage {
+  data: Transaction[];
+  has_more?: boolean;
+  [key: string]: unknown;
+}
+
 export interface WebBotAuthBlock {
   signature: string;
   signature_input: string;

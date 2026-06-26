@@ -1,6 +1,7 @@
 import Link, { LinkClient } from '@/client';
 import { PaymentMethodsResource } from '@/resources/payment-methods';
 import { SpendRequestResource } from '@/resources/spend-request';
+import { TransactionsResource } from '@/resources/transactions';
 import { describe, expect, it, vi } from 'vitest';
 
 describe('Link', () => {
@@ -13,10 +14,12 @@ describe('Link', () => {
 
     expect(client.spendRequests).toBeInstanceOf(SpendRequestResource);
     expect(client.paymentMethods).toBeInstanceOf(PaymentMethodsResource);
+    expect(client.transactions).toBeInstanceOf(TransactionsResource);
     expect(client.spendRequests.create).toBeTypeOf('function');
     expect(client.spendRequests.update).toBeTypeOf('function');
     expect(client.spendRequests.retrieve).toBeTypeOf('function');
     expect(client.paymentMethods.list).toBeTypeOf('function');
+    expect(client.transactions.list).toBeTypeOf('function');
   });
 
   it('keeps LinkClient as a compatibility alias', () => {

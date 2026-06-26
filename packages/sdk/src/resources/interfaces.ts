@@ -8,6 +8,7 @@ import type {
   ShippingAddressRecord,
   SpendRequest,
   Total,
+  TransactionsPage,
   UserInfo,
   WebBotAuthBlock,
 } from '@/types/index';
@@ -95,6 +96,20 @@ export interface IUserInfoResource {
 
 export interface IWebBotAuthResource {
   signUrl(url: string): Promise<WebBotAuthBlock>;
+}
+
+export interface ListTransactionsParams {
+  limit?: number;
+  starting_after?: string;
+  ending_before?: string;
+  start_date?: string;
+  end_date?: string;
+  category?: string;
+}
+
+export interface ITransactionsResource {
+  list(params?: ListTransactionsParams): Promise<TransactionsPage>;
+  listTransactions(params?: ListTransactionsParams): Promise<TransactionsPage>;
 }
 
 export const REPORT_OUTCOMES = ['success', 'blocked', 'abandoned'] as const;

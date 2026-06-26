@@ -10,6 +10,7 @@ export * from './resources/payment-methods';
 export * from './resources/shipping-address';
 export * from './resources/user-info';
 export * from './resources/web-bot-auth';
+export * from './resources/transactions';
 export * from './resources/report';
 export { MemoryStorage, Storage, storage } from './utils/storage';
 export type {
