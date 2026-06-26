@@ -252,21 +252,6 @@ export class UcpResource {
     const useRest = this.shouldUseRest(discovery, operationId);
 
     if (useRest) {
-      // In auto mode, fall back to MCP on 405 (route not implemented)
-      if (this.transport === 'auto' && discovery.mcp_endpoint) {
-        try {
-          return await this.callRest(discovery.rest_endpoint!, operationId, args);
-        } catch (err) {
-          if (
-            err instanceof UcpError &&
-            err.code === 'REST_REQUEST_FAILED' &&
-            (err.context.status === 405 || err.context.status === 501)
-          ) {
-            return this.callMcp(normalized, operationId, args);
-          }
-          throw err;
-        }
-      }
       return this.callRest(discovery.rest_endpoint!, operationId, args);
     }
     return this.callMcp(normalized, operationId, args);
