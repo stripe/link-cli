@@ -1,5 +1,5 @@
 ---
-version: 0.7.2
+version: 0.8.1
 name: create-payment-credential
 description: |
   Gets secure, one-time-use payment credentials (cards, tokens) from a Link wallet so agents can complete purchases on behalf of users. Use when the user says "get me a card", "buy something", "pay for X", "make a purchase", "I need to pay", "complete checkout", or asks to transact on any merchant site. Use when the user asks to connect or log in to or sign up for their Link account.
@@ -123,7 +123,6 @@ What you find determines which credential type to use:
 | Credit card form / Stripe Elements | `card` (default) | Card |
 | HTTP 402 with `method="stripe"` in `www-authenticate` | `shared_payment_token` | Shared payment token (SPT) |
 | HTTP 402 without `method="stripe"` in `www-authenticate` | not supported | Do not continue |
-
 **For 402 responses:** The `www-authenticate` header may contain **multiple** payment challenges (e.g. `tempo`, `stripe`) in a single header value. Do not try to decode the payload manually. Pass the **full raw `WWW-Authenticate` header value** to Link CLI and let `mpp decode` select and validate the `method="stripe"` challenge.
 
 To derive `network_id`, use Link CLI's challenge decoder:
@@ -194,6 +193,9 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 
 `mpp pay` handles the full 402 flow automatically: probes the URL, parses the `www-authenticate` header, builds the `Authorization: Payment` credential using the SPT, and retries.
 
+## UCP (Universal Commerce Protocol)
+
+Link CLI includes UCP commands for discovering merchants and browsing product catalogs programmatically. Use `link-cli ucp discover <merchant-url>` to introspect a merchant's site — this checks for UCP support and returns the merchant's capabilities, catalog endpoints, and payment options. If no UCP well-known is discovered, the merchant does not support UCP and you should fall back to other checkout methods (e.g. browsing the site and using a virtual card with the standard card flow). Use `link-cli ucp --help` to see all available subcommands. When a UCP merchant requires browser-based checkout confirmation, use the standard card flow above — provision a virtual card and fill it into the merchant's checkout page.
 
 ## Important
 
