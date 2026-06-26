@@ -4,7 +4,7 @@ export const businessOption = z.object({
   business: z
     .string()
     .describe(
-      'Business URL to interact with (e.g. https://shop.example.com)',
+      'Business URL to interact with (e.g. https://merchant.example.com)',
     ),
   profileUrl: z
     .string()
