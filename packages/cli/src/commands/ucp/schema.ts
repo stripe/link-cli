@@ -81,3 +81,7 @@ export const checkoutCompleteOptions = businessOption.extend({
     .optional()
     .describe('Complete payload as JSON (e.g. payment method details)'),
 });
+
+export const orderGetOptions = businessOption.extend({
+  id: z.string().describe('Order ID (returned from checkout complete)'),
+});

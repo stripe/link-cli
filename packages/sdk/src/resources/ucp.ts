@@ -11,6 +11,7 @@ import type {
   UcpDiscoveryResult,
   UcpDiscoverySpec,
   UcpOperationResult,
+  UcpOrderGetParams,
 } from './ucp-types';
 
 export interface UcpResourceOptions {
@@ -180,6 +181,13 @@ export class UcpResource {
       id: checkoutId,
       ...(params ?? {}),
     });
+  }
+
+  async orderGet(
+    businessUrl: string,
+    orderId: string,
+  ): Promise<UcpOperationResult> {
+    return this.callTool(businessUrl, 'get_order', { id: orderId });
   }
 
   // --- Internal ---

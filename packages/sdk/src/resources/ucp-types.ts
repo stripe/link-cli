@@ -111,6 +111,13 @@ export interface UcpCheckoutCompleteParams {
   [key: string]: unknown;
 }
 
+// --- Order ---
+
+export interface UcpOrderGetParams {
+  id: string;
+  [key: string]: unknown;
+}
+
 // --- Generic operation result (pass-through) ---
 // UCP responses are passed through raw; these are the common envelope fields.
 

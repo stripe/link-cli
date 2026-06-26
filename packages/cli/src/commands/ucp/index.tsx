@@ -11,6 +11,7 @@ import {
   checkoutCreateOptions,
   checkoutGetOptions,
   checkoutUpdateOptions,
+  orderGetOptions,
 } from './schema';
 
 function createUcpResource(profileUrl?: string): UcpResource {
@@ -200,6 +201,26 @@ export function createUcpCli() {
   });
 
   cli.command(checkoutCli);
+
+  // --- order ---
+
+  const orderCli = Cli.create('order', {
+    description:
+      'Retrieve order state including fulfillment tracking and delivery status',
+  });
+
+  orderCli.command('get', {
+    description:
+      'Get the current state of an order, including fulfillment expectations, tracking events, and line item status',
+    options: orderGetOptions,
+    outputPolicy: 'agent-only' as const,
+    async run(c) {
+      const resource = createUcpResource(c.options.profileUrl);
+      return resource.orderGet(c.options.business, c.options.id);
+    },
+  });
+
+  cli.command(orderCli);
 
   return cli;
 }
