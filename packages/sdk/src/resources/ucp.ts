@@ -14,10 +14,13 @@ import type {
   UcpOrderGetParams,
 } from './ucp-types';
 
+export type UcpTransport = 'auto' | 'rest' | 'mcp';
+
 export interface UcpResourceOptions {
   fetch?: typeof globalThis.fetch;
   profileUrl: string;
   timeoutMs?: number;
+  transport?: UcpTransport;
 }
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -33,22 +36,54 @@ interface NegotiatedEndpoint {
   tools: Record<string, ToolDescriptor>;
 }
 
+interface RestRoute {
+  method: string;
+  path: string;
+  bodyKey?: string;
+}
+
+const REST_ROUTES: Record<string, RestRoute> = {
+  search_catalog: { method: 'POST', path: '/catalog/search', bodyKey: 'catalog' },
+  lookup_catalog: { method: 'POST', path: '/catalog/lookup', bodyKey: 'catalog' },
+  get_product: { method: 'POST', path: '/catalog/product' },
+  create_cart: { method: 'POST', path: '/carts', bodyKey: 'cart' },
+  get_cart: { method: 'GET', path: '/carts/{id}' },
+  update_cart: { method: 'PUT', path: '/carts/{id}', bodyKey: 'cart' },
+  cancel_cart: { method: 'POST', path: '/carts/{id}/cancel' },
+  create_checkout: { method: 'POST', path: '/checkout-sessions', bodyKey: 'checkout' },
+  get_checkout: { method: 'GET', path: '/checkout-sessions/{id}' },
+  update_checkout: { method: 'PUT', path: '/checkout-sessions/{id}', bodyKey: 'checkout' },
+  complete_checkout: {
+    method: 'POST',
+    path: '/checkout-sessions/{id}/complete',
+  },
+  cancel_checkout: { method: 'POST', path: '/checkout-sessions/{id}/cancel' },
+  get_order: { method: 'GET', path: '/orders/{id}' },
+};
+
 let nextRequestId = 1;
 
 export class UcpResource {
   private fetchImpl: typeof globalThis.fetch;
   private profileUrl: string;
   private timeoutMs: number;
+  private transport: UcpTransport;
   private negotiatedCache: Map<string, NegotiatedEndpoint> = new Map();
+  private discoveryCache: Map<string, UcpDiscoveryResult> = new Map();
 
   constructor(options: UcpResourceOptions) {
     this.fetchImpl = options.fetch ?? globalThis.fetch;
     this.profileUrl = options.profileUrl;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.transport = options.transport ?? 'auto';
   }
 
   async discover(businessUrl: string): Promise<UcpDiscoveryResult> {
     const normalized = this.normalizeBusinessUrl(businessUrl);
+
+    const cached = this.discoveryCache.get(normalized);
+    if (cached) return cached;
+
     const wellKnownUrl = `${normalized}/.well-known/ucp`;
 
     const response = await this.httpGet(wellKnownUrl);
@@ -82,17 +117,21 @@ export class UcpResource {
       );
     }
 
-    const mcpEndpoint = this.extractMcpEndpoint(spec);
+    const { mcpEndpoint, restEndpoint } = this.extractEndpoints(spec);
     const capabilities = Object.keys(spec.capabilities ?? {});
     const paymentHandlers = Object.keys(spec.payment_handlers ?? {});
 
-    return {
+    const result: UcpDiscoveryResult = {
       business: normalized,
       ucp: spec,
       mcp_endpoint: mcpEndpoint,
+      rest_endpoint: restEndpoint,
       capabilities,
       payment_handlers: paymentHandlers,
     };
+
+    this.discoveryCache.set(normalized, result);
+    return result;
   }
 
   async catalogSearch(
@@ -108,7 +147,7 @@ export class UcpResource {
       },
       ...rest,
     };
-    return this.callTool(businessUrl, 'search_catalog', args);
+    return this.callOperation(businessUrl, 'search_catalog', args);
   }
 
   async catalogLookup(
@@ -116,7 +155,7 @@ export class UcpResource {
     params: UcpCatalogLookupParams,
   ): Promise<UcpOperationResult> {
     const { ids, ...rest } = params;
-    return this.callTool(businessUrl, 'lookup_catalog', {
+    return this.callOperation(businessUrl, 'lookup_catalog', {
       catalog: { ids },
       ...rest,
     });
@@ -126,14 +165,14 @@ export class UcpResource {
     businessUrl: string,
     params: UcpCartCreateParams,
   ): Promise<UcpOperationResult> {
-    return this.callTool(businessUrl, 'create_cart', { cart: params });
+    return this.callOperation(businessUrl, 'create_cart', { cart: params });
   }
 
   async cartGet(
     businessUrl: string,
     cartId: string,
   ): Promise<UcpOperationResult> {
-    return this.callTool(businessUrl, 'get_cart', { id: cartId });
+    return this.callOperation(businessUrl, 'get_cart', { id: cartId });
   }
 
   async cartUpdate(
@@ -141,7 +180,7 @@ export class UcpResource {
     cartId: string,
     params: UcpCartUpdateParams,
   ): Promise<UcpOperationResult> {
-    return this.callTool(businessUrl, 'update_cart', {
+    return this.callOperation(businessUrl, 'update_cart', {
       id: cartId,
       cart: params,
     });
@@ -151,14 +190,16 @@ export class UcpResource {
     businessUrl: string,
     params: UcpCheckoutCreateParams,
   ): Promise<UcpOperationResult> {
-    return this.callTool(businessUrl, 'create_checkout', { checkout: params });
+    return this.callOperation(businessUrl, 'create_checkout', {
+      checkout: params,
+    });
   }
 
   async checkoutGet(
     businessUrl: string,
     checkoutId: string,
   ): Promise<UcpOperationResult> {
-    return this.callTool(businessUrl, 'get_checkout', { id: checkoutId });
+    return this.callOperation(businessUrl, 'get_checkout', { id: checkoutId });
   }
 
   async checkoutUpdate(
@@ -166,7 +207,7 @@ export class UcpResource {
     checkoutId: string,
     params: UcpCheckoutUpdateParams,
   ): Promise<UcpOperationResult> {
-    return this.callTool(businessUrl, 'update_checkout', {
+    return this.callOperation(businessUrl, 'update_checkout', {
       id: checkoutId,
       checkout: params,
     });
@@ -177,7 +218,7 @@ export class UcpResource {
     checkoutId: string,
     params?: UcpCheckoutCompleteParams,
   ): Promise<UcpOperationResult> {
-    return this.callTool(businessUrl, 'complete_checkout', {
+    return this.callOperation(businessUrl, 'complete_checkout', {
       id: checkoutId,
       ...(params ?? {}),
     });
@@ -187,22 +228,209 @@ export class UcpResource {
     businessUrl: string,
     orderId: string,
   ): Promise<UcpOperationResult> {
-    return this.callTool(businessUrl, 'get_order', { id: orderId });
+    return this.callOperation(businessUrl, 'get_order', { id: orderId });
   }
 
-  // --- Internal ---
+  // --- Internal: Transport Selection ---
 
-  private async negotiate(businessUrl: string): Promise<NegotiatedEndpoint> {
-    const cached = this.negotiatedCache.get(businessUrl);
-    if (cached) return cached;
+  private async callOperation(
+    businessUrl: string,
+    operationId: string,
+    args: Record<string, unknown>,
+  ): Promise<UcpOperationResult> {
+    const normalized = this.normalizeBusinessUrl(businessUrl);
 
     if (!this.profileUrl) {
       throw new UcpError(
         'A --profile-url is required for UCP operations (catalog, cart, checkout). Use `ucp discover` without one to inspect capabilities first.',
         'PROFILE_REQUIRED',
-        { business: businessUrl },
+        { business: normalized },
       );
     }
+
+    const discovery = await this.discover(normalized);
+    const useRest = this.shouldUseRest(discovery, operationId);
+
+    if (useRest) {
+      // In auto mode, fall back to MCP on 405 (route not implemented)
+      if (this.transport === 'auto' && discovery.mcp_endpoint) {
+        try {
+          return await this.callRest(discovery.rest_endpoint!, operationId, args);
+        } catch (err) {
+          if (
+            err instanceof UcpError &&
+            err.code === 'REST_REQUEST_FAILED' &&
+            (err.context.status === 405 || err.context.status === 501)
+          ) {
+            return this.callMcp(normalized, operationId, args);
+          }
+          throw err;
+        }
+      }
+      return this.callRest(discovery.rest_endpoint!, operationId, args);
+    }
+    return this.callMcp(normalized, operationId, args);
+  }
+
+  private shouldUseRest(
+    discovery: UcpDiscoveryResult,
+    operationId: string,
+  ): boolean {
+    if (this.transport === 'mcp') return false;
+    if (this.transport === 'rest') {
+      if (!discovery.rest_endpoint) {
+        throw new UcpError(
+          'REST transport requested but merchant does not advertise a REST endpoint.',
+          'NO_REST_ENDPOINT',
+          { business: discovery.business },
+        );
+      }
+      if (!REST_ROUTES[operationId]) {
+        throw new UcpError(
+          `No REST route mapping for operation "${operationId}".`,
+          'NO_REST_ROUTE',
+          { business: discovery.business, operation: operationId },
+        );
+      }
+      return true;
+    }
+    // auto: prefer REST when available and route is known
+    return !!discovery.rest_endpoint && !!REST_ROUTES[operationId];
+  }
+
+  // --- REST Transport ---
+
+  private async callRest(
+    restEndpoint: string,
+    operationId: string,
+    args: Record<string, unknown>,
+  ): Promise<UcpOperationResult> {
+    const route = REST_ROUTES[operationId]!;
+    const id = args.id as string | undefined;
+
+    let path = route.path;
+    if (id && path.includes('{id}')) {
+      path = path.replace('{id}', encodeURIComponent(id));
+    }
+
+    const url = `${restEndpoint.replace(/\/+$/, '')}${path}`;
+
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'UCP-Agent': `profile="${this.profileUrl}"`,
+      'Request-Id': crypto.randomUUID(),
+    };
+
+    const hasBody = route.method !== 'GET';
+    if (hasBody) {
+      headers['Content-Type'] = 'application/json';
+      headers['Idempotency-Key'] = crypto.randomUUID();
+    }
+
+    let body: string | undefined;
+    if (hasBody) {
+      const { id: _id, meta: _meta, ...payload } = args;
+      // If route has a bodyKey, unwrap that key as the REST body
+      const restBody = route.bodyKey
+        ? (payload[route.bodyKey] as Record<string, unknown>) ?? payload
+        : payload;
+      body = JSON.stringify(restBody);
+    }
+
+    const response = await this.fetchImpl(url, {
+      method: route.method,
+      headers,
+      ...(body !== undefined ? { body } : {}),
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+
+    const responseText = await response.text();
+    if (!responseText) {
+      if (!response.ok) {
+        throw new UcpError(
+          `REST ${route.method} ${path} failed: HTTP ${response.status}`,
+          'REST_REQUEST_FAILED',
+          { url, status: response.status, operation: operationId },
+        );
+      }
+      return {} as UcpOperationResult;
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(responseText);
+    } catch {
+      throw new UcpError(
+        `REST response is not valid JSON from ${url}`,
+        'REST_INVALID_RESPONSE',
+        { url, status: response.status, operation: operationId },
+      );
+    }
+
+    if (!response.ok) {
+      const errBody = parsed as Record<string, unknown>;
+      const messages = errBody.messages as
+        | Array<{ code?: string; content?: string }>
+        | undefined;
+      const msg =
+        messages?.[0]?.content ?? `HTTP ${response.status}`;
+      throw new UcpError(
+        `REST ${route.method} ${path} failed: ${msg}`,
+        'REST_REQUEST_FAILED',
+        { url, status: response.status, operation: operationId, body: errBody },
+      );
+    }
+
+    return parsed as UcpOperationResult;
+  }
+
+  // --- MCP Transport ---
+
+  private async callMcp(
+    businessUrl: string,
+    toolName: string,
+    args: Record<string, unknown>,
+  ): Promise<UcpOperationResult> {
+    const negotiated = await this.negotiate(businessUrl);
+
+    if (!negotiated.tools[toolName]) {
+      throw new UcpError(
+        `Tool "${toolName}" not available on ${businessUrl}. Available: ${Object.keys(negotiated.tools).join(', ')}`,
+        'TOOL_NOT_FOUND',
+        {
+          business: businessUrl,
+          tool: toolName,
+          available: Object.keys(negotiated.tools),
+        },
+      );
+    }
+
+    const toolArgs: Record<string, unknown> = {
+      ...args,
+      meta: {
+        ...((args.meta as Record<string, unknown>) ?? {}),
+        'ucp-agent': { profile: this.profileUrl },
+        'idempotency-key': crypto.randomUUID(),
+      },
+    };
+
+    const params: McpToolCallParams = {
+      name: toolName,
+      arguments: toolArgs,
+    };
+
+    const result = await this.mcpRpc<McpToolCallResult>(
+      negotiated.endpoint,
+      'tools/call',
+      params,
+    );
+
+    return this.unwrapMcpResult(result, toolName, businessUrl);
+  }
+
+  private async negotiate(businessUrl: string): Promise<NegotiatedEndpoint> {
+    const cached = this.negotiatedCache.get(businessUrl);
+    if (cached) return cached;
 
     const discovery = await this.discover(businessUrl);
     if (!discovery.mcp_endpoint) {
@@ -238,55 +466,11 @@ export class UcpResource {
     return negotiated;
   }
 
-  private async callTool(
-    businessUrl: string,
-    toolName: string,
-    args: Record<string, unknown>,
-  ): Promise<UcpOperationResult> {
-    const normalized = this.normalizeBusinessUrl(businessUrl);
-    const negotiated = await this.negotiate(normalized);
-
-    if (!negotiated.tools[toolName]) {
-      throw new UcpError(
-        `Tool "${toolName}" not available on ${businessUrl}. Available: ${Object.keys(negotiated.tools).join(', ')}`,
-        'TOOL_NOT_FOUND',
-        {
-          business: businessUrl,
-          tool: toolName,
-          available: Object.keys(negotiated.tools),
-        },
-      );
-    }
-
-    const toolArgs: Record<string, unknown> = {
-      ...args,
-      meta: {
-        ...((args.meta as Record<string, unknown>) ?? {}),
-        'ucp-agent': { profile: this.profileUrl },
-        'idempotency-key': crypto.randomUUID(),
-      },
-    };
-
-    const params: McpToolCallParams = {
-      name: toolName,
-      arguments: toolArgs,
-    };
-
-    const result = await this.mcpRpc<McpToolCallResult>(
-      negotiated.endpoint,
-      'tools/call',
-      params,
-    );
-
-    return this.unwrapResult(result, toolName, businessUrl);
-  }
-
-  private unwrapResult(
+  private unwrapMcpResult(
     result: McpToolCallResult,
     toolName: string,
     businessUrl: string,
   ): UcpOperationResult {
-    // Prefer structuredContent (newer MCP), fall back to text content
     const r = result as unknown as Record<string, unknown>;
     if (
       typeof r.structuredContent === 'object' &&
@@ -299,8 +483,6 @@ export class UcpResource {
     if (textContent?.text) {
       try {
         const parsed = JSON.parse(textContent.text) as UcpOperationResult;
-        // UCP uses isError for escalation responses too — return them as data
-        // so agents can inspect status/continue_url
         return parsed;
       } catch {
         if (result.isError) {
@@ -385,6 +567,8 @@ export class UcpResource {
     return envelope.result as T;
   }
 
+  // --- Helpers ---
+
   private async httpGet(url: string): Promise<Response> {
     return this.fetchImpl(url, {
       method: 'GET',
@@ -404,11 +588,20 @@ export class UcpResource {
     return normalized.replace(/\/+$/, '');
   }
 
-  private extractMcpEndpoint(spec: UcpDiscoverySpec): string | null {
+  private extractEndpoints(spec: UcpDiscoverySpec): {
+    mcpEndpoint: string | null;
+    restEndpoint: string | null;
+  } {
     const shoppingService = spec.services?.['dev.ucp.shopping'];
-    if (!shoppingService) return null;
+    if (!shoppingService) return { mcpEndpoint: null, restEndpoint: null };
+
     const mcpBinding = shoppingService.find((s) => s.transport === 'mcp');
-    return mcpBinding?.endpoint ?? null;
+    const restBinding = shoppingService.find((s) => s.transport === 'rest');
+
+    return {
+      mcpEndpoint: mcpBinding?.endpoint ?? null,
+      restEndpoint: restBinding?.endpoint ?? null,
+    };
   }
 }
 

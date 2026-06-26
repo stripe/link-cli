@@ -11,6 +11,12 @@ export const businessOption = z.object({
     .describe(
       'Agent profile URL that identifies this agent to the merchant',
     ),
+  transport: z
+    .enum(['auto', 'rest', 'mcp'])
+    .optional()
+    .describe(
+      'Transport to use: auto (prefer REST, fall back to MCP), rest, or mcp',
+    ),
 });
 
 export const catalogSearchOptions = businessOption.extend({

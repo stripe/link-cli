@@ -40,6 +40,7 @@ export interface UcpDiscoveryResult {
   business: string;
   ucp: UcpDiscoverySpec;
   mcp_endpoint: string | null;
+  rest_endpoint: string | null;
   capabilities: string[];
   payment_handlers: string[];
 }
