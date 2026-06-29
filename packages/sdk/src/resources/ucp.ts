@@ -321,7 +321,11 @@ export class UcpResource {
       path = path.replace('{id}', encodeURIComponent(id));
     }
 
-    const url = `${restEndpoint.replace(/\/+$/, '')}${path}`;
+    let base = restEndpoint;
+    while (base.endsWith('/')) {
+      base = base.slice(0, -1);
+    }
+    const url = `${base}${path}`;
 
     const headers: Record<string, string> = {
       Accept: 'application/json',
@@ -613,7 +617,10 @@ export class UcpResource {
     ) {
       normalized = `https://${normalized}`;
     }
-    return normalized.replace(/\/+$/, '');
+    while (normalized.endsWith('/')) {
+      normalized = normalized.slice(0, -1);
+    }
+    return normalized;
   }
 
   private extractEndpoints(spec: UcpDiscoverySpec): {
