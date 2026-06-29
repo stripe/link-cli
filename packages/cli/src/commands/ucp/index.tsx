@@ -14,11 +14,22 @@ import {
   orderGetOptions,
 } from './schema';
 
-function createUcpResource(
-  profileUrl?: string,
-  transport?: UcpTransport,
-): UcpResource {
-  return new UcpResource({ profileUrl: profileUrl ?? '', transport });
+function createUcpResource(opts: {
+  profileUrl?: string;
+  clientId?: string;
+  clientSecret?: string;
+  accessToken?: string;
+  transport?: UcpTransport;
+}): UcpResource {
+  return new UcpResource({
+    auth: {
+      profileUrl: opts.profileUrl,
+      clientId: opts.clientId,
+      clientSecret: opts.clientSecret,
+      accessToken: opts.accessToken,
+    },
+    transport: opts.transport,
+  });
 }
 
 export function createUcpCli() {
@@ -45,7 +56,7 @@ export function createUcpCli() {
     }),
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      const resource = createUcpResource(c.options.profileUrl);
+      const resource = createUcpResource({ profileUrl: c.options.profileUrl });
       return resource.discover(c.args.business);
     },
   });
@@ -62,7 +73,7 @@ export function createUcpCli() {
     options: catalogSearchOptions,
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      const resource = createUcpResource(c.options.profileUrl, c.options.transport);
+      const resource = createUcpResource(c.options);
       return resource.catalogSearch(c.options.business, {
         query: c.options.query,
         limit: c.options.limit,
@@ -76,7 +87,7 @@ export function createUcpCli() {
     options: catalogLookupOptions,
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      const resource = createUcpResource(c.options.profileUrl, c.options.transport);
+      const resource = createUcpResource(c.options);
       const ids = c.options.ids.split(',').map((id) => id.trim());
       return resource.catalogLookup(c.options.business, { ids });
     },
@@ -95,7 +106,7 @@ export function createUcpCli() {
     options: cartCreateOptions,
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      const resource = createUcpResource(c.options.profileUrl, c.options.transport);
+      const resource = createUcpResource(c.options);
       if (c.options.input) {
         const parsed = JSON.parse(c.options.input);
         return resource.cartCreate(c.options.business, parsed);
@@ -112,7 +123,7 @@ export function createUcpCli() {
     options: cartGetOptions,
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      const resource = createUcpResource(c.options.profileUrl, c.options.transport);
+      const resource = createUcpResource(c.options);
       return resource.cartGet(c.options.business, c.options.id);
     },
   });
@@ -122,7 +133,7 @@ export function createUcpCli() {
     options: cartUpdateOptions,
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      const resource = createUcpResource(c.options.profileUrl, c.options.transport);
+      const resource = createUcpResource(c.options);
       if (c.options.input) {
         const parsed = JSON.parse(c.options.input);
         return resource.cartUpdate(c.options.business, c.options.id, parsed);
@@ -150,7 +161,7 @@ export function createUcpCli() {
     options: checkoutCreateOptions,
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      const resource = createUcpResource(c.options.profileUrl, c.options.transport);
+      const resource = createUcpResource(c.options);
       if (c.options.input) {
         const parsed = JSON.parse(c.options.input);
         return resource.checkoutCreate(c.options.business, parsed);
@@ -171,7 +182,7 @@ export function createUcpCli() {
     options: checkoutGetOptions,
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      const resource = createUcpResource(c.options.profileUrl, c.options.transport);
+      const resource = createUcpResource(c.options);
       return resource.checkoutGet(c.options.business, c.options.id);
     },
   });
@@ -181,7 +192,7 @@ export function createUcpCli() {
     options: checkoutUpdateOptions,
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      const resource = createUcpResource(c.options.profileUrl, c.options.transport);
+      const resource = createUcpResource(c.options);
       const parsed = JSON.parse(c.options.input);
       return resource.checkoutUpdate(c.options.business, c.options.id, parsed);
     },
@@ -193,7 +204,7 @@ export function createUcpCli() {
     options: checkoutCompleteOptions,
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      const resource = createUcpResource(c.options.profileUrl, c.options.transport);
+      const resource = createUcpResource(c.options);
       const params = c.options.input ? JSON.parse(c.options.input) : undefined;
       return resource.checkoutComplete(
         c.options.business,
@@ -218,7 +229,7 @@ export function createUcpCli() {
     options: orderGetOptions,
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      const resource = createUcpResource(c.options.profileUrl, c.options.transport);
+      const resource = createUcpResource(c.options);
       return resource.orderGet(c.options.business, c.options.id);
     },
   });

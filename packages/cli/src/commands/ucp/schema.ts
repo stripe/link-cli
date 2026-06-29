@@ -11,6 +11,18 @@ export const businessOption = z.object({
     .describe(
       'Agent profile URL that identifies this agent to the merchant',
     ),
+  clientId: z
+    .string()
+    .optional()
+    .describe('OAuth client_id for agent-authenticated requests'),
+  clientSecret: z
+    .string()
+    .optional()
+    .describe('OAuth client_secret for agent-authenticated requests'),
+  accessToken: z
+    .string()
+    .optional()
+    .describe('OAuth Bearer token for user-authenticated requests'),
   transport: z
     .enum(['auto', 'rest', 'mcp'])
     .optional()

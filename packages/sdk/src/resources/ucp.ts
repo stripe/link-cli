@@ -16,9 +16,16 @@ import type {
 
 export type UcpTransport = 'auto' | 'rest' | 'mcp';
 
+export interface UcpAuth {
+  profileUrl?: string;
+  clientId?: string;
+  clientSecret?: string;
+  accessToken?: string;
+}
+
 export interface UcpResourceOptions {
   fetch?: typeof globalThis.fetch;
-  profileUrl: string;
+  auth?: UcpAuth;
   timeoutMs?: number;
   transport?: UcpTransport;
 }
@@ -65,7 +72,7 @@ let nextRequestId = 1;
 
 export class UcpResource {
   private fetchImpl: typeof globalThis.fetch;
-  private profileUrl: string;
+  private auth: UcpAuth;
   private timeoutMs: number;
   private transport: UcpTransport;
   private negotiatedCache: Map<string, NegotiatedEndpoint> = new Map();
@@ -73,7 +80,7 @@ export class UcpResource {
 
   constructor(options: UcpResourceOptions) {
     this.fetchImpl = options.fetch ?? globalThis.fetch;
-    this.profileUrl = options.profileUrl;
+    this.auth = options.auth ?? {};
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.transport = options.transport ?? 'auto';
   }
@@ -240,10 +247,10 @@ export class UcpResource {
   ): Promise<UcpOperationResult> {
     const normalized = this.normalizeBusinessUrl(businessUrl);
 
-    if (!this.profileUrl) {
+    if (!this.auth.profileUrl) {
       throw new UcpError(
-        'A --profile-url is required for UCP operations (catalog, cart, checkout). Use `ucp discover` without one to inspect capabilities first.',
-        'PROFILE_REQUIRED',
+        'A --profile-url is required for UCP operations (catalog, cart, checkout). Use `ucp discover` without one to inspect capabilities first. If you don\'t have your own profile, consider using a developer one like https://shopify.dev/ucp/agent-profiles/2026-04-08/valid-with-capabilities.json',
+        'AUTH_PROFILE_REQUIRED',
         { business: normalized },
       );
     }
@@ -302,8 +309,11 @@ export class UcpResource {
 
     const headers: Record<string, string> = {
       Accept: 'application/json',
-      'UCP-Agent': `profile="${this.profileUrl}"`,
       'Request-Id': crypto.randomUUID(),
+      ...this.authHeaders(),
+      ...(this.auth.profileUrl
+        ? { 'UCP-Agent': `profile="${this.auth.profileUrl}"` }
+        : {}),
     };
 
     const hasBody = route.method !== 'GET';
@@ -394,7 +404,9 @@ export class UcpResource {
       ...args,
       meta: {
         ...((args.meta as Record<string, unknown>) ?? {}),
-        'ucp-agent': { profile: this.profileUrl },
+        ...(this.auth.profileUrl
+          ? { 'ucp-agent': { profile: this.auth.profileUrl } }
+          : {}),
         'idempotency-key': crypto.randomUUID(),
       },
     };
@@ -432,7 +444,9 @@ export class UcpResource {
       {
         arguments: {
           meta: {
-            'ucp-agent': { profile: this.profileUrl },
+            ...(this.auth.profileUrl
+              ? { 'ucp-agent': { profile: this.auth.profileUrl } }
+              : {}),
           },
         },
       },
@@ -510,6 +524,7 @@ export class UcpResource {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
+        ...this.authHeaders(),
       },
       body,
       signal: AbortSignal.timeout(this.timeoutMs),
@@ -550,6 +565,19 @@ export class UcpResource {
     }
 
     return envelope.result as T;
+  }
+
+  // --- Auth ---
+
+  private authHeaders(): Record<string, string> {
+    if (this.auth.accessToken) {
+      return { Authorization: `Bearer ${this.auth.accessToken}` };
+    }
+    if (this.auth.clientId && this.auth.clientSecret) {
+      const encoded = btoa(`${this.auth.clientId}:${this.auth.clientSecret}`);
+      return { Authorization: `Basic ${encoded}` };
+    }
+    return {};
   }
 
   // --- Helpers ---
