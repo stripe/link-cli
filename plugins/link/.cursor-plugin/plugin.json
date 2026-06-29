@@ -1,7 +1,7 @@
 {
   "name": "link",
   "displayName": "Stripe Link",
-  "version": "0.8.1",
+  "version": "0.7.2",
   "description": "Get secure, one-time-use payment credentials from a Link wallet so agents can complete purchases on your behalf.",
   "author": {
     "name": "Stripe"

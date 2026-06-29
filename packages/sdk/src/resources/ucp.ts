@@ -249,7 +249,7 @@ export class UcpResource {
 
     if (!this.auth.profileUrl) {
       throw new UcpError(
-        'A --profile-url is required for UCP operations (catalog, cart, checkout). Use `ucp discover` without one to inspect capabilities first. If you don\'t have your own profile, consider using a developer one like https://shopify.dev/ucp/agent-profiles/2026-04-08/valid-with-capabilities.json',
+        'A --profile-url is required for UCP operations (catalog, cart, checkout). Use `ucp discover` without one to inspect capabilities first.',
         'AUTH_PROFILE_REQUIRED',
         { business: normalized },
       );
