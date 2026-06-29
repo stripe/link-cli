@@ -8,9 +8,7 @@ export const businessOption = z.object({
     ),
   profileUrl: z
     .string()
-    .describe(
-      'Agent profile URL that identifies this agent to the merchant',
-    ),
+    .describe('Agent profile URL that identifies this agent to the merchant'),
   clientId: z
     .string()
     .optional()

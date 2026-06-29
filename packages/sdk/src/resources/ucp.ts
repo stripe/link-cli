@@ -50,16 +50,32 @@ interface RestRoute {
 }
 
 const REST_ROUTES: Record<string, RestRoute> = {
-  search_catalog: { method: 'POST', path: '/catalog/search', bodyKey: 'catalog' },
-  lookup_catalog: { method: 'POST', path: '/catalog/lookup', bodyKey: 'catalog' },
+  search_catalog: {
+    method: 'POST',
+    path: '/catalog/search',
+    bodyKey: 'catalog',
+  },
+  lookup_catalog: {
+    method: 'POST',
+    path: '/catalog/lookup',
+    bodyKey: 'catalog',
+  },
   get_product: { method: 'POST', path: '/catalog/product' },
   create_cart: { method: 'POST', path: '/carts', bodyKey: 'cart' },
   get_cart: { method: 'GET', path: '/carts/{id}' },
   update_cart: { method: 'PUT', path: '/carts/{id}', bodyKey: 'cart' },
   cancel_cart: { method: 'POST', path: '/carts/{id}/cancel' },
-  create_checkout: { method: 'POST', path: '/checkout-sessions', bodyKey: 'checkout' },
+  create_checkout: {
+    method: 'POST',
+    path: '/checkout-sessions',
+    bodyKey: 'checkout',
+  },
   get_checkout: { method: 'GET', path: '/checkout-sessions/{id}' },
-  update_checkout: { method: 'PUT', path: '/checkout-sessions/{id}', bodyKey: 'checkout' },
+  update_checkout: {
+    method: 'PUT',
+    path: '/checkout-sessions/{id}',
+    bodyKey: 'checkout',
+  },
   complete_checkout: {
     method: 'POST',
     path: '/checkout-sessions/{id}/complete',
@@ -258,8 +274,8 @@ export class UcpResource {
     const discovery = await this.discover(normalized);
     const useRest = this.shouldUseRest(discovery, operationId);
 
-    if (useRest) {
-      return this.callRest(discovery.rest_endpoint!, operationId, args);
+    if (useRest && discovery.rest_endpoint) {
+      return this.callRest(discovery.rest_endpoint, operationId, args);
     }
     return this.callMcp(normalized, operationId, args);
   }
@@ -297,7 +313,7 @@ export class UcpResource {
     operationId: string,
     args: Record<string, unknown>,
   ): Promise<UcpOperationResult> {
-    const route = REST_ROUTES[operationId]!;
+    const route = REST_ROUTES[operationId] as RestRoute;
     const id = args.id as string | undefined;
 
     let path = route.path;
@@ -327,7 +343,7 @@ export class UcpResource {
       const { id: _id, meta: _meta, ...payload } = args;
       // If route has a bodyKey, unwrap that key as the REST body
       const restBody = route.bodyKey
-        ? (payload[route.bodyKey] as Record<string, unknown>) ?? payload
+        ? ((payload[route.bodyKey] as Record<string, unknown>) ?? payload)
         : payload;
       body = JSON.stringify(restBody);
     }
@@ -367,8 +383,7 @@ export class UcpResource {
       const messages = errBody.messages as
         | Array<{ code?: string; content?: string }>
         | undefined;
-      const msg =
-        messages?.[0]?.content ?? `HTTP ${response.status}`;
+      const msg = messages?.[0]?.content ?? `HTTP ${response.status}`;
       throw new UcpError(
         `REST ${route.method} ${path} failed: ${msg}`,
         'REST_REQUEST_FAILED',

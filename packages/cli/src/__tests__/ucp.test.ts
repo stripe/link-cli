@@ -187,10 +187,12 @@ describe('ucp commands', () => {
       expect(output.products).toHaveLength(1);
       expect(output.products[0].name).toBe('Red Boots');
 
-      const searchReq = requests.find((r) => r.url === '/ucp/rest/catalog/search');
+      const searchReq = requests.find(
+        (r) => r.url === '/ucp/rest/catalog/search',
+      );
       expect(searchReq).toBeDefined();
-      expect(searchReq!.method).toBe('POST');
-      expect(JSON.parse(searchReq!.body)).toEqual({ query: 'boots' });
+      expect(searchReq?.method).toBe('POST');
+      expect(JSON.parse(searchReq?.body ?? '')).toEqual({ query: 'boots' });
     });
 
     it('sends auth headers when --client-id and --client-secret are provided', async () => {
@@ -216,10 +218,12 @@ describe('ucp commands', () => {
         '--json',
       );
 
-      const searchReq = requests.find((r) => r.url === '/ucp/rest/catalog/search');
+      const searchReq = requests.find(
+        (r) => r.url === '/ucp/rest/catalog/search',
+      );
       expect(searchReq).toBeDefined();
       const expected = `Basic ${btoa('test_client:test_secret')}`;
-      expect(searchReq!.headers.authorization).toBe(expected);
+      expect(searchReq?.headers.authorization).toBe(expected);
     });
 
     it('sends Bearer token when --access-token is provided', async () => {
@@ -243,8 +247,10 @@ describe('ucp commands', () => {
         '--json',
       );
 
-      const searchReq = requests.find((r) => r.url === '/ucp/rest/catalog/search');
-      expect(searchReq!.headers.authorization).toBe('Bearer tok_user_123');
+      const searchReq = requests.find(
+        (r) => r.url === '/ucp/rest/catalog/search',
+      );
+      expect(searchReq?.headers.authorization).toBe('Bearer tok_user_123');
     });
 
     it('fails when --profile-url is missing', async () => {
@@ -287,8 +293,12 @@ describe('ucp commands', () => {
       const output = JSON.parse(result.stdout);
       expect(output.products).toHaveLength(2);
 
-      const lookupReq = requests.find((r) => r.url === '/ucp/rest/catalog/lookup');
-      expect(JSON.parse(lookupReq!.body)).toEqual({ ids: ['prod_1', 'prod_2'] });
+      const lookupReq = requests.find(
+        (r) => r.url === '/ucp/rest/catalog/lookup',
+      );
+      expect(JSON.parse(lookupReq?.body ?? '')).toEqual({
+        ids: ['prod_1', 'prod_2'],
+      });
     });
   });
 
@@ -320,7 +330,7 @@ describe('ucp commands', () => {
       expect(output.id).toBe('cart_1');
 
       const cartReq = requests.find((r) => r.url === '/ucp/rest/carts');
-      expect(cartReq!.method).toBe('POST');
+      expect(cartReq?.method).toBe('POST');
     });
 
     it('get fetches cart by ID', async () => {
@@ -347,13 +357,16 @@ describe('ucp commands', () => {
       expect(output.id).toBe('cart_1');
 
       const getReq = requests.find((r) => r.url === '/ucp/rest/carts/cart_1');
-      expect(getReq!.method).toBe('GET');
+      expect(getReq?.method).toBe('GET');
     });
 
     it('update sends PUT to /carts/{id}', async () => {
       responsesByUrl['/ucp/rest/carts/cart_1'] = {
         status: 200,
-        body: { id: 'cart_1', line_items: [{ item: { id: 'var_2' }, quantity: 3 }] },
+        body: {
+          id: 'cart_1',
+          line_items: [{ item: { id: 'var_2' }, quantity: 3 }],
+        },
       };
 
       const result = await runCli(
@@ -403,9 +416,11 @@ describe('ucp commands', () => {
       const output = JSON.parse(result.stdout);
       expect(output.id).toBe('cs_1');
 
-      const createReq = requests.find((r) => r.url === '/ucp/rest/checkout-sessions');
-      expect(createReq!.method).toBe('POST');
-      expect(JSON.parse(createReq!.body)).toMatchObject({ cart_id: 'cart_1' });
+      const createReq = requests.find(
+        (r) => r.url === '/ucp/rest/checkout-sessions',
+      );
+      expect(createReq?.method).toBe('POST');
+      expect(JSON.parse(createReq?.body ?? '')).toMatchObject({ cart_id: 'cart_1' });
     });
 
     it('get fetches checkout by ID', async () => {
@@ -460,7 +475,7 @@ describe('ucp commands', () => {
       const completeReq = requests.find(
         (r) => r.url === '/ucp/rest/checkout-sessions/cs_1/complete',
       );
-      expect(completeReq!.method).toBe('POST');
+      expect(completeReq?.method).toBe('POST');
     });
   });
 });

@@ -1,4 +1,4 @@
-import { type UcpTransport, UcpResource } from '@stripe/link-sdk';
+import { UcpResource, type UcpTransport } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import {
   businessOption,
@@ -52,7 +52,9 @@ export function createUcpCli() {
       profileUrl: z
         .string()
         .optional()
-        .describe('Agent profile URL (not required for discovery, but needed for tool negotiation)'),
+        .describe(
+          'Agent profile URL (not required for discovery, but needed for tool negotiation)',
+        ),
     }),
     outputPolicy: 'agent-only' as const,
     async run(c) {

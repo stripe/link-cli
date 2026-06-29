@@ -1,13 +1,23 @@
 import { describe, expect, it, vi } from 'vitest';
-import { UcpResource, UcpError } from '../resources/ucp';
+import { UcpError, UcpResource } from '../resources/ucp';
 
 const DISCOVERY_RESPONSE = {
   ucp: {
     version: '2026-04-08',
     services: {
       'dev.ucp.shopping': [
-        { version: '1.0', spec: 'ucp', transport: 'rest', endpoint: 'https://merchant.example.com/ucp/rest' },
-        { version: '1.0', spec: 'ucp', transport: 'mcp', endpoint: 'https://merchant.example.com/ucp/mcp' },
+        {
+          version: '1.0',
+          spec: 'ucp',
+          transport: 'rest',
+          endpoint: 'https://merchant.example.com/ucp/rest',
+        },
+        {
+          version: '1.0',
+          spec: 'ucp',
+          transport: 'mcp',
+          endpoint: 'https://merchant.example.com/ucp/mcp',
+        },
       ],
     },
     capabilities: {
@@ -27,7 +37,13 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 function createResource(
   fetchMock: ReturnType<typeof vi.fn>,
-  opts: { profileUrl?: string; clientId?: string; clientSecret?: string; accessToken?: string; transport?: 'auto' | 'rest' | 'mcp' } = {},
+  opts: {
+    profileUrl?: string;
+    clientId?: string;
+    clientSecret?: string;
+    accessToken?: string;
+    transport?: 'auto' | 'rest' | 'mcp';
+  } = {},
 ) {
   return new UcpResource({
     fetch: fetchMock as unknown as typeof globalThis.fetch,
@@ -44,15 +60,21 @@ function createResource(
 describe('UcpResource', () => {
   describe('discover', () => {
     it('fetches .well-known/ucp and returns parsed result', async () => {
-      const fetchMock = vi.fn().mockResolvedValue(jsonResponse(DISCOVERY_RESPONSE));
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(jsonResponse(DISCOVERY_RESPONSE));
       const resource = createResource(fetchMock);
 
       const result = await resource.discover('https://merchant.example.com');
 
       expect(fetchMock).toHaveBeenCalledOnce();
-      expect(fetchMock.mock.calls[0][0]).toBe('https://merchant.example.com/.well-known/ucp');
+      expect(fetchMock.mock.calls[0][0]).toBe(
+        'https://merchant.example.com/.well-known/ucp',
+      );
       expect(result.business).toBe('https://merchant.example.com');
-      expect(result.rest_endpoint).toBe('https://merchant.example.com/ucp/rest');
+      expect(result.rest_endpoint).toBe(
+        'https://merchant.example.com/ucp/rest',
+      );
       expect(result.mcp_endpoint).toBe('https://merchant.example.com/ucp/mcp');
       expect(result.capabilities).toContain('dev.ucp.catalog');
     });
@@ -61,12 +83,18 @@ describe('UcpResource', () => {
       const fetchMock = vi.fn().mockResolvedValue(jsonResponse({}, 404));
       const resource = createResource(fetchMock);
 
-      await expect(resource.discover('https://merchant.example.com')).rejects.toThrow(UcpError);
-      await expect(resource.discover('https://merchant.example.com')).rejects.toMatchObject({ code: 'DISCOVERY_FAILED' });
+      await expect(
+        resource.discover('https://merchant.example.com'),
+      ).rejects.toThrow(UcpError);
+      await expect(
+        resource.discover('https://merchant.example.com'),
+      ).rejects.toMatchObject({ code: 'DISCOVERY_FAILED' });
     });
 
     it('caches discovery results', async () => {
-      const fetchMock = vi.fn().mockResolvedValue(jsonResponse(DISCOVERY_RESPONSE));
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(jsonResponse(DISCOVERY_RESPONSE));
       const resource = createResource(fetchMock);
 
       await resource.discover('https://merchant.example.com');
@@ -76,24 +104,34 @@ describe('UcpResource', () => {
     });
 
     it('normalizes URLs without protocol', async () => {
-      const fetchMock = vi.fn().mockResolvedValue(jsonResponse(DISCOVERY_RESPONSE));
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(jsonResponse(DISCOVERY_RESPONSE));
       const resource = createResource(fetchMock);
 
       await resource.discover('merchant.example.com');
 
-      expect(fetchMock.mock.calls[0][0]).toBe('https://merchant.example.com/.well-known/ucp');
+      expect(fetchMock.mock.calls[0][0]).toBe(
+        'https://merchant.example.com/.well-known/ucp',
+      );
     });
   });
 
   describe('catalogSearch (REST)', () => {
     it('sends POST to /catalog/search with query', async () => {
-      const fetchMock = vi.fn()
+      const fetchMock = vi
+        .fn()
         .mockResolvedValueOnce(jsonResponse(DISCOVERY_RESPONSE))
         .mockResolvedValueOnce(jsonResponse({ products: [] }));
 
-      const resource = createResource(fetchMock, { profileUrl: 'https://agent.example/profile.json', transport: 'rest' });
+      const resource = createResource(fetchMock, {
+        profileUrl: 'https://agent.example/profile.json',
+        transport: 'rest',
+      });
 
-      await resource.catalogSearch('https://merchant.example.com', { query: 'boots' });
+      await resource.catalogSearch('https://merchant.example.com', {
+        query: 'boots',
+      });
 
       const [url, opts] = fetchMock.mock.calls[1];
       expect(url).toBe('https://merchant.example.com/ucp/rest/catalog/search');
@@ -106,14 +144,17 @@ describe('UcpResource', () => {
       const resource = createResource(fetchMock);
 
       await expect(
-        resource.catalogSearch('https://merchant.example.com', { query: 'boots' }),
+        resource.catalogSearch('https://merchant.example.com', {
+          query: 'boots',
+        }),
       ).rejects.toMatchObject({ code: 'AUTH_PROFILE_REQUIRED' });
     });
   });
 
   describe('auth headers', () => {
     it('sends Bearer token when accessToken is set', async () => {
-      const fetchMock = vi.fn()
+      const fetchMock = vi
+        .fn()
         .mockResolvedValueOnce(jsonResponse(DISCOVERY_RESPONSE))
         .mockResolvedValueOnce(jsonResponse({ products: [] }));
 
@@ -123,14 +164,17 @@ describe('UcpResource', () => {
         transport: 'rest',
       });
 
-      await resource.catalogSearch('https://merchant.example.com', { query: 'boots' });
+      await resource.catalogSearch('https://merchant.example.com', {
+        query: 'boots',
+      });
 
       const headers = fetchMock.mock.calls[1][1].headers;
       expect(headers.Authorization).toBe('Bearer tok_123');
     });
 
     it('sends Basic auth when clientId and clientSecret are set', async () => {
-      const fetchMock = vi.fn()
+      const fetchMock = vi
+        .fn()
         .mockResolvedValueOnce(jsonResponse(DISCOVERY_RESPONSE))
         .mockResolvedValueOnce(jsonResponse({ products: [] }));
 
@@ -141,7 +185,9 @@ describe('UcpResource', () => {
         transport: 'rest',
       });
 
-      await resource.catalogSearch('https://merchant.example.com', { query: 'boots' });
+      await resource.catalogSearch('https://merchant.example.com', {
+        query: 'boots',
+      });
 
       const headers = fetchMock.mock.calls[1][1].headers;
       const expected = `Basic ${btoa('my_client:my_secret')}`;
@@ -149,7 +195,8 @@ describe('UcpResource', () => {
     });
 
     it('Bearer token takes precedence over client credentials', async () => {
-      const fetchMock = vi.fn()
+      const fetchMock = vi
+        .fn()
         .mockResolvedValueOnce(jsonResponse(DISCOVERY_RESPONSE))
         .mockResolvedValueOnce(jsonResponse({ products: [] }));
 
@@ -161,14 +208,17 @@ describe('UcpResource', () => {
         transport: 'rest',
       });
 
-      await resource.catalogSearch('https://merchant.example.com', { query: 'boots' });
+      await resource.catalogSearch('https://merchant.example.com', {
+        query: 'boots',
+      });
 
       const headers = fetchMock.mock.calls[1][1].headers;
       expect(headers.Authorization).toBe('Bearer tok_123');
     });
 
     it('sends no Authorization header when no credentials are set', async () => {
-      const fetchMock = vi.fn()
+      const fetchMock = vi
+        .fn()
         .mockResolvedValueOnce(jsonResponse(DISCOVERY_RESPONSE))
         .mockResolvedValueOnce(jsonResponse({ products: [] }));
 
@@ -177,7 +227,9 @@ describe('UcpResource', () => {
         transport: 'rest',
       });
 
-      await resource.catalogSearch('https://merchant.example.com', { query: 'boots' });
+      await resource.catalogSearch('https://merchant.example.com', {
+        query: 'boots',
+      });
 
       const headers = fetchMock.mock.calls[1][1].headers;
       expect(headers.Authorization).toBeUndefined();
@@ -186,7 +238,8 @@ describe('UcpResource', () => {
 
   describe('UCP-Agent header', () => {
     it('includes profile URL in UCP-Agent header', async () => {
-      const fetchMock = vi.fn()
+      const fetchMock = vi
+        .fn()
         .mockResolvedValueOnce(jsonResponse(DISCOVERY_RESPONSE))
         .mockResolvedValueOnce(jsonResponse({}));
 
@@ -195,16 +248,21 @@ describe('UcpResource', () => {
         transport: 'rest',
       });
 
-      await resource.catalogSearch('https://merchant.example.com', { query: 'test' });
+      await resource.catalogSearch('https://merchant.example.com', {
+        query: 'test',
+      });
 
       const headers = fetchMock.mock.calls[1][1].headers;
-      expect(headers['UCP-Agent']).toBe('profile="https://agent.example/profile.json"');
+      expect(headers['UCP-Agent']).toBe(
+        'profile="https://agent.example/profile.json"',
+      );
     });
   });
 
   describe('cartCreate (REST)', () => {
     it('sends POST to /carts with line items', async () => {
-      const fetchMock = vi.fn()
+      const fetchMock = vi
+        .fn()
         .mockResolvedValueOnce(jsonResponse(DISCOVERY_RESPONSE))
         .mockResolvedValueOnce(jsonResponse({ id: 'cart_1', line_items: [] }));
 
@@ -214,7 +272,9 @@ describe('UcpResource', () => {
       });
 
       const lineItems = [{ item: { id: 'variant_1' }, quantity: 2 }];
-      await resource.cartCreate('https://merchant.example.com', { line_items: lineItems });
+      await resource.cartCreate('https://merchant.example.com', {
+        line_items: lineItems,
+      });
 
       const [url, opts] = fetchMock.mock.calls[1];
       expect(url).toBe('https://merchant.example.com/ucp/rest/carts');
@@ -225,19 +285,26 @@ describe('UcpResource', () => {
 
   describe('checkoutComplete (REST)', () => {
     it('sends POST to /checkout-sessions/{id}/complete', async () => {
-      const fetchMock = vi.fn()
+      const fetchMock = vi
+        .fn()
         .mockResolvedValueOnce(jsonResponse(DISCOVERY_RESPONSE))
-        .mockResolvedValueOnce(jsonResponse({ id: 'cs_1', status: 'completed' }));
+        .mockResolvedValueOnce(
+          jsonResponse({ id: 'cs_1', status: 'completed' }),
+        );
 
       const resource = createResource(fetchMock, {
         profileUrl: 'https://agent.example/profile.json',
         transport: 'rest',
       });
 
-      await resource.checkoutComplete('https://merchant.example.com', 'cs_1', { payment_method: 'pm_1' });
+      await resource.checkoutComplete('https://merchant.example.com', 'cs_1', {
+        payment_method: 'pm_1',
+      });
 
       const [url, opts] = fetchMock.mock.calls[1];
-      expect(url).toBe('https://merchant.example.com/ucp/rest/checkout-sessions/cs_1/complete');
+      expect(url).toBe(
+        'https://merchant.example.com/ucp/rest/checkout-sessions/cs_1/complete',
+      );
       expect(opts.method).toBe('POST');
     });
   });
@@ -259,7 +326,8 @@ describe('UcpResource', () => {
         },
       };
 
-      const fetchMock = vi.fn()
+      const fetchMock = vi
+        .fn()
         .mockResolvedValueOnce(jsonResponse(DISCOVERY_RESPONSE))
         .mockResolvedValueOnce(jsonResponse(toolsListResponse))
         .mockResolvedValueOnce(jsonResponse(toolCallResponse));
@@ -269,7 +337,10 @@ describe('UcpResource', () => {
         transport: 'mcp',
       });
 
-      const result = await resource.catalogSearch('https://merchant.example.com', { query: 'boots' });
+      const result = await resource.catalogSearch(
+        'https://merchant.example.com',
+        { query: 'boots' },
+      );
 
       expect(result).toEqual({ products: [] });
 
@@ -295,7 +366,8 @@ describe('UcpResource', () => {
         result: { content: [{ type: 'text', text: '{}' }] },
       };
 
-      const fetchMock = vi.fn()
+      const fetchMock = vi
+        .fn()
         .mockResolvedValueOnce(jsonResponse(DISCOVERY_RESPONSE))
         .mockResolvedValueOnce(jsonResponse(toolsListResponse))
         .mockResolvedValueOnce(jsonResponse(toolCallResponse));
@@ -306,11 +378,17 @@ describe('UcpResource', () => {
         transport: 'mcp',
       });
 
-      await resource.catalogSearch('https://merchant.example.com', { query: 'test' });
+      await resource.catalogSearch('https://merchant.example.com', {
+        query: 'test',
+      });
 
       // Both MCP calls should have Bearer token
-      expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer tok_abc');
-      expect(fetchMock.mock.calls[2][1].headers.Authorization).toBe('Bearer tok_abc');
+      expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe(
+        'Bearer tok_abc',
+      );
+      expect(fetchMock.mock.calls[2][1].headers.Authorization).toBe(
+        'Bearer tok_abc',
+      );
     });
   });
 });
