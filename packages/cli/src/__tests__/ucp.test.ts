@@ -420,7 +420,9 @@ describe('ucp commands', () => {
         (r) => r.url === '/ucp/rest/checkout-sessions',
       );
       expect(createReq?.method).toBe('POST');
-      expect(JSON.parse(createReq?.body ?? '')).toMatchObject({ cart_id: 'cart_1' });
+      expect(JSON.parse(createReq?.body ?? '')).toMatchObject({
+        cart_id: 'cart_1',
+      });
     });
 
     it('get fetches checkout by ID', async () => {
