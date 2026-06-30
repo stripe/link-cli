@@ -38,6 +38,8 @@ export function createTransactionsCli(
       if (opts.startDate !== undefined) params.start_date = opts.startDate;
       if (opts.endDate !== undefined) params.end_date = opts.endDate;
       if (opts.category !== undefined) params.category = opts.category;
+      if (opts.origin !== undefined) params.origin = opts.origin;
+      if (opts.source.length > 0) params.sources = opts.source;
 
       if (!c.agent && !c.formatExplicit) {
         return renderInteractive(

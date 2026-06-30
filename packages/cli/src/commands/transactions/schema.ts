@@ -29,4 +29,12 @@ export const listOptions = z.object({
     .optional()
     .describe('Only include transactions on or before this YYYY-MM-DD date.'),
   category: z.string().optional().describe('Filter by transaction category.'),
+  origin: z
+    .enum(['link', 'external_connection'])
+    .optional()
+    .describe('Filter by transaction origin: link or external_connection.'),
+  source: z
+    .array(z.string())
+    .default([])
+    .describe('Filter by source ID. Repeat to include multiple sources.'),
 });

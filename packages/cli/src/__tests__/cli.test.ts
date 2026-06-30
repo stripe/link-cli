@@ -927,6 +927,7 @@ describe('production mode', () => {
     currency: 'usd',
     created_date: '2026-06-08',
     description: 'Chase',
+    origin: 'external_connection',
     category: 'credit_card_payment',
     status: 'succeeded',
   };
@@ -976,6 +977,12 @@ describe('production mode', () => {
         '2026-04-30',
         '--category',
         'other_services',
+        '--origin',
+        'external_connection',
+        '--source',
+        'csmrpd_a',
+        '--source',
+        'csmrpd_b',
         '--json',
       );
 
@@ -984,9 +991,14 @@ describe('production mode', () => {
       expect(lastRequest.url).toContain('limit=5');
       expect(lastRequest.url).toContain('starting_after=lbctxn_cursor');
       expect(lastRequest.url).toContain('ending_before=lbctxn_prev');
-      expect(lastRequest.url).toContain('start_date=2026-04-01');
-      expect(lastRequest.url).toContain('end_date=2026-04-30');
+      expect(lastRequest.url).toContain('date_start=2026-04-01');
+      expect(lastRequest.url).toContain('date_end=2026-04-30');
       expect(lastRequest.url).toContain('category=other_services');
+      expect(lastRequest.url).toContain('origin=external_connection');
+      expect(lastRequest.url).toContain('sources%5B%5D=csmrpd_a');
+      expect(lastRequest.url).toContain('sources%5B%5D=csmrpd_b');
+      expect(lastRequest.url).not.toContain('start_date');
+      expect(lastRequest.url).not.toContain('end_date');
       expect(lastRequest.url).not.toContain('transaction_category');
     });
 

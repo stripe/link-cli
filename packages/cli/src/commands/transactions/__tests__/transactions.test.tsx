@@ -25,6 +25,7 @@ function transaction(overrides: Partial<Transaction> = {}): Transaction {
     currency: 'usd',
     created_date: '2026-06-08',
     description: 'Chase',
+    origin: 'external_connection',
     category: 'credit_card_payment',
     status: 'succeeded',
     ...overrides,
