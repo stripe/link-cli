@@ -13,6 +13,17 @@ import type {
   UserInfo,
   WebBotAuthBlock,
 } from '@/types/index';
+import type {
+  UcpCartCreateParams,
+  UcpCartUpdateParams,
+  UcpCatalogLookupParams,
+  UcpCatalogSearchParams,
+  UcpCheckoutCompleteParams,
+  UcpCheckoutCreateParams,
+  UcpCheckoutUpdateParams,
+  UcpDiscoveryResult,
+  UcpOperationResult,
+} from './ucp-types';
 
 export interface IAuthResource {
   initiateDeviceAuth(clientName?: string): Promise<DeviceAuthRequest>;
@@ -156,4 +167,44 @@ export interface ReportRecord {
 
 export interface IReportResource {
   create(params: CreateReportParams): Promise<ReportRecord>;
+}
+
+export interface IUcpResource {
+  discover(businessUrl: string): Promise<UcpDiscoveryResult>;
+  catalogSearch(
+    businessUrl: string,
+    params: UcpCatalogSearchParams,
+  ): Promise<UcpOperationResult>;
+  catalogLookup(
+    businessUrl: string,
+    params: UcpCatalogLookupParams,
+  ): Promise<UcpOperationResult>;
+  cartCreate(
+    businessUrl: string,
+    params: UcpCartCreateParams,
+  ): Promise<UcpOperationResult>;
+  cartGet(businessUrl: string, cartId: string): Promise<UcpOperationResult>;
+  cartUpdate(
+    businessUrl: string,
+    cartId: string,
+    params: UcpCartUpdateParams,
+  ): Promise<UcpOperationResult>;
+  checkoutCreate(
+    businessUrl: string,
+    params: UcpCheckoutCreateParams,
+  ): Promise<UcpOperationResult>;
+  checkoutGet(
+    businessUrl: string,
+    checkoutId: string,
+  ): Promise<UcpOperationResult>;
+  checkoutUpdate(
+    businessUrl: string,
+    checkoutId: string,
+    params: UcpCheckoutUpdateParams,
+  ): Promise<UcpOperationResult>;
+  checkoutComplete(
+    businessUrl: string,
+    checkoutId: string,
+    params?: UcpCheckoutCompleteParams,
+  ): Promise<UcpOperationResult>;
 }
