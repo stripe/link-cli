@@ -56,7 +56,7 @@ export function createUcpCli() {
           'Agent profile URL (not required for discovery, but needed for tool negotiation)',
         ),
     }),
-    outputPolicy: 'agent-only' as const,
+    outputPolicy: 'all' as const,
     async run(c) {
       const resource = createUcpResource({ profileUrl: c.options.profileUrl });
       return resource.discover(c.args.business);
@@ -73,7 +73,7 @@ export function createUcpCli() {
   catalogCli.command('search', {
     description: 'Search a business catalog over UCP',
     options: catalogSearchOptions,
-    outputPolicy: 'agent-only' as const,
+    outputPolicy: 'all' as const,
     async run(c) {
       const resource = createUcpResource(c.options);
       return resource.catalogSearch(c.options.business, {
@@ -87,7 +87,7 @@ export function createUcpCli() {
   catalogCli.command('lookup', {
     description: 'Batch lookup products/variants by ID',
     options: catalogLookupOptions,
-    outputPolicy: 'agent-only' as const,
+    outputPolicy: 'all' as const,
     async run(c) {
       const resource = createUcpResource(c.options);
       const ids = c.options.ids.split(',').map((id) => id.trim());
@@ -106,7 +106,7 @@ export function createUcpCli() {
   cartCli.command('create', {
     description: 'Create a new cart with line items',
     options: cartCreateOptions,
-    outputPolicy: 'agent-only' as const,
+    outputPolicy: 'all' as const,
     async run(c) {
       const resource = createUcpResource(c.options);
       if (c.options.input) {
@@ -123,7 +123,7 @@ export function createUcpCli() {
   cartCli.command('get', {
     description: 'Fetch a cart by ID',
     options: cartGetOptions,
-    outputPolicy: 'agent-only' as const,
+    outputPolicy: 'all' as const,
     async run(c) {
       const resource = createUcpResource(c.options);
       return resource.cartGet(c.options.business, c.options.id);
@@ -133,7 +133,7 @@ export function createUcpCli() {
   cartCli.command('update', {
     description: 'Update an existing cart',
     options: cartUpdateOptions,
-    outputPolicy: 'agent-only' as const,
+    outputPolicy: 'all' as const,
     async run(c) {
       const resource = createUcpResource(c.options);
       if (c.options.input) {
@@ -161,7 +161,7 @@ export function createUcpCli() {
     description:
       'Create a checkout from line_items, or convert a cart with --cart-id',
     options: checkoutCreateOptions,
-    outputPolicy: 'agent-only' as const,
+    outputPolicy: 'all' as const,
     async run(c) {
       const resource = createUcpResource(c.options);
       if (c.options.input) {
@@ -182,7 +182,7 @@ export function createUcpCli() {
   checkoutCli.command('get', {
     description: 'Fetch a checkout by ID',
     options: checkoutGetOptions,
-    outputPolicy: 'agent-only' as const,
+    outputPolicy: 'all' as const,
     async run(c) {
       const resource = createUcpResource(c.options);
       return resource.checkoutGet(c.options.business, c.options.id);
@@ -192,7 +192,7 @@ export function createUcpCli() {
   checkoutCli.command('update', {
     description: 'Update an existing checkout (fulfillment, buyer info, etc.)',
     options: checkoutUpdateOptions,
-    outputPolicy: 'agent-only' as const,
+    outputPolicy: 'all' as const,
     async run(c) {
       const resource = createUcpResource(c.options);
       const parsed = JSON.parse(c.options.input);
@@ -204,7 +204,7 @@ export function createUcpCli() {
     description:
       'Complete a checkout and place the order. May return requires_escalation with a continue_url for browser-based payment.',
     options: checkoutCompleteOptions,
-    outputPolicy: 'agent-only' as const,
+    outputPolicy: 'all' as const,
     async run(c) {
       const resource = createUcpResource(c.options);
       const params = c.options.input ? JSON.parse(c.options.input) : undefined;
@@ -229,7 +229,7 @@ export function createUcpCli() {
     description:
       'Get the current state of an order, including fulfillment expectations, tracking events, and line item status',
     options: orderGetOptions,
-    outputPolicy: 'agent-only' as const,
+    outputPolicy: 'all' as const,
     async run(c) {
       const resource = createUcpResource(c.options);
       return resource.orderGet(c.options.business, c.options.id);
