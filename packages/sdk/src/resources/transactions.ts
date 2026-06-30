@@ -9,7 +9,11 @@ import type {
   ITransactionsResource,
   ListTransactionsParams,
 } from '@/resources/interfaces';
-import type { Transaction, TransactionsPage } from '@/types/index';
+import type {
+  Transaction,
+  TransactionOrigin,
+  TransactionsPage,
+} from '@/types/index';
 
 interface ApiFetchOptions {
   method: string;
@@ -52,6 +56,16 @@ function requireBoolean(value: unknown, field: string): boolean {
   return value;
 }
 
+function requireTransactionOrigin(
+  value: unknown,
+  field: string,
+): TransactionOrigin {
+  if (value === 'link' || value === 'external_connection') {
+    return value;
+  }
+  throw new TypeError(`Expected ${field} to be a transaction origin`);
+}
+
 function normalizeTransactions(value: unknown): Transaction[] {
   if (!Array.isArray(value)) {
     throw new TypeError('Expected transactions to be an array');
@@ -77,6 +91,10 @@ function normalizeTransactions(value: unknown): Transaction[] {
       description: requireString(
         item.description,
         `transactions[${index}].description`,
+      ),
+      origin: requireTransactionOrigin(
+        item.origin,
+        `transactions[${index}].origin`,
       ),
       category: requireNullableString(
         item.category,
@@ -203,13 +221,21 @@ export class TransactionsResource implements ITransactionsResource {
       url.searchParams.set('ending_before', params.ending_before);
     }
     if (params.start_date !== undefined) {
-      url.searchParams.set('start_date', params.start_date);
+      url.searchParams.set('date_start', params.start_date);
     }
     if (params.end_date !== undefined) {
-      url.searchParams.set('end_date', params.end_date);
+      url.searchParams.set('date_end', params.end_date);
     }
     if (params.category !== undefined) {
       url.searchParams.set('category', params.category);
+    }
+    if (params.origin !== undefined) {
+      url.searchParams.set('origin', params.origin);
+    }
+    if (params.sources !== undefined) {
+      for (const source of params.sources) {
+        url.searchParams.append('sources[]', source);
+      }
     }
 
     return url.toString();

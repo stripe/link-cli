@@ -39,6 +39,7 @@ describe('TransactionsResource', () => {
           currency: 'usd',
           created_date: '2026-06-08',
           description: 'Chase',
+          origin: 'external_connection',
           category: 'credit_card_payment',
           status: 'succeeded',
         },
@@ -63,6 +64,7 @@ describe('TransactionsResource', () => {
           currency: 'usd',
           created_date: '2026-06-08',
           description: 'Chase',
+          origin: 'external_connection',
           category: 'credit_card_payment',
           status: 'succeeded',
         },
@@ -81,15 +83,24 @@ describe('TransactionsResource', () => {
       start_date: '2026-06-08',
       end_date: '2026-06-09',
       category: 'shopping',
+      origin: 'link',
+      sources: ['csmrpd_a', 'csmrpd_b'],
     });
 
     const url = new URL(mockFetch.mock.calls[0][0]);
     expect(url.searchParams.get('limit')).toBe('50');
     expect(url.searchParams.get('starting_after')).toBe('cursor_a');
     expect(url.searchParams.get('ending_before')).toBe('cursor_b');
-    expect(url.searchParams.get('start_date')).toBe('2026-06-08');
-    expect(url.searchParams.get('end_date')).toBe('2026-06-09');
+    expect(url.searchParams.get('date_start')).toBe('2026-06-08');
+    expect(url.searchParams.get('date_end')).toBe('2026-06-09');
     expect(url.searchParams.get('category')).toBe('shopping');
+    expect(url.searchParams.get('origin')).toBe('link');
+    expect(url.searchParams.getAll('sources[]')).toEqual([
+      'csmrpd_a',
+      'csmrpd_b',
+    ]);
+    expect(url.searchParams.has('start_date')).toBe(false);
+    expect(url.searchParams.has('end_date')).toBe(false);
     expect(url.searchParams.has('transaction_category')).toBe(false);
   });
 

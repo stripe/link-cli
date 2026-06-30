@@ -8,6 +8,7 @@ import type {
   ShippingAddressRecord,
   SpendRequest,
   Total,
+  TransactionOrigin,
   TransactionsPage,
   UserInfo,
   WebBotAuthBlock,
@@ -105,6 +106,8 @@ export interface ListTransactionsParams {
   start_date?: string;
   end_date?: string;
   category?: string;
+  origin?: TransactionOrigin;
+  sources?: string[];
 }
 
 export interface ITransactionsResource {

@@ -172,6 +172,8 @@ export interface ShippingAddressRecord {
   address: ShippingAddress | null;
 }
 
+export type TransactionOrigin = 'link' | 'external_connection';
+
 export interface Transaction {
   id: string;
   source_id: string | null;
@@ -179,6 +181,7 @@ export interface Transaction {
   currency: string;
   created_date: string;
   description: string;
+  origin: TransactionOrigin;
   category: string | null;
   status: string;
 }
