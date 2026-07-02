@@ -3,7 +3,8 @@ import type {
   ISpendRequestResource,
   SpendRequest,
 } from '@stripe/link-sdk';
-import { Box, Text } from 'ink';
+import { LinkApiError } from '@stripe/link-sdk';
+import { Box, Text, useApp } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
@@ -35,10 +36,20 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
   >('creating');
   const [request, setRequest] = useState<SpendRequest | null>(null);
   const [error, setError] = useState<string>('');
+  const [verificationUrl, setVerificationUrl] = useState<string>('');
   const [outputFilePath, setOutputFilePath] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string>('');
 
   const approvalUrl = request?.approval_url ?? '';
+  const { exit } = useApp();
+
+  const completeAndExit = useCallback(
+    (result: SpendRequest | null) => {
+      onComplete(result);
+      exit();
+    },
+    [onComplete, exit],
+  );
 
   const onSuccess = useCallback(
     (result: SpendRequest) => setRequest(result),
@@ -52,7 +63,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
     approvalUrl,
     repository,
     requestId: request?.id ?? null,
-    onComplete,
+    onComplete: completeAndExit,
     onSuccess,
     onError,
   });
@@ -67,12 +78,17 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
           setStatus('waiting');
         } else {
           setStatus('success');
-          setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
+          setTimeout(() => completeAndExit(result), DISPLAY_DELAY_MS);
         }
       } catch (err) {
         setError((err as Error).message);
+        if (err instanceof LinkApiError) {
+          const url = (err.details as { error?: { verification_url?: string } })
+            ?.error?.verification_url;
+          if (url) setVerificationUrl(url);
+        }
         setStatus('error');
-        setTimeout(() => onComplete(null), DISPLAY_DELAY_MS);
+        setTimeout(() => completeAndExit(null), DISPLAY_DELAY_MS);
       }
     };
 
@@ -110,6 +126,11 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
       <Box flexDirection="column">
         <Text color="red">✗ Failed to create spend request</Text>
         <Text color="red">{error}</Text>
+        {verificationUrl && (
+          <Text color="red">
+            Complete additional verification at: {verificationUrl}
+          </Text>
+        )}
       </Box>
     );
   }

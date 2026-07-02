@@ -1,15 +1,17 @@
+import { LinkApiError } from '@stripe/link-sdk';
 import type { ISpendRequestResource, SpendRequest } from '@stripe/link-sdk';
-import { Box, Text } from 'ink';
+import { Box, Text, useApp } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
+import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { ApprovalWaitingView } from './approval-waiting-view';
 import { useApprovalPolling } from './use-approval-polling';
 
 interface RequestApprovalProps {
   repository: ISpendRequestResource;
   id: string;
-  onComplete: (result: SpendRequest) => void;
+  onComplete: (result: SpendRequest | null) => void;
 }
 
 export const RequestApproval: React.FC<RequestApprovalProps> = ({
@@ -23,6 +25,16 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
   const [approvalUrl, setApprovalUrl] = useState<string>('');
   const [result, setResult] = useState<SpendRequest | null>(null);
   const [error, setError] = useState<string>('');
+  const [verificationUrl, setVerificationUrl] = useState<string>('');
+  const { exit } = useApp();
+
+  const completeAndExit = useCallback(
+    (result: SpendRequest) => {
+      onComplete(result);
+      exit();
+    },
+    [onComplete, exit],
+  );
 
   const onSuccess = useCallback((r: SpendRequest) => setResult(r), []);
   const onError = useCallback((msg: string) => setError(msg), []);
@@ -33,7 +45,7 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
     approvalUrl,
     repository,
     requestId: id,
-    onComplete,
+    onComplete: completeAndExit,
     onSuccess,
     onError,
   });
@@ -46,12 +58,18 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
         setStatus('waiting');
       } catch (err) {
         setError((err as Error).message);
+        if (err instanceof LinkApiError) {
+          const url = (err.details as { error?: { verification_url?: string } })
+            ?.error?.verification_url;
+          if (url) setVerificationUrl(url);
+        }
         setStatus('error');
+        setTimeout(() => { onComplete(null); exit(); }, DISPLAY_DELAY_MS);
       }
     };
 
     request();
-  }, [repository, id]);
+  }, [repository, id, exit]);
 
   if (status === 'requesting') {
     return (
@@ -68,6 +86,11 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
       <Box flexDirection="column">
         <Text color="red">✗ Failed to request approval</Text>
         <Text color="red">{error}</Text>
+        {verificationUrl && (
+          <Text color="red">
+            Complete additional verification at: {verificationUrl}
+          </Text>
+        )}
       </Box>
     );
   }
