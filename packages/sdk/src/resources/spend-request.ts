@@ -4,6 +4,7 @@ import {
   resolveLinkSdkConfig,
 } from '@/config';
 import { LinkApiError, LinkTransportError } from '@/errors';
+import { describeNetworkError } from '@/utils/network-error';
 import type {
   AccessTokenProvider,
   CreateSpendRequestParams,
@@ -93,13 +94,20 @@ export class SpendRequestResource implements ISpendRequestResource {
       response = await this.fetchImpl(opts.url, fetchOpts);
     } catch (error) {
       throw new LinkTransportError(
-        `Request failed: ${opts.method} ${opts.url}`,
-        {
-          cause: error,
-        },
+        `Request failed: ${opts.method} ${opts.url} — ${describeNetworkError(error)}`,
+        { cause: error },
       );
     }
-    const rawBody = await response.text();
+
+    let rawBody: string;
+    try {
+      rawBody = await response.text();
+    } catch (error) {
+      throw new LinkTransportError(
+        `Failed to read response body: ${opts.method} ${opts.url} — ${describeNetworkError(error)}`,
+        { cause: error },
+      );
+    }
 
     let data: unknown = null;
     try {

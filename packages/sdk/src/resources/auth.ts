@@ -7,6 +7,7 @@ import {
 } from '@/config';
 import { LinkApiError, LinkTransportError } from '@/errors';
 import type { IAuthResource } from '@/resources/interfaces';
+import { describeNetworkError } from '@/utils/network-error';
 import type { AuthTokens, DeviceAuthRequest } from '@/types/index';
 
 const CLIENT_ID = 'lwlpk_U7Qy7ThG69STZk';
@@ -74,12 +75,21 @@ export class AuthResource implements IAuthResource {
         body: new URLSearchParams(params).toString(),
       });
     } catch (error) {
-      throw new LinkTransportError(`Request failed: POST ${url}`, {
-        cause: error,
-      });
+      throw new LinkTransportError(
+        `Request failed: POST ${url} — ${describeNetworkError(error)}`,
+        { cause: error },
+      );
     }
 
-    const rawBody = await response.text();
+    let rawBody: string;
+    try {
+      rawBody = await response.text();
+    } catch (error) {
+      throw new LinkTransportError(
+        `Failed to read response body: POST ${url} — ${describeNetworkError(error)}`,
+        { cause: error },
+      );
+    }
 
     let data: unknown = null;
     try {
