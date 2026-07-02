@@ -10,19 +10,27 @@ describe('describeNetworkError', () => {
     it.each([
       ['UND_ERR_CONNECT_TIMEOUT', 'connection timed out'],
       ['UND_ERR_HEADERS_TIMEOUT', 'timed out waiting for response headers'],
+      ['UND_ERR_HEADERS_OVERFLOW', 'response headers exceeded maximum allowed size'],
       ['UND_ERR_BODY_TIMEOUT', 'timed out reading response body'],
-      ['UND_ERR_HEADERS_OVERFLOW', 'response headers too large'],
-      ['UND_ERR_CLIENT_DISCONNECT', 'client disconnected'],
-      ['UND_ERR_SOCKET', 'socket terminated unexpectedly'],
-      [
-        'UND_ERR_RES_CONTENT_LENGTH_MISMATCH',
-        'response body length does not match Content-Length header',
-      ],
-      [
-        'UND_ERR_REQ_CONTENT_LENGTH_MISMATCH',
-        'request body length does not match Content-Length header',
-      ],
+      ['UND_ERR_INVALID_ARG', 'invalid argument passed to fetch'],
+      ['UND_ERR_INVALID_RETURN_VALUE', 'invalid return value from fetch handler'],
       ['UND_ERR_ABORTED', 'request was aborted'],
+      ['UND_ERR_ABORT', 'operation was aborted'],
+      ['UND_ERR_DESTROYED', 'request failed — HTTP client was destroyed'],
+      ['UND_ERR_CLOSED', 'request failed — HTTP client was closed'],
+      ['UND_ERR_SOCKET', 'socket terminated unexpectedly'],
+      ['UND_ERR_NOT_SUPPORTED', 'unsupported fetch functionality'],
+      ['UND_ERR_REQ_CONTENT_LENGTH_MISMATCH', 'request body length does not match Content-Length header'],
+      ['UND_ERR_RES_CONTENT_LENGTH_MISMATCH', 'response body length does not match Content-Length header'],
+      ['UND_ERR_INFO', 'informational error from HTTP client'],
+      ['UND_ERR_RES_EXCEEDED_MAX_SIZE', 'response body exceeded maximum allowed size'],
+      ['UND_ERR_PRX_TLS', 'TLS connection to proxy failed'],
+      ['UND_ERR_WS_MESSAGE_SIZE_EXCEEDED', 'WebSocket message exceeded maximum size'],
+      ['UND_ERR_REQ_RETRY', 'request failed and could not be retried'],
+      ['UND_ERR_RESPONSE', 'server returned an error status'],
+      ['UND_ERR_MAX_ORIGINS_REACHED', 'maximum permitted origins reached'],
+      ['UND_ERR_BPL_MISSING_UPSTREAM', 'no upstream configured in connection pool'],
+      ['UND_ERR_SOCKS5', 'SOCKS5 proxy negotiation failed'],
     ])('%s → readable hint', (code, hint) => {
       expect(describeNetworkError(errWithCode(code))).toBe(`${hint} (${code})`);
     });
