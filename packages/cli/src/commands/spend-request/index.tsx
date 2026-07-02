@@ -1,3 +1,4 @@
+import { LinkApiError } from '@stripe/link-sdk';
 import type {
   AuthStorage,
   CredentialType,
@@ -166,7 +167,7 @@ export function createSpendRequestCli(
       const forceOverwrite = opts.force;
 
       if (!c.agent && !c.formatExplicit) {
-        let capturedResult: SpendRequest | null = null;
+        let capturedResult: SpendRequest | null | undefined = undefined;
         return renderInteractive(
           <CreateSpendRequest
             repository={repository}
@@ -179,8 +180,9 @@ export function createSpendRequestCli(
             }}
           />,
           () => {
-            if (!capturedResult)
+            if (capturedResult === undefined)
               throw new Error('Component exited without producing a result');
+            if (capturedResult === null) process.exit(1);
             return capturedResult;
           },
         );
@@ -188,7 +190,23 @@ export function createSpendRequestCli(
 
       // Agent mode: create, return immediately with _next polling hint.
       // The agent drives the polling loop via `spend-request retrieve`.
-      const created = await repository.createSpendRequest(createParams);
+      let created: SpendRequest;
+      try {
+        created = await repository.createSpendRequest(createParams);
+      } catch (err) {
+        if (err instanceof LinkApiError) {
+          const apiErr = err.details as {
+            error?: { code?: string; verification_url?: string };
+          };
+          if (apiErr?.error?.verification_url) {
+            return c.error({
+              code: err.code,
+              message: `${err.message} Verification URL: ${apiErr.error.verification_url}`,
+            });
+          }
+        }
+        throw err;
+      }
       if (!requestApproval) {
         try {
           yield await applyOutputFile(created, outputFile, forceOverwrite);
@@ -277,7 +295,7 @@ export function createSpendRequestCli(
       const id = c.args.id;
 
       if (!c.agent && !c.formatExplicit) {
-        let capturedResult: SpendRequest | null = null;
+        let capturedResult: SpendRequest | null | undefined = undefined;
         return renderInteractive(
           <RequestApproval
             repository={repository}
@@ -287,8 +305,9 @@ export function createSpendRequestCli(
             }}
           />,
           () => {
-            if (!capturedResult)
+            if (capturedResult === undefined)
               throw new Error('Component exited without producing a result');
+            if (capturedResult === null) process.exit(1);
             return capturedResult;
           },
         );
@@ -296,7 +315,23 @@ export function createSpendRequestCli(
 
       // Agent mode: request approval, return immediately with _next polling hint.
       // The agent drives the polling loop via `spend-request retrieve`.
-      const approval = await repository.requestApproval(id);
+      let approval: Awaited<ReturnType<typeof repository.requestApproval>>;
+      try {
+        approval = await repository.requestApproval(id);
+      } catch (err) {
+        if (err instanceof LinkApiError) {
+          const apiErr = err.details as {
+            error?: { code?: string; verification_url?: string };
+          };
+          if (apiErr?.error?.verification_url) {
+            return c.error({
+              code: err.code,
+              message: `${err.message} Verification URL: ${apiErr.error.verification_url}`,
+            });
+          }
+        }
+        throw err;
+      }
       yield {
         ...approval,
         instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${id} --interval 2 --max-attempts 300\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
