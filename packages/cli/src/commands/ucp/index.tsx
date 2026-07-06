@@ -1,6 +1,7 @@
 import { UcpResource, type UcpTransport } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import {
+  DEFAULT_PROFILE_URL,
   businessOption,
   cartCreateOptions,
   cartGetOptions,
@@ -52,8 +53,9 @@ export function createUcpCli() {
       profileUrl: z
         .string()
         .optional()
+        .default(DEFAULT_PROFILE_URL)
         .describe(
-          'Agent profile URL (not required for discovery, but needed for tool negotiation)',
+          'Agent profile URL (defaults to Link wallet profile; needed for tool negotiation)',
         ),
     }),
     outputPolicy: 'all' as const,
