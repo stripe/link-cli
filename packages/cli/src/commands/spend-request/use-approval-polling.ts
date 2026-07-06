@@ -5,28 +5,32 @@ import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { openUrl } from '../../utils/open-url';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
 
-export type ApprovalStatus = 'waiting' | 'polling' | 'success' | 'error';
+export type PollingTerminalStatus = 'approved' | 'denied' | 'expired' | 'error';
 
 interface UseApprovalPollingOptions {
+  // When false, only useInput is active — polling does not start. Use for the
+  // callback-server path so the hook stays mounted without racing the server.
+  enabled: boolean;
   status: string;
-  setStatus: (s: 'polling' | 'success' | 'error') => void;
+  setStatus: (s: 'polling') => void;
   approvalUrl: string;
   repository: ISpendRequestResource;
   requestId: string | null;
   onComplete: (result: SpendRequest) => void;
-  onSuccess: (result: SpendRequest) => void;
-  onError: (msg: string) => void;
+  onTerminal: (result: SpendRequest, status: PollingTerminalStatus) => void;
+  onPollError: (msg: string) => void;
 }
 
 export function useApprovalPolling({
+  enabled,
   status,
   setStatus,
   approvalUrl,
   repository,
   requestId,
   onComplete,
-  onSuccess,
-  onError,
+  onTerminal,
+  onPollError,
 }: UseApprovalPollingOptions): void {
   const isWaiting = status === 'waiting' || status === 'polling';
 
@@ -38,13 +42,13 @@ export function useApprovalPolling({
   );
 
   useEffect(() => {
-    if (status !== 'waiting') return;
+    if (!enabled || status !== 'waiting') return;
     const timeout = setTimeout(() => setStatus('polling'), 1000);
     return () => clearTimeout(timeout);
-  }, [status, setStatus]);
+  }, [enabled, status, setStatus]);
 
   useEffect(() => {
-    if (status !== 'polling' || !requestId) return;
+    if (!enabled || status !== 'polling' || !requestId) return;
 
     let cancelled = false;
 
@@ -52,21 +56,21 @@ export function useApprovalPolling({
       try {
         const final = await pollUntilApproved(repository, requestId);
         if (cancelled) return;
-        if (final.status !== 'approved') {
-          onError(
-            `Spend request did not reach approved (status: ${final.status})`,
-          );
-          setStatus('error');
-          setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
-          return;
-        }
-        onSuccess(final);
-        setStatus('success');
+
+        const resolvedStatus: PollingTerminalStatus =
+          final.status === 'approved'
+            ? 'approved'
+            : final.status === 'denied'
+              ? 'denied'
+              : final.status === 'expired'
+                ? 'expired'
+                : 'error';
+
+        onTerminal(final, resolvedStatus);
         setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
       } catch (err) {
         if (!cancelled) {
-          onError((err as Error).message);
-          setStatus('error');
+          onPollError((err as Error).message);
         }
       }
     };
@@ -76,12 +80,12 @@ export function useApprovalPolling({
       cancelled = true;
     };
   }, [
+    enabled,
     status,
     requestId,
     repository,
     onComplete,
-    onSuccess,
-    onError,
-    setStatus,
+    onTerminal,
+    onPollError,
   ]);
 }

@@ -244,10 +244,18 @@ export class SpendRequestResource implements ISpendRequestResource {
     return normalizeSpendRequest(data);
   }
 
-  async requestApproval(id: string): Promise<RequestApprovalResponse> {
+  async requestApproval(
+    id: string,
+    options?: { redirect_uri?: string },
+  ): Promise<RequestApprovalResponse> {
+    const body = options?.redirect_uri
+      ? JSON.stringify({ redirect_uri: options.redirect_uri })
+      : undefined;
     const { status, data, rawBody } = await this.apiFetch({
       method: 'POST',
       url: `${this.spendRequestsEndpoint}/${id}/request_approval`,
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body,
     });
 
     if (status < 200 || status >= 300) {
