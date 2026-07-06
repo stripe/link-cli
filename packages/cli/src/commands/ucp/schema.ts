@@ -1,8 +1,5 @@
 import { z } from 'incur';
 
-export const DEFAULT_PROFILE_URL =
-  'https://link.com/ucp/agent-profiles/2026-04-08/link-wallet.json';
-
 export const businessOption = z.object({
   business: z
     .string()
@@ -11,11 +8,7 @@ export const businessOption = z.object({
     ),
   profileUrl: z
     .string()
-    .optional()
-    .default(DEFAULT_PROFILE_URL)
-    .describe(
-      'Agent profile URL that identifies this agent to the merchant (defaults to the Link wallet profile)',
-    ),
+    .describe('Agent profile URL that identifies this agent to the merchant'),
   clientId: z
     .string()
     .optional()
