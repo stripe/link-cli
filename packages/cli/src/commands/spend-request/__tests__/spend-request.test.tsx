@@ -99,9 +99,7 @@ describe('spend-request', () => {
       await vi.waitFor(() => {
         const frame = lastFrame();
         expect(frame).toContain('Failed to create spend request');
-        expect(frame).toContain(
-          'https://app.link.com/finish_setup',
-        );
+        expect(frame).toContain('https://app.link.com/finish_setup');
       });
     });
 
@@ -132,15 +130,17 @@ describe('spend-request', () => {
       } as unknown as ISpendRequestResource);
 
       const { lastFrame } = render(
-        <RequestApproval repository={repo} id="sr_test" onComplete={() => {}} />,
+        <RequestApproval
+          repository={repo}
+          id="sr_test"
+          onComplete={() => {}}
+        />,
       );
 
       await vi.waitFor(() => {
         const frame = lastFrame();
         expect(frame).toContain('Failed to request approval');
-        expect(frame).toContain(
-          'https://app.link.com/finish_setup',
-        );
+        expect(frame).toContain('https://app.link.com/finish_setup');
       });
     });
   });

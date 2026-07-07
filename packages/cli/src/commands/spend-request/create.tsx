@@ -93,7 +93,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
     };
 
     create();
-  }, [repository, params, requestApproval, onComplete]);
+  }, [repository, params, requestApproval, completeAndExit]);
 
   useEffect(() => {
     if (status !== 'success' || !outputFile || !request?.card) return;

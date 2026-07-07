@@ -64,12 +64,15 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
           if (url) setVerificationUrl(url);
         }
         setStatus('error');
-        setTimeout(() => { onComplete(null); exit(); }, DISPLAY_DELAY_MS);
+        setTimeout(() => {
+          onComplete(null);
+          exit();
+        }, DISPLAY_DELAY_MS);
       }
     };
 
     request();
-  }, [repository, id, exit]);
+  }, [repository, id, exit, onComplete]);
 
   if (status === 'requesting') {
     return (
