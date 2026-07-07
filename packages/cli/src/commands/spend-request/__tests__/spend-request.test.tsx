@@ -1,8 +1,13 @@
-import type { ISpendRequestResource, SpendRequest } from '@stripe/link-sdk';
+import {
+  type ISpendRequestResource,
+  LinkApiError,
+  type SpendRequest,
+} from '@stripe/link-sdk';
 import { render } from 'ink-testing-library';
 import { describe, expect, it, vi } from 'vitest';
 import { sanitizeResource } from '../../../utils/resource-factory';
 import { CreateSpendRequest } from '../create';
+import { RequestApproval } from '../request-approval';
 import { RetrieveSpendRequest } from '../retrieve';
 import { UpdateSpendRequest } from '../update';
 
@@ -42,6 +47,104 @@ function makeMockRepo(result: SpendRequest) {
 }
 
 describe('spend-request', () => {
+  describe('verification_url', () => {
+    it('CreateSpendRequest surfaces verification_url on additional_verification_required error', async () => {
+      const error = new LinkApiError(
+        'Consumer must complete additional verification before creating spend requests.',
+        {
+          status: 403,
+          code: 'additional_verification_required',
+          details: {
+            error: {
+              code: 'additional_verification_required',
+              message:
+                'Consumer must complete additional verification before creating spend requests.',
+              verification_url: 'https://app.link.com/finish_setup',
+              requirements: [
+                {
+                  type: 'ssn_collection',
+                  field: 'individual.id_number',
+                  reason: 'spend_threshold_exceeded',
+                },
+              ],
+            },
+          },
+        },
+      );
+      const repo = sanitizeResource({
+        createSpendRequest: vi.fn(async () => {
+          throw error;
+        }),
+        getSpendRequest: vi.fn(),
+        updateSpendRequest: vi.fn(),
+        requestApproval: vi.fn(),
+        cancelSpendRequest: vi.fn(),
+      } as unknown as ISpendRequestResource);
+
+      const { lastFrame } = render(
+        <CreateSpendRequest
+          repository={repo}
+          params={{
+            payment_details: 'pm_1',
+            amount: 200100,
+            currency: 'usd',
+            merchant_name: 'Stripe Press',
+            merchant_url: 'https://press.stripe.com',
+            context: 'x'.repeat(100),
+          }}
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Failed to create spend request');
+        expect(frame).toContain('https://app.link.com/finish_setup');
+      });
+    });
+
+    it('RequestApproval surfaces verification_url on additional_verification_required error', async () => {
+      const error = new LinkApiError(
+        'Consumer must complete additional verification before creating spend requests.',
+        {
+          status: 403,
+          code: 'additional_verification_required',
+          details: {
+            error: {
+              code: 'additional_verification_required',
+              message:
+                'Consumer must complete additional verification before creating spend requests.',
+              verification_url: 'https://app.link.com/finish_setup',
+            },
+          },
+        },
+      );
+      const repo = sanitizeResource({
+        createSpendRequest: vi.fn(),
+        getSpendRequest: vi.fn(),
+        updateSpendRequest: vi.fn(),
+        requestApproval: vi.fn(async () => {
+          throw error;
+        }),
+        cancelSpendRequest: vi.fn(),
+      } as unknown as ISpendRequestResource);
+
+      const { lastFrame } = render(
+        <RequestApproval
+          repository={repo}
+          id="sr_test"
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Failed to request approval');
+        expect(frame).toContain('https://app.link.com/finish_setup');
+      });
+    });
+  });
+
   describe('sanitization', () => {
     it('CreateSpendRequest sanitizes merchant_name and line_items', async () => {
       const request = makeSpendRequest();
