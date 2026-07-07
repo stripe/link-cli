@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.8.3
+
+### Patch Changes
+
+- Return spend request stepup error message
+
 ## 0.8.2
 
 ### Patch Changes
