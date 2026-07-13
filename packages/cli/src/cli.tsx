@@ -1,6 +1,7 @@
 import { type AuthStorage, Storage, storage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import { createAuthCli } from './commands/auth';
+import { createBalancesCli } from './commands/balances';
 import { createDemoCli } from './commands/demo';
 import { createMppCli } from './commands/mpp';
 import { createOnboardCli } from './commands/onboard';
@@ -62,20 +63,26 @@ const authRepo = factory.createAuthResource();
 const spendRequestRepo = factory.createSpendRequestResource();
 
 const requestedCommand = process.argv[2];
-const transactionsCli =
+const hiddenCli =
   requestedCommand === 'transactions'
     ? createTransactionsCli(
         () => factory.createTransactionsResource(),
         authStorage,
         envAccessToken,
       )
-    : null;
-if (transactionsCli) {
+    : requestedCommand === 'balances'
+      ? createBalancesCli(
+          () => factory.createBalancesResource(),
+          authStorage,
+          envAccessToken,
+        )
+      : null;
+if (hiddenCli) {
   process.argv.splice(2, 1);
 }
 
 const cli =
-  transactionsCli ??
+  hiddenCli ??
   Cli.create('link-cli', {
     description:
       'Create a secure, one-time payment credential from a Link wallet to let agents complete purchases on behalf of users.',
@@ -98,7 +105,7 @@ if (!isAgent && process.stdout.isTTY) {
   }
 }
 
-if (!transactionsCli) {
+if (!hiddenCli) {
   cli.command(
     createAuthCli(authRepo, getUpdateInfo, authStorage, envAccessToken),
   );

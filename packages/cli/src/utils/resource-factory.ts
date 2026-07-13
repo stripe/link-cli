@@ -1,5 +1,7 @@
 import {
+  BalancesResource,
   type AuthStorage,
+  type IBalancesResource,
   type IPaymentMethodsResource,
   type IReportResource,
   type IShippingAddressResource,
@@ -82,6 +84,7 @@ export class ResourceFactory {
   private shippingAddressResource?: IShippingAddressResource;
   private userInfoResource?: IUserInfoResource;
   private transactionsResource?: ITransactionsResource;
+  private balancesResource?: IBalancesResource;
   private webBotAuthResource?: IWebBotAuthResource;
   private reportResource?: IReportResource;
 
@@ -235,6 +238,23 @@ export class ResourceFactory {
     );
 
     return this.transactionsResource;
+  }
+
+  createBalancesResource(): IBalancesResource {
+    if (this.balancesResource) {
+      return this.balancesResource;
+    }
+
+    const getAccessToken = this.createSdkAccessTokenProvider();
+    this.balancesResource = sanitizeResource(
+      new BalancesResource({
+        verbose: this.verbose,
+        defaultHeaders: this.defaultHeaders,
+        getAccessToken,
+      }),
+    );
+
+    return this.balancesResource;
   }
 
   createWebBotAuthResource(): IWebBotAuthResource {
