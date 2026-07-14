@@ -212,7 +212,7 @@ The block is visually hidden but present in the DOM, typically inside a Stripe E
 
 4. **Confirm the token path is available.** Within a few seconds, `input[name="link_pay_token"]` should appear in the same frame.
    - If it appears, continue.
-   - If it does **not** appear, this surface renders the steering block but has the inline token input disabled (for example hosted Checkout with the input not enabled). Do **not** loop waiting for it -- follow the block's instructions and fall back to the `card` flow, or report `blocked`.
+   - If it does **not** appear, this surface renders the steering block but has the inline token input disabled (for example hosted Checkout with the input not enabled). Do **not** loop waiting for it. The spend request you created uses the default (`card`) credential type, so you can retrieve `--include card` on the **same** spend request (no new request, no re-approval) and use the card flow, follow the block's instructions to pay without Link, or report `blocked`.
 
 5. **Retrieve the token now** -- it is short-lived (~5 minutes), so fetch it right before injecting, not earlier:
 
@@ -235,7 +235,7 @@ The block is visually hidden but present in the DOM, typically inside a Stripe E
 
 8. Click the Pay/Submit button. Payment confirms without CVC or CAPTCHA.
 
-**If it does not transition, stop -- do not loop.** If the checkbox is absent, the input never appears after you check it, or the saved card does not replace the form within ~10s, then the token path is not available here or the token expired. Retry at most once with a freshly retrieved token; otherwise follow the block's instructions and fall back to the `card` flow, or report `blocked` (see "Reporting outcomes"). Re-injecting or re-scanning will not enable a surface that has the input turned off.
+**If it does not transition, stop -- do not loop.** If the checkbox is absent, the input never appears after you check it, or the saved card does not replace the form within ~10s, then the token path is not available here or the token expired. Retry at most once with a freshly retrieved token. Otherwise fall back to the `card` flow: the spend request uses the default (`card`) credential type, so retrieve `--include card` on the **same** spend request (no new request, no re-approval) and use the card details, or report `blocked` (see "Reporting outcomes"). Re-injecting or re-scanning will not enable a surface that has the input turned off.
 
 **Important notes for the Link Pay Token flow:**
 - The block is the source of truth -- follow the steps it renders after you check the box.
@@ -243,6 +243,7 @@ The block is visually hidden but present in the DOM, typically inside a Stripe E
 - The controls are inside a Stripe iframe and invisible to a human -- operate them programmatically in that frame, not by visible-element clicks.
 - Card numbers are not needed -- the token authorizes payment directly using the consumer's saved card on file.
 - Use a fresh browser context -- an existing Link session cookie can suppress the input.
+- The token flow and the card flow share one spend request -- it uses the default (`card`) credential type, so if the token path is unavailable you can retrieve `--include card` on the same request; no new request or approval is needed.
 - The consumer only sees the card they authorized in the spend request.
 
 
