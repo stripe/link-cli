@@ -36,7 +36,7 @@ describe('balances list component', () => {
       const frame = lastFrame();
       expect(frame).toContain('Source ID');
       expect(frame).toContain('Type');
-      expect(frame).toContain('Current');
+      expect(frame).toContain('Current balance');
       expect(frame).toContain('Currency');
       expect(frame).toContain('csmrpd_1');
       expect(frame).toContain('cash');

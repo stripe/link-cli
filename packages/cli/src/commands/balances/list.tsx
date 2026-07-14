@@ -19,7 +19,7 @@ interface BalancesListProps {
 const COLUMN_GAP = '  ';
 const SOURCE_ID_WIDTH = 16;
 const TYPE_WIDTH = 8;
-const CURRENT_WIDTH = 10;
+const CURRENT_WIDTH = 15;
 const CURRENCY_WIDTH = 8;
 
 function truncateCell(value: string, width: number): string {
@@ -57,7 +57,7 @@ export const BalancesList: React.FC<BalancesListProps> = ({
   const headerRow = [
     formatCell('Source ID', SOURCE_ID_WIDTH),
     formatCell('Type', TYPE_WIDTH),
-    formatCell('Current', CURRENT_WIDTH),
+    formatCell('Current balance', CURRENT_WIDTH),
     formatCell('Currency', CURRENCY_WIDTH),
   ].join(COLUMN_GAP);
   const separatorRow = '-'.repeat(headerRow.length);
