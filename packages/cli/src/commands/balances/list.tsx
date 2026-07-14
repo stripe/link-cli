@@ -21,8 +21,6 @@ const SOURCE_ID_WIDTH = 16;
 const TYPE_WIDTH = 8;
 const CURRENT_WIDTH = 10;
 const CURRENCY_WIDTH = 8;
-const AVAILABLE_WIDTH = 20;
-const AS_OF_WIDTH = 20;
 
 function truncateCell(value: string, width: number): string {
   if (value.length <= width) {
@@ -38,29 +36,6 @@ function truncateCell(value: string, width: number): string {
 
 function formatCell(value: string, width: number): string {
   return truncateCell(value, width).padEnd(width);
-}
-
-function formatCurrencyMap(map: Record<string, number> | null | undefined): string {
-  if (!map || typeof map !== 'object') {
-    return '-';
-  }
-
-  const entries = Object.entries(map);
-  if (entries.length === 0) {
-    return '-';
-  }
-
-  return entries.map(([cur, amount]) => `${amount} ${cur}`).join(', ');
-}
-
-function formatAvailable(balance: Balance): string {
-  if (balance.type === 'cash' && balance.cash) {
-    return formatCurrencyMap(balance.cash.available);
-  }
-  if (balance.type === 'credit' && balance.credit) {
-    return `used: ${formatCurrencyMap(balance.credit.used)}`;
-  }
-  return '-';
 }
 
 export const BalancesList: React.FC<BalancesListProps> = ({
@@ -84,8 +59,6 @@ export const BalancesList: React.FC<BalancesListProps> = ({
     formatCell('Type', TYPE_WIDTH),
     formatCell('Current', CURRENT_WIDTH),
     formatCell('Currency', CURRENCY_WIDTH),
-    formatCell('Available/Used', AVAILABLE_WIDTH),
-    formatCell('As Of', AS_OF_WIDTH),
   ].join(COLUMN_GAP);
   const separatorRow = '-'.repeat(headerRow.length);
   const rows = balances.map((balance) =>
@@ -94,8 +67,6 @@ export const BalancesList: React.FC<BalancesListProps> = ({
       formatCell(balance.type ?? '-', TYPE_WIDTH),
       formatCell(String(balance.current ?? '-'), CURRENT_WIDTH),
       formatCell(balance.currency ?? '-', CURRENCY_WIDTH),
-      formatCell(formatAvailable(balance), AVAILABLE_WIDTH),
-      formatCell(balance.as_of ?? '-', AS_OF_WIDTH),
     ].join(COLUMN_GAP),
   );
 
