@@ -27,3 +27,18 @@ export const decodeOptions = z.object({
       'Raw WWW-Authenticate header value; may include multiple payment challenges',
     ),
 });
+
+export const inspectOptions = z.object({
+  method: z
+    .string()
+    .optional()
+    .describe('HTTP method (default: GET, or POST if --data is provided)'),
+  data: z
+    .string()
+    .optional()
+    .describe('Request body (implies POST if --method is not set)'),
+  header: z
+    .array(z.string())
+    .default([])
+    .describe('Request header in "Name: Value" format (repeatable)'),
+});
