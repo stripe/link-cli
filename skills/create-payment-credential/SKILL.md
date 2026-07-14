@@ -114,7 +114,7 @@ Always check the current authentication status before starting a new login flow 
 
 1. **Navigate to the merchant page** — browse it, read the page content, and understand how the site accepts payment.
 2. **If the checkout page includes the AI-agent steering block** (find the "I am an AI agent" checkbox, or the `.AiAgentPaymentSteering` container — visually hidden but present in the DOM, typically inside a Stripe iframe) — it may support the **Link Pay Token flow** (Step 5, "Link Pay Token" section). **Requires browser automation.** Confirm before committing to it: check the checkbox and see whether `input[name="link_pay_token"]` then appears. If it does, use the token flow. If it does **not** (some surfaces render the steering block but keep the input disabled), follow the block's on-page instructions and use `card` instead. Without browser automation, use `card`.
-3. **If the page has a credit card form without a hidden `link_pay_token` input** — use `card`.
+3. **If the page has a credit-card form and no AI-agent steering block** (no "I am an AI agent" checkbox / `.AiAgentPaymentSteering`) — use `card`.
 4. **If the page describes an API or programmatic payment flow** — make a request to the relevant endpoint. If it returns **HTTP 402** with a `www-authenticate` header, use `shared_payment_token`.
 
 What you find determines which credential type to use:
@@ -122,7 +122,7 @@ What you find determines which credential type to use:
 | What you see | Credential type | What to request |
 |---|---|---|
 | `.AiAgentPaymentSteering` block / "I am an AI agent" checkbox, and ticking it reveals `input[name="link_pay_token"]` | (none needed) | Link Pay Token flow (else `card`) |
-| Credit card form (no hidden `link_pay_token` input) | `card` (default) | Card |
+| Credit-card form, no AI-agent steering block | `card` (default) | Card |
 | HTTP 402 with `method="stripe"` in `www-authenticate` | `shared_payment_token` | Shared payment token (SPT) |
 | HTTP 402 without `method="stripe"` in `www-authenticate` | not supported | Do not continue |
 
