@@ -113,7 +113,7 @@ Always check the current authentication status before starting a new login flow 
 **Determine how the merchant accepts payment:**
 
 1. **Navigate to the merchant page** — browse it, read the page content, and understand how the site accepts payment.
-2. **If the checkout page contains a hidden input `input[name="link_pay_token"]`** (typically inside a Stripe iframe) — use the **Link Pay Token flow** (Step 5, "Link Pay Token" section). This is the most seamless path. **Requires browser automation.** If you do not have browser automation available, fall back to the `card` credential flow instead.
+2. **If the checkout page shows an "I am an AI agent" checkbox, or a hidden `input[name="link_pay_token"]`** (both typically inside a Stripe iframe) — use the **Link Pay Token flow** (Step 5, "Link Pay Token" section). This is the most seamless path. **Detect the checkbox, not only the input:** the token input is usually not in the DOM until the checkbox is checked, so a page that shows only the checkbox still qualifies. **Requires browser automation.** If you do not have browser automation available, fall back to the `card` credential flow instead.
 3. **If the page has a credit card form without a hidden `link_pay_token` input** — use `card`.
 4. **If the page describes an API or programmatic payment flow** — make a request to the relevant endpoint. If it returns **HTTP 402** with a `www-authenticate` header, use `shared_payment_token`.
 
@@ -121,7 +121,7 @@ What you find determines which credential type to use:
 
 | What you see | Credential type | What to request |
 |---|---|---|
-| Hidden `input[name="link_pay_token"]` present on page | (none needed) | Link Pay Token flow |
+| "I am an AI agent" checkbox, or hidden `input[name="link_pay_token"]`, on page (usually in a Stripe iframe) | (none needed) | Link Pay Token flow |
 | Credit card form (no hidden `link_pay_token` input) | `card` (default) | Card |
 | HTTP 402 with `method="stripe"` in `www-authenticate` | `shared_payment_token` | Shared payment token (SPT) |
 | HTTP 402 without `method="stripe"` in `www-authenticate` | not supported | Do not continue |
@@ -196,11 +196,27 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 
 `mpp pay` handles the full 402 flow automatically: probes the URL, parses the `www-authenticate` header, builds the `Authorization: Payment` credential using the SPT, and retries.
 
-**Link Pay Token:** When the checkout page contains a hidden `input[name="link_pay_token"]` (typically inside a Stripe iframe), no card numbers are needed for this transaction. This flow requires browser automation.
+**Link Pay Token:** When the checkout page shows an "I am an AI agent" checkbox and/or a hidden `input[name="link_pay_token"]` (typically inside a Stripe iframe), no card numbers are needed -- the token authorizes the consumer's saved card directly. This flow requires browser automation.
+
+The checkbox and the token input live inside the Stripe Elements iframe (a `__privateStripeFrame`; the controls are in the inner accessory frame) and are hidden from a human (keyboard-unfocusable). Interact with them programmatically, inside that frame, in the order below. Each `document.querySelector` snippet must run in the context of that iframe, not the top page.
 
 1. Create a spend request (same as Step 4 -- no `--credential-type` flag needed) and get approval.
 
-2. Retrieve the Link Pay Token:
+2. Open the merchant checkout page in a **fresh browser context**. An existing Link session cookie can suppress the hidden input and strand the flow.
+
+3. **Reveal the token input by checking the "I am an AI agent" checkbox.** A plain `.click()` will not register (the control uses React state), so set it with the native setter and dispatch the events:
+
+   ```javascript
+   const box = document.querySelector('input[type="checkbox"]'); // the "I am an AI agent" checkbox
+   Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'checked')
+     .set.call(box, true);
+   box.dispatchEvent(new Event('change', { bubbles: true }));
+   box.dispatchEvent(new Event('click', { bubbles: true }));
+   ```
+
+   Wait ~1s for `input[name="link_pay_token"]` to appear in the same frame.
+
+4. **Retrieve the token now** -- it is short-lived (~5 minutes), so fetch it right before injecting, not earlier:
 
    ```bash
    link-cli spend-request retrieve <id> --include link_pay_token --format json
@@ -208,9 +224,7 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 
    The response includes `link_pay_token: "eyJ..."`.
 
-3. Open the merchant checkout page in a browser.
-
-4. Find the hidden input `input[name="link_pay_token"]` (it may be inside an iframe) and inject the token using a native input event:
+5. **Inject the token** into `input[name="link_pay_token"]` with the native setter. Do NOT type it in -- it is a long JWT and character-by-character typing will time out:
 
    ```javascript
    const input = document.querySelector('input[name="link_pay_token"]');
@@ -219,14 +233,17 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
    input.dispatchEvent(new Event('input', { bubbles: true }));
    ```
 
-5. Wait for the checkout to transition -- the card form disappears and a saved card appears with the consumer's email in the header. This confirms the token exchange and login succeeded.
+6. **Wait for the exchange and login to complete.** The card form is replaced by a single saved card showing the consumer's email in the header -- that is your go signal. (In the network panel you will see `POST /v1/link/auth_token/exchange` succeed, then `/v1/consumers/sessions/lookup` return the authorized card.)
 
-6. Click the Pay/Submit button. Payment confirms without CVC or CAPTCHA.
+7. Click the Pay/Submit button. Payment confirms without CVC or CAPTCHA.
+
+**If it does not transition, stop -- do not loop.** If there is no checkbox, the input never appears after you check it, or the saved card does not replace the form within ~10s, then either the token expired or this merchant is not set up for the Link Pay Token flow. Retry at most once with a freshly retrieved token; if it still does not transition, fall back to the `card` credential flow, or report the attempt as `blocked` (see "Reporting outcomes"). Re-injecting or re-scanning repeatedly will not fix an unenabled page.
 
 **Important notes for the Link Pay Token flow:**
-- The token is short-lived -- complete the flow promptly after retrieval.
-- In this flow, card numbers are not needed -- the token authorizes payment directly using the consumer's saved card on file.
-- If the browser already has an existing session cookie, the checkout may show a pre-existing session instead of the card form with the hidden input. Use a fresh browser context to ensure the token injection triggers.
+- The token is short-lived (~5 minutes) -- retrieve it right before injecting (step 4); if injection is delayed, retrieve a fresh one.
+- The checkbox and token input are inside a Stripe iframe and invisible to a human -- interact with them programmatically in that frame, not by visible-element clicks.
+- Card numbers are not needed -- the token authorizes payment directly using the consumer's saved card on file.
+- Use a fresh browser context -- an existing Link session cookie can suppress the hidden input.
 - The consumer only sees the card they authorized in the spend request.
 
 
