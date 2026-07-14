@@ -198,11 +198,11 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 
 **Link Pay Token:** Some checkout pages embed an AI-agent steering block (the `AiAgentPaymentSteering` component) that lets an agent pay with a Link Pay Token, using the consumer's saved card without handling card numbers. This flow requires browser automation.
 
-The block is visually hidden but present in the DOM, typically inside a Stripe Elements iframe (a `__privateStripeFrame`, in the inner accessory frame). It renders an "I am an AI agent" checkbox; checking it reveals the block's own instructions and, on surfaces that support the inline token, the `link_pay_token` input. **The block is the source of truth -- follow the steps it renders.** Run the `document.querySelector` snippets below inside that iframe, not the top page.
+The block is visually hidden but present in the DOM. Where it sits depends on the surface: with embedded Payment Elements it is inside a Stripe Elements iframe (a `__privateStripeFrame`, the inner accessory frame); on Stripe-hosted Checkout it is on the hosted page. Do not assume a fixed location -- search the top document and any Stripe frames for the `.AiAgentPaymentSteering` block or the "I am an AI agent" checkbox, and run the snippets below in whichever frame contains it. Checking the checkbox reveals the block's own instructions and, on surfaces that support the inline token, the `link_pay_token` input. **The block is the source of truth -- follow the steps it renders.**
 
 1. Create a spend request (same as Step 4 -- no `--credential-type` flag needed) and get approval.
 
-2. Open the merchant checkout page in a **fresh browser context**. An existing Link session cookie can suppress the input and strand the flow.
+2. Open the merchant checkout page.
 
 3. **Check the "I am an AI agent" checkbox** to reveal the block, then read and follow the instructions it renders. Use a DOM-level `click()` -- the control is keyboard-hidden, so a normal automated click may be refused as not actionable:
 
@@ -240,9 +240,9 @@ The block is visually hidden but present in the DOM, typically inside a Stripe E
 **Important notes for the Link Pay Token flow:**
 - The block is the source of truth -- follow the steps it renders after you check the box.
 - The token is short-lived (~5 minutes) -- retrieve it right before injecting (step 5); if injection is delayed, retrieve a fresh one.
-- The controls are inside a Stripe iframe and invisible to a human -- operate them programmatically in that frame, not by visible-element clicks.
+- The controls are invisible to a human and may live in a Stripe frame -- operate them programmatically in whichever frame contains the block, not by visible-element clicks.
 - Card numbers are not needed -- the token authorizes payment directly using the consumer's saved card on file.
-- Use a fresh browser context -- an existing Link session cookie can suppress the input.
+- The agent pays with the token, not an interactive Link login. If the checkbox is missing, a signed-in Link session may be showing the Link wallet instead of the card form -- retry in a context not signed in to Link.
 - The token flow and the card flow share one spend request -- it uses the default (`card`) credential type, so if the token path is unavailable you can retrieve `--include card` on the same request; no new request or approval is needed.
 - The consumer only sees the card they authorized in the spend request.
 
