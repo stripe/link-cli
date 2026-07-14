@@ -3,6 +3,7 @@ import {
   type IPaymentMethodsResource,
   type IReportResource,
   type IShippingAddressResource,
+  type ISourcesResource,
   type ISpendRequestResource,
   type ITransactionsResource,
   type IUserInfoResource,
@@ -11,6 +12,7 @@ import {
   PaymentMethodsResource,
   ReportResource,
   ShippingAddressResource,
+  SourcesResource,
   SpendRequestResource,
   TransactionsResource,
   UserInfoResource,
@@ -82,6 +84,7 @@ export class ResourceFactory {
   private shippingAddressResource?: IShippingAddressResource;
   private userInfoResource?: IUserInfoResource;
   private transactionsResource?: ITransactionsResource;
+  private sourcesResource?: ISourcesResource;
   private webBotAuthResource?: IWebBotAuthResource;
   private reportResource?: IReportResource;
 
@@ -235,6 +238,23 @@ export class ResourceFactory {
     );
 
     return this.transactionsResource;
+  }
+
+  createSourcesResource(): ISourcesResource {
+    if (this.sourcesResource) {
+      return this.sourcesResource;
+    }
+
+    const getAccessToken = this.createSdkAccessTokenProvider();
+    this.sourcesResource = sanitizeResource(
+      new SourcesResource({
+        verbose: this.verbose,
+        defaultHeaders: this.defaultHeaders,
+        getAccessToken,
+      }),
+    );
+
+    return this.sourcesResource;
   }
 
   createWebBotAuthResource(): IWebBotAuthResource {

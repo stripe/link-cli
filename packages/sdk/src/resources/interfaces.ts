@@ -6,6 +6,7 @@ import type {
   PaymentMethod,
   RequestApprovalResponse,
   ShippingAddressRecord,
+  SourcesPage,
   SpendRequest,
   Total,
   TransactionOrigin,
@@ -113,6 +114,17 @@ export interface ListTransactionsParams {
 export interface ITransactionsResource {
   list(params?: ListTransactionsParams): Promise<TransactionsPage>;
   listTransactions(params?: ListTransactionsParams): Promise<TransactionsPage>;
+}
+
+export interface ListSourcesParams {
+  limit?: number;
+  starting_after?: string;
+  ending_before?: string;
+}
+
+export interface ISourcesResource {
+  list(params?: ListSourcesParams): Promise<SourcesPage>;
+  listSources(params?: ListSourcesParams): Promise<SourcesPage>;
 }
 
 export const REPORT_OUTCOMES = ['success', 'blocked', 'abandoned'] as const;

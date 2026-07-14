@@ -8,6 +8,7 @@ import { createPaymentMethodsCli } from './commands/payment-methods';
 import { createReportCli } from './commands/report';
 import { createServeCli } from './commands/serve';
 import { createShippingAddressCli } from './commands/shipping-address';
+import { createSourcesCli } from './commands/sources';
 import { createSpendRequestCli } from './commands/spend-request';
 import { createTransactionsCli } from './commands/transactions';
 import { createUserInfoCli } from './commands/user-info';
@@ -62,20 +63,26 @@ const authRepo = factory.createAuthResource();
 const spendRequestRepo = factory.createSpendRequestResource();
 
 const requestedCommand = process.argv[2];
-const transactionsCli =
+const hiddenCli =
   requestedCommand === 'transactions'
     ? createTransactionsCli(
         () => factory.createTransactionsResource(),
         authStorage,
         envAccessToken,
       )
-    : null;
-if (transactionsCli) {
+    : requestedCommand === 'sources'
+      ? createSourcesCli(
+          () => factory.createSourcesResource(),
+          authStorage,
+          envAccessToken,
+        )
+      : null;
+if (hiddenCli) {
   process.argv.splice(2, 1);
 }
 
 const cli =
-  transactionsCli ??
+  hiddenCli ??
   Cli.create('link-cli', {
     description:
       'Create a secure, one-time payment credential from a Link wallet to let agents complete purchases on behalf of users.',
@@ -98,7 +105,7 @@ if (!isAgent && process.stdout.isTTY) {
   }
 }
 
-if (!transactionsCli) {
+if (!hiddenCli) {
   cli.command(
     createAuthCli(authRepo, getUpdateInfo, authStorage, envAccessToken),
   );
