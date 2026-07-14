@@ -19,10 +19,11 @@ describe('balances list component', () => {
       data: [
         {
           source_id: 'csmrpd_1',
-          name: 'Checking 1234',
-          type: 'bank_account',
-          available: { amount: 12500, currency: 'usd' },
-          current: { amount: 13000, currency: 'usd' },
+          type: 'cash',
+          cash: { available: { usd: 12500 } },
+          current: 13000,
+          currency: 'usd',
+          as_of: '2026-07-14T00:00:00Z',
         },
       ],
     });
@@ -33,16 +34,40 @@ describe('balances list component', () => {
 
     await vi.waitFor(() => {
       const frame = lastFrame();
-      expect(frame).toContain('Source');
+      expect(frame).toContain('Source ID');
       expect(frame).toContain('Type');
-      expect(frame).toContain('ID');
-      expect(frame).toContain('Available');
       expect(frame).toContain('Current');
-      expect(frame).toContain('Checking 1234');
-      expect(frame).toContain('bank_account');
+      expect(frame).toContain('Currency');
       expect(frame).toContain('csmrpd_1');
+      expect(frame).toContain('cash');
+      expect(frame).toContain('13000');
+      expect(frame).toContain('usd');
       expect(frame).toContain('12500 usd');
-      expect(frame).toContain('13000 usd');
+    });
+  });
+
+  it('renders credit balance with used amount', async () => {
+    const resource = makeResource({
+      data: [
+        {
+          source_id: 'csmrpd_2',
+          type: 'credit',
+          credit: { used: { usd: 5000 } },
+          current: 10000,
+          currency: 'usd',
+          as_of: '2026-07-14T00:00:00Z',
+        },
+      ],
+    });
+
+    const { lastFrame } = render(
+      <BalancesList resource={resource} onComplete={() => {}} />,
+    );
+
+    await vi.waitFor(() => {
+      const frame = lastFrame();
+      expect(frame).toContain('credit');
+      expect(frame).toContain('used: 5000 usd');
     });
   });
 
@@ -62,9 +87,11 @@ describe('balances list component', () => {
     const resource = makeResource({
       data: [
         {
-          source_id: 'csmrpd_1',
-          name: ESCAPE_PAYLOAD,
-          type: ESCAPE_PAYLOAD,
+          source_id: ESCAPE_PAYLOAD,
+          type: 'cash',
+          current: 0,
+          currency: ESCAPE_PAYLOAD,
+          as_of: '2026-07-14T00:00:00Z',
         },
       ],
     });
@@ -86,8 +113,10 @@ describe('balances list component', () => {
       data: [
         {
           source_id: 'csmrpd_2',
-          name: 'Savings',
-          type: 'bank_account',
+          type: 'cash',
+          current: 5000,
+          currency: 'usd',
+          as_of: '2026-07-14T00:00:00Z',
         },
       ],
       has_more: true,

@@ -1119,10 +1119,11 @@ describe('production mode', () => {
 
   const SAMPLE_BALANCE = {
     source_id: 'csmrpd_001',
-    name: 'Checking 1234',
-    type: 'bank_account',
-    available: { amount: 12500, currency: 'usd' },
-    current: { amount: 13000, currency: 'usd' },
+    type: 'cash',
+    cash: { available: { usd: 12500 } },
+    current: 13000,
+    currency: 'usd',
+    as_of: '2026-07-14T00:00:00Z',
   };
 
   describe('balances list', () => {
@@ -1147,7 +1148,7 @@ describe('production mode', () => {
       const data = output.data as Record<string, unknown>[];
       expect(data).toHaveLength(1);
       expect(data[0].source_id).toBe('csmrpd_001');
-      expect(data[0].type).toBe('bank_account');
+      expect(data[0].type).toBe('cash');
     });
 
     it('forwards pagination flags into the query string', async () => {

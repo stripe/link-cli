@@ -210,19 +210,22 @@ export interface SourcesPage {
   [key: string]: unknown;
 }
 
+export interface CashBalance {
+  available: Record<string, number>;
+}
+
+export interface CreditBalance {
+  used: Record<string, number>;
+}
+
 export interface Balance {
-  id?: string | null;
-  source_id?: string | null;
-  source?: Record<string, unknown> | null;
-  name?: string | null;
-  type?: string | null;
-  amount?: number | Record<string, unknown> | null;
-  available?: number | Record<string, unknown> | null;
-  current?: number | Record<string, unknown> | null;
-  available_balance?: number | Record<string, unknown> | null;
-  current_balance?: number | Record<string, unknown> | null;
-  currency?: string | null;
-  balances?: Record<string, unknown> | null;
+  source_id: string;
+  type: 'cash' | 'credit';
+  cash?: CashBalance | null;
+  credit?: CreditBalance | null;
+  current: number;
+  currency: string;
+  as_of: string;
   [key: string]: unknown;
 }
 

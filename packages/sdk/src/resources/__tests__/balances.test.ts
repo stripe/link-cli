@@ -34,10 +34,11 @@ describe('BalancesResource', () => {
       data: [
         {
           source_id: 'csmrpd_123',
-          name: 'Checking 1234',
-          type: 'bank_account',
-          available: { amount: 12500, currency: 'usd' },
-          current: { amount: 13000, currency: 'usd' },
+          type: 'cash',
+          cash: { available: { usd: 12500 } },
+          current: 13000,
+          currency: 'usd',
+          as_of: '2026-07-14T00:00:00Z',
         },
       ],
       has_more: true,
@@ -55,10 +56,11 @@ describe('BalancesResource', () => {
       data: [
         {
           source_id: 'csmrpd_123',
-          name: 'Checking 1234',
-          type: 'bank_account',
-          available: { amount: 12500, currency: 'usd' },
-          current: { amount: 13000, currency: 'usd' },
+          type: 'cash',
+          cash: { available: { usd: 12500 } },
+          current: 13000,
+          currency: 'usd',
+          as_of: '2026-07-14T00:00:00Z',
         },
       ],
       has_more: true,
