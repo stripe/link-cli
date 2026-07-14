@@ -8,6 +8,7 @@ import { createPaymentMethodsCli } from './commands/payment-methods';
 import { createReportCli } from './commands/report';
 import { createServeCli } from './commands/serve';
 import { createShippingAddressCli } from './commands/shipping-address';
+import { createBalancesCli } from './commands/balances';
 import { createSourcesCli } from './commands/sources';
 import { createSpendRequestCli } from './commands/spend-request';
 import { createTransactionsCli } from './commands/transactions';
@@ -76,7 +77,13 @@ const hiddenCli =
           authStorage,
           envAccessToken,
         )
-      : null;
+      : requestedCommand === 'balances'
+        ? createBalancesCli(
+            () => factory.createBalancesResource(),
+            authStorage,
+            envAccessToken,
+          )
+        : null;
 if (hiddenCli) {
   process.argv.splice(2, 1);
 }

@@ -1,5 +1,6 @@
 import type {
   AuthTokens,
+  BalancesPage,
   CredentialType,
   DeviceAuthRequest,
   LineItem,
@@ -125,6 +126,17 @@ export interface ListSourcesParams {
 export interface ISourcesResource {
   list(params?: ListSourcesParams): Promise<SourcesPage>;
   listSources(params?: ListSourcesParams): Promise<SourcesPage>;
+}
+
+export interface ListBalancesParams {
+  limit?: number;
+  starting_after?: string;
+  ending_before?: string;
+}
+
+export interface IBalancesResource {
+  list(params?: ListBalancesParams): Promise<BalancesPage>;
+  listBalances(params?: ListBalancesParams): Promise<BalancesPage>;
 }
 
 export const REPORT_OUTCOMES = ['success', 'blocked', 'abandoned'] as const;

@@ -1,4 +1,5 @@
 import {
+  BalancesResource,
   LinkAuthenticationError,
   PaymentMethodsResource,
   SpendRequestResource,
@@ -36,6 +37,9 @@ describe('ResourceFactory', () => {
     expect(factory.createPaymentMethodsResource()).toBe(
       factory.createPaymentMethodsResource(),
     );
+    expect(factory.createBalancesResource()).toBe(
+      factory.createBalancesResource(),
+    );
     expect(factory.createWebBotAuthResource()).toBe(
       factory.createWebBotAuthResource(),
     );
@@ -46,6 +50,7 @@ describe('ResourceFactory', () => {
     expect(factory.createPaymentMethodsResource()).toBeInstanceOf(
       PaymentMethodsResource,
     );
+    expect(factory.createBalancesResource()).toBeInstanceOf(BalancesResource);
     expect(factory.createWebBotAuthResource()).toBeInstanceOf(
       WebBotAuthResource,
     );

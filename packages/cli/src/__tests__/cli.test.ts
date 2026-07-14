@@ -1117,6 +1117,84 @@ describe('production mode', () => {
     });
   });
 
+  const SAMPLE_BALANCE = {
+    source_id: 'csmrpd_001',
+    name: 'Checking 1234',
+    type: 'bank_account',
+    available: { amount: 12500, currency: 'usd' },
+    current: { amount: 13000, currency: 'usd' },
+  };
+
+  describe('balances list', () => {
+    it('GETs the Link API endpoint with bearer auth', async () => {
+      setResponseForUrl('/balances', 200, {
+        data: [SAMPLE_BALANCE],
+        has_more: true,
+      });
+
+      const result = await runProdCli('balances', 'list', '--json');
+
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.method).toBe('GET');
+      expect(lastRequest.url).toBe('/balances');
+      expect(lastRequest.headers.authorization).toBe(
+        'Bearer prod_test_access_token',
+      );
+
+      const output = parseJson(result.stdout) as Record<string, unknown>;
+      expect(output.has_more).toBe(true);
+      expect(Array.isArray(output.data)).toBe(true);
+      const data = output.data as Record<string, unknown>[];
+      expect(data).toHaveLength(1);
+      expect(data[0].source_id).toBe('csmrpd_001');
+      expect(data[0].type).toBe('bank_account');
+    });
+
+    it('forwards pagination flags into the query string', async () => {
+      setNextResponse(200, {
+        data: [],
+      });
+
+      const result = await runProdCli(
+        'balances',
+        'list',
+        '--limit',
+        '5',
+        '--starting-after',
+        'csmrpd_cursor',
+        '--ending-before',
+        'csmrpd_prev',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.url).toContain('/balances?');
+      expect(lastRequest.url).toContain('limit=5');
+      expect(lastRequest.url).toContain('starting_after=csmrpd_cursor');
+      expect(lastRequest.url).toContain('ending_before=csmrpd_prev');
+    });
+
+    it('rejects unauthenticated requests before hitting the API', async () => {
+      storage.clearAuth();
+
+      const result = await runProdCli('balances', 'list', '--json');
+
+      expect(result.exitCode).toBe(1);
+      const output = parseJson(result.stdout) as Record<string, unknown>;
+      expect(output.code).toBe('NOT_AUTHENTICATED');
+      expect(String(output.message)).toMatch(/auth login/i);
+      const balancesRequest = requests.find((r) => r.url === '/balances');
+      expect(balancesRequest).toBeUndefined();
+    });
+
+    it('does not show balances in root help', async () => {
+      const result = await runProdCli('--help');
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout + result.stderr).not.toContain('balances');
+    });
+  });
+
   describe('auth login', () => {
     const DEVICE_CODE_RESPONSE = {
       device_code: 'test_device_code',

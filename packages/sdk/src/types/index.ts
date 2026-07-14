@@ -210,6 +210,28 @@ export interface SourcesPage {
   [key: string]: unknown;
 }
 
+export interface Balance {
+  id?: string | null;
+  source_id?: string | null;
+  source?: Record<string, unknown> | null;
+  name?: string | null;
+  type?: string | null;
+  amount?: number | Record<string, unknown> | null;
+  available?: number | Record<string, unknown> | null;
+  current?: number | Record<string, unknown> | null;
+  available_balance?: number | Record<string, unknown> | null;
+  current_balance?: number | Record<string, unknown> | null;
+  currency?: string | null;
+  balances?: Record<string, unknown> | null;
+  [key: string]: unknown;
+}
+
+export interface BalancesPage {
+  data: Balance[];
+  has_more?: boolean;
+  [key: string]: unknown;
+}
+
 export interface WebBotAuthBlock {
   signature: string;
   signature_input: string;
