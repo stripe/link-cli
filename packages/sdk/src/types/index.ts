@@ -198,7 +198,7 @@ export interface Source {
   type?: string | null;
   capabilities?: Record<string, unknown> | null;
   external_connection?: Record<string, unknown> | null;
-  granted_scopes?: string[] | null;
+  granted_actions?: string[] | null;
   bank_account?: Record<string, unknown> | null;
   card?: Record<string, unknown> | null;
   [key: string]: unknown;
