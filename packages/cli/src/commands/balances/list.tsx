@@ -17,8 +17,9 @@ interface BalancesListProps {
 }
 
 const COLUMN_GAP = '  ';
-const SOURCE_ID_WIDTH = 16;
-const TYPE_WIDTH = 8;
+const SOURCE_ID_MIN = 16;
+const SOURCE_ID_MAX = 48;
+const TYPE_WIDTH = 12;
 const CURRENT_WIDTH = 15;
 const CURRENCY_WIDTH = 8;
 
@@ -38,6 +39,18 @@ function formatCell(value: string, width: number): string {
   return truncateCell(value, width).padEnd(width);
 }
 
+function formatCents(cents: number): string {
+  const dollars = Math.abs(cents) / 100;
+  const formatted = `$${dollars.toFixed(2)}`;
+  return cents < 0 ? `-${formatted}` : formatted;
+}
+
+function sourceIdWidth(balances: Balance[]): number {
+  if (balances.length === 0) return SOURCE_ID_MIN;
+  const maxLen = Math.max(...balances.map((b) => (b.source_id ?? '').length));
+  return Math.min(SOURCE_ID_MAX, Math.max(SOURCE_ID_MIN, maxLen));
+}
+
 export const BalancesList: React.FC<BalancesListProps> = ({
   resource,
   params,
@@ -54,18 +67,22 @@ export const BalancesList: React.FC<BalancesListProps> = ({
       ? balances[balances.length - 1].source_id
       : null;
 
+  const idWidth = sourceIdWidth(balances);
   const headerRow = [
-    formatCell('Source ID', SOURCE_ID_WIDTH),
-    formatCell('Type', TYPE_WIDTH),
+    formatCell('Source ID', idWidth),
+    formatCell('Balance type', TYPE_WIDTH),
     formatCell('Current balance', CURRENT_WIDTH),
     formatCell('Currency', CURRENCY_WIDTH),
   ].join(COLUMN_GAP);
   const separatorRow = '-'.repeat(headerRow.length);
   const rows = balances.map((balance) =>
     [
-      formatCell(balance.source_id ?? '-', SOURCE_ID_WIDTH),
+      formatCell(balance.source_id ?? '-', idWidth),
       formatCell(balance.type ?? '-', TYPE_WIDTH),
-      formatCell(String(balance.current ?? '-'), CURRENT_WIDTH),
+      formatCell(
+        balance.current != null ? formatCents(balance.current) : '-',
+        CURRENT_WIDTH,
+      ),
       formatCell(balance.currency ?? '-', CURRENCY_WIDTH),
     ].join(COLUMN_GAP),
   );

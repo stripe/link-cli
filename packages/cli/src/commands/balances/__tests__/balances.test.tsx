@@ -35,12 +35,12 @@ describe('balances list component', () => {
     await vi.waitFor(() => {
       const frame = lastFrame();
       expect(frame).toContain('Source ID');
-      expect(frame).toContain('Type');
+      expect(frame).toContain('Balance type');
       expect(frame).toContain('Current balance');
       expect(frame).toContain('Currency');
       expect(frame).toContain('csmrpd_1');
       expect(frame).toContain('cash');
-      expect(frame).toContain('13000');
+      expect(frame).toContain('$130.00');
       expect(frame).toContain('usd');
     });
   });
@@ -67,7 +67,7 @@ describe('balances list component', () => {
       const frame = lastFrame();
       expect(frame).toContain('csmrpd_2');
       expect(frame).toContain('credit');
-      expect(frame).toContain('10000');
+      expect(frame).toContain('$100.00');
       expect(frame).toContain('usd');
     });
   });
