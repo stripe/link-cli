@@ -113,16 +113,16 @@ Always check the current authentication status before starting a new login flow 
 **Determine how the merchant accepts payment:**
 
 1. **Navigate to the merchant page** — browse it, read the page content, and understand how the site accepts payment.
-2. **If the checkout page contains a hidden input `input[name="link_pay_token"]`** (typically inside a Stripe iframe) — use the **Link Pay Token flow** (Step 5, "Link Pay Token" section). This is the most seamless path. **Requires browser automation.** If you do not have browser automation available, fall back to the `card` credential flow instead.
-3. **If the page has a credit card form without a hidden `link_pay_token` input** — use `card`.
+2. **If the checkout page includes the AI-agent steering block** (find the "I am an AI agent" checkbox, or the `.AiAgentPaymentSteering` container — visually hidden but present in the DOM, typically inside a Stripe iframe) — it may support the **Link Pay Token flow** (Step 5, "Link Pay Token" section). **Requires browser automation.** Confirm before committing to it: check the checkbox and see whether `input[name="link_pay_token"]` then appears. If it does, use the token flow. If it does **not** (some surfaces render the steering block but keep the input disabled), follow the block's on-page instructions and use `card` instead. Without browser automation, use `card`.
+3. **If the page has a credit-card form and no AI-agent steering block** (no "I am an AI agent" checkbox / `.AiAgentPaymentSteering`) — use `card`.
 4. **If the page describes an API or programmatic payment flow** — make a request to the relevant endpoint. If it returns **HTTP 402** with a `www-authenticate` header, use `shared_payment_token`.
 
 What you find determines which credential type to use:
 
 | What you see | Credential type | What to request |
 |---|---|---|
-| Hidden `input[name="link_pay_token"]` present on page | (none needed) | Link Pay Token flow |
-| Credit card form (no hidden `link_pay_token` input) | `card` (default) | Card |
+| `.AiAgentPaymentSteering` block / "I am an AI agent" checkbox, and ticking it reveals `input[name="link_pay_token"]` | (none needed) | Link Pay Token flow (else `card`) |
+| Credit-card form, no AI-agent steering block | `card` (default) | Card |
 | HTTP 402 with `method="stripe"` in `www-authenticate` | `shared_payment_token` | Shared payment token (SPT) |
 | HTTP 402 without `method="stripe"` in `www-authenticate` | not supported | Do not continue |
 
@@ -196,11 +196,25 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 
 `mpp pay` handles the full 402 flow automatically: probes the URL, parses the `www-authenticate` header, builds the `Authorization: Payment` credential using the SPT, and retries.
 
-**Link Pay Token:** When the checkout page contains a hidden `input[name="link_pay_token"]` (typically inside a Stripe iframe), no card numbers are needed for this transaction. This flow requires browser automation.
+**Link Pay Token:** Some checkout pages embed an AI-agent steering block (the `AiAgentPaymentSteering` component) that lets an agent pay with a Link Pay Token, using the consumer's saved card without handling card numbers. This flow requires browser automation.
+
+The block is visually hidden but present in the DOM, and may be inside a Stripe frame. Do not assume a fixed location -- search the top document and any Stripe frames for the `.AiAgentPaymentSteering` block or the "I am an AI agent" checkbox, and run the snippets below in whichever frame contains it. Checking the checkbox reveals the block's own instructions and, where the inline token is supported, the `link_pay_token` input. **The block is the source of truth -- follow the steps it renders.**
 
 1. Create a spend request (same as Step 4 -- no `--credential-type` flag needed) and get approval.
 
-2. Retrieve the Link Pay Token:
+2. Open the merchant checkout page.
+
+3. **Check the "I am an AI agent" checkbox** to reveal the block, then read and follow the instructions it renders. Use a DOM-level `click()` -- the control is keyboard-hidden, so a normal automated click may be refused as not actionable:
+
+   ```javascript
+   document.querySelector('.AiAgentPaymentSteering input[type="checkbox"]').click();
+   ```
+
+4. **Confirm the token path is available.** Within a few seconds, `input[name="link_pay_token"]` should appear in the same frame.
+   - If it appears, continue.
+   - If it does **not** appear, this surface renders the steering block but does not enable the inline token input. Do **not** loop waiting for it. The spend request you created uses the default (`card`) credential type, so you can retrieve `--include card` on the **same** spend request (no new request, no re-approval) and use the card flow, follow the block's instructions to pay without Link, or report `blocked`.
+
+5. **Retrieve the token now** -- it is short-lived (~5 minutes), so fetch it right before injecting, not earlier:
 
    ```bash
    link-cli spend-request retrieve <id> --include link_pay_token --format json
@@ -208,9 +222,7 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 
    The response includes `link_pay_token: "eyJ..."`.
 
-3. Open the merchant checkout page in a browser.
-
-4. Find the hidden input `input[name="link_pay_token"]` (it may be inside an iframe) and inject the token using a native input event:
+6. **Inject the token** into `input[name="link_pay_token"]` with the native value setter. Do NOT type it in -- it is a long JWT and character-by-character typing will time out:
 
    ```javascript
    const input = document.querySelector('input[name="link_pay_token"]');
@@ -219,14 +231,19 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
    input.dispatchEvent(new Event('input', { bubbles: true }));
    ```
 
-5. Wait for the checkout to transition -- the card form disappears and a saved card appears with the consumer's email in the header. This confirms the token exchange and login succeeded.
+7. **Wait for the exchange and login to complete.** The card form is replaced by a single saved card showing the consumer's email in the header -- that is your go signal. (In the network panel you will see `POST /v1/link/auth_token/exchange` succeed, then `/v1/consumers/sessions/lookup` return the authorized card.)
 
-6. Click the Pay/Submit button. Payment confirms without CVC or CAPTCHA.
+8. Click the Pay/Submit button. Payment confirms without CVC or CAPTCHA.
+
+**If it does not transition, stop -- do not loop.** If the checkbox is absent, the input never appears after you check it, or the saved card does not replace the form within ~10s, then the token path is not available here or the token expired. Retry at most once with a freshly retrieved token. Otherwise fall back to the `card` flow: the spend request uses the default (`card`) credential type, so retrieve `--include card` on the **same** spend request (no new request, no re-approval) and use the card details, or report `blocked` (see "Reporting outcomes"). Re-injecting or re-scanning will not enable a surface that has the input turned off.
 
 **Important notes for the Link Pay Token flow:**
-- The token is short-lived -- complete the flow promptly after retrieval.
-- In this flow, card numbers are not needed -- the token authorizes payment directly using the consumer's saved card on file.
-- If the browser already has an existing session cookie, the checkout may show a pre-existing session instead of the card form with the hidden input. Use a fresh browser context to ensure the token injection triggers.
+- The block is the source of truth -- follow the steps it renders after you check the box.
+- The token is short-lived (~5 minutes) -- retrieve it right before injecting (step 5); if injection is delayed, retrieve a fresh one.
+- The controls are invisible to a human and may live in a Stripe frame -- operate them programmatically in whichever frame contains the block, not by visible-element clicks.
+- Card numbers are not needed -- the token authorizes payment directly using the consumer's saved card on file.
+- The agent pays with the token, not an interactive Link login. If the checkbox is missing, a signed-in Link session may be showing the Link wallet instead of the card form -- retry in a context not signed in to Link.
+- The token flow and the card flow share one spend request -- it uses the default (`card`) credential type, so if the token path is unavailable you can retrieve `--include card` on the same request; no new request or approval is needed.
 - The consumer only sees the card they authorized in the spend request.
 
 
