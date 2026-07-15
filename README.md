@@ -184,12 +184,27 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
 
 ```bash
 link-cli auth login --client-name "Claude Code"   # identify the connecting agent
+link-cli auth login --scope "userinfo:read payment_methods.agentic spend_requests:approve"  # override the default scope request
+link-cli auth login \
+  --source-actions read_balances \
+  --source-actions read_source_details \
+  --source-actions read_external_transactions \
+  --source-actions read_link_transactions \
+  --source-actions read_transactions_summary  # retrieve financial data
+link-cli auth login \
+  --authorization-detail '{"type":"account","filters":["checking"]}'  # append raw authorization_details
 link-cli auth login --client-name "Claude Code" --interval 5 --timeout 300  # login + poll in one call
 link-cli auth status                               # check auth status
 link-cli auth logout                               # disconnect
 ```
 
 When you provide `--client-name`, the Link app displays it when you approve the connection — for example, `Claude Code on my-macbook` instead of `link-cli on my-macbook`.
+
+Use `--scope "scope1 scope2"` to override the requested OAuth scopes. When omitted, the CLI keeps the default scope request: `userinfo:read payment_methods.agentic`.
+
+Use repeatable `--source-actions` flags to request access to `actions` on the `source` resource type used for Financial Insights. The accepted values are `read_balances`, `read_external_transactions`, `read_link_transactions`, `read_transactions_summary`, and `read_source_details`.
+
+Use repeatable `--authorization-detail '<json>'` as an escape hatch to append raw `authorization_details` entries.
 
 With `--interval`, the login command yields the verification code immediately and then polls inline until authenticated or timed out — no separate `auth status` call needed. This is recommended for agents that cannot relay the code while a separate polling command blocks their I/O channel.
 
@@ -265,6 +280,47 @@ Use `mpp decode` to validate a raw `WWW-Authenticate` header and extract the `ne
 ```bash
 link-cli mpp decode \
   --challenge 'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge", request="..."'
+```
+
+## Financial insights
+
+Read-only access to a user's Link financial data. Available commands:
+
+- `balances list` — balances for the user's eligible sources.
+- `transactions list` — the user's transaction activity.
+- `sources list` — the user's Link wallet sources and their capabilities.
+
+These commands do not move money or expose payment credentials.
+
+`balances list`, `transactions list`, and `sources list` use the normal Link OAuth session from `auth login` (or `LINK_ACCESS_TOKEN`).
+
+To retrieve financial data, authenticate with:
+
+```bash
+link-cli auth login \
+  --source-actions read_balances \
+  --source-actions read_source_details \
+  --source-actions read_external_transactions \
+  --source-actions read_link_transactions \
+```
+
+### List balances
+
+```bash
+link-cli balances list
+```
+
+### List transactions
+
+```bash
+link-cli transactions list
+```
+
+### List sources
+
+```bash
+link-cli sources list
+link-cli sources list --format json
 ```
 
 ### Report outcomes
