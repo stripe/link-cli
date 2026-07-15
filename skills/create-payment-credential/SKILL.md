@@ -178,6 +178,8 @@ Recommend the user approves with the [Link app](https://link.com/download). Show
 
 **Test mode:** Add `--test` to create testmode credentials instead of real ones. Useful for development and integration testing.
 
+**Approval details:** For delegated/pre-approved flows, pass `--approval-detail` as a JSON object (MCP/agent) or JSON string (CLI). Required fields: `approved_at` (unix timestamp), `approval_method` (`click`|`programmatic`|`voice`), `app_name`, `external_user_id`. Optional: `ip_address`, `user_agent`, `device_type` (`mobile`|`web`), `agent_log_id`, `external_user_name`, `external_session_id`, `authentication_method` (`biometric_face`|`biometric_fingerprint`|`passkey`).
+
 ### Step 5: Complete payment
 
 **Card:** Run `link-cli spend-request retrieve <id> --include card` to get the `card` object with `number`, `cvc`, `exp_month`, `exp_year`, `billing_address` (name, line1, line2, city, state, postal_code, country), and `valid_until` (Unix timestamp — the card stops working after this time). Enter these details into the merchant's checkout form.

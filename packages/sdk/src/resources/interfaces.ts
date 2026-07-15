@@ -1,4 +1,5 @@
 import type {
+  ApprovalDetail,
   AuthTokens,
   BalancesPage,
   CredentialType,
@@ -45,6 +46,7 @@ export interface CreateSpendRequestParams {
   request_approval?: boolean;
   test?: boolean;
   approve?: boolean;
+  approval_details?: ApprovalDetail;
 }
 
 export interface UpdateSpendRequestParams {

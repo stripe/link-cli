@@ -67,6 +67,23 @@ export type SpendRequestStatus =
 
 export type CredentialType = 'shared_payment_token' | 'card';
 
+export interface ApprovalDetail {
+  approved_at: number;
+  approval_method: 'click' | 'programmatic' | 'voice';
+  app_name: string;
+  external_user_id: string;
+  ip_address?: string;
+  user_agent?: string;
+  device_type?: 'mobile' | 'web';
+  agent_log_id?: string;
+  external_user_name?: string;
+  external_session_id?: string;
+  authentication_method?:
+    | 'biometric_face'
+    | 'biometric_fingerprint'
+    | 'passkey';
+}
+
 export interface SharedPaymentToken {
   id: string;
   billing_address?: BillingAddress;

@@ -147,6 +147,13 @@ export function createSpendRequestCli(
           )
         : undefined;
 
+      const approvalDetails =
+        opts.approvalDetail !== undefined
+          ? typeof opts.approvalDetail === 'string'
+            ? JSON.parse(opts.approvalDetail as string)
+            : opts.approvalDetail
+          : undefined;
+
       const createParams = {
         payment_details: opts.paymentMethodId,
         credential_type: credentialType,
@@ -161,6 +168,7 @@ export function createSpendRequestCli(
         request_approval: requestApproval || undefined,
         test: opts.test ? true : undefined,
         approve: opts.approve ? true : undefined,
+        approval_details: approvalDetails,
       };
 
       const outputFile = opts.outputFile;

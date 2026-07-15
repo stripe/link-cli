@@ -140,6 +140,19 @@ Easily approve requests with the [Link app](https://link.com/download).
 --total "type:total,display_text:Total,amount:12000"
 ```
 
+#### Approval details
+
+For delegated/pre-approved flows, pass `--approval-detail` with a JSON object describing how the user approved the request. Required fields: `approved_at` (unix timestamp), `approval_method` (`click`, `programmatic`, or `voice`), `app_name`, `external_user_id`. Optional: `ip_address`, `user_agent`, `device_type` (`mobile` or `web`), `agent_log_id`, `external_user_name`, `external_session_id`, `authentication_method` (`biometric_face`, `biometric_fingerprint`, or `passkey`).
+
+In CLI mode, pass as a JSON string:
+
+```bash
+link-cli spend-request create ... \
+  --approval-detail '{"approved_at":1720000000,"approval_method":"click","app_name":"MyApp","external_user_id":"usr_123"}'
+```
+
+In MCP/agent mode, pass as a structured object.
+
 #### Credential types
 
 By default, a spend request provisions a virtual card. For merchants that support the [Machine Payments Protocol](https://mpp.dev) (HTTP 402) and the Stripe payment method, instead pass `--credential-type "shared_payment_token"`. 
