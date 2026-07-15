@@ -89,9 +89,7 @@ describe('SourcesResource', () => {
 
     await repo.listSources();
 
-    expect(mockFetch.mock.calls[0][0]).toBe(
-      'https://api.qa.link.com/sources',
-    );
+    expect(mockFetch.mock.calls[0][0]).toBe('https://api.qa.link.com/sources');
   });
 
   it('refreshes the token and retries once on 401', async () => {
