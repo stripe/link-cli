@@ -198,7 +198,7 @@ link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount
 
 **Link Pay Token:** Some checkout pages embed an AI-agent steering block (the `AiAgentPaymentSteering` component) that lets an agent pay with a Link Pay Token, using the consumer's saved card without handling card numbers. This flow requires browser automation.
 
-The block is visually hidden but present in the DOM. Where it sits depends on the surface: with embedded Payment Elements it is inside a Stripe Elements iframe (a `__privateStripeFrame`, the inner accessory frame); on Stripe-hosted Checkout it is on the hosted page. Do not assume a fixed location -- search the top document and any Stripe frames for the `.AiAgentPaymentSteering` block or the "I am an AI agent" checkbox, and run the snippets below in whichever frame contains it. Checking the checkbox reveals the block's own instructions and, on surfaces that support the inline token, the `link_pay_token` input. **The block is the source of truth -- follow the steps it renders.**
+The block is visually hidden but present in the DOM, and may be inside a Stripe frame. Do not assume a fixed location -- search the top document and any Stripe frames for the `.AiAgentPaymentSteering` block or the "I am an AI agent" checkbox, and run the snippets below in whichever frame contains it. Checking the checkbox reveals the block's own instructions and, where the inline token is supported, the `link_pay_token` input. **The block is the source of truth -- follow the steps it renders.**
 
 1. Create a spend request (same as Step 4 -- no `--credential-type` flag needed) and get approval.
 
@@ -212,7 +212,7 @@ The block is visually hidden but present in the DOM. Where it sits depends on th
 
 4. **Confirm the token path is available.** Within a few seconds, `input[name="link_pay_token"]` should appear in the same frame.
    - If it appears, continue.
-   - If it does **not** appear, this surface renders the steering block but has the inline token input disabled (for example hosted Checkout with the input not enabled). Do **not** loop waiting for it. The spend request you created uses the default (`card`) credential type, so you can retrieve `--include card` on the **same** spend request (no new request, no re-approval) and use the card flow, follow the block's instructions to pay without Link, or report `blocked`.
+   - If it does **not** appear, this surface renders the steering block but does not enable the inline token input. Do **not** loop waiting for it. The spend request you created uses the default (`card`) credential type, so you can retrieve `--include card` on the **same** spend request (no new request, no re-approval) and use the card flow, follow the block's instructions to pay without Link, or report `blocked`.
 
 5. **Retrieve the token now** -- it is short-lived (~5 minutes), so fetch it right before injecting, not earlier:
 
