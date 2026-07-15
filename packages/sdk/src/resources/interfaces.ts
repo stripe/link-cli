@@ -131,6 +131,7 @@ export interface ISourcesResource {
 }
 
 export interface ListBalancesParams {
+  sources?: string[];
   limit?: number;
   starting_after?: string;
   ending_before?: string;

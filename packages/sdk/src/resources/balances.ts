@@ -48,6 +48,11 @@ export class BalancesResource
   private buildUrl(params: ListBalancesParams): string {
     const url = new URL(this.endpoint);
 
+    if (params.sources !== undefined) {
+      for (const source of params.sources) {
+        url.searchParams.append('sources[]', source);
+      }
+    }
     if (params.limit !== undefined) {
       url.searchParams.set('limit', String(params.limit));
     }
