@@ -12,6 +12,7 @@ export * from './resources/user-info';
 export * from './resources/web-bot-auth';
 export * from './resources/transactions';
 export * from './resources/sources';
+export * from './resources/balances';
 export * from './resources/report';
 export { MemoryStorage, Storage, storage } from './utils/storage';
 export type {

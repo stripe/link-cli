@@ -1,6 +1,7 @@
 import { type AuthStorage, Storage, storage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import { createAuthCli } from './commands/auth';
+import { createBalancesCli } from './commands/balances';
 import { createDemoCli } from './commands/demo';
 import { createMppCli } from './commands/mpp';
 import { createOnboardCli } from './commands/onboard';
@@ -76,7 +77,13 @@ const hiddenCli =
           authStorage,
           envAccessToken,
         )
-      : null;
+      : requestedCommand === 'balances'
+        ? createBalancesCli(
+            () => factory.createBalancesResource(),
+            authStorage,
+            envAccessToken,
+          )
+        : null;
 if (hiddenCli) {
   process.argv.splice(2, 1);
 }

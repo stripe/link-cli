@@ -1,5 +1,7 @@
 import type { LinkOptions } from '@/config';
+import { BalancesResource } from '@/resources/balances';
 import type {
+  IBalancesResource,
   IPaymentMethodsResource,
   IShippingAddressResource,
   ISourcesResource,
@@ -21,6 +23,7 @@ export class Link {
   readonly userInfo: IUserInfoResource;
   readonly transactions: ITransactionsResource;
   readonly sources: ISourcesResource;
+  readonly balances: IBalancesResource;
 
   constructor(options: LinkOptions = {}) {
     this.spendRequests = new SpendRequestResource(options);
@@ -29,6 +32,7 @@ export class Link {
     this.userInfo = new UserInfoResource(options);
     this.transactions = new TransactionsResource(options);
     this.sources = new SourcesResource(options);
+    this.balances = new BalancesResource(options);
   }
 }
 

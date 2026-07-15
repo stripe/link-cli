@@ -1,4 +1,4 @@
-import { SourcesResource } from '@/resources/sources';
+import { BalancesResource } from '@/resources/balances';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockFetch = vi.fn();
@@ -13,15 +13,15 @@ function mockFetchResponse(status: number, body: Record<string, unknown>) {
   });
 }
 
-describe('SourcesResource', () => {
-  let repo: SourcesResource;
+describe('BalancesResource', () => {
+  let repo: BalancesResource;
 
   beforeEach(() => {
     vi.stubGlobal('fetch', mockFetch);
     vi.clearAllMocks();
     vi.stubEnv('LINK_API_BASE_URL', undefined);
     getAccessToken.mockResolvedValue('test_token');
-    repo = new SourcesResource({ getAccessToken });
+    repo = new BalancesResource({ getAccessToken });
   });
 
   afterEach(() => {
@@ -29,38 +29,38 @@ describe('SourcesResource', () => {
     vi.unstubAllEnvs();
   });
 
-  it('GETs the Link API sources endpoint with bearer auth', async () => {
+  it('GETs the Link API balances endpoint with bearer auth', async () => {
     mockFetchResponse(200, {
       data: [
         {
-          id: 'csmrpd_123',
-          name: 'Checking 1234',
-          type: 'bank_account',
-          capabilities: {
-            transactions: { status: 'eligible' },
-          },
+          source_id: 'csmrpd_123',
+          type: 'cash',
+          cash: { available: { usd: 12500 } },
+          current: 13000,
+          currency: 'usd',
+          as_of: '2026-07-14T00:00:00Z',
         },
       ],
       has_more: true,
     });
 
-    const result = await repo.listSources();
+    const result = await repo.listBalances();
 
     expect(mockFetch).toHaveBeenCalledOnce();
     const [url, opts] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://api.link.com/sources');
+    expect(url).toBe('https://api.link.com/balances');
     expect(opts.method).toBe('GET');
     expect(opts.headers.Authorization).toBe('Bearer test_token');
 
     expect(result).toEqual({
       data: [
         {
-          id: 'csmrpd_123',
-          name: 'Checking 1234',
-          type: 'bank_account',
-          capabilities: {
-            transactions: { status: 'eligible' },
-          },
+          source_id: 'csmrpd_123',
+          type: 'cash',
+          cash: { available: { usd: 12500 } },
+          current: 13000,
+          currency: 'usd',
+          as_of: '2026-07-14T00:00:00Z',
         },
       ],
       has_more: true,
@@ -70,7 +70,7 @@ describe('SourcesResource', () => {
   it('encodes optional list params in the query string', async () => {
     mockFetchResponse(200, { data: [] });
 
-    await repo.listSources({
+    await repo.listBalances({
       limit: 50,
       starting_after: 'cursor_a',
       ending_before: 'cursor_b',
@@ -84,12 +84,12 @@ describe('SourcesResource', () => {
 
   it('resolves the base URL from LINK_API_BASE_URL when set', async () => {
     vi.stubEnv('LINK_API_BASE_URL', 'https://api.qa.link.com');
-    repo = new SourcesResource({ getAccessToken });
+    repo = new BalancesResource({ getAccessToken });
     mockFetchResponse(200, { data: [] });
 
-    await repo.listSources();
+    await repo.listBalances();
 
-    expect(mockFetch.mock.calls[0][0]).toBe('https://api.qa.link.com/sources');
+    expect(mockFetch.mock.calls[0][0]).toBe('https://api.qa.link.com/balances');
   });
 
   it('refreshes the token and retries once on 401', async () => {
@@ -110,7 +110,7 @@ describe('SourcesResource', () => {
       .mockResolvedValueOnce('test_token')
       .mockResolvedValueOnce('fresh_token');
 
-    const result = await repo.listSources();
+    const result = await repo.listBalances();
 
     expect(result).toEqual({ data: [] });
     expect(getAccessToken).toHaveBeenNthCalledWith(1);
@@ -124,37 +124,37 @@ describe('SourcesResource', () => {
   it('throws API errors with the response message', async () => {
     mockFetchResponse(500, { message: 'boom' });
 
-    await expect(repo.listSources()).rejects.toThrow(
-      'Failed to list sources (500): boom',
+    await expect(repo.listBalances()).rejects.toThrow(
+      'Failed to list balances (500): boom',
     );
   });
 
   it('formats nested API error messages', async () => {
     mockFetchResponse(401, {
       error: {
-        message: 'Access token is missing required scopes: source_details:read',
+        message: 'Access token is missing required scopes: balances:read',
       },
     });
     getAccessToken
       .mockResolvedValueOnce('test_token')
       .mockResolvedValueOnce('fresh_token');
 
-    await expect(repo.listSources()).rejects.toThrow(
-      'Failed to list sources (401): Access token is missing required scopes: source_details:read',
+    await expect(repo.listBalances()).rejects.toThrow(
+      'Failed to list balances (401): Access token is missing required scopes: balances:read',
     );
   });
 
   it('throws when no access token is available', async () => {
     getAccessToken.mockRejectedValueOnce(new Error('Missing access token'));
 
-    await expect(repo.listSources()).rejects.toThrow('Missing access token');
+    await expect(repo.listBalances()).rejects.toThrow('Missing access token');
   });
 
   it('throws when the response shape is invalid', async () => {
     mockFetchResponse(200, { data: 'not an array' });
 
-    await expect(repo.listSources()).rejects.toThrow(
-      'Failed to list sources (200): invalid response shape: Expected sources to be an array',
+    await expect(repo.listBalances()).rejects.toThrow(
+      'Failed to list balances (200): invalid response shape: Expected balances to be an array',
     );
   });
 });

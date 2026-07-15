@@ -183,11 +183,7 @@ export const SourcesList: React.FC<SourcesListProps> = ({
     () => resource.listSources(params),
     [resource, params],
   );
-  const {
-    status,
-    data: page,
-    error,
-  } = useAsyncAction(action, onComplete);
+  const { status, data: page, error } = useAsyncAction(action, onComplete);
   const sources = page?.data ?? [];
   const nextCursor =
     page?.has_more && sources.length > 0
