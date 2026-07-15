@@ -1,4 +1,5 @@
 import type {
+  ApprovalDetail,
   AuthTokens,
   CredentialType,
   DeviceAuthRequest,
@@ -43,6 +44,7 @@ export interface CreateSpendRequestParams {
   request_approval?: boolean;
   test?: boolean;
   approve?: boolean;
+  approval_details?: ApprovalDetail;
 }
 
 export interface UpdateSpendRequestParams {
