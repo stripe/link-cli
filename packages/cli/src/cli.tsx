@@ -1,6 +1,7 @@
 import { type AuthStorage, Storage, storage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import { createAuthCli } from './commands/auth';
+import { createBalancesCli } from './commands/balances';
 import { createDemoCli } from './commands/demo';
 import { createMppCli } from './commands/mpp';
 import { createOnboardCli } from './commands/onboard';
@@ -8,7 +9,6 @@ import { createPaymentMethodsCli } from './commands/payment-methods';
 import { createReportCli } from './commands/report';
 import { createServeCli } from './commands/serve';
 import { createShippingAddressCli } from './commands/shipping-address';
-import { createBalancesCli } from './commands/balances';
 import { createSourcesCli } from './commands/sources';
 import { createSpendRequestCli } from './commands/spend-request';
 import { createTransactionsCli } from './commands/transactions';

@@ -1,4 +1,5 @@
 import type { LinkOptions } from '@/config';
+import { BalancesResource } from '@/resources/balances';
 import type {
   IBalancesResource,
   IPaymentMethodsResource,
@@ -8,7 +9,6 @@ import type {
   ITransactionsResource,
   IUserInfoResource,
 } from '@/resources/interfaces';
-import { BalancesResource } from '@/resources/balances';
 import { PaymentMethodsResource } from '@/resources/payment-methods';
 import { ShippingAddressResource } from '@/resources/shipping-address';
 import { SourcesResource } from '@/resources/sources';

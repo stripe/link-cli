@@ -37,7 +37,10 @@ function normalizeBalancesPage(value: unknown): BalancesPage {
   };
 }
 
-export class BalancesResource extends BaseResource implements IBalancesResource {
+export class BalancesResource
+  extends BaseResource
+  implements IBalancesResource
+{
   constructor(options: LinkOptions = {}) {
     super(options, '/balances');
   }
