@@ -192,6 +192,24 @@ export interface TransactionsPage {
   [key: string]: unknown;
 }
 
+export interface Source {
+  id?: string | null;
+  name?: string | null;
+  type?: string | null;
+  capabilities?: Record<string, unknown> | null;
+  external_connection?: Record<string, unknown> | null;
+  granted_actions?: string[] | null;
+  bank_account?: Record<string, unknown> | null;
+  card?: Record<string, unknown> | null;
+  [key: string]: unknown;
+}
+
+export interface SourcesPage {
+  data: Source[];
+  has_more?: boolean;
+  [key: string]: unknown;
+}
+
 export interface WebBotAuthBlock {
   signature: string;
   signature_input: string;

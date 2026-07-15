@@ -2,12 +2,14 @@ import type { LinkOptions } from '@/config';
 import type {
   IPaymentMethodsResource,
   IShippingAddressResource,
+  ISourcesResource,
   ISpendRequestResource,
   ITransactionsResource,
   IUserInfoResource,
 } from '@/resources/interfaces';
 import { PaymentMethodsResource } from '@/resources/payment-methods';
 import { ShippingAddressResource } from '@/resources/shipping-address';
+import { SourcesResource } from '@/resources/sources';
 import { SpendRequestResource } from '@/resources/spend-request';
 import { TransactionsResource } from '@/resources/transactions';
 import { UserInfoResource } from '@/resources/user-info';
@@ -18,6 +20,7 @@ export class Link {
   readonly shippingAddresses: IShippingAddressResource;
   readonly userInfo: IUserInfoResource;
   readonly transactions: ITransactionsResource;
+  readonly sources: ISourcesResource;
 
   constructor(options: LinkOptions = {}) {
     this.spendRequests = new SpendRequestResource(options);
@@ -25,6 +28,7 @@ export class Link {
     this.shippingAddresses = new ShippingAddressResource(options);
     this.userInfo = new UserInfoResource(options);
     this.transactions = new TransactionsResource(options);
+    this.sources = new SourcesResource(options);
   }
 }
 
