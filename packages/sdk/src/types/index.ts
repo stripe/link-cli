@@ -1,3 +1,9 @@
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue =
+  | JsonPrimitive
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
 export interface DeviceAuthRequest {
   device_code: string;
   user_code: string;

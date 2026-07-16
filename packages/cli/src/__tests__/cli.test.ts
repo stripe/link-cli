@@ -1228,6 +1228,20 @@ describe('production mode', () => {
       expect(output).toMatch(/client.?name|non-empty/i);
     });
 
+    it('rejects whitespace-only --scope with a validation error', async () => {
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--scope',
+        '   ',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      const output = result.stdout + result.stderr;
+      expect(output).toMatch(/scope|non-empty/i);
+    });
+
     it('exits early with already logged in message when valid session exists', async () => {
       setResponseForUrl('/device/token', 200, {
         access_token: 'refreshed_access_token',
@@ -1256,6 +1270,147 @@ describe('production mode', () => {
       ).toBeUndefined();
     });
 
+    it('passes a normalized custom --scope to /device/code', async () => {
+      storage.clearAuth();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--client-name',
+        'My Agent',
+        '--scope',
+        'userinfo:read   spend_requests:approve',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const deviceCodeRequest = requests.find((r) =>
+        r.url.includes('/device/code'),
+      );
+      expect(deviceCodeRequest).toBeDefined();
+      const params = new URLSearchParams(deviceCodeRequest?.body);
+      expect(params.get('scope')).toBe('userinfo:read spend_requests:approve');
+      expect(params.get('authorization_details')).toBeNull();
+    });
+
+    it('does not translate source-related --scope values into authorization_details', async () => {
+      storage.clearAuth();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--client-name',
+        'My Agent',
+        '--scope',
+        'userinfo:read   source_details:read   balances:read',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const deviceCodeRequest = requests.find((r) =>
+        r.url.includes('/device/code'),
+      );
+      expect(deviceCodeRequest).toBeDefined();
+      const params = new URLSearchParams(deviceCodeRequest?.body);
+      expect(params.get('scope')).toBe(
+        'userinfo:read source_details:read balances:read',
+      );
+      expect(params.get('authorization_details')).toBeNull();
+      expect(params.get('authorization_details[0][type]')).toBeNull();
+    });
+
+    it('passes source actions via authorization_details', async () => {
+      storage.clearAuth();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--client-name',
+        'My Agent',
+        '--source-actions',
+        'read_source_details',
+        '--source-actions',
+        'read_balances',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const deviceCodeRequest = requests.find((r) =>
+        r.url.includes('/device/code'),
+      );
+      expect(deviceCodeRequest).toBeDefined();
+      const params = new URLSearchParams(deviceCodeRequest?.body);
+      expect(params.get('scope')).toBe('userinfo:read payment_methods.agentic');
+      expect(params.get('authorization_details')).toBeNull();
+      expect(params.getAll('authorization_details[][type]')).toEqual([
+        'source',
+      ]);
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_source_details',
+        'read_balances',
+      ]);
+    });
+
+    it('passes freeform authorization_details entries after source actions', async () => {
+      storage.clearAuth();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--client-name',
+        'My Agent',
+        '--source-actions',
+        'read_link_transactions',
+        '--authorization-detail',
+        '{"type":"account","filters":["current",{"include_inactive":true}]}',
+        '--authorization-detail',
+        'true',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const deviceCodeRequest = requests.find((r) =>
+        r.url.includes('/device/code'),
+      );
+      expect(deviceCodeRequest).toBeDefined();
+      const params = new URLSearchParams(deviceCodeRequest?.body);
+      expect(params.get('authorization_details')).toBeNull();
+      expect(params.getAll('authorization_details[][type]')).toEqual([
+        'source',
+        'account',
+      ]);
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_link_transactions',
+      ]);
+      expect(params.getAll('authorization_details[][filters][]')).toEqual([
+        'current',
+      ]);
+      expect(
+        params.getAll('authorization_details[][filters][][include_inactive]'),
+      ).toEqual(['true']);
+      expect(params.getAll('authorization_details[]')).toEqual(['true']);
+    });
+
+    it('rejects invalid JSON in --authorization-detail', async () => {
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--client-name',
+        'My Agent',
+        '--authorization-detail',
+        '{"type":',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      const output = result.stdout + result.stderr;
+      expect(output).toMatch(/authorization-detail|json/i);
+    });
+
     it('sends client_hint and returns immediately with _next polling hint', async () => {
       setResponseForUrl('/device/token', 401, { error: 'invalid_grant' });
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
@@ -1276,6 +1431,7 @@ describe('production mode', () => {
       const params = new URLSearchParams(deviceCodeRequest?.body);
       expect(params.get('client_hint')).toBe('My Agent');
       expect(params.get('connection_label')).toContain('My Agent on ');
+      expect(params.get('scope')).toBe('userinfo:read payment_methods.agentic');
 
       // Returns immediately with verification URL and _next hint
       const output = parseJson(result.stdout) as Record<string, unknown>[];

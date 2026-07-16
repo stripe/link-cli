@@ -2,7 +2,9 @@ import { type AuthStorage, storage as defaultStorage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import { Text } from 'ink';
 import React from 'react';
-import type { IAuthResource } from '../../auth/types';
+import { parseAuthorizationDetails } from '../../auth/authorization-details';
+import { normalizeScopeInput } from '../../auth/scopes';
+import type { IAuthResource, JsonValue } from '../../auth/types';
 import { pollUntil } from '../../utils/poll-until';
 import { renderInteractive } from '../../utils/render-interactive';
 import { sanitizeDeep } from '../../utils/sanitize-text';
@@ -107,10 +109,28 @@ export function createAuthCli(
     outputPolicy: 'agent-only' as const,
     async *run(c) {
       const clientName = c.options.clientName?.trim();
+      const scope = normalizeScopeInput(c.options.scope);
+      let authorizationDetails: JsonValue[] | undefined;
       if (!clientName || clientName.length === 0) {
         return c.error({
           code: 'INVALID_INPUT',
           message: 'client-name must be a non-empty string',
+        });
+      }
+      if (c.options.scope !== undefined && !scope) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message: 'scope must be a non-empty string when provided',
+        });
+      }
+      try {
+        authorizationDetails = parseAuthorizationDetails(
+          c.options.authorizationDetail,
+        );
+      } catch (error) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message: (error as Error).message,
         });
       }
 
@@ -147,6 +167,9 @@ export function createAuthCli(
           <Login
             authResource={authResource}
             clientName={clientName}
+            scope={scope}
+            sourceActions={c.options.sourceActions}
+            authorizationDetails={authorizationDetails}
             authStorage={storage}
             onComplete={() => {}}
           />,
@@ -154,7 +177,12 @@ export function createAuthCli(
         );
       }
 
-      const authRequest = await authResource.initiateDeviceAuth(clientName);
+      const authRequest = await authResource.initiateDeviceAuth({
+        clientName,
+        scope,
+        sourceActions: c.options.sourceActions,
+        authorizationDetails,
+      });
       storage.setPendingDeviceAuth({
         device_code: authRequest.device_code,
         interval: authRequest.interval,

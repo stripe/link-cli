@@ -1,5 +1,9 @@
 import { hostname } from 'node:os';
-import { LinkApiError, LinkTransportError } from '@stripe/link-sdk';
+import {
+  LinkApiError,
+  LinkAuthorizationDeclinedError,
+  LinkTransportError,
+} from '@stripe/link-sdk';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LinkAuthResource } from '../auth-resource';
 
@@ -56,6 +60,116 @@ describe('LinkAuthResource', () => {
       });
     });
 
+    it('uses the default scope when none is provided', async () => {
+      mockFetchResponse(200, {
+        device_code: 'dev_123',
+        user_code: 'ABCD-EFGH',
+        verification_uri: 'https://link.com/verify',
+        verification_uri_complete: 'https://link.com/verify?code=ABCD-EFGH',
+        expires_in: 900,
+        interval: 5,
+      });
+
+      const resource = createResource();
+      await resource.initiateDeviceAuth();
+
+      const body = mockFetch.mock.calls[0][1].body as string;
+      const params = new URLSearchParams(body);
+      expect(params.get('scope')).toBe('userinfo:read payment_methods.agentic');
+    });
+
+    it('passes a custom scope when provided', async () => {
+      mockFetchResponse(200, {
+        device_code: 'dev_123',
+        user_code: 'ABCD-EFGH',
+        verification_uri: 'https://link.com/verify',
+        verification_uri_complete: 'https://link.com/verify?code=ABCD-EFGH',
+        expires_in: 900,
+        interval: 5,
+      });
+
+      const resource = createResource();
+      await resource.initiateDeviceAuth({
+        scope: 'userinfo:read spend_requests:approve',
+      });
+
+      const body = mockFetch.mock.calls[0][1].body as string;
+      const params = new URLSearchParams(body);
+      expect(params.get('scope')).toBe('userinfo:read spend_requests:approve');
+      expect(params.get('authorization_details')).toBeNull();
+    });
+
+    it('passes source actions via authorization_details', async () => {
+      mockFetchResponse(200, {
+        device_code: 'dev_123',
+        user_code: 'ABCD-EFGH',
+        verification_uri: 'https://link.com/verify',
+        verification_uri_complete: 'https://link.com/verify?code=ABCD-EFGH',
+        expires_in: 900,
+        interval: 5,
+      });
+
+      const resource = createResource();
+      await resource.initiateDeviceAuth({
+        scope: 'userinfo:read payment_methods.agentic',
+        sourceActions: ['read_source_details', 'read_balances'],
+      });
+
+      const body = mockFetch.mock.calls[0][1].body as string;
+      const params = new URLSearchParams(body);
+      expect(params.get('scope')).toBe('userinfo:read payment_methods.agentic');
+      expect(params.get('authorization_details')).toBeNull();
+      expect(params.getAll('authorization_details[][type]')).toEqual([
+        'source',
+      ]);
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_source_details',
+        'read_balances',
+      ]);
+    });
+
+    it('serializes freeform authorization_details after source actions', async () => {
+      mockFetchResponse(200, {
+        device_code: 'dev_123',
+        user_code: 'ABCD-EFGH',
+        verification_uri: 'https://link.com/verify',
+        verification_uri_complete: 'https://link.com/verify?code=ABCD-EFGH',
+        expires_in: 900,
+        interval: 5,
+      });
+
+      const resource = createResource();
+      await resource.initiateDeviceAuth({
+        scope: 'userinfo:read payment_methods.agentic',
+        sourceActions: ['read_link_transactions'],
+        authorizationDetails: [
+          {
+            type: 'account',
+            filters: ['current', { include_inactive: true }],
+          },
+          true,
+        ],
+      });
+
+      const body = mockFetch.mock.calls[0][1].body as string;
+      const params = new URLSearchParams(body);
+      expect(params.get('authorization_details')).toBeNull();
+      expect(params.getAll('authorization_details[][type]')).toEqual([
+        'source',
+        'account',
+      ]);
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_link_transactions',
+      ]);
+      expect(params.getAll('authorization_details[][filters][]')).toEqual([
+        'current',
+      ]);
+      expect(
+        params.getAll('authorization_details[][filters][][include_inactive]'),
+      ).toEqual(['true']);
+      expect(params.getAll('authorization_details[]')).toEqual(['true']);
+    });
+
     it('includes client name and hostname in connection_label', async () => {
       mockFetchResponse(200, {
         device_code: 'dev_123',
@@ -67,7 +181,7 @@ describe('LinkAuthResource', () => {
       });
 
       const resource = createResource();
-      await resource.initiateDeviceAuth('My Agent');
+      await resource.initiateDeviceAuth({ clientName: 'My Agent' });
 
       const body = mockFetch.mock.calls[0][1].body as string;
       const params = new URLSearchParams(body);

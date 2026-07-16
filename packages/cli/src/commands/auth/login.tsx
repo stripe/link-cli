@@ -2,19 +2,23 @@ import {
   type AuthStorage,
   LinkAuthorizationDeclinedError,
   type ScopeEligibility,
+  type SourceAction,
   storage as defaultStorage,
 } from '@stripe/link-sdk';
 import { Box, Text, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useEffect, useState } from 'react';
-import type { IAuthResource } from '../../auth/types';
+import type { IAuthResource, JsonValue } from '../../auth/types';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { openUrl } from '../../utils/open-url';
 
 interface LoginProps {
   authResource: IAuthResource;
   clientName?: string;
+  scope?: string;
+  sourceActions?: SourceAction[];
+  authorizationDetails?: JsonValue[];
   authStorage?: AuthStorage;
   onComplete: () => void;
 }
@@ -22,6 +26,9 @@ interface LoginProps {
 export const Login: React.FC<LoginProps> = ({
   authResource,
   clientName,
+  scope,
+  sourceActions,
+  authorizationDetails,
   authStorage = defaultStorage,
   onComplete,
 }) => {
@@ -49,7 +56,12 @@ export const Login: React.FC<LoginProps> = ({
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const authRequest = await authResource.initiateDeviceAuth(clientName);
+        const authRequest = await authResource.initiateDeviceAuth({
+          clientName,
+          scope,
+          sourceActions,
+          authorizationDetails,
+        });
         setUserCode(authRequest.user_code);
         setVerificationUrl(authRequest.verification_url_complete);
         setDeviceCode(authRequest.device_code);
@@ -61,7 +73,7 @@ export const Login: React.FC<LoginProps> = ({
     };
 
     initAuth();
-  }, [authResource, clientName]);
+  }, [authResource, authorizationDetails, clientName, scope, sourceActions]);
 
   useEffect(() => {
     if (status !== 'waiting' || !deviceCode) return;

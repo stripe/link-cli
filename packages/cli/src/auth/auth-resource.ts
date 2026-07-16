@@ -5,16 +5,22 @@ import {
   LinkTransportError,
   type ScopeEligibility,
 } from '@stripe/link-sdk';
+import { buildAuthorizationDetails } from './authorization-details';
 import {
   type AuthResourceOptions,
   type ResolvedAuthResourceConfig,
   requireFetchImplementation,
   resolveAuthResourceConfig,
 } from './config';
-import type { DeviceAuthRequest, IAuthResource } from './types';
+import { DEFAULT_SCOPE } from './scopes';
+import type {
+  DeviceAuthRequest,
+  IAuthResource,
+  InitiateDeviceAuthOptions,
+  JsonValue,
+} from './types';
 
 const CLIENT_ID = 'lwlpk_U7Qy7ThG69STZk';
-const DEFAULT_SCOPE = 'userinfo:read payment_methods.agentic';
 
 interface DeviceCodeResponse {
   device_code: string;
@@ -48,6 +54,72 @@ function formatOAuthError(
   return `${prefix} (${status}): ${err?.error_description ?? err?.error ?? (rawBody || 'unknown error')}`;
 }
 
+function appendAuthorizationDetailValue(
+  params: URLSearchParams,
+  key: string,
+  value: JsonValue,
+): void {
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      appendAuthorizationDetailValue(params, `${key}[]`, entry);
+    }
+    return;
+  }
+
+  if (value !== null && typeof value === 'object') {
+    for (const [entryKey, entryValue] of Object.entries(value)) {
+      appendAuthorizationDetailValue(params, `${key}[${entryKey}]`, entryValue);
+    }
+    return;
+  }
+
+  params.append(key, String(value));
+}
+
+function buildDeviceCodeForm(
+  clientName: string,
+  options: InitiateDeviceAuthOptions,
+): URLSearchParams {
+  const connectionLabel = `${clientName} on ${hostname()}`;
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    scope: options.scope ?? DEFAULT_SCOPE,
+    connection_label: connectionLabel,
+    client_hint: clientName,
+  });
+  const authorizationDetails = buildAuthorizationDetails(
+    options.sourceActions,
+    options.authorizationDetails,
+  );
+
+  for (const detail of authorizationDetails) {
+    appendAuthorizationDetailValue(params, 'authorization_details[]', detail);
+  }
+
+  return params;
+}
+
+function serializeFormBody(
+  params: Record<string, string> | URLSearchParams,
+): string {
+  return params instanceof URLSearchParams
+    ? params.toString()
+    : new URLSearchParams(params).toString();
+}
+
+function serializeRedactedFormBody(
+  params: Record<string, string> | URLSearchParams,
+): string {
+  const redacted = new URLSearchParams(params);
+  if (redacted.has('device_code')) {
+    redacted.set('device_code', '<redacted>');
+  }
+  if (redacted.has('refresh_token')) {
+    redacted.set('refresh_token', '<redacted>');
+  }
+  return redacted.toString();
+}
+
 export class LinkAuthResource implements IAuthResource {
   private readonly config: ResolvedAuthResourceConfig;
   private readonly fetchImpl: typeof globalThis.fetch;
@@ -59,14 +131,11 @@ export class LinkAuthResource implements IAuthResource {
 
   private async postForm(
     url: string,
-    params: Record<string, string>,
+    params: Record<string, string> | URLSearchParams,
   ): Promise<{ status: number; data: unknown; rawBody: string }> {
     if (this.config.verbose) {
-      const redacted = { ...params };
-      if (redacted.device_code) redacted.device_code = '<redacted>';
-      if (redacted.refresh_token) redacted.refresh_token = '<redacted>';
       this.config.logger.debug(
-        `> POST ${url}\n${JSON.stringify(redacted, null, 2)}`,
+        `> POST ${url}\n${serializeRedactedFormBody(params)}`,
       );
     }
 
@@ -78,7 +147,7 @@ export class LinkAuthResource implements IAuthResource {
           ...this.config.defaultHeaders,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: new URLSearchParams(params).toString(),
+        body: serializeFormBody(params),
       });
     } catch (error) {
       throw new LinkTransportError(`Request failed: POST ${url}`, {
@@ -106,16 +175,14 @@ export class LinkAuthResource implements IAuthResource {
     return { status: response.status, data, rawBody };
   }
 
-  async initiateDeviceAuth(clientName?: string): Promise<DeviceAuthRequest> {
-    const effectiveName = clientName ?? this.config.clientName;
+  async initiateDeviceAuth(
+    options: InitiateDeviceAuthOptions = {},
+  ): Promise<DeviceAuthRequest> {
+    const effectiveName = options.clientName ?? this.config.clientName;
+    const params = buildDeviceCodeForm(effectiveName, options);
     const { status, data, rawBody } = await this.postForm(
       `${this.config.authBaseUrl}/device/code`,
-      {
-        client_id: CLIENT_ID,
-        scope: DEFAULT_SCOPE,
-        connection_label: `${effectiveName} on ${hostname()}`,
-        client_hint: effectiveName,
-      },
+      params,
     );
 
     if (status < 200 || status >= 300) {
