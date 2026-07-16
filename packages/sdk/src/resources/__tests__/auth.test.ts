@@ -102,6 +102,110 @@ describe('AuthResource', () => {
       expect(params.get('client_hint')).toBe('Link CLI');
     });
 
+    it('uses the default scope when none is provided', async () => {
+      mockFetchResponse(200, {
+        device_code: 'dc',
+        user_code: 'uc',
+        verification_uri: 'https://example.com',
+        verification_uri_complete: 'https://example.com?code=uc',
+        expires_in: 300,
+        interval: 5,
+      });
+
+      await repo.initiateDeviceAuth();
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const params = new URLSearchParams(opts.body);
+      expect(params.get('scope')).toBe('userinfo:read payment_methods.agentic');
+    });
+
+    it('passes a custom scope when provided', async () => {
+      mockFetchResponse(200, {
+        device_code: 'dc',
+        user_code: 'uc',
+        verification_uri: 'https://example.com',
+        verification_uri_complete: 'https://example.com?code=uc',
+        expires_in: 300,
+        interval: 5,
+      });
+
+      await repo.initiateDeviceAuth({
+        scope: 'userinfo:read spend_requests:approve',
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const params = new URLSearchParams(opts.body);
+      expect(params.get('scope')).toBe('userinfo:read spend_requests:approve');
+      expect(params.get('authorization_details')).toBeNull();
+    });
+
+    it('passes source actions via authorization_details', async () => {
+      mockFetchResponse(200, {
+        device_code: 'dc',
+        user_code: 'uc',
+        verification_uri: 'https://example.com',
+        verification_uri_complete: 'https://example.com?code=uc',
+        expires_in: 300,
+        interval: 5,
+      });
+
+      await repo.initiateDeviceAuth({
+        sourceActions: ['read_source_details', 'read_balances'],
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const params = new URLSearchParams(opts.body);
+      expect(params.get('scope')).toBe('userinfo:read payment_methods.agentic');
+      expect(params.get('authorization_details')).toBeNull();
+      expect(params.getAll('authorization_details[][type]')).toEqual([
+        'source',
+      ]);
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_source_details',
+        'read_balances',
+      ]);
+    });
+
+    it('serializes raw authorization_details after generated source details', async () => {
+      mockFetchResponse(200, {
+        device_code: 'dc',
+        user_code: 'uc',
+        verification_uri: 'https://example.com',
+        verification_uri_complete: 'https://example.com?code=uc',
+        expires_in: 300,
+        interval: 5,
+      });
+
+      await repo.initiateDeviceAuth({
+        sourceActions: ['read_link_transactions'],
+        authorizationDetails: [
+          {
+            type: 'account',
+            filters: ['current', { include_inactive: true }],
+          },
+          true,
+        ],
+      });
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const params = new URLSearchParams(opts.body);
+      expect(params.get('authorization_details')).toBeNull();
+      expect(params.getAll('authorization_details[][type]')).toEqual([
+        'source',
+        'account',
+      ]);
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_link_transactions',
+      ]);
+      expect(params.getAll('authorization_details[][filters][]')).toEqual([
+        'current',
+      ]);
+      expect(
+        params.getAll('authorization_details[][filters][][include_inactive]'),
+      ).toEqual(['true']);
+      expect(params.getAll('authorization_details[]')).toEqual(['true']);
+    });
+
     it('uses custom clientName in connection_label and client_hint when provided', async () => {
       mockFetchResponse(200, {
         device_code: 'dc',
@@ -133,7 +237,7 @@ describe('AuthResource', () => {
         interval: 5,
       });
 
-      await repo.initiateDeviceAuth('My Agent');
+      await repo.initiateDeviceAuth({ clientName: 'My Agent' });
 
       const [, opts] = mockFetch.mock.calls[0];
       const params = new URLSearchParams(opts.body);

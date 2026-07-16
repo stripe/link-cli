@@ -189,8 +189,7 @@ link-cli auth login \
   --source-actions read_balances \
   --source-actions read_source_details \
   --source-actions read_external_transactions \
-  --source-actions read_link_transactions \
-  --source-actions read_transactions_summary  # retrieve financial data
+  --source-actions read_link_transactions  # retrieve financial data
 link-cli auth login \
   --authorization-detail '{"type":"account","filters":["checking"]}'  # append raw authorization_details
 link-cli auth login --client-name "Claude Code" --interval 5 --timeout 300  # login + poll in one call
@@ -202,7 +201,7 @@ When you provide `--client-name`, the Link app displays it when you approve the 
 
 Use `--scope "scope1 scope2"` to override the requested OAuth scopes. When omitted, the CLI keeps the default scope request: `userinfo:read payment_methods.agentic`.
 
-Use repeatable `--source-actions` flags to request access to `actions` on the `source` resource type used for Financial Insights. The accepted values are `read_balances`, `read_external_transactions`, `read_link_transactions`, `read_transactions_summary`, and `read_source_details`.
+Use repeatable `--source-actions` flags to request access to `actions` on the `source` resource type used for Financial Insights. The accepted values are `read_balances`, `read_external_transactions`, `read_link_transactions`, and `read_source_details`.
 
 Use repeatable `--authorization-detail '<json>'` as an escape hatch to append raw `authorization_details` entries.
 
