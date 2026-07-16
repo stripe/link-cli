@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.9.0
+
+### Minor Changes
+
+- Introduce approval_details and some fc insight features
+
 ## 0.8.3
 
 ### Patch Changes
