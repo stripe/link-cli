@@ -1,6 +1,10 @@
 import { z } from 'incur';
 
 export const listOptions = z.object({
+  source: z
+    .array(z.string())
+    .default([])
+    .describe('Filter by source ID. Repeat to include multiple sources.'),
   limit: z.coerce
     .number()
     .int()

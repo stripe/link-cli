@@ -29,6 +29,7 @@ export function createBalancesCli(
       const resource = createResource();
 
       const params: ListBalancesParams = {};
+      if (opts.source.length > 0) params.sources = opts.source;
       if (opts.limit !== undefined) params.limit = opts.limit;
       if (opts.startingAfter !== undefined)
         params.starting_after = opts.startingAfter;
