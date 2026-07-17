@@ -8,6 +8,7 @@
   "files": [
     "dist",
     "!dist/sea",
+    "postinstall.mjs",
     "README.md",
     "LICENSE"
   ],
@@ -24,6 +25,7 @@
   "scripts": {
     "build": "tsup",
     "build:sea": "tsup --config tsup.sea.config.ts",
+    "postinstall": "node postinstall.mjs",
     "prepack": "cp ../../README.md ../../LICENSE .",
     "typecheck": "tsc",
     "test": "vitest run",
