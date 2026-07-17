@@ -140,7 +140,14 @@ if (!hiddenCli) {
       envAccessToken,
     ),
   );
-  cli.command(createMppCli(spendRequestRepo, authStorage, envAccessToken));
+  cli.command(
+    createMppCli(
+      spendRequestRepo,
+      () => factory.createPaymentMethodsResource(),
+      authStorage,
+      envAccessToken,
+    ),
+  );
   // cli.command(
   //   createWebBotAuthCli(() => factory.createWebBotAuthResource(), authStorage),
   // );

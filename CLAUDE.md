@@ -77,8 +77,10 @@ Key input field notes:
 
 ### mpp pay
 
-- `mpp pay <url> --spend-request-id <id> [--method <method>] [--data <body>] [--header <header>]...` — completes the 402 flow: retrieves the spend request with `include: ['shared_payment_token']`, probes the URL, parses the `www-authenticate` stripe challenge, builds the `Authorization: Payment` credential, and retries. `--header` is repeatable and uses `"Name: Value"` format. `Content-Type: application/json` is auto-applied when `--data` is provided; user-provided headers take precedence.
-- Requires an approved spend request with `credential_type: "shared_payment_token"`. The SPT is one-time-use — a failed payment requires a new spend request.
+- `mpp pay <url> [-X <method>] [-d <body>] [-H <header>]... [--context <ctx>] [--amount <cents>] [--payment-method-id <id>] [--test]` — handles the full MPP flow end-to-end: probes the URL for a 402 challenge, parses the `www-authenticate` header to extract network_id and amount, creates a spend request (credential_type: shared_payment_token), gets user approval, retrieves the SPT, and pays. Amount/currency are derived from the 402 challenge; `--amount` overrides. Context is auto-generated; `--context` overrides. Default payment method is used unless `--payment-method-id` is specified.
+- `mpp pay <url> --spend-request-id <id> [--method <method>] [--data <body>] [--header <header>]...` — backward-compat mode: uses a pre-approved spend request directly, skipping creation/approval.
+- `--header` is repeatable and uses `"Name: Value"` format. `Content-Type: application/json` is auto-applied when `--data` is provided; user-provided headers take precedence.
+- The SPT is one-time-use — a failed payment requires running `mpp pay` again (creates a new spend request).
 - Implemented in `packages/cli/src/commands/mpp/` — pay.tsx (logic), schema.ts (input/output schema), index.tsx (incur registration).
 
 ### demo command

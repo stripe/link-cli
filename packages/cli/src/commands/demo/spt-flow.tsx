@@ -11,7 +11,7 @@ import { MarkdownText } from '../../utils/markdown-text';
 import { openUrl } from '../../utils/open-url';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
 import { decodeStripeChallenge } from '../mpp/decode';
-import { type PayResult, runMppPay } from '../mpp/pay';
+import { type PayResult, runMppPayWithSpendRequest } from '../mpp/pay';
 import {
   DEMO_CLIMATE_API_URL,
   DEMO_MPP_DEV_URL,
@@ -212,7 +212,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
         setStep('mpp-pay-gate');
         await waitForEnter();
         setStep('mpp-pay');
-        const payResponse = await runMppPay(
+        const payResponse = await runMppPayWithSpendRequest(
           DEMO_CLIMATE_API_URL,
           result.id,
           'POST',
