@@ -58,7 +58,29 @@ describe('decodeStripeChallenge', () => {
     });
   });
 
-  it('rejects headers without a stripe charge challenge', () => {
+  it('decodes a stripe session challenge', () => {
+    const header = [
+      'Payment id="sess_001", realm="merchant.example", method="stripe", intent="session",',
+      `request="${encodeRequest({
+        amount: '1000',
+        currency: 'usd',
+        methodDetails: {
+          networkId: 'net_001',
+          paymentMethodTypes: ['card'],
+        },
+      })}"`,
+    ].join(' ');
+
+    expect(decodeStripeChallenge(header)).toMatchObject({
+      id: 'sess_001',
+      realm: 'merchant.example',
+      method: 'stripe',
+      intent: 'session',
+      network_id: 'net_001',
+    });
+  });
+
+  it('rejects headers without a stripe charge or session challenge', () => {
     const header =
       'Payment id="tempo_001", realm="merchant.example", method="tempo", intent="charge", request="e30="';
 
