@@ -86,7 +86,6 @@ function createStripePaymentClient(spt: string) {
   });
 }
 
-
 export interface MppPayFullFlowOptions {
   url: string;
   method: string | undefined;
