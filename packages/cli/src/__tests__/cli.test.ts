@@ -420,6 +420,37 @@ describe('production mode', () => {
       expect(next.command).toContain('--interval');
     });
 
+    it('surfaces support_url on identity_verification_failed error', async () => {
+      setNextResponse(403, {
+        error: {
+          code: 'identity_verification_failed',
+          message:
+            'Unable to verify your identity, please reach out to support to re-enable Link for agentic payments.',
+          support_url: 'https://support.link.com',
+        },
+      });
+
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '-m',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      const output = result.stdout + result.stderr;
+      expect(output).toContain('https://support.link.com');
+    });
+
     it('surfaces API error messages', async () => {
       setNextResponse(422, { error: { message: 'Invalid payment details' } });
 
@@ -530,6 +561,28 @@ describe('production mode', () => {
       const next = output[0]._next as Record<string, unknown>;
       expect(next.command).toContain('spend-request retrieve');
       expect(next.command).toContain('--interval');
+    });
+
+    it('surfaces support_url on identity_verification_failed error', async () => {
+      setNextResponse(403, {
+        error: {
+          code: 'identity_verification_failed',
+          message:
+            'Unable to verify your identity, please reach out to support to re-enable Link for agentic payments.',
+          support_url: 'https://support.link.com',
+        },
+      });
+
+      const result = await runProdCli(
+        'spend-request',
+        'request-approval',
+        'lsrq_prod_001',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      const output = result.stdout + result.stderr;
+      expect(output).toContain('https://support.link.com');
     });
 
     it('surfaces API errors for request-approval', async () => {

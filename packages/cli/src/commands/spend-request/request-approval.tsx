@@ -26,6 +26,7 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
   const [result, setResult] = useState<SpendRequest | null>(null);
   const [error, setError] = useState<string>('');
   const [verificationUrl, setVerificationUrl] = useState<string>('');
+  const [supportUrl, setSupportUrl] = useState<string>('');
   const { exit } = useApp();
 
   const completeAndExit = useCallback(
@@ -59,9 +60,13 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
       } catch (err) {
         setError((err as Error).message);
         if (err instanceof LinkApiError) {
-          const url = (err.details as { error?: { verification_url?: string } })
-            ?.error?.verification_url;
-          if (url) setVerificationUrl(url);
+          const errDetail = err.details as {
+            error?: { verification_url?: string; support_url?: string };
+          };
+          if (errDetail?.error?.verification_url)
+            setVerificationUrl(errDetail.error.verification_url);
+          if (errDetail?.error?.support_url)
+            setSupportUrl(errDetail.error.support_url);
         }
         setStatus('error');
         setTimeout(() => {
@@ -92,6 +97,11 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
         {verificationUrl && (
           <Text color="red">
             Complete additional verification at: {verificationUrl}
+          </Text>
+        )}
+        {supportUrl && (
+          <Text color="red">
+            Identity verification failed. Contact support at: {supportUrl}
           </Text>
         )}
       </Box>

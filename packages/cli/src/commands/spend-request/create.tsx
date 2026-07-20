@@ -37,6 +37,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
   const [request, setRequest] = useState<SpendRequest | null>(null);
   const [error, setError] = useState<string>('');
   const [verificationUrl, setVerificationUrl] = useState<string>('');
+  const [supportUrl, setSupportUrl] = useState<string>('');
   const [outputFilePath, setOutputFilePath] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string>('');
 
@@ -83,9 +84,13 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
       } catch (err) {
         setError((err as Error).message);
         if (err instanceof LinkApiError) {
-          const url = (err.details as { error?: { verification_url?: string } })
-            ?.error?.verification_url;
-          if (url) setVerificationUrl(url);
+          const errDetail = err.details as {
+            error?: { verification_url?: string; support_url?: string };
+          };
+          if (errDetail?.error?.verification_url)
+            setVerificationUrl(errDetail.error.verification_url);
+          if (errDetail?.error?.support_url)
+            setSupportUrl(errDetail.error.support_url);
         }
         setStatus('error');
         setTimeout(() => completeAndExit(null), DISPLAY_DELAY_MS);
@@ -129,6 +134,11 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
         {verificationUrl && (
           <Text color="red">
             Complete additional verification at: {verificationUrl}
+          </Text>
+        )}
+        {supportUrl && (
+          <Text color="red">
+            Identity verification failed. Contact support at: {supportUrl}
           </Text>
         )}
       </Box>

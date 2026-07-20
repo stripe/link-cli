@@ -204,12 +204,22 @@ export function createSpendRequestCli(
       } catch (err) {
         if (err instanceof LinkApiError) {
           const apiErr = err.details as {
-            error?: { code?: string; verification_url?: string };
+            error?: {
+              code?: string;
+              verification_url?: string;
+              support_url?: string;
+            };
           };
           if (apiErr?.error?.verification_url) {
             return c.error({
               code: err.code,
               message: `${err.message} Verification URL: ${apiErr.error.verification_url}`,
+            });
+          }
+          if (apiErr?.error?.support_url) {
+            return c.error({
+              code: err.code,
+              message: `${err.message} Support URL: ${apiErr.error.support_url}`,
             });
           }
         }
@@ -329,12 +339,22 @@ export function createSpendRequestCli(
       } catch (err) {
         if (err instanceof LinkApiError) {
           const apiErr = err.details as {
-            error?: { code?: string; verification_url?: string };
+            error?: {
+              code?: string;
+              verification_url?: string;
+              support_url?: string;
+            };
           };
           if (apiErr?.error?.verification_url) {
             return c.error({
               code: err.code,
               message: `${err.message} Verification URL: ${apiErr.error.verification_url}`,
+            });
+          }
+          if (apiErr?.error?.support_url) {
+            return c.error({
+              code: err.code,
+              message: `${err.message} Support URL: ${apiErr.error.support_url}`,
             });
           }
         }
