@@ -21,9 +21,10 @@ export const payOptions = z.object({
     .describe('Request header in "Name: Value" format (repeatable)'),
   context: z
     .string()
+    .min(100)
     .optional()
     .describe(
-      'Context for the spend request (auto-generated from URL and amount if omitted)',
+      'Min 100 chars — describe the purchase and rationale; the user reads this when approving. Required when --spend-request-id is not provided.',
     ),
   amount: z.coerce
     .number()

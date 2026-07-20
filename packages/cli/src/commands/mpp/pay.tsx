@@ -86,31 +86,19 @@ function createStripePaymentClient(spt: string) {
   });
 }
 
-export function generateContext(
-  url: string,
-  amount: number,
-  currency: string,
-): string {
-  const base = `Machine payment to ${url} for ${amount} ${currency.toUpperCase()}. Agent-initiated programmatic payment via Machine Payment Protocol (MPP).`;
-  if (base.length >= 100) return base;
-  return `${base} ${'—'.repeat(Math.ceil((100 - base.length) / 1))}`.slice(
-    0,
-    Math.max(100, base.length),
-  );
-}
 
 export interface MppPayFullFlowOptions {
   url: string;
   method: string | undefined;
   data: string | undefined;
   headers: string[] | undefined;
-  context: string | undefined;
+  context: string;
   amountOverride: number | undefined;
   paymentMethodId: string | undefined;
   test: boolean;
   repository: ISpendRequestResource;
   paymentMethodsFactory: () => IPaymentMethodsResource;
-  onStep?: (step: string) => void;
+  onStep?: (step: Step) => void;
   onApprovalUrl?: (url: string) => void;
 }
 
@@ -244,7 +232,7 @@ export async function runMppPayFullFlow(
   // 3. Get payment method
   let pmId = paymentMethodId;
   if (!pmId) {
-    onStep?.('fetching payment methods');
+    onStep?.('creating');
     const pmResource = paymentMethodsFactory();
     const methods = await pmResource.list();
     if (!methods.length) {
@@ -256,22 +244,20 @@ export async function runMppPayFullFlow(
   }
 
   // 4. Create spend request
-  onStep?.('creating spend request');
-  const spendContext =
-    context ?? generateContext(url, amount, challengeCurrency);
+  onStep?.('creating');
   const spendRequest = await repository.createSpendRequest({
     payment_details: pmId,
     credential_type: 'shared_payment_token',
     network_id: networkId,
     amount,
     currency: challengeCurrency,
-    context: spendContext,
+    context,
     request_approval: true,
     test: test || undefined,
   });
 
   // 5. Poll for approval
-  onStep?.('awaiting approval');
+  onStep?.('approving');
   if (spendRequest.approval_url) {
     onApprovalUrl?.(spendRequest.approval_url);
   }
@@ -284,12 +270,11 @@ export async function runMppPayFullFlow(
   }
 
   // 6. Retrieve with SPT (retry briefly in case of propagation delay)
-  onStep?.('retrieving payment token');
+  onStep?.('signing');
   let withSpt = await repository.getSpendRequest(spendRequest.id, {
     include: ['shared_payment_token'],
   });
   for (let i = 0; i < 3 && withSpt && !withSpt.shared_payment_token; i++) {
-    onStep?.(`retrying SPT retrieval (attempt ${i + 2})`);
     await new Promise((r) => setTimeout(r, 1000));
     withSpt = await repository.getSpendRequest(spendRequest.id, {
       include: ['shared_payment_token'],
@@ -300,7 +285,7 @@ export async function runMppPayFullFlow(
   }
 
   // 7. Pay
-  onStep?.('submitting payment');
+  onStep?.('submitting');
   return payWithSpt(
     url,
     withSpt.shared_payment_token.id,
@@ -310,7 +295,7 @@ export async function runMppPayFullFlow(
   );
 }
 
-type Step =
+export type Step =
   | 'probing'
   | 'creating'
   | 'approving'
@@ -368,6 +353,11 @@ export function MppPay({
             repository,
           );
         } else {
+          if (!context) {
+            throw new Error(
+              '--context is required for the full MPP flow (min 100 chars)',
+            );
+          }
           payResult = await runMppPayFullFlow({
             url,
             method,
@@ -379,17 +369,7 @@ export function MppPay({
             test: test ?? false,
             repository,
             paymentMethodsFactory,
-            onStep: (s) => {
-              if (s === 'probing') setStep('probing');
-              else if (
-                s === 'creating spend request' ||
-                s === 'fetching payment methods'
-              )
-                setStep('creating');
-              else if (s === 'awaiting approval') setStep('approving');
-              else if (s === 'retrieving payment token') setStep('signing');
-              else if (s === 'submitting payment') setStep('submitting');
-            },
+            onStep: setStep,
             onApprovalUrl: (u) => setApprovalUrl(u),
           });
         }

@@ -13,7 +13,6 @@ import {
   MppPay,
   type PayResult,
   buildHeaders,
-  generateContext,
   readPayResult,
   runMppPayFullFlow,
   runMppPayWithSpendRequest,
@@ -127,6 +126,14 @@ export function createMppCli(
         });
       }
 
+      if (!opts.context) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message:
+            '--context is required for the full MPP flow (min 100 chars). Describe the purchase and rationale.',
+        });
+      }
+
       let pmId = opts.paymentMethodId;
       if (!pmId) {
         const pmResource = paymentMethodsFactory();
@@ -141,15 +148,13 @@ export function createMppCli(
         pmId = methods[0].id;
       }
 
-      const spendContext =
-        opts.context ?? generateContext(url, amount, challengeCurrency);
       const spendRequest = await repository.createSpendRequest({
         payment_details: pmId,
         credential_type: 'shared_payment_token',
         network_id: networkId,
         amount,
         currency: challengeCurrency,
-        context: spendContext,
+        context: opts.context,
         request_approval: true,
         test: opts.test || undefined,
       });
