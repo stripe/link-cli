@@ -31,6 +31,7 @@ interface TokenResponse {
   token_type: string;
   expires_in: number;
   scope?: string;
+  authorization_details?: JsonValue[];
 }
 
 interface OAuthError {
@@ -253,6 +254,10 @@ export class AuthResource implements IAuthResource {
         refresh_token: resp.refresh_token,
         expires_in: resp.expires_in,
         token_type: resp.token_type,
+        ...(resp.scope && { scope: resp.scope }),
+        ...(resp.authorization_details && {
+          authorization_details: resp.authorization_details,
+        }),
       };
     }
 
@@ -338,6 +343,10 @@ export class AuthResource implements IAuthResource {
       refresh_token: resp.refresh_token,
       expires_in: resp.expires_in,
       token_type: resp.token_type,
+      ...(resp.scope && { scope: resp.scope }),
+      ...(resp.authorization_details && {
+        authorization_details: resp.authorization_details,
+      }),
     };
   }
 }

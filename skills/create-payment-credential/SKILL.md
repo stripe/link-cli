@@ -88,7 +88,7 @@ Check auth status:
 link-cli auth status
 ```
 
-If the response includes an `update` field, a newer version of `link-cli` is available — run the `update_command` from that field to upgrade before proceeding.
+When authenticated, the response also reports the session's granted `scope` and `authorization_details` (when the token endpoint returned them). If the response includes an `update` field, a newer version of `link-cli` is available — run the `update_command` from that field to upgrade before proceeding.
 
 If not authenticated:
 

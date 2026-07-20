@@ -40,6 +40,17 @@ export const AuthStatus: React.FC<AuthStatusProps> = ({
           <Text>
             Token type: <Text bold>{info.tokenType}</Text>
           </Text>
+          {info.source === 'storage' && info.scope && (
+            <Text>
+              Scope: <Text bold>{info.scope}</Text>
+            </Text>
+          )}
+          {info.source === 'storage' && info.authorizationDetails && (
+            <Text>
+              Authorization details:{' '}
+              <Text bold>{JSON.stringify(info.authorizationDetails)}</Text>
+            </Text>
+          )}
           {info.source === 'env' ? (
             <Text>
               Source: <Text bold>LINK_ACCESS_TOKEN</Text>

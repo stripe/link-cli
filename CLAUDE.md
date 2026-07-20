@@ -59,6 +59,8 @@ Input is passed via flags. Define options in the command's zod schema — incur 
 
 - `auth login --client-name <name>` — optional flag to identify the agent or app; shown in the user's Link app as `<name> on <hostname>`. Defined in `loginOptions` in `packages/cli/src/commands/auth/schema.ts`.
 - `auth login --interval <seconds> [--timeout <seconds>] [--max-attempts <n>]` — when `--interval` is provided, the command yields the verification code immediately then polls inline until authenticated or timed out. Without `--interval`, returns the code with a `_next` hint for separate polling via `auth status`.
+- The token endpoint echoes `scope` and `authorization_details` back with the tokens on login/refresh. These are persisted in the credential file (part of `AuthTokens`) and surfaced on `auth status` in both interactive and JSON modes, only when present.
+- **Gotcha — two parallel `AuthResource` implementations.** `packages/cli/src/auth/auth-resource.ts` duplicates `packages/sdk/src/resources/auth.ts` (device auth flow, token parsing). The CLI uses its *own* via `ResourceFactory.createAuthResource()` (`packages/cli/src/utils/resource-factory.ts`) — the SDK class is not on the CLI's runtime path. Any change to token-response handling (new fields, parsing) must be applied to **both**, or the CLI silently drops it.
 
 ### spend-request command
 

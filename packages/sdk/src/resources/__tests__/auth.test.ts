@@ -284,6 +284,28 @@ describe('AuthResource', () => {
       });
     });
 
+    it('returns scope and authorization_details when present', async () => {
+      mockFetchResponse(200, {
+        access_token: 'at_abc',
+        refresh_token: 'rt_xyz',
+        expires_in: 3600,
+        token_type: 'Bearer',
+        scope: 'userinfo:read payment_methods.agentic',
+        authorization_details: [{ type: 'source', actions: ['read'] }],
+      });
+
+      const result = await repo.pollDeviceAuth('dev_123');
+
+      expect(result).toEqual({
+        access_token: 'at_abc',
+        refresh_token: 'rt_xyz',
+        expires_in: 3600,
+        token_type: 'Bearer',
+        scope: 'userinfo:read payment_methods.agentic',
+        authorization_details: [{ type: 'source', actions: ['read'] }],
+      });
+    });
+
     it('sends correct request parameters', async () => {
       mockFetchResponse(200, {
         access_token: 'at',
@@ -423,6 +445,28 @@ describe('AuthResource', () => {
         refresh_token: 'new_rt',
         expires_in: 7200,
         token_type: 'Bearer',
+      });
+    });
+
+    it('returns scope and authorization_details when present', async () => {
+      mockFetchResponse(200, {
+        access_token: 'new_at',
+        refresh_token: 'new_rt',
+        expires_in: 7200,
+        token_type: 'Bearer',
+        scope: 'userinfo:read',
+        authorization_details: [{ type: 'source', actions: ['read'] }],
+      });
+
+      const result = await repo.refreshToken('old_rt');
+
+      expect(result).toEqual({
+        access_token: 'new_at',
+        refresh_token: 'new_rt',
+        expires_in: 7200,
+        token_type: 'Bearer',
+        scope: 'userinfo:read',
+        authorization_details: [{ type: 'source', actions: ['read'] }],
       });
     });
 

@@ -207,11 +207,13 @@ When you provide `--client-name`, the Link app displays it when you approve the 
 
 With `--interval`, the login command yields the verification code immediately and then polls inline until authenticated or timed out — no separate `auth status` call needed. This is recommended for agents that cannot relay the code while a separate polling command blocks their I/O channel.
 
-`auth status` includes an `update` field when a newer version is available:
+`auth status` reports the `scope` and `authorization_details` the current session was granted (echoed by the token endpoint at login/refresh and stored in the credential file), and includes an `update` field when a newer version is available:
 
 ```json
 {
   "authenticated": true,
+  "scope": "userinfo:read payment_methods.agentic",
+  "authorization_details": [{ "type": "source", "actions": ["read"] }],
   "update": {
     "current_version": "0.1.2",
     "latest_version": "0.2.0",
@@ -219,6 +221,8 @@ With `--interval`, the login command yields the verification code immediately an
   }
 }
 ```
+
+`scope` and `authorization_details` are only present when the token endpoint returned them.
 
 Set `NO_UPDATE_NOTIFIER=1` to suppress update checks (for example, in CI).
 
