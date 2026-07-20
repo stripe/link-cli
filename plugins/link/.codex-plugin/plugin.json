@@ -1,6 +1,6 @@
 {
   "name": "link",
-  "version": "0.8.3",
+  "version": "0.9.0",
   "description": "Secure, one-time-use payment credentials from Link",
   "author": {
     "name": "Stripe",
