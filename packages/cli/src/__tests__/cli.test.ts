@@ -1834,10 +1834,11 @@ describe('production mode', () => {
       );
 
       expect(result.exitCode).toBe(0);
-      const parsed = parseJson(result.stdout) as {
+      const output = parseJson(result.stdout) as Array<{
         status: number;
         body: string;
-      };
+      }>;
+      const parsed = output[0];
       expect(parsed.status).toBe(200);
       expect(parsed.body).toContain('success');
       expect(merchantRequests).toHaveLength(2);
@@ -1862,11 +1863,12 @@ describe('production mode', () => {
       );
 
       expect(result.exitCode).toBe(0);
-      const parsed = parseJson(result.stdout) as {
+      const output = parseJson(result.stdout) as Array<{
         status: number;
         headers: Record<string, string>;
         body: string;
-      };
+      }>;
+      const parsed = output[0];
       expect(parsed.status).toBe(401);
       expect(parsed.body).toContain('spt rejected');
       expect(merchantRequests).toHaveLength(2);
@@ -1937,7 +1939,8 @@ describe('production mode', () => {
       );
 
       expect(result.exitCode).toBe(0);
-      const parsed = parseJson(result.stdout) as { status: number };
+      const output = parseJson(result.stdout) as Array<{ status: number }>;
+      const parsed = output[0];
       expect(parsed.status).toBe(200);
       expect(merchantRequests).toHaveLength(1);
     });

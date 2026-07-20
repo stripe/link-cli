@@ -126,15 +126,7 @@ What you find determines which credential type to use:
 | HTTP 402 with `method="stripe"` in `www-authenticate` | `shared_payment_token` | Shared payment token (SPT) |
 | HTTP 402 without `method="stripe"` in `www-authenticate` | not supported | Do not continue |
 
-**For 402 responses:** The `www-authenticate` header may contain **multiple** payment challenges (e.g. `tempo`, `stripe`) in a single header value. Do not try to decode the payload manually. Pass the **full raw `WWW-Authenticate` header value** to Link CLI and let `mpp decode` select and validate the `method="stripe"` challenge.
-
-To derive `network_id`, use Link CLI's challenge decoder:
-
-```bash
-link-cli mpp decode --challenge '<raw WWW-Authenticate header>'
-```
-
-This validates the Stripe challenge, decodes the `request` payload, and returns both the extracted `network_id` and the decoded request JSON. Pass the full header exactly as received, even if it also contains non-Stripe or multiple `Payment` challenges.
+**For 402 responses:** Use `mpp pay` — it handles the entire flow automatically (probes URL, parses challenge, picks payment method, creates spend request, gets approval, and pays). See Step 5.
 
 ### Step 3: Get payment methods and potentially shipping addresses
 
@@ -190,13 +182,21 @@ Recommend the user approves with the [Link app](https://link.com/download). Show
 link-cli spend-request retrieve <id> --include card --output-file /tmp/link-card.json --format json
 ```
 
-**SPT with 402 flow:** The SPT is **one-time use** — if the payment fails, you need a new spend request and new SPT.
+**SPT with 402 flow:** `mpp pay` handles the entire machine payment flow end-to-end. It probes the URL for a 402 challenge, parses the `www-authenticate` header to extract the network ID and amount, creates a spend request, gets user approval, retrieves the SPT, and pays. SPTs are one-time use.
 
 ```bash
-link-cli mpp pay <url> --spend-request-id <id> [--method POST] [--data '{"amount":100}'] [--header 'Name: Value']
+link-cli mpp pay <url> --context "<description>" [-X POST] [-d '<body>'] [-H 'Name: Value'] [--test]
 ```
 
-`mpp pay` handles the full 402 flow automatically: probes the URL, parses the `www-authenticate` header, builds the `Authorization: Payment` credential using the SPT, and retries.
+The amount and currency are derived from the 402 challenge automatically. Pass `--amount` to override. `--context` is required (min 100 chars) — describe the purchase and rationale so the user understands what they are approving. The default payment method is used unless `--payment-method-id` is specified.
+
+The SPT is **one-time use** — if the payment fails, run `mpp pay` again (it will create a new spend request).
+
+**Pre-approved spend request:** If you already have an approved spend request with `credential_type: "shared_payment_token"`, pass `--spend-request-id <id>` to skip the creation/approval steps:
+
+```bash
+link-cli mpp pay <url> --spend-request-id <id> [-X POST] [-d '<body>'] [-H 'Name: Value']
+```
 
 **Link Pay Token:** Some checkout pages embed an AI-agent steering block (the `AiAgentPaymentSteering` component) that lets an agent pay with a Link Pay Token, using the consumer's saved card without handling card numbers. This flow requires browser automation.
 
