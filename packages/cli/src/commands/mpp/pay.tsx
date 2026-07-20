@@ -47,8 +47,20 @@ function createStripePaymentClient(spt: string) {
     },
   });
 
+  const stripeSession = Method.toClient(
+    { ...StripeMethods.charge, intent: 'session' as const },
+    {
+      async createCredential({ challenge }) {
+        return Credential.serialize({
+          challenge,
+          payload: { action: 'open', grantedToken: spt },
+        });
+      },
+    },
+  );
+
   return Mppx.create({
-    methods: [stripeCharge],
+    methods: [stripeCharge, stripeSession],
     polyfill: false,
     transport: Transport.from<RequestInit, Response>({
       name: 'stripe-http',

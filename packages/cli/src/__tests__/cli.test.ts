@@ -1800,6 +1800,23 @@ describe('production mode', () => {
       'expires="2099-01-01T00:00:00Z"',
     ].join(' ');
 
+    const WWW_AUTHENTICATE_STRIPE_SESSION = [
+      'Payment id="sess_001",',
+      'realm="127.0.0.1",',
+      'method="stripe",',
+      'intent="session",',
+      `request="${Buffer.from(JSON.stringify({ networkId: 'net_001', amount: '1000', currency: 'usd', decimals: 2, paymentMethodTypes: ['card'] })).toString('base64')}",`,
+      'expires="2099-01-01T00:00:00Z"',
+    ].join(' ');
+
+    function decodeCredential(authorizationHeader: string): {
+      challenge: { intent: string };
+      payload: Record<string, unknown>;
+    } {
+      const encoded = authorizationHeader.replace(/^Payment\s+/i, '');
+      return JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+    }
+
     it('happy path: probes, gets 402, signs, retries, returns response', async () => {
       setNextResponse(200, APPROVED_SPT_REQUEST);
       setMerchantResponse(402, '{"error":"payment required"}', {
@@ -1875,6 +1892,35 @@ describe('production mode', () => {
       expect(result.exitCode).toBe(0);
       expect(merchantRequests).toHaveLength(2);
       expect(merchantRequests[1].headers.authorization).toMatch(/^Payment /);
+    });
+
+    it('signs a stripe session challenge with an open/grantedToken credential', async () => {
+      setNextResponse(200, APPROVED_SPT_REQUEST);
+      setMerchantResponse(402, '{"error":"payment required"}', {
+        'www-authenticate': WWW_AUTHENTICATE_STRIPE_SESSION,
+      });
+      setMerchantResponse(200, '{"success":true}');
+
+      const result = await runProdCli(
+        'mpp',
+        'pay',
+        `http://127.0.0.1:${merchantPort}/api/session`,
+        '--spend-request-id',
+        'lsrq_spt_001',
+        '--format',
+        'json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(merchantRequests).toHaveLength(2);
+      const authorization = merchantRequests[1].headers.authorization as string;
+      expect(authorization).toMatch(/^Payment /);
+      const credential = decodeCredential(authorization);
+      expect(credential.challenge.intent).toBe('session');
+      expect(credential.payload).toEqual({
+        action: 'open',
+        grantedToken: 'spt_test_abc123',
+      });
     });
 
     it('passthrough: no 402 returns response without signing', async () => {

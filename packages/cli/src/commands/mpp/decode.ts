@@ -2,7 +2,7 @@ import { Challenge } from 'mppx';
 
 type StripeChargeChallenge = Challenge.Challenge<
   Record<string, unknown>,
-  'charge',
+  'charge' | 'session',
   'stripe'
 >;
 
@@ -16,7 +16,7 @@ export interface DecodedStripeChallenge {
   id: string;
   realm: string;
   method: 'stripe';
-  intent: 'charge';
+  intent: 'charge' | 'session';
   description?: string;
   digest?: string;
   expires?: string;
@@ -63,12 +63,13 @@ function resolveStripeChallenge(
 ): ResolvedStripeChallenge {
   const stripeChallenge = challenges.find(
     (challenge) =>
-      challenge.method === 'stripe' && challenge.intent === 'charge',
+      challenge.method === 'stripe' &&
+      (challenge.intent === 'charge' || challenge.intent === 'session'),
   );
 
   if (!stripeChallenge) {
     throw new Error(
-      'WWW-Authenticate header does not include a stripe charge challenge',
+      'WWW-Authenticate header does not include a stripe charge or session challenge',
     );
   }
 
@@ -121,7 +122,7 @@ export function decodeStripeChallenge(
     id: challenge.id,
     realm: challenge.realm,
     method: 'stripe',
-    intent: 'charge',
+    intent: challenge.intent,
     description: challenge.description,
     digest: challenge.digest,
     expires: challenge.expires,
