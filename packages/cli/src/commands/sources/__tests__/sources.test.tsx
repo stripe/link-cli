@@ -63,6 +63,54 @@ describe('sources list component', () => {
     });
   });
 
+  it('shows redaction dots for bank account sources with last4', async () => {
+    setTerminalWidth(160);
+    const resource = makeResource({
+      data: [
+        {
+          id: 'csmrpd_1',
+          name: 'Checking 1234',
+          type: 'bank_account',
+          bank_account: { bank_name: 'Chase', last4: '5678' },
+        },
+      ],
+    });
+
+    const { lastFrame } = render(
+      <SourcesList resource={resource} onComplete={() => {}} />,
+    );
+
+    await vi.waitFor(() => {
+      const frame = lastFrame();
+      expect(frame).toContain('Chase ****5678');
+      expect(frame).not.toContain('Checking 1234');
+    });
+  });
+
+  it('shows redaction dots for card sources with last4', async () => {
+    setTerminalWidth(160);
+    const resource = makeResource({
+      data: [
+        {
+          id: 'csmrpd_2',
+          name: 'My Visa',
+          type: 'card',
+          card: { brand: 'Visa', last4: '4242' },
+        },
+      ],
+    });
+
+    const { lastFrame } = render(
+      <SourcesList resource={resource} onComplete={() => {}} />,
+    );
+
+    await vi.waitFor(() => {
+      const frame = lastFrame();
+      expect(frame).toContain('Visa ****4242');
+      expect(frame).not.toContain('My Visa');
+    });
+  });
+
   it('clips wide table columns in narrow terminals', async () => {
     setTerminalWidth(72);
     const resource = makeResource({

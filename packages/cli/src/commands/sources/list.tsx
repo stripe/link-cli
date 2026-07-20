@@ -86,13 +86,33 @@ function formatExternalConnection(source: Source): string {
   return status ?? '-';
 }
 
+function formatSourceName(source: Source): string {
+  const bank = source.bank_account as Record<string, unknown> | null | undefined;
+  const card = source.card as Record<string, unknown> | null | undefined;
+  const last4 =
+    (card?.last4 as string | undefined) ??
+    (bank?.last4 as string | undefined);
+
+  if (last4) {
+    const label =
+      (card?.brand as string | undefined) ??
+      (bank?.bank_name as string | undefined) ??
+      source.name ??
+      source.type ??
+      'Source';
+    return `${label} ****${last4}`;
+  }
+
+  return source.name ?? 'Source';
+}
+
 function sourceRow(source: Source, index: number): SourceRow {
   const capabilities = formatCapabilities(source);
   const external = formatExternalConnection(source);
 
   return {
     key: sourceId(source, index),
-    name: source.name ?? 'Source',
+    name: formatSourceName(source),
     type: source.type ?? '-',
     id: sourceId(source, index),
     capabilities,
