@@ -703,7 +703,7 @@ describe('production mode', () => {
           brand: 'Visa',
           exp_month: 12,
           exp_year: 2027,
-          number: '4242424242424242',
+          number: '4000009990001984',
         },
       });
 
@@ -720,7 +720,7 @@ describe('production mode', () => {
       expect(request.status).toBe('approved');
       const card = request.card as Record<string, unknown>;
       expect(card.brand).toBe('Visa');
-      expect(card.number).toBe('4242424242424242');
+      expect(card.number).toBe('4000009990001984');
     });
 
     it('returns card with billing_address and valid_until when present', async () => {
@@ -732,7 +732,7 @@ describe('production mode', () => {
           brand: 'Visa',
           exp_month: 12,
           exp_year: 2027,
-          number: '4242424242424242',
+          number: '4000009990001984',
           cvc: '123',
           billing_address: {
             name: 'Jane Doe',
@@ -759,7 +759,7 @@ describe('production mode', () => {
       const request = output[0];
       expect(request.status).toBe('approved');
       const card = request.card as Record<string, unknown>;
-      expect(card.number).toBe('4242424242424242');
+      expect(card.number).toBe('4000009990001984');
       expect(card.valid_until).toBe('2025-06-15T06:13:20Z');
       const billingAddress = card.billing_address as Record<string, unknown>;
       expect(billingAddress.name).toBe('Jane Doe');
