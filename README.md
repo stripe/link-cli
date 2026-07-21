@@ -29,6 +29,8 @@ Install the skill:
 npx skills add stripe/link-cli
 ```
 
+Installing or upgrading `@stripe/link-cli` via npm re-runs this automatically (through a `postinstall` hook) so the skill file stays in sync with the CLI. Set `LINK_CLI_SKIP_SKILL_INSTALL=1` to opt out; it is also skipped in CI.
+
 By default when called from an agent (non-TTY), all commands use `toon` output — a compact, LLM-friendly text format. All commands accept `--format [format]` for structured output. Other formats: `json`, `yaml`, `md`, `jsonl`.
 
 List available commands:

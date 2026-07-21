@@ -125,3 +125,8 @@ JSON output mode (`--format json`) is **not** affected — `JSON.stringify` enco
 | `LINK_API_BASE_URL` | Override API base URL |
 | `LINK_AUTH_BASE_URL` | Override auth base URL |
 | `LINK_HTTP_PROXY` | Route all SDK requests through an HTTP proxy (requires `undici` installed) |
+| `LINK_CLI_SKIP_SKILL_INSTALL` | Skip the `postinstall` skill refresh (see below). Also skipped when `CI` is set. |
+
+## Skill Reinstall on Upgrade
+
+`packages/cli/postinstall.mjs` runs on every npm install/upgrade of `@stripe/link-cli` (via the `postinstall` script). It delegates to `npx --yes skills add stripe/link-cli` to refresh the `create-payment-credential` skill so it stays in sync with the installed CLI version, printing a one-line notice. It never fails the install (always exits 0), and is skipped when run from the source tree (not under `node_modules`), in CI, or when `LINK_CLI_SKIP_SKILL_INSTALL` is set.
