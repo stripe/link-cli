@@ -17,7 +17,7 @@ describe('writeCredentialFile', () => {
 
   it('writes JSON file with 0600 permissions', async () => {
     const filePath = path.join(tmpDir, 'card.json');
-    const data = { number: '4242424242424242', cvc: '123' };
+    const data = { number: '4000009990001984', cvc: '123' };
     const result = await writeCredentialFile(filePath, data, false);
     expect(result).toBe(filePath);
     const contents = JSON.parse(await fs.readFile(filePath, 'utf-8'));

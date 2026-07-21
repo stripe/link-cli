@@ -289,7 +289,7 @@ describe('spend-request', () => {
       const request = makeSpendRequest({
         card: {
           id: 'card_1',
-          number: '4242424242424242',
+          number: '4000009990001984',
           brand: 'visa',
           exp_month: 12,
           exp_year: 2030,

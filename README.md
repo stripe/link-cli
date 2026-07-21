@@ -231,7 +231,7 @@ A spend request moves through: **create** → **request approval** → **approve
 **Required fields for create:** `merchant_name`, `merchant_url`, `context`, `amount`. `payment_method_id` is optional — if omitted, your default payment method will be used, or the first eligible one if no default is set.
 
 **Constraints:** `context` must be at least 100 characters; `amount` must not exceed 500000 (cents); `currency` must be a 3-letter ISO code. The user has 10 minutes from when approval is requested to approve. Approved credentials (card or SPT) are valid for 12 hours from spend request creation.
-**Test mode:** Pass `--test` to create testmode credentials (uses test card `4242424242424242`), useful for development and integration testing without real payment methods.
+**Test mode:** Pass `--test` to create a testmode SpendRequest. A testmode SpendRequest will return test payment credentials (e.g test card `4000009990001984`) rather than a real payment credential. Testmode SpendRequests will not charge the underlying payment method of the SpendRequest. This is useful for development and integration testing without real payment methods.
 
 ```bash
 # Update before approval
