@@ -103,6 +103,54 @@ describe('spend-request', () => {
       });
     });
 
+    it('CreateSpendRequest surfaces support_url on identity_verification_failed error', async () => {
+      const error = new LinkApiError(
+        'Unable to verify your identity, please reach out to support to re-enable Link for agentic payments.',
+        {
+          status: 403,
+          code: 'identity_verification_failed',
+          details: {
+            error: {
+              code: 'identity_verification_failed',
+              message:
+                'Unable to verify your identity, please reach out to support to re-enable Link for agentic payments.',
+              support_url: 'https://support.link.com',
+            },
+          },
+        },
+      );
+      const repo = sanitizeResource({
+        createSpendRequest: vi.fn(async () => {
+          throw error;
+        }),
+        getSpendRequest: vi.fn(),
+        updateSpendRequest: vi.fn(),
+        requestApproval: vi.fn(),
+        cancelSpendRequest: vi.fn(),
+      } as unknown as ISpendRequestResource);
+
+      const { lastFrame } = render(
+        <CreateSpendRequest
+          repository={repo}
+          params={{
+            payment_details: 'pm_1',
+            amount: 200100,
+            currency: 'usd',
+            merchant_name: 'Stripe Press',
+            merchant_url: 'https://press.stripe.com',
+            context: 'x'.repeat(100),
+          }}
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Failed to create spend request');
+        expect(frame).toContain('https://support.link.com');
+      });
+    });
+
     it('RequestApproval surfaces verification_url on additional_verification_required error', async () => {
       const error = new LinkApiError(
         'Consumer must complete additional verification before creating spend requests.',
@@ -141,6 +189,47 @@ describe('spend-request', () => {
         const frame = lastFrame();
         expect(frame).toContain('Failed to request approval');
         expect(frame).toContain('https://app.link.com/finish_setup');
+      });
+    });
+
+    it('RequestApproval surfaces support_url on identity_verification_failed error', async () => {
+      const error = new LinkApiError(
+        'Unable to verify your identity, please reach out to support to re-enable Link for agentic payments.',
+        {
+          status: 403,
+          code: 'identity_verification_failed',
+          details: {
+            error: {
+              code: 'identity_verification_failed',
+              message:
+                'Unable to verify your identity, please reach out to support to re-enable Link for agentic payments.',
+              support_url: 'https://support.link.com',
+            },
+          },
+        },
+      );
+      const repo = sanitizeResource({
+        createSpendRequest: vi.fn(),
+        getSpendRequest: vi.fn(),
+        updateSpendRequest: vi.fn(),
+        requestApproval: vi.fn(async () => {
+          throw error;
+        }),
+        cancelSpendRequest: vi.fn(),
+      } as unknown as ISpendRequestResource);
+
+      const { lastFrame } = render(
+        <RequestApproval
+          repository={repo}
+          id="sr_test"
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Failed to request approval');
+        expect(frame).toContain('https://support.link.com');
       });
     });
   });
