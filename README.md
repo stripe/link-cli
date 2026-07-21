@@ -262,6 +262,20 @@ link-cli spend-request cancel lsrq_001
 | Hourly creation rate | 50 per hour |
 | Rolling creation rate | 200 per 60 days |
 
+### Inspect a merchant site
+
+Before creating a spend request, use `inspect` to check which agent payment strategies a merchant supports:
+
+```bash
+link-cli inspect https://shop.example.com/checkout
+```
+
+It probes, in order of recommendation: a [UCP](https://ucp.dev) merchant profile at `/.well-known/ucp`, an [MPP](https://mpp.dev) OpenAPI spec at `/api/openapi.json` or `/openapi.json`, an x402 manifest at `/.well-known/x402.json` (informational only), and the given page's HTML for a Link Pay Token AI-agent steering block (`.AiAgentPaymentSteering` / `input[name="link_pay_token"]`). It returns a sorted list of detected strategies and a top recommendation — falling back to `card` when nothing else is detected.
+
+For MPP, it doesn't just check that an OpenAPI spec exists — per the [MPP discovery spec](https://mpp.dev/advanced/discovery), it inspects each operation's `x-payment-info.offers[]` and only recommends `shared_payment_token` when an operation actually offers the `"stripe"` method (most MPP integrations only offer crypto rails like `tempo`). When a spec doesn't break offers out by method, it falls back to a live probe of the endpoint and reads the real `WWW-Authenticate` challenge. The recommendation includes the exact `operation` (path, method, description, request body schema) an agent needs to call it.
+
+For UCP, it parses the full `.well-known/ucp` profile rather than just checking it responds — `merchant`, `description`, `services` (transport/endpoint per service), `capabilities`, and `payment_handlers` all come back in `probes.ucp` and, when recommended, in `recommendation.profile`.
+
 ### MPP
 
 Use `mpp pay` to complete purchases on merchants that use the [Machine Payments Protocol](https://mpp.dev). The spend request must use `credential_type: "shared_payment_token"` and you must approve it before paying. The SPT is one-time-use — if payment fails, create a new spend request.

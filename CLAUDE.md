@@ -47,7 +47,7 @@ Commands in `packages/cli/src/cli.tsx` (incur framework). Each has two output mo
 - **Interactive** (default): Ink/React components from `packages/cli/src/commands/`
 - **JSON** (`--format json`): JSON to stdout, errors as JSON with `code` and `message` fields with exit code 1
 
-Commands: `auth login|logout|status`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `serve`.
+Commands: `auth login|logout|status`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `inspect <url>`, `serve`.
 
 The CLI also runs as an MCP server (`--mcp`) and serves skill files via `skills` subcommand, both provided by incur.
 
@@ -83,6 +83,16 @@ Key input field notes:
 - The SPT is one-time-use — a failed payment requires running `mpp pay` again (creates a new spend request).
 - Implemented in `packages/cli/src/commands/mpp/` — pay.tsx (logic), schema.ts (input/output schema), index.tsx (incur registration).
 
+### inspect command
+
+- `inspect <url> [--timeout <ms>]` — no auth required. Probes a merchant site for supported agent payment strategies and recommends one. Implemented in `packages/cli/src/commands/inspect/` — inspect.ts (probing logic, pure/testable via injectable `fetchImpl`), inspect-view.tsx (interactive Ink view), index.tsx (incur registration), schema.ts.
+- Checks, concurrently: `<origin>/.well-known/ucp` (UCP merchant profile), `<origin>/api/openapi.json` then `<origin>/openapi.json` (MPP OpenAPI spec), `<origin>/.well-known/x402.json` (x402 manifest, informational only — doesn't imply Stripe support), and the given page's HTML for a Link Pay Token AI-agent steering block (`AiAgentPaymentSteering`, "I am an AI agent" text, or a `link_pay_token` reference).
+- **MPP detection is offer-aware, not just presence-based.** Per https://mpp.dev/advanced/discovery, each OpenAPI operation with `x-payment-info.offers[]` names payment rails via `method` (e.g. `tempo`, `stripe`, `evm`); `shared_payment_token` is only detected when an operation's offers include `"stripe"` — most MPP integrations only offer crypto rails. `probes.mpp_openapi[].operations` surfaces every payment-required operation (`path`, `method`, `operation_id`, `summary`/`description`, `request_body_schema`, `offers`), and `api_description`/`api_guidance` surface the spec's `info.description`/`info.guidance` — this is the context an agent needs to actually call the endpoint, not just know it exists.
+- **UCP detection surfaces the full profile, not just presence.** `probes.ucp` parses the `.well-known/ucp` profile's top-level `ucp` node into `merchant`, `description`, `version`, `services` (transport/endpoint per named service, e.g. `dev.ucp.shopping` mcp/rest entries), `capabilities` (per named capability, e.g. `dev.ucp.shopping.checkout`), and `payment_handlers` (e.g. `com.stripe.payments`).
+- **Live 402 fallback.** Some specs (e.g. climate.stripe.dev) declare only a coarse `x-payment-info.protocols` list with no per-method breakdown. When the static check can't confirm `"stripe"`, `inspect` sends a real request to the chosen payment operation (synthesizing a minimal JSON body from `request_body_schema` when required, since some endpoints validate the body before returning 402) and reads the `WWW-Authenticate` header via `decodeStripeChallenge()` (reused from `mpp/decode.ts`) — the same ground truth `mpp pay`/`mpp decode` use. Result is in `probes.live_challenge`.
+- Returns `strategies` (sorted: detected first, then by priority `ucp` > `shared_payment_token` > `link_pay_token` > `card`) each with `detected` and `evidence`, plus a top-level `recommendation` with `strategy`, `credential_type` (the value for `spend-request create --credential-type`; `null` for `ucp`, which is a separate CLI/protocol), `reason`, `instruction`, and — for `shared_payment_token` — `operation` (`path`, `method`, `description`, `request_body_schema`), or — for `ucp` — `profile` (`profile_url`, `merchant`, `description`, `services`, `capabilities`, `payment_handlers`) telling the agent exactly what to call. Includes a literal `_next.command` only when one is unambiguously constructable (currently only for `ucp`, e.g. `ucp discover --business <origin>`).
+- `card` is always included as the fallback recommendation when nothing else is detected.
+
 ### demo command
 
 - `demo [--only-card] [--only-spt]` — Interactive demo of both payment flows. Always uses `--test` mode (no real charges). Shows a menu to choose: virtual card flow, SPT/machine payment flow, or both. `--only-card` and `--only-spt` skip the menu. Requires a TTY (no JSON output mode).
@@ -115,8 +125,9 @@ Key input field notes:
 
 Server-returned strings can contain ANSI escape sequences or control characters that spoof the terminal approval UI. Sanitization is handled automatically via `sanitizeDeep()` from `packages/cli/src/utils/sanitize-text.ts`:
 
-- **Commands using `useAsyncAction` hook** — sanitized automatically. The hook calls `sanitizeDeep()` on all returned data before it reaches components.
+- **Commands using `useAsyncAction` hook** — sanitized automatically when the action calls an SDK resource, since `resource-factory.ts` wraps resource methods with `sanitizeDeep()`. Commands that call something other than an SDK resource (e.g. raw `fetch`) must sanitize their own return value before it reaches `useAsyncAction`.
 - **Commands with manual state management** (e.g. `create.tsx`, `retrieve.tsx`, `request-approval.tsx`, `mpp/pay.tsx`) — must call `sanitizeDeep()` on API responses before calling `setRequest()`/`setState()`.
+- `inspect` fetches arbitrary third-party HTML/JSON directly (no SDK resource in the loop) — `runInspect()` in `inspect.ts` calls `sanitizeDeep()` on its own return value before either JSON or interactive output sees it.
 
 JSON output mode (`--format json`) is **not** affected — `JSON.stringify` encodes escape sequences as Unicode literals.
 ## Environment Variables

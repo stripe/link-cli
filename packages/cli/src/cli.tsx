@@ -3,6 +3,7 @@ import { Cli } from 'incur';
 import { createAuthCli } from './commands/auth';
 import { createBalancesCli } from './commands/balances';
 import { createDemoCli } from './commands/demo';
+import { createInspectCli } from './commands/inspect';
 import { createMppCli } from './commands/mpp';
 import { createOnboardCli } from './commands/onboard';
 import { createPaymentMethodsCli } from './commands/payment-methods';
@@ -148,6 +149,7 @@ if (!hiddenCli) {
       envAccessToken,
     ),
   );
+  cli.command(createInspectCli());
   // cli.command(
   //   createWebBotAuthCli(() => factory.createWebBotAuthResource(), authStorage),
   // );
