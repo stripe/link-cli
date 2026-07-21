@@ -295,7 +295,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
               </Text>
             </Box>
           )}
-          {request?.activity_url && (
+          {request?.status === 'succeeded' && request?.activity_url && (
             <Box marginTop={1}>
               <Text>
                 Activity URL:{' '}
@@ -403,24 +403,6 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
                 <Text bold>{request.payment_status_details.decline_code}</Text>
               </Text>
             )}
-          </Box>
-        )}
-        {request?.link_transaction_id && (
-          <Box marginTop={1}>
-            <Text>
-              Transaction ID:{' '}
-              <Text bold>{request.link_transaction_id}</Text>
-            </Text>
-          </Box>
-        )}
-        {request?.activity_url && (
-          <Box marginTop={1}>
-            <Text>
-              Activity URL:{' '}
-              <Text bold color="cyan">
-                {request.activity_url}
-              </Text>
-            </Text>
           </Box>
         )}
         {request?.shared_payment_token && (

@@ -279,8 +279,11 @@ describe('spend-request', () => {
       });
     });
 
-    it('RetrieveSpendRequest omits activity_url when absent in finalized phase', async () => {
-      const request = makeSpendRequest({ status: 'succeeded' });
+    it('RetrieveSpendRequest omits activity_url on failed status even when present', async () => {
+      const request = makeSpendRequest({
+        status: 'failed',
+        activity_url: 'https://activity.link.com/tx_123',
+      });
       const repo = makeMockRepo(request);
 
       const { lastFrame } = render(
@@ -298,11 +301,8 @@ describe('spend-request', () => {
       });
     });
 
-    it('RetrieveSpendRequest shows activity_url in approved/success phase', async () => {
-      const request = makeSpendRequest({
-        status: 'approved',
-        activity_url: 'https://activity.link.com/tx_456',
-      });
+    it('RetrieveSpendRequest omits activity_url when absent in finalized phase', async () => {
+      const request = makeSpendRequest({ status: 'succeeded' });
       const repo = makeMockRepo(request);
 
       const { lastFrame } = render(
@@ -315,8 +315,8 @@ describe('spend-request', () => {
 
       await vi.waitFor(() => {
         const frame = lastFrame();
-        expect(frame).toContain('Activity URL');
-        expect(frame).toContain('https://activity.link.com/tx_456');
+        expect(frame).toContain('terminal status');
+        expect(frame).not.toContain('Activity URL');
       });
     });
 
