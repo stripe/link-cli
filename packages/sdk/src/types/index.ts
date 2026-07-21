@@ -132,6 +132,8 @@ export interface SpendRequest {
   shared_payment_token?: SharedPaymentToken;
   link_pay_token?: string;
   payment_status_details?: PaymentStatusDetails | null;
+  link_transaction_id?: string;
+  activity_url?: string;
   created_at: string;
   updated_at: string;
 }

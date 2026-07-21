@@ -234,6 +234,94 @@ describe('spend-request', () => {
     });
   });
 
+  describe('activity_url', () => {
+    it('RetrieveSpendRequest shows activity_url in finalized phase', async () => {
+      const request = makeSpendRequest({
+        status: 'succeeded',
+        activity_url: 'https://activity.link.com/tx_123',
+      });
+      const repo = makeMockRepo(request);
+
+      const { lastFrame } = render(
+        <RetrieveSpendRequest
+          repository={repo}
+          id="sr_test"
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Activity URL');
+        expect(frame).toContain('https://activity.link.com/tx_123');
+      });
+    });
+
+    it('RetrieveSpendRequest shows link_transaction_id in finalized phase', async () => {
+      const request = makeSpendRequest({
+        status: 'succeeded',
+        link_transaction_id: 'ltxn_abc123',
+      });
+      const repo = makeMockRepo(request);
+
+      const { lastFrame } = render(
+        <RetrieveSpendRequest
+          repository={repo}
+          id="sr_test"
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Transaction ID');
+        expect(frame).toContain('ltxn_abc123');
+      });
+    });
+
+    it('RetrieveSpendRequest omits activity_url when absent in finalized phase', async () => {
+      const request = makeSpendRequest({ status: 'succeeded' });
+      const repo = makeMockRepo(request);
+
+      const { lastFrame } = render(
+        <RetrieveSpendRequest
+          repository={repo}
+          id="sr_test"
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('terminal status');
+        expect(frame).not.toContain('Activity URL');
+      });
+    });
+
+    it('RetrieveSpendRequest shows activity_url in approved/success phase', async () => {
+      const request = makeSpendRequest({
+        status: 'approved',
+        activity_url: 'https://activity.link.com/tx_456',
+      });
+      const repo = makeMockRepo(request);
+
+      const { lastFrame } = render(
+        <RetrieveSpendRequest
+          repository={repo}
+          id="sr_test"
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Activity URL');
+        expect(frame).toContain('https://activity.link.com/tx_456');
+      });
+    });
+
+  });
+
   describe('sanitization', () => {
     it('CreateSpendRequest sanitizes merchant_name and line_items', async () => {
       const request = makeSpendRequest();
