@@ -9,6 +9,7 @@ import { Mppx, Transport } from 'mppx/client';
 import { Methods as StripeMethods } from 'mppx/stripe';
 import React, { useEffect, useState } from 'react';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
+import { sanitizeDeep } from '../../utils/sanitize-text';
 import {
   decodeStripeChallenge,
   getStripeChargeChallengeFromResponse,
@@ -41,7 +42,14 @@ export function buildHeaders(
 export async function readPayResult(response: Response): Promise<PayResult> {
   const responseHeaders = Object.fromEntries(response.headers.entries());
   const body = await response.text();
-  return { status: response.status, headers: responseHeaders, body };
+  // Response body and headers are fully attacker-controlled. Strip ANSI escape
+  // sequences and control characters so they cannot spoof the terminal UI or
+  // inject content into the agent's context. See CLAUDE.md security note.
+  return sanitizeDeep({
+    status: response.status,
+    headers: responseHeaders,
+    body,
+  });
 }
 
 function createStripePaymentClient(spt: string) {
