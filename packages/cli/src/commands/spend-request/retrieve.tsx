@@ -290,8 +290,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
           {request?.link_transaction_id && (
             <Box marginTop={1}>
               <Text>
-                Transaction ID:{' '}
-                <Text bold>{request.link_transaction_id}</Text>
+                Transaction ID: <Text bold>{request.link_transaction_id}</Text>
               </Text>
             </Box>
           )}

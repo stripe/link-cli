@@ -319,7 +319,6 @@ describe('spend-request', () => {
         expect(frame).not.toContain('Activity URL');
       });
     });
-
   });
 
   describe('sanitization', () => {
