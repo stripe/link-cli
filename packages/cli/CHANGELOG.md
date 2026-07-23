@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.10.1
+
+### Patch Changes
+
+- b097a57: Security improvements for skill file and mpp pay command
+
 ## 0.10.0
 
 ### Minor Changes
