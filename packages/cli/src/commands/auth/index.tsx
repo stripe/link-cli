@@ -49,6 +49,10 @@ async function* pollAuthStatus(
           access_token: `${auth.access_token.substring(0, 20)}...`,
           token_type: auth.token_type,
           credentials_path: storage.getPath(),
+          ...(auth.scope && { scope: auth.scope }),
+          ...(auth.authorization_details && {
+            authorization_details: auth.authorization_details,
+          }),
           ...(update && { update }),
         };
       }
@@ -281,6 +285,10 @@ export function createAuthCli(
                 token_type: info.tokenType,
                 ...(info.source === 'storage' && {
                   credentials_path: info.credentialsPath,
+                  ...(info.scope && { scope: info.scope }),
+                  ...(info.authorizationDetails && {
+                    authorization_details: info.authorizationDetails,
+                  }),
                 }),
                 ...(update && { update }),
               };

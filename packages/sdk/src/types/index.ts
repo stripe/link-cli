@@ -20,6 +20,10 @@ export interface AuthTokens {
   token_type: string;
   /** Absolute epoch-ms when the access token expires (computed on store). */
   expires_at?: number;
+  /** Space-separated scopes granted for this session (echoed by the token endpoint). */
+  scope?: string;
+  /** Authorization details granted for this session (echoed by the token endpoint). */
+  authorization_details?: JsonValue[];
 }
 
 export interface LineItem {

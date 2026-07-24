@@ -1,4 +1,4 @@
-import type { AuthStorage } from '@stripe/link-sdk';
+import type { AuthStorage, JsonValue } from '@stripe/link-sdk';
 
 export type AuthInfo =
   | {
@@ -13,6 +13,8 @@ export type AuthInfo =
       tokenPreview: string;
       tokenType: string;
       credentialsPath: string;
+      scope?: string;
+      authorizationDetails?: JsonValue[];
     }
   | { authenticated: false; source: 'storage'; credentialsPath: string };
 
@@ -37,6 +39,10 @@ export function resolveAuthInfo(
       tokenPreview: `${auth.access_token.substring(0, 20)}...`,
       tokenType: auth.token_type,
       credentialsPath,
+      ...(auth.scope && { scope: auth.scope }),
+      ...(auth.authorization_details && {
+        authorizationDetails: auth.authorization_details,
+      }),
     };
   }
   return { authenticated: false, source: 'storage', credentialsPath };

@@ -20,6 +20,25 @@ describe('MemoryStorage', () => {
     expect(stored?.expires_at).toBeGreaterThan(Date.now());
   });
 
+  it('round-trips scope and authorization_details', () => {
+    const authStorage = new MemoryStorage();
+
+    authStorage.setAuth({
+      access_token: 'at_123',
+      refresh_token: 'rt_123',
+      expires_in: 60,
+      token_type: 'Bearer',
+      scope: 'userinfo:read payment_methods.agentic',
+      authorization_details: [{ type: 'source', actions: ['read'] }],
+    });
+
+    const stored = authStorage.getAuth();
+    expect(stored?.scope).toBe('userinfo:read payment_methods.agentic');
+    expect(stored?.authorization_details).toEqual([
+      { type: 'source', actions: ['read'] },
+    ]);
+  });
+
   it('can be initialized with an existing auth session', () => {
     const authStorage = new MemoryStorage({
       access_token: 'at_123',

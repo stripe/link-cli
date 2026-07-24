@@ -232,6 +232,29 @@ describe('LinkAuthResource', () => {
       });
     });
 
+    it('returns scope and authorization_details when present', async () => {
+      mockFetchResponse(200, {
+        access_token: 'at_123',
+        refresh_token: 'rt_456',
+        expires_in: 3600,
+        token_type: 'Bearer',
+        scope: 'userinfo:read',
+        authorization_details: [{ type: 'source', actions: ['read'] }],
+      });
+
+      const resource = createResource();
+      const result = await resource.pollDeviceAuth('dev_123');
+
+      expect(result).toEqual({
+        access_token: 'at_123',
+        refresh_token: 'rt_456',
+        expires_in: 3600,
+        token_type: 'Bearer',
+        scope: 'userinfo:read',
+        authorization_details: [{ type: 'source', actions: ['read'] }],
+      });
+    });
+
     it('returns null when authorization is pending', async () => {
       mockFetchResponse(400, { error: 'authorization_pending' });
 
@@ -352,6 +375,29 @@ describe('LinkAuthResource', () => {
         refresh_token: 'rt_new',
         expires_in: 3600,
         token_type: 'Bearer',
+      });
+    });
+
+    it('returns scope and authorization_details when present', async () => {
+      mockFetchResponse(200, {
+        access_token: 'at_new',
+        refresh_token: 'rt_new',
+        expires_in: 3600,
+        token_type: 'Bearer',
+        scope: 'userinfo:read',
+        authorization_details: [{ type: 'source', actions: ['read'] }],
+      });
+
+      const resource = createResource();
+      const result = await resource.refreshToken('rt_old');
+
+      expect(result).toEqual({
+        access_token: 'at_new',
+        refresh_token: 'rt_new',
+        expires_in: 3600,
+        token_type: 'Bearer',
+        scope: 'userinfo:read',
+        authorization_details: [{ type: 'source', actions: ['read'] }],
       });
     });
 
