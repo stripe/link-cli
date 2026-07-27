@@ -1,5 +1,5 @@
 ---
-version: 0.9.0
+version: 0.10.1
 name: create-payment-credential
 description: |
   Gets secure, one-time-use payment credentials (cards, tokens) from a Link wallet so agents can complete purchases on behalf of users. Use when the user says "get me a card", "buy something", "pay for X", "make a purchase", "I need to pay", "complete checkout", or asks to transact on any merchant site. Use when the user asks to connect or log in to or sign up for their Link account.
@@ -172,6 +172,8 @@ Recommend the user approves with the [Link app](https://link.com/download). Show
 **Test mode:** Add `--test` to create testmode credentials instead of real ones. Useful for development and integration testing.
 
 **Approval details:** For delegated/pre-approved flows, pass `--approval-detail` as a JSON object (MCP/agent) or JSON string (CLI). Required fields: `approved_at` (unix timestamp), `approval_method` (`click`|`programmatic`|`voice`), `app_name`, `external_user_id`. Optional: `ip_address`, `user_agent`, `device_type` (`mobile`|`web`), `agent_log_id`, `external_user_name`, `external_session_id`, `authentication_method` (`biometric_face`|`biometric_fingerprint`|`passkey`).
+
+**Metadata:** Attach arbitrary string data with the repeatable `--metadata "key:value"` flag (CLI) or a `{ key: value }` object (MCP/agent). Max 50 keys, key ≤ 40 chars, value ≤ 500 chars. Example: `--metadata "order_id:ord_123" --metadata "team:growth"`.
 
 ### Step 5: Complete payment
 

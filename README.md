@@ -154,6 +154,18 @@ link-cli spend-request create ... \
 
 In MCP/agent mode, pass as a structured object.
 
+#### Metadata
+
+Attach arbitrary string data to a spend request with the repeatable `--metadata` flag (`key:value` format). Max 50 keys, key ≤ 40 chars, value ≤ 500 chars.
+
+```bash
+link-cli spend-request create ... \
+  --metadata "order_id:ord_123" \
+  --metadata "team:growth"
+```
+
+In MCP/agent mode, pass `metadata` as a structured `{ key: value }` object.
+
 #### Credential types
 
 By default, a spend request provisions a virtual card. For merchants that support the [Machine Payments Protocol](https://mpp.dev) (HTTP 402) and the Stripe payment method, instead pass `--credential-type "shared_payment_token"`. 

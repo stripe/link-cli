@@ -117,6 +117,23 @@ describe('SpendRequestResource', () => {
       expect(result.network_id).toBe('net_abc');
     });
 
+    it('serializes metadata in POST body', async () => {
+      const paramsWithMetadata: CreateSpendRequestParams = {
+        ...validParams,
+        metadata: { order_id: 'ord_123', team: 'growth' },
+      };
+      mockFetchResponse(200, spendRequestResponse);
+
+      await repo.createSpendRequest(paramsWithMetadata);
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const sentBody = JSON.parse(opts.body);
+      expect(sentBody.metadata).toEqual({
+        order_id: 'ord_123',
+        team: 'growth',
+      });
+    });
+
     it('serializes test flag in POST body when true', async () => {
       const paramsWithTest: CreateSpendRequestParams = {
         ...validParams,

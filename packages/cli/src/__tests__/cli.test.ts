@@ -323,6 +323,38 @@ describe('production mode', () => {
       expect(request.network_id).toBe('net_prod_abc');
     });
 
+    it('merges repeatable --metadata flags into a metadata object in POST body', async () => {
+      setNextResponse(200, BASE_REQUEST);
+
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '--merchant-name',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--metadata',
+        'order_id:ord_123',
+        '--metadata',
+        'team:growth',
+        '--no-request-approval',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const sentBody = JSON.parse(lastRequest.body);
+      expect(sentBody.metadata).toEqual({
+        order_id: 'ord_123',
+        team: 'growth',
+      });
+    });
+
     it('sends test flag in POST body when --test is used', async () => {
       setNextResponse(200, BASE_REQUEST);
 

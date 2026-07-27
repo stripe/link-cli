@@ -11,6 +11,7 @@ import { Cli, z } from 'incur';
 import React from 'react';
 import { writeCredentialFile } from '../../utils/credential-output';
 import {
+  parseKvString,
   parseLineItemFlag,
   parseTotalFlag,
 } from '../../utils/line-item-parser';
@@ -154,6 +155,21 @@ export function createSpendRequestCli(
             : opts.approvalDetail
           : undefined;
 
+      // Merge repeatable metadata flags into a single flat object: strings from
+      // flags are parsed as key:value, objects from MCP pass through.
+      let metadata: Record<string, string> | undefined;
+      if (opts.metadata?.length) {
+        metadata = {};
+        for (const item of opts.metadata as unknown[]) {
+          Object.assign(
+            metadata,
+            typeof item === 'string'
+              ? parseKvString(item)
+              : (item as Record<string, string>),
+          );
+        }
+      }
+
       const createParams = {
         payment_details: opts.paymentMethodId,
         credential_type: credentialType,
@@ -169,6 +185,7 @@ export function createSpendRequestCli(
         test: opts.test ? true : undefined,
         approve: opts.approve ? true : undefined,
         approval_details: approvalDetails,
+        metadata,
       };
 
       const outputFile = opts.outputFile;

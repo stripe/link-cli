@@ -66,6 +66,7 @@ export interface CreateSpendRequestParams {
   test?: boolean;
   approve?: boolean;
   approval_details?: ApprovalDetail;
+  metadata?: Record<string, string>;
 }
 
 export interface UpdateSpendRequestParams {

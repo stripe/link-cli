@@ -78,6 +78,12 @@ export const createOptions = z.object({
     .describe(
       'Approval details object (MCP/agent: pass as object; CLI: pass as JSON string). Required fields: approved_at (unix timestamp), approval_method (click|programmatic|voice), app_name, external_user_id. Optional: ip_address, user_agent, device_type (mobile|web), agent_log_id, external_user_name, external_session_id, authentication_method (biometric_face|biometric_fingerprint|passkey).',
     ),
+  metadata: z
+    .array(z.union([z.string(), z.record(z.string(), z.string())]))
+    .default([])
+    .describe(
+      'Metadata key:value pair (repeatable). Attaches arbitrary string data to the spend request. Max 50 keys, key <= 40 chars, value <= 500 chars. Example: "order_id:ord_123"',
+    ),
 });
 
 export const listOptions = z.object({
