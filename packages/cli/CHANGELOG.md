@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.11.0
+
+### Minor Changes
+
+- 1c2fd6e: Support `metadata` in `spend-request create` command
+
 ## 0.10.1
 
 ### Patch Changes
