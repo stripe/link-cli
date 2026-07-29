@@ -104,6 +104,8 @@ DO NOT PROCEED until the user is authenticated with Link.
 
 Always check the current authentication status before starting a new login flow — the user might already be logged in.
 
+If the user is already authenticated but you need broader access (an additional `scope`, `--source-actions`, or `--authorization-detail`), use `auth upgrade` instead of `auth login`. It takes the same flags but, rather than stopping with an "already logged in" message, merges what you request with the current `scope`/`authorization_details` and starts a new approval for the superset — so existing access is never dropped. Check `auth status` first so you know what's already granted. The current session stays valid during the approval and is only replaced once the user approves the new one, so an abandoned upgrade leaves the existing session working.
+
 ### Step 2: Evaluate the merchant site BEFORE creating a spend request
 
 **CRITICAL:** Before calling `spend-request create` you must complete this checklist:

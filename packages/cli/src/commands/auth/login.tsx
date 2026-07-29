@@ -20,6 +20,10 @@ interface LoginProps {
   sourceActions?: SourceAction[];
   authorizationDetails?: JsonValue[];
   authStorage?: AuthStorage;
+  // Set by `auth upgrade`: the still-valid refresh token of the session being
+  // replaced. Revoked (best-effort) only after the new tokens are stored, so an
+  // abandoned upgrade leaves the existing session intact. `login` omits it.
+  revokeRefreshTokenOnSuccess?: string;
   onComplete: () => void;
 }
 
@@ -30,6 +34,7 @@ export const Login: React.FC<LoginProps> = ({
   sourceActions,
   authorizationDetails,
   authStorage = defaultStorage,
+  revokeRefreshTokenOnSuccess,
   onComplete,
 }) => {
   const storage = authStorage;
@@ -88,6 +93,14 @@ export const Login: React.FC<LoginProps> = ({
           if (tokens) {
             clearInterval(pollInterval);
             storage.setAuth(tokens);
+            // Upgrade only: revoke the replaced session's grant now that the
+            // widened tokens are stored. Best-effort — a failure here must not
+            // fail the login that just succeeded.
+            if (revokeRefreshTokenOnSuccess) {
+              authResource
+                .revokeToken(revokeRefreshTokenOnSuccess)
+                .catch(() => {});
+            }
             setStatus('success');
             setTimeout(onComplete, DISPLAY_DELAY_MS);
           }
@@ -110,7 +123,14 @@ export const Login: React.FC<LoginProps> = ({
     // Wait 1 second before starting to poll
     const timeout = setTimeout(startPolling, 1000);
     return () => clearTimeout(timeout);
-  }, [status, deviceCode, authResource, onComplete, storage]);
+  }, [
+    status,
+    deviceCode,
+    authResource,
+    onComplete,
+    storage,
+    revokeRefreshTokenOnSuccess,
+  ]);
 
   if (status === 'initiating') {
     return (

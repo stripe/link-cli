@@ -199,6 +199,7 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
 ```bash
 link-cli auth login --client-name "Claude Code"   # identify the connecting agent
 link-cli auth login --client-name "Claude Code" --interval 5 --timeout 300  # login + poll in one call
+link-cli auth upgrade --scope "userinfo:read spend_requests:approve"        # widen access to a superset
 link-cli auth status                               # check auth status
 link-cli auth logout                               # disconnect
 ```
@@ -206,6 +207,8 @@ link-cli auth logout                               # disconnect
 When you provide `--client-name`, the Link app displays it when you approve the connection — for example, `Claude Code on my-macbook` instead of `link-cli on my-macbook`.
 
 With `--interval`, the login command yields the verification code immediately and then polls inline until authenticated or timed out — no separate `auth status` call needed. This is recommended for agents that cannot relay the code while a separate polling command blocks their I/O channel.
+
+`auth upgrade` takes the same flags as `auth login` but is meant for widening access when you're already logged in. Unlike `auth login` — which stops with an "already logged in" message when a valid session exists — `auth upgrade` merges the flags you pass with your currently granted `scope` and `authorization_details` and starts a new approval for the **superset**, so you never accidentally drop access. If there's no valid session, it prints a warning and continues with just the access you requested. Your current session stays valid throughout the approval and is only replaced (and the old grant revoked) once you approve the new one — so abandoning the approval leaves your existing session untouched.
 
 `auth status` reports the `scope` and `authorization_details` the current session was granted (echoed by the token endpoint at login/refresh and stored in the credential file), and includes an `update` field when a newer version is available:
 

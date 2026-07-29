@@ -9,6 +9,10 @@ export interface PendingDeviceAuth {
   expires_at: number;
   verification_url: string;
   phrase: string;
+  // Set by `auth upgrade`: this device authorization replaces an existing,
+  // still-valid session. The poll must complete it (and revoke the old grant
+  // on success) even though `isAuthenticated()` is currently true.
+  replaces_existing_session?: boolean;
 }
 
 interface StorageSchema {

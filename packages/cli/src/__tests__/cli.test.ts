@@ -1637,6 +1637,245 @@ describe('production mode', () => {
     });
   });
 
+  describe('auth upgrade', () => {
+    const DEVICE_CODE_RESPONSE = {
+      device_code: 'test_device_code',
+      user_code: 'apple-grape',
+      verification_uri: 'https://app.link.com/device/setup',
+      verification_uri_complete:
+        'https://app.link.com/device/setup?code=apple-grape',
+      expires_in: 300,
+      interval: 1,
+    };
+
+    const REFRESH_RESPONSE = {
+      access_token: 'refreshed_access_token',
+      refresh_token: 'refreshed_refresh_token',
+      expires_in: 3600,
+      token_type: 'Bearer',
+    };
+
+    it('does not bail when already authenticated — initiates a new device auth', async () => {
+      // beforeEach set a valid session (PROD_AUTH_TOKENS).
+      setResponseForUrl('/device/token', 200, REFRESH_RESPONSE);
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'upgrade',
+        '--client-name',
+        'My Agent',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const output = parseJson(result.stdout) as Record<string, unknown>[];
+      // Unlike `login`, upgrade does NOT return "already logged in".
+      expect(output[0].message).toBeUndefined();
+      expect(output[0].verification_url).toBeDefined();
+      expect(
+        requests.find((r) => r.url.includes('/device/code')),
+      ).toBeDefined();
+      // Deferred lifecycle: the existing session is preserved (NOT cleared) and
+      // the pending is flagged so the poll completes the new approval and
+      // revokes the old grant only once the widened tokens land.
+      expect(storage.getAuth()).not.toBeNull();
+      expect(storage.getPendingDeviceAuth()?.replaces_existing_session).toBe(
+        true,
+      );
+      // Old grant is NOT revoked up front (only after the new approval lands).
+      expect(
+        requests.find((r) => r.url.includes('/device/revoke')),
+      ).toBeUndefined();
+    });
+
+    it('merges the existing scope into a superset device/code request', async () => {
+      // Existing session grants the default scope; request only a subset.
+      setResponseForUrl('/device/token', 200, {
+        ...REFRESH_RESPONSE,
+        scope: 'userinfo:read payment_methods.agentic',
+      });
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'upgrade',
+        '--client-name',
+        'My Agent',
+        '--scope',
+        'userinfo:read',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const deviceCodeRequest = requests.find((r) =>
+        r.url.includes('/device/code'),
+      );
+      expect(deviceCodeRequest).toBeDefined();
+      const params = new URLSearchParams(deviceCodeRequest?.body);
+      // The dropped scope is merged back in → superset requested.
+      expect(params.get('scope')).toBe('userinfo:read payment_methods.agentic');
+    });
+
+    it('merges existing source authorization_details that are not re-requested', async () => {
+      setResponseForUrl('/device/token', 200, {
+        ...REFRESH_RESPONSE,
+        scope: 'userinfo:read payment_methods.agentic',
+        authorization_details: [
+          {
+            type: 'source',
+            resource_id: 'src_123',
+            actions: ['read_source_details'],
+          },
+        ],
+      });
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'upgrade',
+        '--client-name',
+        'My Agent',
+        '--scope',
+        'userinfo:read payment_methods.agentic',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const params = new URLSearchParams(
+        requests.find((r) => r.url.includes('/device/code'))?.body,
+      );
+      expect(params.getAll('authorization_details[][type]')).toContain(
+        'source',
+      );
+      expect(params.getAll('authorization_details[][actions][]')).toContain(
+        'read_source_details',
+      );
+    });
+
+    it('unions a newly-requested source action with the already-granted ones', async () => {
+      // Existing session holds source:[read_balances]; request a DIFFERENT
+      // source action. The merged request must keep both.
+      setResponseForUrl('/device/token', 200, {
+        ...REFRESH_RESPONSE,
+        scope: 'userinfo:read payment_methods.agentic',
+        authorization_details: [
+          {
+            type: 'source',
+            resource_id: 'src_123',
+            actions: ['read_balances'],
+          },
+        ],
+      });
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'upgrade',
+        '--client-name',
+        'My Agent',
+        '--source-actions',
+        'read_external_transactions',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const params = new URLSearchParams(
+        requests.find((r) => r.url.includes('/device/code'))?.body,
+      );
+      expect(params.getAll('authorization_details[][type]')).toEqual([
+        'source',
+      ]);
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_external_transactions',
+        'read_balances',
+      ]);
+    });
+
+    it('warns and continues when there is no active session', async () => {
+      storage.clearAuth();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'upgrade',
+        '--client-name',
+        'My Agent',
+        '--scope',
+        'userinfo:read',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toMatch(/no active session/i);
+      // No refresh attempted; still initiates device auth with requested access.
+      expect(
+        requests.find((r) => r.url.includes('/device/token')),
+      ).toBeUndefined();
+      const params = new URLSearchParams(
+        requests.find((r) => r.url.includes('/device/code'))?.body,
+      );
+      expect(params.get('scope')).toBe('userinfo:read');
+    });
+
+    it('warns and continues when the existing token is no longer valid', async () => {
+      // Valid session present, but refresh fails.
+      setResponseForUrl('/device/token', 401, { error: 'invalid_grant' });
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'upgrade',
+        '--client-name',
+        'My Agent',
+        '--scope',
+        'userinfo:read',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toMatch(/could not refresh/i);
+      // Falls back to requested-only access, but still initiates device auth.
+      const params = new URLSearchParams(
+        requests.find((r) => r.url.includes('/device/code'))?.body,
+      );
+      expect(params.get('scope')).toBe('userinfo:read');
+    });
+
+    it('with --interval, completes the new approval and revokes the old grant', async () => {
+      // Valid session present; both the refresh and the device poll resolve via
+      // /device/token (the stub returns the same body for each).
+      setResponseForUrl('/device/token', 200, REFRESH_RESPONSE);
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+      setResponseForUrl('/device/revoke', 200, 'ok');
+
+      const result = await runProdCli(
+        'auth',
+        'upgrade',
+        '--client-name',
+        'My Agent',
+        '--scope',
+        'userinfo:read',
+        '--interval',
+        '1',
+        '--timeout',
+        '5',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const output = parseJson(result.stdout) as Record<string, unknown>[];
+      // First yield is the verification code; a later yield reports authenticated.
+      expect(output[0].verification_url).toBeDefined();
+      expect(output[output.length - 1].authenticated).toBe(true);
+      // The poll completed the NEW approval (did not short-circuit on the still
+      // valid old session) and revoked the replaced grant on success.
+      expect(
+        requests.find((r) => r.url.includes('/device/revoke')),
+      ).toBeDefined();
+    });
+  });
+
   describe('auth logout', () => {
     it('sends POST to /device/revoke with refresh token then clears auth', async () => {
       setResponseForUrl('/device/revoke', 200, 'ok');

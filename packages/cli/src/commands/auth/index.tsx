@@ -1,8 +1,16 @@
-import { type AuthStorage, storage as defaultStorage } from '@stripe/link-sdk';
+import {
+  type AuthStorage,
+  type SourceAction,
+  storage as defaultStorage,
+} from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import { Text } from 'ink';
 import React from 'react';
-import { parseAuthorizationDetails } from '../../auth/authorization-details';
+import {
+  buildAuthorizationDetails,
+  parseAuthorizationDetails,
+} from '../../auth/authorization-details';
+import { computeMergedAccess } from '../../auth/merge-access';
 import { normalizeScopeInput } from '../../auth/scopes';
 import type { IAuthResource, JsonValue } from '../../auth/types';
 import { pollUntil } from '../../utils/poll-until';
@@ -34,6 +42,46 @@ async function* pollAuthStatus(
   for await (const result of pollUntil({
     fn: async () => {
       const pending = storage.getPendingDeviceAuth();
+
+      // `auth upgrade` in progress: this device authorization replaces a
+      // still-valid session, so complete it even though we're authenticated,
+      // and do NOT report the old session as done until the new tokens land.
+      // On success, swap in the new tokens and revoke the old grant.
+      if (pending?.replaces_existing_session) {
+        const previousRefreshToken = storage.getAuth()?.refresh_token;
+        const tokens = await authResource.pollDeviceAuth(pending.device_code);
+        if (tokens) {
+          storage.setAuth(tokens);
+          storage.clearPendingDeviceAuth();
+          if (previousRefreshToken) {
+            try {
+              await authResource.revokeToken(previousRefreshToken);
+            } catch {
+              // best-effort: the widened session is already stored
+            }
+          }
+          return {
+            authenticated: true as const,
+            access_token: `${tokens.access_token.substring(0, 20)}...`,
+            token_type: tokens.token_type,
+            credentials_path: storage.getPath(),
+            ...(tokens.scope && { scope: tokens.scope }),
+            ...(tokens.authorization_details && {
+              authorization_details: tokens.authorization_details,
+            }),
+            ...(update && { update }),
+          };
+        }
+        return {
+          authenticated: false as const,
+          credentials_path: storage.getPath(),
+          ...(update && { update }),
+          pending: true,
+          verification_url: pending.verification_url,
+          phrase: pending.phrase,
+        };
+      }
+
       if (pending && !storage.isAuthenticated()) {
         const tokens = await authResource.pollDeviceAuth(pending.device_code);
         if (tokens) {
@@ -94,6 +142,72 @@ async function maybeRevokeAndClearAuth(
   }
   storage.clearAuth();
   storage.clearPendingDeviceAuth();
+}
+
+interface DeviceAuthParams {
+  clientName?: string;
+  scope?: string;
+  sourceActions?: SourceAction[];
+  authorizationDetails?: JsonValue[];
+  // Marks the pending as replacing a still-valid session (see pollAuthStatus).
+  replacesExistingSession?: boolean;
+}
+
+// Shared device-authorization tail for `login` and `upgrade`: initiate the
+// device flow, persist the pending record, yield the verification code, and
+// (when `--interval` polling is requested) poll inline until terminal. An
+// optional `warning` is attached to the first yield for degraded-mode callers.
+async function* startDeviceAuthAndPoll(
+  authResource: IAuthResource,
+  storage: AuthStorage,
+  params: DeviceAuthParams,
+  opts: PollAuthOptions,
+  warning?: string,
+) {
+  const authRequest = await authResource.initiateDeviceAuth({
+    clientName: params.clientName,
+    scope: params.scope,
+    sourceActions: params.sourceActions,
+    authorizationDetails: params.authorizationDetails,
+  });
+  storage.setPendingDeviceAuth({
+    device_code: authRequest.device_code,
+    interval: authRequest.interval,
+    expires_at: Date.now() + authRequest.expires_in * 1000,
+    verification_url: authRequest.verification_url_complete,
+    phrase: authRequest.user_code,
+    ...(params.replacesExistingSession
+      ? { replaces_existing_session: true }
+      : {}),
+  });
+
+  const warningField = warning ? { warning } : {};
+
+  if (opts.interval <= 0) {
+    yield sanitizeDeep({
+      ...warningField,
+      verification_url: authRequest.verification_url_complete,
+      phrase: authRequest.user_code,
+      instruction:
+        'Present the verification_url to the user and ask them to approve in the Link app. Then call `auth status --interval 5 --max-attempts 60` to poll until authenticated. Do not wait for the user to reply — start polling immediately.',
+      _next: {
+        command: 'auth status --interval 5 --max-attempts 60',
+        poll_interval_seconds: authRequest.interval,
+        until: 'authenticated is true',
+      },
+    });
+    return;
+  }
+
+  yield sanitizeDeep({
+    ...warningField,
+    verification_url: authRequest.verification_url_complete,
+    phrase: authRequest.user_code,
+    instruction:
+      'Present the verification_url to the user and ask them to approve in the Link app. Polling has started automatically — no further action needed.',
+  });
+
+  yield* pollAuthStatus(authResource, storage, opts);
 }
 
 export function createAuthCli(
@@ -181,49 +295,140 @@ export function createAuthCli(
         );
       }
 
-      const authRequest = await authResource.initiateDeviceAuth({
-        clientName,
-        scope,
-        sourceActions: c.options.sourceActions,
-        authorizationDetails,
-      });
-      storage.setPendingDeviceAuth({
-        device_code: authRequest.device_code,
-        interval: authRequest.interval,
-        expires_at: Date.now() + authRequest.expires_in * 1000,
-        verification_url: authRequest.verification_url_complete,
-        phrase: authRequest.user_code,
-      });
+      yield* startDeviceAuthAndPoll(
+        authResource,
+        storage,
+        {
+          clientName,
+          scope,
+          sourceActions: c.options.sourceActions,
+          authorizationDetails,
+        },
+        {
+          interval: c.options.interval,
+          maxAttempts: c.options.maxAttempts,
+          timeout: c.options.timeout,
+        },
+      );
+    },
+  });
 
-      const interval = c.options.interval;
-
-      if (interval <= 0) {
-        yield sanitizeDeep({
-          verification_url: authRequest.verification_url_complete,
-          phrase: authRequest.user_code,
-          instruction:
-            'Present the verification_url to the user and ask them to approve in the Link app. Then call `auth status --interval 5 --max-attempts 60` to poll until authenticated. Do not wait for the user to reply — start polling immediately.',
-          _next: {
-            command: 'auth status --interval 5 --max-attempts 60',
-            poll_interval_seconds: authRequest.interval,
-            until: 'authenticated is true',
-          },
+  cli.command('upgrade', {
+    description:
+      'Re-authenticate with Link, merging the requested access with your current access so the new session is a superset',
+    options: loginOptions,
+    outputPolicy: 'agent-only' as const,
+    async *run(c) {
+      const clientName = c.options.clientName?.trim();
+      const requestedScope = normalizeScopeInput(c.options.scope);
+      if (!clientName || clientName.length === 0) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message: 'client-name must be a non-empty string',
         });
-        return;
+      }
+      if (c.options.scope !== undefined && !requestedScope) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message: 'scope must be a non-empty string when provided',
+        });
       }
 
-      yield sanitizeDeep({
-        verification_url: authRequest.verification_url_complete,
-        phrase: authRequest.user_code,
-        instruction:
-          'Present the verification_url to the user and ask them to approve in the Link app. Polling has started automatically — no further action needed.',
-      });
+      let requestedAuthorizationDetails: JsonValue[];
+      try {
+        // Fold --source-actions into authorization details up front so `source`
+        // merges like any other authorization-detail type below.
+        requestedAuthorizationDetails = buildAuthorizationDetails(
+          c.options.sourceActions,
+          parseAuthorizationDetails(c.options.authorizationDetail),
+        );
+      } catch (error) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message: (error as Error).message,
+        });
+      }
 
-      yield* pollAuthStatus(authResource, storage, {
-        interval,
-        maxAttempts: c.options.maxAttempts,
-        timeout: c.options.timeout,
-      });
+      // Start from exactly what was requested; if there's a usable session,
+      // widen it to a superset of the current access.
+      let scope = requestedScope;
+      let authorizationDetails: JsonValue[] = requestedAuthorizationDetails;
+      // Set when we have a live session to widen. The old grant is left intact
+      // (not cleared, not revoked) until the new approval lands — see below.
+      let previousRefreshToken: string | undefined;
+      let warning: string | undefined;
+
+      const existingAuth = storage.getAuth();
+      if (existingAuth?.refresh_token) {
+        try {
+          const refreshed = await authResource.refreshToken(
+            existingAuth.refresh_token,
+          );
+          // Persist the rotated tokens so the session stays valid throughout
+          // the pending approval (and if initiateDeviceAuth below fails).
+          storage.setAuth(refreshed);
+          previousRefreshToken = refreshed.refresh_token;
+          const merged = computeMergedAccess({
+            requestedScope,
+            requestedAuthorizationDetails,
+            existingScope: refreshed.scope ?? existingAuth.scope,
+            existingAuthorizationDetails:
+              refreshed.authorization_details ??
+              existingAuth.authorization_details,
+          });
+          scope = merged.mergedScope;
+          authorizationDetails = merged.mergedAuthorizationDetails;
+        } catch {
+          // Existing token is no longer valid — warn and continue with only the
+          // requested access (per spec, upgrade never hard-fails on this).
+          // Clear the dead session so the poll isn't short-circuited by it.
+          storage.clearAuth();
+          storage.clearPendingDeviceAuth();
+          warning =
+            'could not refresh the existing session; continuing with only the requested access.';
+          process.stderr.write(`warning: ${warning}\n`);
+        }
+      } else {
+        warning =
+          'no active session to upgrade; continuing with only the requested access.';
+        process.stderr.write(`warning: ${warning}\n`);
+      }
+
+      // Unlike `login`, upgrade never bails when already authenticated. It does
+      // NOT tear down the current session up front: the existing grant stays
+      // valid (and un-revoked) throughout the pending approval, so a failed
+      // initiate or an abandoned approval leaves it usable. The pending is
+      // flagged `replaces_existing_session` so the poll completes the NEW
+      // approval (rather than short-circuiting on the current token) and revokes
+      // the old grant only once the widened tokens are stored.
+      const replacesExistingSession = previousRefreshToken !== undefined;
+
+      if (!c.agent && !c.formatExplicit) {
+        return renderInteractive(
+          <Login
+            authResource={authResource}
+            clientName={clientName}
+            scope={scope}
+            authorizationDetails={authorizationDetails}
+            authStorage={storage}
+            revokeRefreshTokenOnSuccess={previousRefreshToken}
+            onComplete={() => {}}
+          />,
+          () => ({ authenticated: true, token_type: 'Bearer' }),
+        );
+      }
+
+      yield* startDeviceAuthAndPoll(
+        authResource,
+        storage,
+        { clientName, scope, authorizationDetails, replacesExistingSession },
+        {
+          interval: c.options.interval,
+          maxAttempts: c.options.maxAttempts,
+          timeout: c.options.timeout,
+        },
+        warning,
+      );
     },
   });
 
