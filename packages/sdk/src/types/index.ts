@@ -138,6 +138,7 @@ export interface SpendRequest {
   payment_status_details?: PaymentStatusDetails | null;
   link_transaction_id?: string;
   activity_url?: string;
+  metadata?: Record<string, string>;
   created_at: string;
   updated_at: string;
 }

@@ -134,6 +134,16 @@ describe('SpendRequestResource', () => {
       });
     });
 
+    it('does not include metadata in POST body when not set', async () => {
+      mockFetchResponse(200, spendRequestResponse);
+
+      await repo.createSpendRequest(validParams);
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const sentBody = JSON.parse(opts.body);
+      expect(sentBody.metadata).toBeUndefined();
+    });
+
     it('serializes test flag in POST body when true', async () => {
       const paramsWithTest: CreateSpendRequestParams = {
         ...validParams,
@@ -394,6 +404,20 @@ describe('SpendRequestResource', () => {
         exp_month: 12,
         exp_year: 2027,
         number: '4000009990001984',
+      });
+    });
+
+    it('returns metadata when present in the response', async () => {
+      mockFetchResponse(200, {
+        ...spendRequestResponse,
+        metadata: { order_id: 'ord_123', team: 'growth' },
+      });
+
+      const result = await repo.getSpendRequest('si_123');
+
+      expect(result?.metadata).toEqual({
+        order_id: 'ord_123',
+        team: 'growth',
       });
     });
 
