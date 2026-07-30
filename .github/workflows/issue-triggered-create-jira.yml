@@ -36,7 +36,7 @@ jobs:
               summary: ("New GitHub Issue: " + $title),
               description: ("Issue #" + $number + " opened by " + $author + ".\n*URL:* " + $url + ".\n*Body:*\n\n" + $body),
               issuetype: "Bug",
-              labels: ["project-LINK_AI_WALLET"]
+              labels: ["project-RUN_LINK_AGENT_WALLET"]
             }')
 
           SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -mac HMAC -macopt hexkey:$API_KEY -binary | openssl base64 -A)

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spending by Category</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page:           #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --series-1:       #2a78d6;
+    --series-1-light: #cde2fb;
+    --series-1-hover: #1c5cab;
+    --tooltip-bg:     #0b0b0b;
+    --tooltip-text:   #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page:           #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --series-1:       #3987e5;
+      --series-1-light: #104281;
+      --series-1-hover: #86b6ef;
+      --tooltip-bg:     #ffffff;
+      --tooltip-text:   #0b0b0b;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page:           #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --baseline:       #383835;
+    --series-1:       #3987e5;
+    --series-1-light: #104281;
+    --series-1-hover: #86b6ef;
+    --tooltip-bg:     #ffffff;
+    --tooltip-text:   #0b0b0b;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--page);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 32px 24px;
+    min-height: 100vh;
+  }
+
+  .viz-root {
+    background: var(--surface-1);
+    border-radius: 12px;
+    padding: 32px 32px 28px;
+    max-width: 760px;
+    margin: 0 auto;
+  }
+
+  .chart-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .chart-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 28px;
+  }
+
+  .theme-toggle {
+    float: right;
+    background: none;
+    border: 1px solid var(--gridline);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .theme-toggle:hover { border-color: var(--baseline); }
+
+  .bar-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .bar-row {
+    display: grid;
+    grid-template-columns: 160px 1fr 80px;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+  }
+
+  .bar-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .bar-track {
+    height: 22px;
+    background: transparent;
+    border-radius: 0;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .bar-fill {
+    height: 22px;
+    background: var(--series-1);
+    border-radius: 0 4px 4px 0;
+    transition: background 0.1s;
+    position: relative;
+  }
+
+  .bar-row:hover .bar-fill {
+    background: var(--series-1-hover);
+  }
+
+  .bar-value {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .axis-line {
+    height: 1px;
+    background: var(--baseline);
+    margin: 8px 0 6px 172px;
+  }
+
+  .x-axis {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 12px;
+    margin-top: 4px;
+  }
+
+  .x-ticks {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 4px;
+  }
+
+  .x-tick {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .total-row {
+    display: grid;
+    grid-template-columns: 160px 1fr 80px;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--gridline);
+    align-items: center;
+  }
+
+  .total-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: right;
+  }
+
+  .total-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Tooltip */
+  .tooltip {
+    position: fixed;
+    background: var(--tooltip-bg);
+    color: var(--tooltip-text);
+    font-size: 12px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.1s;
+    z-index: 100;
+    white-space: nowrap;
+    line-height: 1.5;
+  }
+
+  .tooltip.visible { opacity: 1; }
+
+  .tooltip-name { font-weight: 600; }
+  .tooltip-value { color: var(--tooltip-text); opacity: 0.8; }
+
+  .table-view {
+    margin-top: 28px;
+    border-top: 1px solid var(--gridline);
+    padding-top: 16px;
+  }
+
+  .table-toggle {
+    background: none;
+    border: none;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    font-family: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .table-toggle:hover { color: var(--text-secondary); }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 13px;
+    display: none;
+  }
+  .data-table.visible { display: table; }
+
+  .data-table th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--text-muted);
+    padding: 4px 0 8px;
+    border-bottom: 1px solid var(--gridline);
+    font-size: 12px;
+  }
+  .data-table th:last-child { text-align: right; }
+
+  .data-table td {
+    padding: 7px 0;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--gridline);
+    font-variant-numeric: tabular-nums;
+  }
+  .data-table td:last-child { text-align: right; color: var(--text-primary); font-weight: 500; }
+  .data-table tr:last-child td { border-bottom: none; }
+</style>
+</head>
+<body>
+<div class="viz-root" id="root">
+  <button class="theme-toggle" onclick="toggleTheme()">Toggle dark</button>
+  <div class="chart-title">Spending by category</div>
+  <div class="chart-subtitle">100 transactions · May 23 – Jul 28, 2026 · amounts in USD</div>
+
+  <div class="bar-chart" id="chart"></div>
+
+  <div class="axis-line"></div>
+  <div class="x-axis">
+    <div></div>
+    <div class="x-ticks" id="x-ticks"></div>
+  </div>
+
+  <div class="total-row">
+    <div class="total-label">Total</div>
+    <div></div>
+    <div class="total-value" id="total-value"></div>
+  </div>
+
+  <div class="table-view">
+    <button class="table-toggle" onclick="toggleTable()">Show data table</button>
+    <table class="data-table" id="data-table">
+      <thead>
+        <tr><th>Category</th><th>Merchants</th><th>Amount</th></tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const data = [
+  { category: "Travel",            amount: 286711, merchants: "Expedia, FLT" },
+  { category: "Other / Unknown",   amount: 146323, merchants: "Berkshire Suntold, Sage, CAR, Marvel" },
+  { category: "Amazon / Online",   amount: 122518, merchants: "Amazon, Amazon Marketplace" },
+  { category: "Housing / Utilities", amount: 64684, merchants: "Pearl Bay Manor, Comcast, Hayward Water" },
+  { category: "Groceries",         amount: 45875,  merchants: "Trader Joe's, Safeway, 99 Ranch, Whole Foods, +4" },
+  { category: "Healthcare",        amount: 44376,  merchants: "Kaiser, KP RX, CA Pet Pharmacy" },
+  { category: "Transportation",    amount: 28837,  merchants: "ROCKET, FasTrak, Exxon, World Oil, Palace Shine" },
+  { category: "Retail / Home",     amount: 28407,  merchants: "Kiehl's, Nordstrom, HomeGoods, Target, +3" },
+  { category: "Tech / Subscriptions", amount: 14432, merchants: "Vercel, Anthropic, Apple, Sticker Mule" },
+  { category: "Dining",            amount: 9629,   merchants: "Tong Sui, Beard Papa's, Popeyes, Paris Baguette" },
+  { category: "Entertainment",     amount: 3200,   merchants: "Marvel" },
+];
+
+const fmt = cents => "$" + (cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtK = cents => {
+  const d = cents / 100;
+  if (d >= 1000) return "$" + (d / 1000).toFixed(1) + "K";
+  return "$" + d.toFixed(0);
+};
+
+const max = data[0].amount;
+const total = data.reduce((s, d) => s + d.amount, 0);
+
+document.getElementById("total-value").textContent = fmt(total);
+
+// X-axis ticks
+const tickCount = 4;
+const tickStep = Math.ceil(max / tickCount / 500) * 500;
+const ticks = [];
+for (let t = 0; t <= max; t += tickStep * 100) ticks.push(t);
+// Actually let me just do 4 even ticks
+const niceMax = Math.ceil((max / 100) / 1000) * 1000;
+const ticksEl = document.getElementById("x-ticks");
+for (let i = 0; i <= 4; i++) {
+  const val = (niceMax / 4) * i * 100;
+  const t = document.createElement("span");
+  t.className = "x-tick";
+  t.textContent = i === 0 ? "$0" : fmtK(val);
+  ticksEl.appendChild(t);
+}
+
+// Build bars
+const chart = document.getElementById("chart");
+const tooltip = document.getElementById("tooltip");
+
+data.forEach(row => {
+  const pct = (row.amount / (niceMax * 100)) * 100;
+
+  const rowEl = document.createElement("div");
+  rowEl.className = "bar-row";
+  rowEl.innerHTML = `
+    <div class="bar-label" title="${row.category}">${row.category}</div>
+    <div class="bar-track">
+      <div class="bar-fill" style="width: ${pct}%"></div>
+    </div>
+    <div class="bar-value">${fmt(row.amount)}</div>
+  `;
+
+  rowEl.addEventListener("mousemove", e => {
+    tooltip.innerHTML = `<div class="tooltip-name">${row.category}</div><div class="tooltip-value">${fmt(row.amount)} · ${(row.amount / total * 100).toFixed(1)}% of total</div><div class="tooltip-value" style="opacity:0.6;font-size:11px">${row.merchants}</div>`;
+    tooltip.classList.add("visible");
+    const x = Math.min(e.clientX + 14, window.innerWidth - 260);
+    const y = e.clientY - 48;
+    tooltip.style.left = x + "px";
+    tooltip.style.top = y + "px";
+  });
+
+  rowEl.addEventListener("mouseleave", () => tooltip.classList.remove("visible"));
+
+  chart.appendChild(rowEl);
+});
+
+// Table
+const tbody = document.getElementById("table-body");
+data.forEach(row => {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td>${row.category}</td><td style="color:var(--text-muted);font-size:12px">${row.merchants}</td><td>${fmt(row.amount)}</td>`;
+  tbody.appendChild(tr);
+});
+const totalTr = document.createElement("tr");
+totalTr.innerHTML = `<td style="font-weight:600;color:var(--text-primary)">Total</td><td></td><td style="font-weight:600;color:var(--text-primary)">${fmt(total)}</td>`;
+tbody.appendChild(totalTr);
+
+function toggleTable() {
+  const t = document.getElementById("data-table");
+  const btn = document.querySelector(".table-toggle");
+  t.classList.toggle("visible");
+  btn.textContent = t.classList.contains("visible") ? "Hide data table" : "Show data table";
+}
+
+function toggleTheme() {
+  const root = document.documentElement;
+  root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+}
+</script>
+</body>
+</html>
