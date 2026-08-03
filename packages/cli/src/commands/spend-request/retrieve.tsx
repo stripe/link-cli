@@ -484,6 +484,24 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
             )}
           </Box>
         )}
+        {!request?.card && (request?.card_brand || request?.card_last4) && (
+          <Box flexDirection="column" marginTop={1}>
+            <Text bold>Card:</Text>
+            <Text>
+              {' '}
+              {[
+                request?.card_brand,
+                request?.card_last4 && `····${request.card_last4}`,
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            </Text>
+            <Text color="gray">
+              {' '}
+              Use --include card to expand full card details
+            </Text>
+          </Box>
+        )}
         {request?.card && outputFile && (
           <Box flexDirection="column" marginTop={1}>
             {outputFilePath && (

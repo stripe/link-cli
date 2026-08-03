@@ -321,6 +321,86 @@ describe('spend-request', () => {
     });
   });
 
+  describe('card summary', () => {
+    it('RetrieveSpendRequest shows card_brand and card_last4 when full card is not expanded', async () => {
+      const request = makeSpendRequest({
+        merchant_name: 'Acme',
+        card_brand: 'visa',
+        card_last4: '4242',
+      });
+      const repo = makeMockRepo(request);
+
+      const { lastFrame } = render(
+        <RetrieveSpendRequest
+          repository={repo}
+          id="sr_test"
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Card:');
+        expect(frame).toContain('visa');
+        expect(frame).toContain('····4242');
+      });
+    });
+
+    it('RetrieveSpendRequest hides the card summary when the full card is expanded', async () => {
+      const request = makeSpendRequest({
+        merchant_name: 'Acme',
+        card_brand: 'visa',
+        card_last4: '4242',
+        card: {
+          id: 'ic_1',
+          brand: 'visa',
+          exp_month: 12,
+          exp_year: 2030,
+          number: '4242424242424242',
+        },
+      });
+      const repo = makeMockRepo(request);
+
+      const { lastFrame } = render(
+        <RetrieveSpendRequest
+          repository={repo}
+          id="sr_test"
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Card Details:');
+        expect(frame).not.toContain('····4242');
+      });
+    });
+
+    it('RetrieveSpendRequest omits the card summary for SPT (no brand/last4)', async () => {
+      const request = makeSpendRequest({
+        merchant_name: 'Acme',
+        credential_type: 'shared_payment_token',
+        card_brand: undefined,
+        card_last4: undefined,
+      });
+      const repo = makeMockRepo(request);
+
+      const { lastFrame } = render(
+        <RetrieveSpendRequest
+          repository={repo}
+          id="sr_test"
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Spend request approved');
+        expect(frame).not.toContain('Card:');
+      });
+    });
+  });
+
   describe('sanitization', () => {
     it('CreateSpendRequest sanitizes merchant_name and line_items', async () => {
       const request = makeSpendRequest();

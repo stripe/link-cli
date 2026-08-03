@@ -130,6 +130,8 @@ export interface SpendRequest {
   payment_details: string;
   credential_type?: CredentialType;
   network_id?: string;
+  card_brand?: string;
+  card_last4?: string;
   status: SpendRequestStatus;
   approval_url?: string;
   card?: Card;
