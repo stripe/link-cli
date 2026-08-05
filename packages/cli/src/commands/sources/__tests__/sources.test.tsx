@@ -29,7 +29,7 @@ describe('sources list component', () => {
   });
 
   it('renders source details', async () => {
-    setTerminalWidth(160);
+    setTerminalWidth(200);
     const resource = makeResource({
       data: [
         {
