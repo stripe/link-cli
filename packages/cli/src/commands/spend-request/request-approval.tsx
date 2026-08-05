@@ -1,10 +1,11 @@
-import { LinkApiError } from '@stripe/link-sdk';
 import type { ISpendRequestResource, SpendRequest } from '@stripe/link-sdk';
-import { Box, Text, useApp } from 'ink';
+import { LinkApiError } from '@stripe/link-sdk';
+import { Box, Text, useApp, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
+import { openUrl } from '../../utils/open-url';
 import { ApprovalWaitingView } from './approval-waiting-view';
 import { useApprovalPolling } from './use-approval-polling';
 
@@ -19,23 +20,31 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
   id,
   onComplete,
 }) => {
+  const { exit } = useApp();
+
+  const completeAndExit = useCallback(
+    (result: SpendRequest | null) => {
+      onComplete(result);
+      exit();
+    },
+    [onComplete, exit],
+  );
+
   const [status, setStatus] = useState<
-    'requesting' | 'waiting' | 'polling' | 'success' | 'error'
+    | 'requesting'
+    | 'waiting'
+    | 'polling'
+    | 'success'
+    | 'error'
+    | 'verification_required'
+    | 'opened'
   >('requesting');
   const [approvalUrl, setApprovalUrl] = useState<string>('');
   const [result, setResult] = useState<SpendRequest | null>(null);
   const [error, setError] = useState<string>('');
   const [verificationUrl, setVerificationUrl] = useState<string>('');
   const [supportUrl, setSupportUrl] = useState<string>('');
-  const { exit } = useApp();
-
-  const completeAndExit = useCallback(
-    (result: SpendRequest) => {
-      onComplete(result);
-      exit();
-    },
-    [onComplete, exit],
-  );
+  const [countdown, setCountdown] = useState(30);
 
   const onSuccess = useCallback((r: SpendRequest) => setResult(r), []);
   const onError = useCallback((msg: string) => setError(msg), []);
@@ -50,6 +59,28 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
     onSuccess,
     onError,
   });
+
+  useInput((_, key) => {
+    if (
+      key.return &&
+      (verificationUrl || supportUrl) &&
+      status === 'verification_required'
+    ) {
+      openUrl(verificationUrl || supportUrl);
+      setStatus('opened');
+      setTimeout(() => completeAndExit(null), DISPLAY_DELAY_MS);
+    }
+  });
+
+  useEffect(() => {
+    if (status !== 'verification_required') return;
+    if (countdown <= 0) {
+      completeAndExit(null);
+      return;
+    }
+    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [status, countdown, completeAndExit]);
 
   useEffect(() => {
     const request = async () => {
@@ -67,6 +98,13 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
             setVerificationUrl(errDetail.error.verification_url);
           if (errDetail?.error?.support_url)
             setSupportUrl(errDetail.error.support_url);
+          if (
+            errDetail?.error?.verification_url ||
+            errDetail?.error?.support_url
+          ) {
+            setStatus('verification_required');
+            return;
+          }
         }
         setStatus('error');
         setTimeout(() => {
@@ -77,7 +115,44 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
     };
 
     request();
-  }, [repository, id, exit, onComplete]);
+  }, [repository, id, onComplete, exit]);
+
+  if (status === 'verification_required') {
+    const url = verificationUrl || supportUrl;
+    return (
+      <Box flexDirection="column">
+        <Text color="red">✗ Failed to request approval</Text>
+        <Text color="red">{error}</Text>
+        <Box
+          flexDirection="column"
+          borderStyle="round"
+          borderColor="cyan"
+          paddingX={2}
+          paddingY={1}
+          marginTop={1}
+        >
+          <Text>
+            Open:{' '}
+            <Text bold color="cyan">
+              {url}
+            </Text>
+          </Text>
+          <Text dimColor>Press Enter to open in browser</Text>
+          <Text dimColor>Exiting in {countdown}s...</Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  if (status === 'opened') {
+    return (
+      <Box flexDirection="column">
+        <Text color="red">✗ Failed to request approval</Text>
+        <Text color="red">{error}</Text>
+        <Text color="green">✓ Opened verification URL in browser</Text>
+      </Box>
+    );
+  }
 
   if (status === 'requesting') {
     return (
@@ -94,16 +169,6 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
       <Box flexDirection="column">
         <Text color="red">✗ Failed to request approval</Text>
         <Text color="red">{error}</Text>
-        {verificationUrl && (
-          <Text color="red">
-            Complete additional verification at: {verificationUrl}
-          </Text>
-        )}
-        {supportUrl && (
-          <Text color="red">
-            Identity verification failed. Contact support at: {supportUrl}
-          </Text>
-        )}
       </Box>
     );
   }

@@ -4,12 +4,13 @@ import type {
   SpendRequest,
 } from '@stripe/link-sdk';
 import { LinkApiError } from '@stripe/link-sdk';
-import { Box, Text, useApp } from 'ink';
+import { Box, Text, useApp, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { writeCredentialFile } from '../../utils/credential-output';
+import { openUrl } from '../../utils/open-url';
 import { AppDownloadQrCodes } from './app-download-qr-codes';
 import { ApprovalWaitingView } from './approval-waiting-view';
 import { useApprovalPolling } from './use-approval-polling';
@@ -31,18 +32,26 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
   force,
   onComplete,
 }) => {
+  const { exit } = useApp();
+
   const [status, setStatus] = useState<
-    'creating' | 'waiting' | 'polling' | 'success' | 'error'
+    | 'creating'
+    | 'waiting'
+    | 'polling'
+    | 'success'
+    | 'error'
+    | 'verification_required'
+    | 'opened'
   >('creating');
   const [request, setRequest] = useState<SpendRequest | null>(null);
   const [error, setError] = useState<string>('');
   const [verificationUrl, setVerificationUrl] = useState<string>('');
   const [supportUrl, setSupportUrl] = useState<string>('');
+  const [countdown, setCountdown] = useState(30);
   const [outputFilePath, setOutputFilePath] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string>('');
 
   const approvalUrl = request?.approval_url ?? '';
-  const { exit } = useApp();
 
   const completeAndExit = useCallback(
     (result: SpendRequest | null) => {
@@ -69,6 +78,28 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
     onError,
   });
 
+  useInput((_, key) => {
+    if (
+      key.return &&
+      (verificationUrl || supportUrl) &&
+      status === 'verification_required'
+    ) {
+      openUrl(verificationUrl || supportUrl);
+      setStatus('opened');
+      setTimeout(() => completeAndExit(null), DISPLAY_DELAY_MS);
+    }
+  });
+
+  useEffect(() => {
+    if (status !== 'verification_required') return;
+    if (countdown <= 0) {
+      completeAndExit(null);
+      return;
+    }
+    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [status, countdown, completeAndExit]);
+
   useEffect(() => {
     const create = async () => {
       try {
@@ -91,6 +122,13 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
             setVerificationUrl(errDetail.error.verification_url);
           if (errDetail?.error?.support_url)
             setSupportUrl(errDetail.error.support_url);
+          if (
+            errDetail?.error?.verification_url ||
+            errDetail?.error?.support_url
+          ) {
+            setStatus('verification_required');
+            return;
+          }
         }
         setStatus('error');
         setTimeout(() => completeAndExit(null), DISPLAY_DELAY_MS);
@@ -116,6 +154,43 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
       .catch((err) => setFileError((err as Error).message));
   }, [status, outputFile, force, request]);
 
+  if (status === 'verification_required') {
+    const url = verificationUrl || supportUrl;
+    return (
+      <Box flexDirection="column">
+        <Text color="red">✗ Failed to create spend request</Text>
+        <Text color="red">{error}</Text>
+        <Box
+          flexDirection="column"
+          borderStyle="round"
+          borderColor="cyan"
+          paddingX={2}
+          paddingY={1}
+          marginTop={1}
+        >
+          <Text>
+            Open:{' '}
+            <Text bold color="cyan">
+              {url}
+            </Text>
+          </Text>
+          <Text dimColor>Press Enter to open in browser</Text>
+          <Text dimColor>Exiting in {countdown}s...</Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  if (status === 'opened') {
+    return (
+      <Box flexDirection="column">
+        <Text color="red">✗ Failed to create spend request</Text>
+        <Text color="red">{error}</Text>
+        <Text color="green">✓ Opened verification URL in browser</Text>
+      </Box>
+    );
+  }
+
   if (status === 'creating') {
     return (
       <Box>
@@ -131,16 +206,6 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
       <Box flexDirection="column">
         <Text color="red">✗ Failed to create spend request</Text>
         <Text color="red">{error}</Text>
-        {verificationUrl && (
-          <Text color="red">
-            Complete additional verification at: {verificationUrl}
-          </Text>
-        )}
-        {supportUrl && (
-          <Text color="red">
-            Identity verification failed. Contact support at: {supportUrl}
-          </Text>
-        )}
       </Box>
     );
   }
