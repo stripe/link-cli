@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-bin/
 *.log
 *.tgz
 .DS_Store
