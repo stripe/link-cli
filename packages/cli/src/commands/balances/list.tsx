@@ -19,6 +19,8 @@ interface BalancesListProps {
 const COLUMN_GAP = '  ';
 const SOURCE_ID_MIN = 16;
 const SOURCE_ID_MAX = 48;
+const NAME_MIN = 12;
+const NAME_MAX = 30;
 const TYPE_WIDTH = 12;
 const CURRENT_WIDTH = 15;
 const CURRENCY_WIDTH = 8;
@@ -51,6 +53,17 @@ function sourceIdWidth(balances: Balance[]): number {
   return Math.min(SOURCE_ID_MAX, Math.max(SOURCE_ID_MIN, maxLen));
 }
 
+function accountName(balance: Balance): string {
+  const name = balance.name;
+  return typeof name === 'string' && name.length > 0 ? name : '-';
+}
+
+function nameWidth(balances: Balance[]): number {
+  if (balances.length === 0) return NAME_MIN;
+  const maxLen = Math.max(...balances.map((b) => accountName(b).length));
+  return Math.min(NAME_MAX, Math.max(NAME_MIN, maxLen));
+}
+
 export const BalancesList: React.FC<BalancesListProps> = ({
   resource,
   params,
@@ -68,7 +81,9 @@ export const BalancesList: React.FC<BalancesListProps> = ({
       : null;
 
   const idWidth = sourceIdWidth(balances);
+  const accountNameWidth = nameWidth(balances);
   const headerRow = [
+    formatCell('Account name', accountNameWidth),
     formatCell('Source ID', idWidth),
     formatCell('Balance type', TYPE_WIDTH),
     formatCell('Current balance', CURRENT_WIDTH),
@@ -77,6 +92,7 @@ export const BalancesList: React.FC<BalancesListProps> = ({
   const separatorRow = '-'.repeat(headerRow.length);
   const rows = balances.map((balance) =>
     [
+      formatCell(accountName(balance), accountNameWidth),
       formatCell(balance.source_id ?? '-', idWidth),
       formatCell(balance.type ?? '-', TYPE_WIDTH),
       formatCell(

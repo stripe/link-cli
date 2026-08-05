@@ -92,7 +92,7 @@ function sourceRow(source: Source, index: number): SourceRow {
 
   return {
     key: sourceId(source, index),
-    name: source.name ?? 'Source',
+    name: source.name ?? '-',
     type: source.type ?? '-',
     id: sourceId(source, index),
     capabilities,
@@ -102,7 +102,7 @@ function sourceRow(source: Source, index: number): SourceRow {
 
 function tableColumns(): TableColumn[] {
   return [
-    { label: 'Name', value: (row) => row.name, minWidth: 14, maxWidth: 24 },
+    { label: 'Name', value: (row) => row.name, minWidth: 14, maxWidth: 36 },
     { label: 'Type', value: (row) => row.type, minWidth: 10, maxWidth: 14 },
     { label: 'ID', value: (row) => row.id, minWidth: 16, maxWidth: 48 },
     {
