@@ -4,7 +4,7 @@ import type {
 } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
-import { Credential, Method } from 'mppx';
+import { Credential, Method, Receipt } from 'mppx';
 import { Mppx, Transport } from 'mppx/client';
 import { Methods as StripeMethods } from 'mppx/stripe';
 import React, { useEffect, useState } from 'react';
@@ -17,8 +17,14 @@ import {
 
 export type PayResult = {
   status: number;
-  headers: Record<string, string>;
-  body: string;
+  // Present only when the response carried the header (challenge, or a
+  // re-challenge on a failed payment retry).
+  www_authenticate?: string;
+  // Present only when a valid Payment-Receipt header was returned (success).
+  receipt?: Receipt.Receipt;
+  // Present when a Payment-Receipt header exists but failed to parse/validate.
+  // The payment outcome is still reported via `status` — this is not fatal.
+  receipt_error?: string;
 };
 
 export function buildHeaders(
@@ -40,16 +46,28 @@ export function buildHeaders(
 }
 
 export async function readPayResult(response: Response): Promise<PayResult> {
-  const responseHeaders = Object.fromEntries(response.headers.entries());
-  const body = await response.text();
-  // Response body and headers are fully attacker-controlled. Strip ANSI escape
-  // sequences and control characters so they cannot spoof the terminal UI or
-  // inject content into the agent's context. See CLAUDE.md security note.
-  return sanitizeDeep({
-    status: response.status,
-    headers: responseHeaders,
-    body,
-  });
+  const result: PayResult = { status: response.status };
+
+  const wwwAuthenticate = response.headers.get('www-authenticate');
+  if (wwwAuthenticate) {
+    result.www_authenticate = wwwAuthenticate;
+  }
+
+  // A missing Payment-Receipt header is not an error (the header is optional).
+  // A present-but-malformed one is surfaced as receipt_error but never fails
+  // the command — the payment outcome is still reported via `status`.
+  const rawReceipt = response.headers.get('Payment-Receipt');
+  if (rawReceipt) {
+    try {
+      result.receipt = Receipt.deserialize(rawReceipt);
+    } catch (err) {
+      result.receipt_error = (err as Error).message;
+    }
+  }
+
+  // The remaining strings (www_authenticate + validated receipt fields) are
+  // still merchant-controlled, so strip ANSI/control characters before use.
+  return sanitizeDeep(result);
 }
 
 function createStripePaymentClient(spt: string) {
@@ -451,7 +469,23 @@ export function MppPay({
           >
             HTTP {result.status}
           </Text>
-          <Text>{result.body}</Text>
+          {result.receipt && (
+            <Box flexDirection="column" marginTop={1}>
+              <Text color="green">✓ Receipt ({result.receipt.status})</Text>
+              <Text dimColor>
+                {result.receipt.method} · {result.receipt.reference} ·{' '}
+                {result.receipt.timestamp}
+              </Text>
+            </Box>
+          )}
+          {result.receipt_error && (
+            <Text dimColor>
+              Receipt could not be read: {result.receipt_error}
+            </Text>
+          )}
+          {result.www_authenticate && (
+            <Text dimColor>www-authenticate: {result.www_authenticate}</Text>
+          )}
         </Box>
       )}
     </Box>

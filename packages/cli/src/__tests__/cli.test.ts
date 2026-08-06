@@ -2209,6 +2209,15 @@ describe('production mode', () => {
       'expires="2099-01-01T00:00:00Z"',
     ].join(' ');
 
+    const VALID_RECEIPT = Buffer.from(
+      JSON.stringify({
+        method: 'stripe',
+        reference: 'ch_receipt_001',
+        status: 'success',
+        timestamp: '2099-01-01T00:00:00Z',
+      }),
+    ).toString('base64url');
+
     function decodeCredential(authorizationHeader: string): {
       challenge: { intent: string };
       payload: Record<string, unknown>;
@@ -2217,12 +2226,14 @@ describe('production mode', () => {
       return JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
     }
 
-    it('happy path: probes, gets 402, signs, retries, returns response', async () => {
+    it('happy path: probes, gets 402, signs, retries, returns validated receipt', async () => {
       setNextResponse(200, APPROVED_SPT_REQUEST);
       setMerchantResponse(402, '{"error":"payment required"}', {
         'www-authenticate': WWW_AUTHENTICATE_STRIPE,
       });
-      setMerchantResponse(200, '{"success":true}');
+      setMerchantResponse(200, '{"success":true}', {
+        'Payment-Receipt': VALID_RECEIPT,
+      });
 
       const result = await runProdCli(
         'mpp',
@@ -2236,16 +2247,29 @@ describe('production mode', () => {
       expect(result.exitCode).toBe(0);
       const output = parseJson(result.stdout) as Array<{
         status: number;
-        body: string;
+        body?: string;
+        receipt?: {
+          method: string;
+          reference: string;
+          status: string;
+          timestamp: string;
+        };
       }>;
       const parsed = output[0];
       expect(parsed.status).toBe(200);
-      expect(parsed.body).toContain('success');
+      // The raw response body is never surfaced.
+      expect(parsed.body).toBeUndefined();
+      expect(parsed.receipt).toEqual({
+        method: 'stripe',
+        reference: 'ch_receipt_001',
+        status: 'success',
+        timestamp: '2099-01-01T00:00:00Z',
+      });
       expect(merchantRequests).toHaveLength(2);
       expect(merchantRequests[1].headers.authorization).toMatch(/^Payment /);
     });
 
-    it('returns structured response when the paid retry fails', async () => {
+    it('reports status without the body when the paid retry fails', async () => {
       setNextResponse(200, APPROVED_SPT_REQUEST);
       setMerchantResponse(402, '{"error":"payment required"}', {
         'www-authenticate': WWW_AUTHENTICATE_STRIPE,
@@ -2265,12 +2289,14 @@ describe('production mode', () => {
       expect(result.exitCode).toBe(0);
       const output = parseJson(result.stdout) as Array<{
         status: number;
-        headers: Record<string, string>;
-        body: string;
+        body?: string;
+        receipt?: unknown;
       }>;
       const parsed = output[0];
       expect(parsed.status).toBe(401);
-      expect(parsed.body).toContain('spt rejected');
+      // The failure body is never surfaced; the non-2xx status is the signal.
+      expect(parsed.body).toBeUndefined();
+      expect(parsed.receipt).toBeUndefined();
       expect(merchantRequests).toHaveLength(2);
     });
 
@@ -2343,6 +2369,38 @@ describe('production mode', () => {
       const parsed = output[0];
       expect(parsed.status).toBe(200);
       expect(merchantRequests).toHaveLength(1);
+    });
+
+    it('surfaces receipt_error but still reports success on a malformed receipt', async () => {
+      setNextResponse(200, APPROVED_SPT_REQUEST);
+      setMerchantResponse(402, '{"error":"payment required"}', {
+        'www-authenticate': WWW_AUTHENTICATE_STRIPE,
+      });
+      setMerchantResponse(200, '{"success":true}', {
+        'Payment-Receipt': 'not-a-valid-base64url-receipt!!!',
+      });
+
+      const result = await runProdCli(
+        'mpp',
+        'pay',
+        `http://127.0.0.1:${merchantPort}/api/charge`,
+        '--spend-request-id',
+        'lsrq_spt_001',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const output = parseJson(result.stdout) as Array<{
+        status: number;
+        receipt?: unknown;
+        receipt_error?: string;
+      }>;
+      const parsed = output[0];
+      // A bad receipt is soft: payment still reported as successful.
+      expect(parsed.status).toBe(200);
+      expect(parsed.receipt).toBeUndefined();
+      expect(typeof parsed.receipt_error).toBe('string');
+      expect(parsed.receipt_error?.length).toBeGreaterThan(0);
     });
 
     it('no stripe challenge in 402 exits 1 with error', async () => {
