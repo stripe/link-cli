@@ -97,6 +97,14 @@ describe('PaymentMethodsResource', () => {
     );
   });
 
+  it('extracts message from nested error object instead of [object Object]', async () => {
+    mockFetchResponse(400, { error: { message: 'card not supported' } });
+
+    await expect(repo.listPaymentMethods()).rejects.toThrow(
+      'Failed to list payment methods (400): card not supported',
+    );
+  });
+
   it('throws when no access token is available', async () => {
     getAccessToken.mockRejectedValueOnce(new Error('Missing access token'));
 

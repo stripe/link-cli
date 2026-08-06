@@ -4,6 +4,7 @@ import {
   resolveLinkSdkConfig,
 } from '@/config';
 import { LinkApiError, LinkTransportError } from '@/errors';
+import { extractErrorMessage } from '@/resources/base';
 import type {
   AccessTokenProvider,
   IUserInfoResource,
@@ -104,18 +105,9 @@ export class UserInfoResource implements IUserInfoResource {
     });
 
     if (status < 200 || status >= 300) {
-      const body = data as Record<string, unknown> | null;
-      const msg =
-        (body?.error as string | undefined) ??
-        (body?.message as string | undefined) ??
-        (rawBody || 'unknown error');
       throw new LinkApiError(
-        `Failed to retrieve user info (${status}): ${msg}`,
-        {
-          status,
-          rawBody,
-          details: data,
-        },
+        `Failed to retrieve user info (${status}): ${extractErrorMessage(data, rawBody)}`,
+        { status, rawBody, details: data },
       );
     }
 

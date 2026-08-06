@@ -4,6 +4,7 @@ import {
   resolveLinkSdkConfig,
 } from '@/config';
 import { LinkApiError, LinkSdkError, LinkTransportError } from '@/errors';
+import { extractErrorMessage } from '@/resources/base';
 import type {
   AccessTokenProvider,
   IWebBotAuthResource,
@@ -154,13 +155,8 @@ export class WebBotAuthResource implements IWebBotAuthResource {
     });
 
     if (status < 200 || status >= 300) {
-      const body = data as Record<string, unknown> | null;
-      const msg =
-        (body?.error as string | undefined) ??
-        (body?.message as string | undefined) ??
-        (rawBody || 'unknown error');
       throw new LinkApiError(
-        `Failed to get web bot auth headers (${status}): ${msg}`,
+        `Failed to get web bot auth headers (${status}): ${extractErrorMessage(data, rawBody)}`,
         { status, rawBody, details: data },
       );
     }

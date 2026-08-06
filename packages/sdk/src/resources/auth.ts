@@ -35,8 +35,23 @@ interface TokenResponse {
 }
 
 interface OAuthError {
-  error: string;
+  error: string | { message?: string };
   error_description?: string;
+}
+
+function extractOAuthErrorMessage(err: OAuthError | null): string | undefined {
+  if (!err) return undefined;
+  if (err.error_description != null) return err.error_description;
+  if (typeof err.error === 'string') return err.error;
+  if (typeof err.error === 'object' && err.error !== null) {
+    return err.error.message ?? JSON.stringify(err.error);
+  }
+  return undefined;
+}
+
+function extractOAuthErrorCode(err: OAuthError | null): string | undefined {
+  if (!err) return undefined;
+  return typeof err.error === 'string' ? err.error : undefined;
 }
 
 function formatOAuthError(
@@ -46,7 +61,7 @@ function formatOAuthError(
   rawBody: string,
 ): string {
   const err = data as OAuthError | null;
-  return `${prefix} (${status}): ${err?.error_description ?? err?.error ?? (rawBody || 'unknown error')}`;
+  return `${prefix} (${status}): ${extractOAuthErrorMessage(err) ?? (rawBody || 'unknown error')}`;
 }
 
 function dedupe<T>(values: readonly T[]): T[] {
@@ -263,19 +278,19 @@ export class AuthResource implements IAuthResource {
 
     if (status === 400) {
       const err = data as OAuthError;
-      switch (err.error) {
+      switch (extractOAuthErrorCode(err)) {
         case 'authorization_pending':
         case 'slow_down':
           return null;
         case 'expired_token':
           throw new LinkApiError(
             'Device code expired. Please restart the login flow.',
-            { status, code: err.error, rawBody, details: data },
+            { status, code: extractOAuthErrorCode(err), rawBody, details: data },
           );
         case 'access_denied':
           throw new LinkApiError('Authorization denied by user.', {
             status,
-            code: err.error,
+            code: extractOAuthErrorCode(err),
             rawBody,
             details: data,
           });
@@ -286,7 +301,7 @@ export class AuthResource implements IAuthResource {
       formatOAuthError('Token poll failed', status, data, rawBody),
       {
         status,
-        code: (data as OAuthError | null)?.error,
+        code: extractOAuthErrorCode(data as OAuthError | null),
         rawBody,
         details: data,
       },
@@ -307,7 +322,7 @@ export class AuthResource implements IAuthResource {
         formatOAuthError('Token revocation failed', status, data, rawBody),
         {
           status,
-          code: (data as OAuthError | null)?.error,
+          code: extractOAuthErrorCode(data as OAuthError | null),
           rawBody,
           details: data,
         },
@@ -330,7 +345,7 @@ export class AuthResource implements IAuthResource {
         formatOAuthError('Token refresh failed', status, data, rawBody),
         {
           status,
-          code: (data as OAuthError | null)?.error,
+          code: extractOAuthErrorCode(data as OAuthError | null),
           rawBody,
           details: data,
         },

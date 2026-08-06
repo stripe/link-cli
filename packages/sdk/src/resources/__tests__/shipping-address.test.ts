@@ -129,6 +129,14 @@ describe('ShippingAddressResource', () => {
     );
   });
 
+  it('extracts message from nested error object instead of [object Object]', async () => {
+    mockFetchResponse(400, { error: { message: 'address not supported' } });
+
+    await expect(repo.listShippingAddresses()).rejects.toThrow(
+      'Failed to list shipping addresses (400): address not supported',
+    );
+  });
+
   it('throws when no access token is available', async () => {
     getAccessToken.mockRejectedValueOnce(new Error('Missing access token'));
 

@@ -142,6 +142,14 @@ describe('WebBotAuthResource', () => {
       expect(err.message).toMatch('Failed to get web bot auth headers (422)');
     });
 
+    it('extracts message from nested error object instead of [object Object]', async () => {
+      mockFetchResponse(400, { error: { message: 'signature failed' } });
+
+      const err = await resource.signUrl(validUrl).catch((e) => e);
+      expect(err).toBeInstanceOf(LinkApiError);
+      expect(err.message).toBe('Failed to get web bot auth headers (400): signature failed');
+    });
+
     it('throws LinkSdkError when expires_at is malformed', async () => {
       mockFetchResponse(200, {
         ...credentialsResponse,

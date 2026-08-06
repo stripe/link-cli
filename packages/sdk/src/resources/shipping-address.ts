@@ -4,6 +4,7 @@ import {
   resolveLinkSdkConfig,
 } from '@/config';
 import { LinkApiError, LinkTransportError } from '@/errors';
+import { extractErrorMessage } from '@/resources/base';
 import type {
   AccessTokenProvider,
   IShippingAddressResource,
@@ -108,13 +109,8 @@ export class ShippingAddressResource implements IShippingAddressResource {
     });
 
     if (status < 200 || status >= 300) {
-      const body = data as Record<string, unknown> | null;
-      const msg =
-        (body?.error as string | undefined) ??
-        (body?.message as string | undefined) ??
-        (rawBody || 'unknown error');
       throw new LinkApiError(
-        `Failed to list shipping addresses (${status}): ${msg}`,
+        `Failed to list shipping addresses (${status}): ${extractErrorMessage(data, rawBody)}`,
         { status, rawBody, details: data },
       );
     }

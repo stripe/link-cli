@@ -210,6 +210,24 @@ describe('LinkAuthResource', () => {
         LinkTransportError,
       );
     });
+
+    it('extracts message from nested error object instead of [object Object]', async () => {
+      mockFetchResponse(400, { error: { message: 'invalid scope: something' } });
+
+      const resource = createResource();
+      await expect(resource.initiateDeviceAuth()).rejects.toThrow(
+        'Device auth initiation failed (400): invalid scope: something',
+      );
+    });
+
+    it('preserves empty error_description rather than falling back to error code', async () => {
+      mockFetchResponse(400, { error: 'invalid_scope', error_description: '' });
+
+      const resource = createResource();
+      await expect(resource.initiateDeviceAuth()).rejects.toThrow(
+        'Device auth initiation failed (400): ',
+      );
+    });
   });
 
   describe('pollDeviceAuth', () => {
@@ -306,6 +324,22 @@ describe('LinkAuthResource', () => {
       await expect(resource.pollDeviceAuth('dev_123')).rejects.toThrow(
         /Token poll failed/,
       );
+    });
+
+    it('throws with readable message when 400 error is a nested object instead of [object Object]', async () => {
+      mockFetchResponse(400, { error: { message: 'invalid scope: something' } });
+
+      const resource = createResource();
+      await expect(resource.pollDeviceAuth('dev_123')).rejects.toThrow(
+        'Token poll failed (400): invalid scope: something',
+      );
+    });
+
+    it('still returns null for authorization_pending when error is a string', async () => {
+      mockFetchResponse(400, { error: 'authorization_pending' });
+
+      const resource = createResource();
+      expect(await resource.pollDeviceAuth('dev_123')).toBeNull();
     });
   });
 

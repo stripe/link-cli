@@ -145,4 +145,12 @@ describe('UserInfoResource', () => {
       'Failed to retrieve user info (403): Forbidden',
     );
   });
+
+  it('extracts message from nested error object instead of [object Object]', async () => {
+    mockFetchResponse(400, { error: { message: 'user not found' } });
+
+    await expect(resource.retrieve()).rejects.toThrow(
+      'Failed to retrieve user info (400): user not found',
+    );
+  });
 });
