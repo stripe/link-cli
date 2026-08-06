@@ -83,7 +83,7 @@ export const BalancesList: React.FC<BalancesListProps> = ({
   const idWidth = sourceIdWidth(balances);
   const accountNameWidth = nameWidth(balances);
   const headerRow = [
-    formatCell('Account name', accountNameWidth),
+    formatCell('Source name', accountNameWidth),
     formatCell('Source ID', idWidth),
     formatCell('Balance type', TYPE_WIDTH),
     formatCell('Current balance', CURRENT_WIDTH),
