@@ -36,7 +36,8 @@ export function useAsyncAction<T>(
         );
       } catch (err) {
         if (cancelled) return;
-        const message = err instanceof Error ? err.message : JSON.stringify(err);
+        const message =
+          err instanceof Error ? err.message : JSON.stringify(err);
         setError(message);
         setStatus('error');
         timeoutId = setTimeout(

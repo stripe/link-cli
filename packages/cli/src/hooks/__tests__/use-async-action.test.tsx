@@ -45,5 +45,4 @@ describe('useAsyncAction', () => {
       expect(frame).toBe(JSON.stringify(thrown));
     });
   });
-
 });

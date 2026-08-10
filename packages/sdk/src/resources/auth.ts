@@ -285,7 +285,12 @@ export class AuthResource implements IAuthResource {
         case 'expired_token':
           throw new LinkApiError(
             'Device code expired. Please restart the login flow.',
-            { status, code: extractOAuthErrorCode(err), rawBody, details: data },
+            {
+              status,
+              code: extractOAuthErrorCode(err),
+              rawBody,
+              details: data,
+            },
           );
         case 'access_denied':
           throw new LinkApiError('Authorization denied by user.', {

@@ -265,7 +265,9 @@ describe('AuthResource', () => {
     });
 
     it('extracts message from nested error object instead of [object Object]', async () => {
-      mockFetchResponse(400, { error: { message: 'invalid scope: something' } });
+      mockFetchResponse(400, {
+        error: { message: 'invalid scope: something' },
+      });
 
       await expect(repo.initiateDeviceAuth()).rejects.toThrow(
         'Device auth initiation failed (400): invalid scope: something',
@@ -400,7 +402,9 @@ describe('AuthResource', () => {
     });
 
     it('throws with readable message when 400 error is a nested object instead of [object Object]', async () => {
-      mockFetchResponse(400, { error: { message: 'invalid scope: something' } });
+      mockFetchResponse(400, {
+        error: { message: 'invalid scope: something' },
+      });
 
       await expect(repo.pollDeviceAuth('dev_123')).rejects.toThrow(
         'Token poll failed (400): invalid scope: something',

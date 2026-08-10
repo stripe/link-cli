@@ -212,7 +212,9 @@ describe('LinkAuthResource', () => {
     });
 
     it('extracts message from nested error object instead of [object Object]', async () => {
-      mockFetchResponse(400, { error: { message: 'invalid scope: something' } });
+      mockFetchResponse(400, {
+        error: { message: 'invalid scope: something' },
+      });
 
       const resource = createResource();
       await expect(resource.initiateDeviceAuth()).rejects.toThrow(
@@ -327,7 +329,9 @@ describe('LinkAuthResource', () => {
     });
 
     it('throws with readable message when 400 error is a nested object instead of [object Object]', async () => {
-      mockFetchResponse(400, { error: { message: 'invalid scope: something' } });
+      mockFetchResponse(400, {
+        error: { message: 'invalid scope: something' },
+      });
 
       const resource = createResource();
       await expect(resource.pollDeviceAuth('dev_123')).rejects.toThrow(

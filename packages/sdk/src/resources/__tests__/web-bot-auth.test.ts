@@ -147,7 +147,9 @@ describe('WebBotAuthResource', () => {
 
       const err = await resource.signUrl(validUrl).catch((e) => e);
       expect(err).toBeInstanceOf(LinkApiError);
-      expect(err.message).toBe('Failed to get web bot auth headers (400): signature failed');
+      expect(err.message).toBe(
+        'Failed to get web bot auth headers (400): signature failed',
+      );
     });
 
     it('throws LinkSdkError when expires_at is malformed', async () => {
