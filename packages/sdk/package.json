@@ -17,13 +17,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "conf": "^13.1.0"
+    "conf": "^15.1.0"
   },
   "devDependencies": {
     "@stripe/link-typescript-config": "workspace:*",
     "@types/node": "^22.19.19",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.10"
   }
 }
