@@ -126,4 +126,41 @@ describe('decodeStripeChallenge', () => {
       },
     });
   });
+
+  it('strips ANSI escape and control characters from decoded fields', () => {
+    const payload = '\x1b[2JEvil\rHidden';
+    const clean = 'EvilHidden';
+    const header = [
+      `Payment id="${payload}",`,
+      `realm="${payload}",`,
+      'method="stripe",',
+      'intent="charge",',
+      `description="${payload}",`,
+      `request="${encodeRequest({
+        amount: '1000',
+        currency: 'usd',
+        merchantName: payload,
+        methodDetails: {
+          networkId: 'net_001',
+          paymentMethodTypes: ['card'],
+        },
+      })}"`,
+    ].join(' ');
+
+    const decoded = decodeStripeChallenge(header);
+    expect(decoded).toMatchObject({
+      id: clean,
+      realm: clean,
+      description: clean,
+      network_id: 'net_001',
+      request_json: {
+        amount: '1000',
+        currency: 'usd',
+        merchantName: clean,
+      },
+    });
+    const serialized = JSON.stringify(decoded);
+    expect(serialized).not.toContain('\x1b[2J');
+    expect(serialized).not.toContain('\r');
+  });
 });

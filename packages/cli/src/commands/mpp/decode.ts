@@ -1,4 +1,5 @@
 import { Challenge } from 'mppx';
+import { sanitizeDeep } from '../../utils/sanitize-text';
 
 type StripeChargeChallenge = Challenge.Challenge<
   Record<string, unknown>,
@@ -118,7 +119,15 @@ export function decodeStripeChallenge(
     Challenge.deserializeList(challengeHeader),
   );
 
-  return {
+  // The challenge string is fully attacker-controlled (it is the raw
+  // WWW-Authenticate header value). Strip ANSI escape sequences and control
+  // characters so the decoded fields cannot spoof the terminal UI when rendered
+  // (interactive Ink render or agent non-JSON output). This is the sanitization
+  // boundary for decode data, which does not pass through the SDK resource
+  // factory. See CLAUDE.md security note. Stripping only affects strings with
+  // control bytes, so numeric/logic consumers (amount, currency, network_id)
+  // are unaffected for normal values.
+  return sanitizeDeep({
     id: challenge.id,
     realm: challenge.realm,
     method: 'stripe',
@@ -128,5 +137,5 @@ export function decodeStripeChallenge(
     expires: challenge.expires,
     network_id: networkId,
     request_json: request,
-  };
+  });
 }
