@@ -565,6 +565,44 @@ describe('production mode', () => {
       const output = result.stdout + result.stderr;
       expect(output).toContain('Invalid payment details');
     });
+
+    it('surfaces the duplicate spend request on spend_request_rate_limited error', async () => {
+      setNextResponse(429, {
+        error: {
+          code: 'spend_request_rate_limited',
+          message:
+            'You cannot submit duplicate spend requests within a short period of time. Please try again later.',
+          retry_after: 1699999999,
+          duplicate_spend_request: {
+            ...BASE_REQUEST,
+            id: 'lsrq_duplicate',
+            status: 'created',
+          },
+        },
+      });
+
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '-m',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      const output = parseJson(result.stdout) as Record<string, unknown>;
+      expect(output.code).toBe('spend_request_rate_limited');
+      expect(String(output.message)).toContain('lsrq_duplicate');
+      expect(String(output.message)).toContain('created');
+    });
   });
 
   describe('spend-request update', () => {

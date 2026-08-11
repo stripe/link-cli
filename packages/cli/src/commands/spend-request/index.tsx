@@ -1,4 +1,4 @@
-import { LinkApiError } from '@stripe/link-sdk';
+import { LinkApiError, getDuplicateSpendRequest } from '@stripe/link-sdk';
 import type {
   AuthStorage,
   CredentialType,
@@ -237,6 +237,24 @@ export function createSpendRequestCli(
             return c.error({
               code: err.code,
               message: `${err.message} Support URL: ${apiErr.error.support_url}`,
+            });
+          }
+          const duplicate = getDuplicateSpendRequest(err);
+          if (duplicate) {
+            return c.error({
+              code: apiErr?.error?.code ?? 'spend_request_rate_limited',
+              message: `${err.message} A matching spend request already exists: ${duplicate.id} (status: ${duplicate.status}). Retrieve it to resume instead of creating a new one.`,
+              cta: {
+                description:
+                  'Retrieve the conflicting spend request to inspect its status and resume it if valid.',
+                commands: [
+                  {
+                    command: `spend-request retrieve ${duplicate.id}`,
+                    description:
+                      'Retrieve the conflicting spend request to resume it',
+                  },
+                ],
+              },
             });
           }
         }

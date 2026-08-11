@@ -1,5 +1,9 @@
+import { LinkApiError } from '@/errors';
 import type { CreateSpendRequestParams } from '@/resources/interfaces';
-import { SpendRequestResource } from '@/resources/spend-request';
+import {
+  SpendRequestResource,
+  getDuplicateSpendRequest,
+} from '@/resources/spend-request';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockFetch = vi.fn();
@@ -530,5 +534,73 @@ describe('SpendRequestResource', () => {
         'Missing access token',
       );
     });
+  });
+});
+
+describe('getDuplicateSpendRequest', () => {
+  const duplicate = {
+    id: 'si_duplicate',
+    status: 'created',
+    amount: 5000,
+    currency: 'usd',
+    merchant_name: 'Test Store',
+    context: 'buying a widget',
+    payment_details: 'pd_test123',
+    line_items: [],
+    totals: [],
+    created_at: '2026-03-10T00:00:00Z',
+    updated_at: '2026-03-10T00:00:00Z',
+  };
+
+  it('extracts the duplicate spend request from a rate-limited error', () => {
+    const err = new LinkApiError('Failed to create spend request (429): ...', {
+      status: 429,
+      details: {
+        error: {
+          code: 'spend_request_rate_limited',
+          message: 'You cannot submit duplicate spend requests...',
+          retry_after: 1699999999,
+          duplicate_spend_request: duplicate,
+        },
+      },
+    });
+
+    expect(getDuplicateSpendRequest(err)).toEqual(duplicate);
+  });
+
+  it('normalizes a legacy string shared_payment_token on the duplicate', () => {
+    const err = new LinkApiError('Failed to create spend request (429): ...', {
+      status: 429,
+      details: {
+        error: {
+          code: 'spend_request_rate_limited',
+          duplicate_spend_request: {
+            ...duplicate,
+            credential_type: 'shared_payment_token',
+            shared_payment_token: 'spt_legacy',
+          },
+        },
+      },
+    });
+
+    expect(getDuplicateSpendRequest(err)?.shared_payment_token).toEqual({
+      id: 'spt_legacy',
+    });
+  });
+
+  it('returns null when the error carries no duplicate', () => {
+    const err = new LinkApiError('Failed to create spend request (429): ...', {
+      status: 429,
+      details: {
+        error: { code: 'spend_request_rate_limited', retry_after: 123 },
+      },
+    });
+
+    expect(getDuplicateSpendRequest(err)).toBeNull();
+  });
+
+  it('returns null for a non-LinkApiError', () => {
+    expect(getDuplicateSpendRequest(new Error('boom'))).toBeNull();
+    expect(getDuplicateSpendRequest(undefined)).toBeNull();
   });
 });

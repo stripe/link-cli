@@ -151,6 +151,72 @@ describe('spend-request', () => {
       });
     });
 
+    it('CreateSpendRequest surfaces the duplicate spend request on spend_request_rate_limited error', async () => {
+      const error = new LinkApiError(
+        'Failed to create spend request (429): You cannot submit duplicate spend requests within a short period of time.',
+        {
+          status: 429,
+          code: 'api_error',
+          details: {
+            error: {
+              code: 'spend_request_rate_limited',
+              message:
+                'You cannot submit duplicate spend requests within a short period of time.',
+              retry_after: 1699999999,
+              duplicate_spend_request: {
+                id: 'sr_duplicate',
+                status: 'created',
+                amount: 5000,
+                currency: 'usd',
+                merchant_name: ESCAPE_PAYLOAD,
+                context: 'x'.repeat(100),
+                payment_details: 'pm_1',
+                line_items: [],
+                totals: [],
+                created_at: '2025-01-01T00:00:00Z',
+                updated_at: '2025-01-01T00:00:00Z',
+              },
+            },
+          },
+        },
+      );
+      const repo = sanitizeResource({
+        createSpendRequest: vi.fn(async () => {
+          throw error;
+        }),
+        getSpendRequest: vi.fn(),
+        updateSpendRequest: vi.fn(),
+        requestApproval: vi.fn(),
+        cancelSpendRequest: vi.fn(),
+      } as unknown as ISpendRequestResource);
+
+      const { lastFrame } = render(
+        <CreateSpendRequest
+          repository={repo}
+          params={{
+            payment_details: 'pm_1',
+            amount: 5000,
+            currency: 'usd',
+            merchant_name: 'Stripe Press',
+            merchant_url: 'https://press.stripe.com',
+            context: 'x'.repeat(100),
+          }}
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Failed to create spend request');
+        expect(frame).toContain('A matching spend request already exists');
+        expect(frame).toContain('sr_duplicate');
+        expect(frame).toContain('spend-request retrieve sr_duplicate');
+        // Duplicate fields are sanitized before rendering.
+        expect(frame).toContain(CLEAN_TEXT);
+        expect(frame).not.toContain('\x1b[2J');
+      });
+    });
+
     it('RequestApproval surfaces verification_url on additional_verification_required error', async () => {
       const error = new LinkApiError(
         'Consumer must complete additional verification before creating spend requests.',

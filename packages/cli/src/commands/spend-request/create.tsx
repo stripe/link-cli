@@ -3,7 +3,7 @@ import type {
   ISpendRequestResource,
   SpendRequest,
 } from '@stripe/link-sdk';
-import { LinkApiError } from '@stripe/link-sdk';
+import { LinkApiError, getDuplicateSpendRequest } from '@stripe/link-sdk';
 import { Box, Text, useApp, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { writeCredentialFile } from '../../utils/credential-output';
 import { openUrl } from '../../utils/open-url';
+import { sanitizeDeep } from '../../utils/sanitize-text';
 import { AppDownloadQrCodes } from './app-download-qr-codes';
 import { ApprovalWaitingView } from './approval-waiting-view';
 import { useApprovalPolling } from './use-approval-polling';
@@ -44,6 +45,9 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
     | 'opened'
   >('creating');
   const [request, setRequest] = useState<SpendRequest | null>(null);
+  const [duplicateRequest, setDuplicateRequest] = useState<SpendRequest | null>(
+    null,
+  );
   const [error, setError] = useState<string>('');
   const [verificationUrl, setVerificationUrl] = useState<string>('');
   const [supportUrl, setSupportUrl] = useState<string>('');
@@ -129,6 +133,8 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
             setStatus('verification_required');
             return;
           }
+          const duplicate = getDuplicateSpendRequest(err);
+          if (duplicate) setDuplicateRequest(sanitizeDeep(duplicate));
         }
         setStatus('error');
         setTimeout(() => completeAndExit(null), DISPLAY_DELAY_MS);
@@ -206,6 +212,45 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
       <Box flexDirection="column">
         <Text color="red">✗ Failed to create spend request</Text>
         <Text color="red">{error}</Text>
+        {duplicateRequest && (
+          <Box
+            flexDirection="column"
+            borderStyle="round"
+            borderColor="yellow"
+            paddingX={2}
+            paddingY={1}
+            marginTop={1}
+          >
+            <Text bold color="yellow">
+              A matching spend request already exists
+            </Text>
+            <Box flexDirection="column" marginTop={1}>
+              <Text>
+                ID: <Text bold>{duplicateRequest.id}</Text>
+              </Text>
+              <Text>
+                Status: <Text bold>{duplicateRequest.status}</Text>
+              </Text>
+              <Text>
+                Amount:{' '}
+                <Text bold>
+                  {duplicateRequest.amount != null
+                    ? `${duplicateRequest.amount} ${duplicateRequest.currency?.toUpperCase() ?? ''}`.trim()
+                    : 'N/A'}
+                </Text>
+              </Text>
+              <Text>
+                Merchant: <Text bold>{duplicateRequest.merchant_name}</Text>
+              </Text>
+            </Box>
+            <Text dimColor>
+              {'\n'}Retrieve it to resume instead of creating a new one:
+            </Text>
+            <Text color="cyan">
+              spend-request retrieve {duplicateRequest.id}
+            </Text>
+          </Box>
+        )}
       </Box>
     );
   }
