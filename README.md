@@ -170,6 +170,35 @@ In MCP/agent mode, pass `metadata` as a structured `{ key: value }` object.
 
 By default, a spend request provisions a virtual card. For merchants that support the [Machine Payments Protocol](https://mpp.dev) (HTTP 402) and the Stripe payment method, instead pass `--credential-type "shared_payment_token"`. 
 
+#### Link Pay Token
+
+Some Stripe checkout pages expose an AI-agent steering block that supports a
+Link Pay Token (LPT). Inspect the checkout in a browser before creating the
+SpendRequest: enable the agent checkbox, then verify that both
+`input[name="link_pay_token"]` and
+`data-stripe-merchant-account="acct_..."` are present in the same Stripe
+frame.
+
+Create an LPT-bound request with the DOM-derived account ID. Do not pass
+`--merchant-name` or `--merchant-url`; Link resolves the canonical merchant
+identity from the account ID for the approval screen.
+
+```bash
+link-cli spend-request create \
+  --payment-method-id csmrpd_xxx \
+  --execution-method link_pay_token \
+  --merchant-account-id acct_... \
+  --context "Purchasing an item from the checkout the agent inspected. The user initiated this purchase through the shopping assistant." \
+  --amount 3500 \
+  --request-approval
+```
+
+LPT requests use the default `card` credential type and do not support
+`--test`, `--network-id`, or `shared_payment_token`. After approval,
+retrieve `--include link_pay_token` immediately before using the token on the
+same checkout surface. If either DOM marker is absent, create a regular virtual
+card SpendRequest instead; do not create an LPT request.
+
 ### Execute payment
 
 The approved spend request includes a `card` object with `number`, `cvc`, `exp_month`, `exp_year`, `billing_address`, and `valid_until`. Enter these into the merchant's checkout form. 
@@ -247,7 +276,13 @@ All commands accept `--auth <path>` to store auth credentials in a specific file
 
 A spend request moves through: **create** → **request approval** → **approved** (with credentials).
 
-**Required fields for create:** `merchant_name`, `merchant_url`, `context`, `amount`. `payment_method_id` is optional — if omitted, your default payment method will be used, or the first eligible one if no default is set.
+**Required fields for a regular card create:** `merchant_name`, `merchant_url`,
+`context`, and `amount`. `payment_method_id` is optional — if omitted,
+your default payment method will be used, or the first eligible one if no
+default is set. Shared Payment Token requests instead require `network_id`;
+Link Pay Token requests require `execution_method=link_pay_token` and the
+DOM-derived `merchant_account_id`, and Link supplies their canonical merchant
+identity.
 
 **Constraints:** `context` must be at least 100 characters; `amount` must not exceed 500000 (cents); `currency` must be a 3-letter ISO code. The user has 10 minutes from when approval is requested to approve. Approved credentials (card or SPT) are valid for 12 hours from spend request creation.
 **Test mode:** Pass `--test` to create a testmode SpendRequest. A testmode SpendRequest will return test payment credentials (e.g test card `4000009990001984`) rather than a real payment credential. Testmode SpendRequests will not charge the underlying payment method of the SpendRequest. This is useful for development and integration testing without real payment methods.

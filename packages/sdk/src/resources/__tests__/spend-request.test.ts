@@ -117,6 +117,22 @@ describe('SpendRequestResource', () => {
       expect(result.network_id).toBe('net_abc');
     });
 
+    it('serializes Link Pay Token execution fields in POST body', async () => {
+      const paramsWithLptExecution: CreateSpendRequestParams = {
+        ...validParams,
+        execution_method: 'link_pay_token',
+        merchant_account_id: 'acct_lpt_target',
+      };
+      mockFetchResponse(200, spendRequestResponse);
+
+      await repo.createSpendRequest(paramsWithLptExecution);
+
+      const [, opts] = mockFetch.mock.calls[0];
+      const sentBody = JSON.parse(opts.body);
+      expect(sentBody.execution_method).toBe('link_pay_token');
+      expect(sentBody.merchant_account_id).toBe('acct_lpt_target');
+    });
+
     it('serializes metadata in POST body', async () => {
       const paramsWithMetadata: CreateSpendRequestParams = {
         ...validParams,
@@ -168,15 +184,22 @@ describe('SpendRequestResource', () => {
       expect(sentBody.test).toBeUndefined();
     });
 
-    it('sends to /spend_requests/create_delegated when approve is true', async () => {
+    it('sends LPT execution fields to /spend_requests/create_delegated when approve is true', async () => {
       mockFetchResponse(200, spendRequestResponse);
 
-      await repo.createSpendRequest({ ...validParams, approve: true });
+      await repo.createSpendRequest({
+        ...validParams,
+        approve: true,
+        execution_method: 'link_pay_token',
+        merchant_account_id: 'acct_lpt_target',
+      });
 
       const [url, opts] = mockFetch.mock.calls[0];
       expect(url).toBe('https://api.link.com/spend_requests/create_delegated');
       const sentBody = JSON.parse(opts.body);
       expect(sentBody.approve).toBeUndefined();
+      expect(sentBody.execution_method).toBe('link_pay_token');
+      expect(sentBody.merchant_account_id).toBe('acct_lpt_target');
     });
 
     it('sends to /spend_requests when approve is not set', async () => {

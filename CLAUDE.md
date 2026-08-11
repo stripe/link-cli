@@ -51,7 +51,7 @@ Commands: `auth login|logout|status`, `spend-request create|update|retrieve|requ
 
 The CLI also runs as an MCP server (`--mcp`) and serves skill files via `skills` subcommand, both provided by incur.
 
-**When changing commands, flags, or schema descriptions, always update all three together:** `README.md`, `skills/create-payment-credential/SKILL.md`, the schema description strings in the relevant `schema.ts` file, and `CLAUDE.md`. These can easily drift apart.
+**When changing commands, flags, or schema descriptions, always update all four together:** `README.md`, `skills/create-payment-credential/SKILL.md`, the schema description strings in the relevant `schema.ts` file, and `CLAUDE.md`. These can easily drift apart.
 
 Input is passed via flags. Define options in the command's zod schema — incur registers CLI flags automatically from the schema.
 
@@ -76,6 +76,7 @@ CLI command is `spend-request` (user-facing). Implemented in `packages/cli/src/c
 
 Key input field notes:
 - CLI input uses `payment_method_id`; mapped to `payment_details` when calling the SDK
+- `--execution-method link_pay_token` and `--merchant-account-id acct_...` are a create-only pair for Link Pay Token checkout. The agent reads the account ID from `data-stripe-merchant-account` in the AI-agent steering DOM before creating the request; Link resolves the canonical merchant identity. LPT uses `credential_type: card`, cannot use `--test` or `--network-id`, and must not accept agent-provided merchant name or URL. Never add the target fields to the update path.
 - `context` requires min 100 characters; `amount` is in cents with max 500000
 - `--metadata` (create only) is a repeatable `key:value` flag (CLI) or a `{ key: value }` object (MCP/agent), merged into a single `metadata` string→string map. Max 50 keys, key ≤ 40 chars, value ≤ 500 chars. Reuses `parseKvString` from `line-item-parser.ts`.
 - `--test` flag creates testmode credentials (real testmode SPT from test card data) instead of livemode ones

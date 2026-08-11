@@ -323,6 +323,140 @@ describe('production mode', () => {
       expect(request.network_id).toBe('net_prod_abc');
     });
 
+    it('sends Link Pay Token execution fields in HTTP POST body', async () => {
+      setNextResponse(200, {
+        ...BASE_REQUEST,
+        merchant_name: 'Canonical Merchant',
+        merchant_url: 'https://canonical.example',
+      });
+
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '--execution-method',
+        'link_pay_token',
+        '--merchant-account-id',
+        'acct_lpt_target',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--no-request-approval',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const sentBody = JSON.parse(lastRequest.body);
+      expect(sentBody).toMatchObject({
+        payment_details: 'pd_prod_test',
+        credential_type: 'card',
+        execution_method: 'link_pay_token',
+        merchant_account_id: 'acct_lpt_target',
+      });
+      expect(sentBody.merchant_name).toBeUndefined();
+      expect(sentBody.merchant_url).toBeUndefined();
+    });
+
+    const invalidLptCreateCases = [
+      {
+        name: 'merchant-account-id without execution-method',
+        args: ['--merchant-account-id', 'acct_lpt_target'],
+        message:
+          'execution-method link_pay_token is required when merchant-account-id is provided',
+      },
+      {
+        name: 'execution-method without merchant-account-id',
+        args: ['--execution-method', 'link_pay_token'],
+        message:
+          'merchant-account-id is required when execution-method is link_pay_token',
+      },
+      {
+        name: 'blank merchant-account-id',
+        args: [
+          '--execution-method',
+          'link_pay_token',
+          '--merchant-account-id',
+          '   ',
+        ],
+        message:
+          'merchant-account-id is required when execution-method is link_pay_token',
+      },
+      {
+        name: 'shared_payment_token credential type',
+        args: [
+          '--execution-method',
+          'link_pay_token',
+          '--merchant-account-id',
+          'acct_lpt_target',
+          '--credential-type',
+          'shared_payment_token',
+        ],
+        message:
+          'credential-type must be card when execution-method is link_pay_token',
+      },
+      {
+        name: 'network-id',
+        args: [
+          '--execution-method',
+          'link_pay_token',
+          '--merchant-account-id',
+          'acct_lpt_target',
+          '--network-id',
+          'net_lpt_target',
+        ],
+        message:
+          'network-id cannot be used when execution-method is link_pay_token',
+      },
+      {
+        name: 'test mode',
+        args: [
+          '--execution-method',
+          'link_pay_token',
+          '--merchant-account-id',
+          'acct_lpt_target',
+          '--test',
+        ],
+        message: 'test cannot be used when execution-method is link_pay_token',
+      },
+      {
+        name: 'agent-provided merchant identity',
+        args: [
+          '--execution-method',
+          'link_pay_token',
+          '--merchant-account-id',
+          'acct_lpt_target',
+          '--merchant-name',
+          'Agent-provided Merchant',
+        ],
+        message:
+          'merchant-name and merchant-url cannot be used when execution-method is link_pay_token',
+      },
+    ];
+
+    for (const invalidCase of invalidLptCreateCases) {
+      it(`rejects Link Pay Token requests with ${invalidCase.name}`, async () => {
+        const result = await runProdCli(
+          'spend-request',
+          'create',
+          '--payment-method-id',
+          'pd_prod_test',
+          ...invalidCase.args,
+          '--context',
+          VALID_CONTEXT,
+          '--amount',
+          '5000',
+          '--no-request-approval',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout + result.stderr).toContain(invalidCase.message);
+        expect(requests).toHaveLength(0);
+      });
+    }
+
     it('merges repeatable --metadata flags into a metadata object in POST body', async () => {
       setNextResponse(200, BASE_REQUEST);
 

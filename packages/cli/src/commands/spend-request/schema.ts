@@ -6,13 +6,25 @@ export const createOptions = z.object({
     .enum(['shared_payment_token', 'card'])
     .default('card')
     .describe(
-      '"card" for checkout forms/Stripe Elements; "shared_payment_token" for HTTP 402/machine payment flows',
+      '"card" for checkout forms and Link Pay Token; "shared_payment_token" for HTTP 402/machine payment flows',
     ),
   networkId: z
     .string()
     .optional()
     .describe(
       'Network ID (required for shared_payment_token) — use `link-cli mpp decode` to extract',
+    ),
+  executionMethod: z
+    .enum(['link_pay_token'])
+    .optional()
+    .describe(
+      'Use link_pay_token only with merchant_account_id read from the checkout AI-agent steering DOM',
+    ),
+  merchantAccountId: z
+    .string()
+    .optional()
+    .describe(
+      'Stripe account ID from data-stripe-merchant-account; required with execution_method link_pay_token',
     ),
   amount: z.coerce
     .number()
@@ -25,13 +37,13 @@ export const createOptions = z.object({
     .string()
     .optional()
     .describe(
-      'Merchant name (required for card; forbidden for shared_payment_token)',
+      'Merchant name (required for regular card requests; omit for link_pay_token and shared_payment_token)',
     ),
   merchantUrl: z
     .string()
     .optional()
     .describe(
-      'Merchant URL (required for card; forbidden for shared_payment_token)',
+      'Merchant URL (required for regular card requests; omit for link_pay_token and shared_payment_token)',
     ),
   context: z
     .string()

@@ -99,6 +99,55 @@ export function createSpendRequestCli(
       const requestApproval = !!opts.requestApproval;
       const credentialType = opts.credentialType as CredentialType | undefined;
       const networkId = opts.networkId;
+      const executionMethod = opts.executionMethod;
+      const merchantAccountId = opts.merchantAccountId?.trim();
+      const lptExecutionRequested =
+        executionMethod !== undefined || merchantAccountId !== undefined;
+
+      if (lptExecutionRequested) {
+        if (executionMethod !== 'link_pay_token') {
+          return c.error({
+            code: 'INVALID_INPUT',
+            message:
+              'execution-method link_pay_token is required when merchant-account-id is provided',
+          });
+        }
+        if (!merchantAccountId) {
+          return c.error({
+            code: 'INVALID_INPUT',
+            message:
+              'merchant-account-id is required when execution-method is link_pay_token',
+          });
+        }
+        if (credentialType !== 'card') {
+          return c.error({
+            code: 'INVALID_INPUT',
+            message:
+              'credential-type must be card when execution-method is link_pay_token',
+          });
+        }
+        if (networkId) {
+          return c.error({
+            code: 'INVALID_INPUT',
+            message:
+              'network-id cannot be used when execution-method is link_pay_token',
+          });
+        }
+        if (opts.test) {
+          return c.error({
+            code: 'INVALID_INPUT',
+            message:
+              'test cannot be used when execution-method is link_pay_token',
+          });
+        }
+        if (opts.merchantName || opts.merchantUrl) {
+          return c.error({
+            code: 'INVALID_INPUT',
+            message:
+              'merchant-name and merchant-url cannot be used when execution-method is link_pay_token; Link resolves the merchant identity from merchant-account-id',
+          });
+        }
+      }
 
       if (credentialType === 'shared_payment_token' && !networkId) {
         return c.error({
@@ -123,13 +172,21 @@ export function createSpendRequestCli(
             'network-id can only be used when credential-type is shared_payment_token',
         });
       }
-      if (credentialType !== 'shared_payment_token' && !opts.merchantName) {
+      if (
+        !lptExecutionRequested &&
+        credentialType !== 'shared_payment_token' &&
+        !opts.merchantName
+      ) {
         return c.error({
           code: 'INVALID_INPUT',
           message: 'merchant-name is required when credential-type is card',
         });
       }
-      if (credentialType !== 'shared_payment_token' && !opts.merchantUrl) {
+      if (
+        !lptExecutionRequested &&
+        credentialType !== 'shared_payment_token' &&
+        !opts.merchantUrl
+      ) {
         return c.error({
           code: 'INVALID_INPUT',
           message: 'merchant-url is required when credential-type is card',
@@ -174,6 +231,8 @@ export function createSpendRequestCli(
         payment_details: opts.paymentMethodId,
         credential_type: credentialType,
         network_id: networkId,
+        execution_method: executionMethod,
+        merchant_account_id: merchantAccountId,
         amount: opts.amount,
         currency: opts.currency,
         merchant_name: opts.merchantName,
