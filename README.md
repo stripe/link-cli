@@ -194,9 +194,10 @@ link-cli spend-request create \
 ```
 
 LPT requests use the default `card` credential type and do not support
-`--test`, `--network-id`, or `shared_payment_token`. After approval,
-retrieve `--include link_pay_token` immediately before using the token on the
-same checkout surface. If either DOM marker is absent, create a regular virtual
+`--test`, `--network-id`, or `shared_payment_token`. After approval, retrieve
+`--include link_pay_token` immediately before using it on the same checkout
+surface. Each returned LPT is valid for up to 30 minutes, or until the
+SpendRequest expires. If either DOM marker is absent, create a regular virtual
 card SpendRequest instead; do not create an LPT request.
 
 ### Execute payment

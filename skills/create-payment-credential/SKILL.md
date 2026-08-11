@@ -265,8 +265,8 @@ following steps in the frame that contains it.
    `--credential-type shared_payment_token`, `--network-id`, or `--test`.
    Present the approval URL and wait for approval before retrieving a token.
 
-5. **Retrieve the token now** -- it is short-lived (~5 minutes), so fetch it
-   immediately before injecting it:
+5. **Retrieve the token immediately before injecting it.** Each returned LPT
+   is valid for up to 30 minutes, or until the SpendRequest expires:
 
    ```bash
    link-cli spend-request retrieve <id> --include link_pay_token --format json
