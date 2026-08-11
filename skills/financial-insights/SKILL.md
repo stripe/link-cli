@@ -58,16 +58,22 @@ If the user is not authenticated, ask them to authenticate with the source actio
 
 Use the minimum required source actions:
 
-- Transactions: `transactions.read`
-- Balances: `balances.read`
-- Sources: `sources.read`
+- Transactions processed through Link: `read_link_transactions`
+- Transactions imported from bank connections: `read_external_transactions`
+- Account balances: `read_balances`
+- Data source details and descriptions: `read_sources`
 
 If the user asks a question that requires multiple data types, request all relevant actions together.
 
 Example:
 
 ```bash
-link-cli auth login --source-actions transactions.read,balances.read,sources.read
+link-cli auth login \
+  --scope "userinfo:read payment_methods.agentic " \
+  --source-actions read_link_transactions \
+  --source-actions read_balances \
+  --source-actions read_external_transactions \
+  --source-actions read_source_details
 ```
 
 Do not proceed with financial data retrieval until authentication succeeds.
@@ -126,7 +132,22 @@ Common options:
 ```bash
 link-cli transactions list --format json --limit 100
 link-cli transactions list --format json --starting-after <transaction_id>
+link-cli transactions list --format json --start-date 2025-01-01 --end-date 2025-01-31
+link-cli transactions list --format json --category groceries
+link-cli transactions list --format json --origin external_connection
+link-cli transactions list --format json --source <source_id> --source <source_id>
 ```
+
+| Flag | Description |
+|---|---|
+| `--limit` | Max results (1-100). |
+| `--starting-after` | Pagination cursor (transaction ID). |
+| `--ending-before` | Pagination cursor (transaction ID, reverse). |
+| `--start-date` | Only transactions on or after this date (YYYY-MM-DD). |
+| `--end-date` | Only transactions on or before this date (YYYY-MM-DD). |
+| `--category` | Filter by category. |
+| `--origin` | Filter by origin: `link` or `external_connection`. |
+| `--source` | Filter by source ID (repeatable). |
 
 When using paginated results, continue only as far as needed to answer the user’s question. Stop once enough relevant data has been retrieved.
 
@@ -152,7 +173,15 @@ Use balances to answer questions about current account balances or available fun
 
 ```bash
 link-cli balances list --format json
+link-cli balances list --format json --source <source_id>
 ```
+
+| Flag | Description |
+|---|---|
+| `--limit` | Max results (1-100). |
+| `--starting-after` | Pagination cursor (balance ID). |
+| `--ending-before` | Pagination cursor (balance ID, reverse). |
+| `--source` | Filter by source ID (repeatable). |
 
 ### Response fields
 
@@ -178,6 +207,12 @@ Use sources to answer questions about connected wallet sources, linked accounts,
 ```bash
 link-cli sources list --format json
 ```
+
+| Flag | Description |
+|---|---|
+| `--limit` | Max results (1-100). |
+| `--starting-after` | Pagination cursor (source ID). |
+| `--ending-before` | Pagination cursor (source ID, reverse). |
 
 ### Response fields
 
