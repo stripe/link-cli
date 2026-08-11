@@ -293,6 +293,8 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
   --header "X-Custom: value"
 ```
 
+`mpp pay` returns the HTTP `status` and, on success, a validated `receipt` parsed from the merchant's `Payment-Receipt` header (`method`, `reference`, `status`, `timestamp`). It does not return the raw response body. On failure it returns a non-`2xx` `status` (plus `www_authenticate` if the server re-issued a challenge); if a receipt is present but unreadable, a `receipt_error` is returned alongside the successful `status`.
+
 Use `mpp decode` to validate a raw `WWW-Authenticate` header and extract the `network_id` needed for `shared_payment_token` spend requests:
 
 ```bash

@@ -92,6 +92,7 @@ Key input field notes:
 - `mpp pay <url> --spend-request-id <id> [--method <method>] [--data <body>] [--header <header>]...` — backward-compat mode: uses a pre-approved spend request directly, skipping creation/approval.
 - `--header` is repeatable and uses `"Name: Value"` format. `Content-Type: application/json` is auto-applied when `--data` is provided; user-provided headers take precedence.
 - The SPT is one-time-use — a failed payment requires running `mpp pay` again (creates a new spend request).
+- **Output shape (`PayResult`):** `{ status, www_authenticate?, receipt?, receipt_error? }`. The raw response body is **never** returned (it is the largest prompt-injection surface). `receipt` is parsed from the `Payment-Receipt` header via `Receipt.deserialize` from `mppx` (validated against a strict schema: `method`, `reference`, `externalId?`, `status`, `timestamp`). A missing header yields no `receipt` (not an error); a present-but-malformed header yields `receipt_error` while `status` still reports the outcome. `www_authenticate` is set when the response carried that header (challenge / failed-retry re-challenge). All parsing funnels through `readPayResult`.
 - Implemented in `packages/cli/src/commands/mpp/` — pay.tsx (logic), schema.ts (input/output schema), index.tsx (incur registration).
 
 ### demo command
@@ -127,7 +128,7 @@ Key input field notes:
 Server-returned strings can contain ANSI escape sequences or control characters that spoof the terminal approval UI. Sanitization is handled automatically via `sanitizeDeep()` from `packages/cli/src/utils/sanitize-text.ts`:
 
 - **Commands using `useAsyncAction` hook** — sanitized automatically. The hook calls `sanitizeDeep()` on all returned data before it reaches components.
-- **Commands with manual state management** (e.g. `create.tsx`, `retrieve.tsx`, `request-approval.tsx`, `mpp/pay.tsx`) — must call `sanitizeDeep()` on API responses before calling `setRequest()`/`setState()`.
+- **Commands with manual state management** (e.g. `create.tsx`, `retrieve.tsx`, `request-approval.tsx`, `mpp/pay.tsx`) — must call `sanitizeDeep()` on API responses before calling `setRequest()`/`setState()`. `mpp/pay.tsx` no longer returns the raw response body at all; `readPayResult` sanitizes the remaining merchant-controlled strings (`www_authenticate` and the validated `receipt` fields).
 
 JSON output mode (`--format json`) is **not** affected — `JSON.stringify` encodes escape sequences as Unicode literals.
 ## Environment Variables
