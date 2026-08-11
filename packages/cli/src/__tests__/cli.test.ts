@@ -421,6 +421,18 @@ describe('production mode', () => {
         message: 'test cannot be used when execution-method is link_pay_token',
       },
       {
+        name: 'delegated approval',
+        args: [
+          '--execution-method',
+          'link_pay_token',
+          '--merchant-account-id',
+          'acct_lpt_target',
+          '--approve',
+        ],
+        message:
+          'approve cannot be used when execution-method is link_pay_token; use request-approval instead',
+      },
+      {
         name: 'agent-provided merchant identity',
         args: [
           '--execution-method',
