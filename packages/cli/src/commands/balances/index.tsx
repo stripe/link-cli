@@ -16,7 +16,7 @@ export function createBalancesCli(
   envAccessToken?: string,
 ) {
   const cli = Cli.create('balances', {
-    description: 'List balances from your Link wallet',
+    description: '[beta] List balances from your Link wallet',
   });
 
   cli.command('list', {

@@ -16,7 +16,7 @@ export function createSourcesCli(
   envAccessToken?: string,
 ) {
   const cli = Cli.create('sources', {
-    description: 'List sources from your Link wallet',
+    description: '[beta] List sources from your Link wallet',
   });
 
   cli.command('list', {

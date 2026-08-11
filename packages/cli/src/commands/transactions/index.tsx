@@ -16,7 +16,7 @@ export function createTransactionsCli(
   envAccessToken?: string,
 ) {
   const cli = Cli.create('transactions', {
-    description: 'List transactions from Link and external accounts',
+    description: '[beta] List transactions from Link and external accounts',
   });
 
   cli.command('list', {
