@@ -1,5 +1,16 @@
 # @stripe/link-cli
 
+## 0.12.0
+
+### Minor Changes
+
+- 9103637: Add merchant-bound Link Pay Token options to spend-request creation.
+
+### Patch Changes
+
+- f05d954: Dependency updgrades
+- e9a8f69: Sanitize output of decode call during mpp flow
+
 ## 0.11.0
 
 ### Minor Changes
