@@ -36,6 +36,10 @@ syncSkillVersion(
   'SKILL.md',
   resolve(root, 'skills/create-payment-credential/SKILL.md'),
 );
+syncSkillVersion(
+  'financial-insights/SKILL.md',
+  resolve(root, 'skills/financial-insights/SKILL.md'),
+);
 syncPluginJsonVersion(
   '.cursor-plugin/plugin.json',
   resolve(root, 'plugins/link/.cursor-plugin/plugin.json'),

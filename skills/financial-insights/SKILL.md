@@ -1,12 +1,13 @@
 ---
-version: 0.6.0
+version: 0.11.0
 name: financial-insights
 description: |
-  Reads a user's Link financial data — transactions, balances, and wallet sources — so agents can answer questions about spending and available source capabilities.
+  Reads a user's Link financial data — transactions, balances, and wallet sources — so agents can answer questions about spending and available source capabilities. Use when the user says "check my balance", "how much did I spend", "show my transactions", "what accounts are connected", "summarize my spending", "recent purchases", or asks about their financial activity, account balances, or linked sources.
 allowed-tools:
  - Bash(link-cli:*)
- - Bash(npx:*)
- - Bash(npm:*)
+ - Bash(npx --yes @stripe/link-cli:*)
+ - Bash(npx @stripe/link-cli:*)
+ - Bash(npm install -g @stripe/link-cli:*)
 license: Complete terms in LICENSE
 metadata:
   author: stripe
@@ -61,7 +62,7 @@ Use the minimum required source actions:
 - Transactions processed through Link: `read_link_transactions`
 - Transactions imported from bank connections: `read_external_transactions`
 - Account balances: `read_balances`
-- Data source details and descriptions: `read_sources`
+- Data source details and descriptions: `read_source_details`
 
 If the user asks a question that requires multiple data types, request all relevant actions together.
 
@@ -69,7 +70,7 @@ Example:
 
 ```bash
 link-cli auth login \
-  --scope "userinfo:read payment_methods.agentic " \
+  --scope "userinfo:read payment_methods.agentic" \
   --source-actions read_link_transactions \
   --source-actions read_balances \
   --source-actions read_external_transactions \
