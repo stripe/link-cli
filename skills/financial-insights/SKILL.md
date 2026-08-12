@@ -49,13 +49,15 @@ If the user asks for an action that would move money, reference `skills/create-p
 
 ## Authentication
 
-Before retrieving financial data, check whether the user is authenticated.
+Before retrieving financial data, check whether the user is authenticated and whether the current session has the required source actions.
 
 ```bash
-link-cli auth status
+link-cli auth status --format json
 ```
 
-If the user is not authenticated, ask them to authenticate with the source actions needed for the requested data.
+When present, inspect `authorization_details` in the response for entries with `type: "source"` and the required actions. The field may be absent when the token endpoint did not return authorization details or when authentication comes from `LINK_ACCESS_TOKEN`; in that case, run only the minimum data command needed and handle a permission error as described below.
+
+If the user is not authenticated, start a login that requests only the source actions needed for the requested data. If the user is already authenticated but one or more required source actions are missing, use `auth upgrade` instead of `auth login`. `auth upgrade` preserves the current session while the user approves the additional access and replaces it only after approval succeeds.
 
 Use the minimum required source actions:
 
@@ -66,18 +68,34 @@ Use the minimum required source actions:
 
 If the user asks a question that requires multiple data types, request all relevant actions together.
 
-Example:
+Example for a new login that needs all financial data types:
 
 ```bash
 link-cli auth login \
-  --scope "userinfo:read payment_methods.agentic" \
+  --client-name "<your-agent-name>" \
   --source-actions read_link_transactions \
   --source-actions read_balances \
   --source-actions read_external_transactions \
-  --source-actions read_source_details
+  --source-actions read_source_details \
+  --format json
 ```
 
-Do not proceed with financial data retrieval until authentication succeeds.
+Example for adding balance access to an existing session:
+
+```bash
+link-cli auth upgrade \
+  --client-name "<your-agent-name>" \
+  --source-actions read_balances \
+  --format json
+```
+
+Replace `<your-agent-name>` with a clear name for the agent or application. Present the returned `verification_url` to the user, then follow the response's `_next` instruction or poll with:
+
+```bash
+link-cli auth status --interval 5 --max-attempts 60 --format json
+```
+
+Do not proceed until authentication or the access upgrade succeeds. If the approval expires, is denied, or times out, report that outcome instead of repeatedly starting new authorization flows.
 
 ## Choosing the right command
 
@@ -108,17 +126,19 @@ link-cli sources list --format json
 
 The default `toon` format is intended for humans. Prefer `--format json` whenever parsing, filtering, aggregating, or summarizing results.
 
-All monetary amounts across all endpoints are integers in the smallest currency unit (e.g. `152340` = $1,523.40 USD). Positive amounts indicate money owed to the account holder. Negative amounts indicate money owed by the account holder.
+All monetary amounts across all endpoints are integers in the currency's smallest unit (e.g. `152340` = $1,523.40 USD). Format amounts with a currency-aware formatter that uses the currency's ISO 4217 minor-unit exponent; do not assume every currency has two decimal places or always divide by 100.
+
+Keep sign interpretation field-specific. Only `transactions.amount` uses negative for money leaving the account and positive for money entering it. Do not apply transaction sign semantics to balance fields; interpret `current`, `cash.available`, and `credit.used` according to the balance type.
 
 ## Sources (concept)
 
-A **source** is a financial account connected to the user's Link wallet — a bank account, credit card, savings account, etc. Every source has a unique `source_id` (e.g. `csmrpd_abc123`) that appears across all endpoints:
+A **source** is a financial account connected to the user's Link wallet — a bank account, credit card, savings account, etc. Each source has a unique `id` (e.g. `csmrpd_abc123`) that other endpoints may expose as `source_id`:
 
-- In `transactions list`, each transaction includes a `source_id` indicating which account it belongs to.
+- In `transactions list`, `source_id` indicates which account a transaction belongs to.
 - In `balances list`, each balance entry includes a `source_id` identifying the account.
 - In `sources list`, the full source metadata (name, institution, type, status) is returned.
 
-Use `source_id` to correlate data across commands — for example, to find all transactions for a specific account or to match a balance to its source type.
+Use a `source_id` to correlate data across commands — for example, to find transactions for a specific account or to match a balance to its source type. Do not assign transactions with a null `source_id` to a source by guessing from their description.
 
 ## Transactions
 
@@ -131,8 +151,6 @@ link-cli transactions list --format json
 Common options:
 
 ```bash
-link-cli transactions list --format json --limit 100
-link-cli transactions list --format json --starting-after <transaction_id>
 link-cli transactions list --format json --start-date 2025-01-01 --end-date 2025-01-31
 link-cli transactions list --format json --category groceries
 link-cli transactions list --format json --origin external_connection
@@ -141,16 +159,13 @@ link-cli transactions list --format json --source <source_id> --source <source_i
 
 | Flag | Description |
 |---|---|
-| `--limit` | Max results (1-100). |
-| `--starting-after` | Pagination cursor (transaction ID). |
-| `--ending-before` | Pagination cursor (transaction ID, reverse). |
 | `--start-date` | Only transactions on or after this date (YYYY-MM-DD). |
 | `--end-date` | Only transactions on or before this date (YYYY-MM-DD). |
 | `--category` | Filter by category. |
 | `--origin` | Filter by origin: `link` or `external_connection`. |
 | `--source` | Filter by source ID (repeatable). |
 
-When using paginated results, continue only as far as needed to answer the user’s question. Stop once enough relevant data has been retrieved.
+See [Pagination](#pagination) for shared list controls.
 
 ### Response fields
 
@@ -159,7 +174,7 @@ When using paginated results, continue only as far as needed to answer the user�
 | `amount` | Negative = money leaving the account (debit/purchase), positive = money entering (credit/deposit). |
 | `origin` | `external_connection` (from linked bank/card) or `link` (Link-native transaction). |
 | `category` | May be `null` if unclassified. |
-| `status` | `pending` or `posted`. Pending transactions may still change or disappear. |
+| `status` | API-provided status string. Do not assume a closed set of values; observed values include `succeeded`. Interpret or filter a status only when its meaning is known. |
 
 For transaction summaries:
 
@@ -179,10 +194,9 @@ link-cli balances list --format json --source <source_id>
 
 | Flag | Description |
 |---|---|
-| `--limit` | Max results (1-100). |
-| `--starting-after` | Pagination cursor (balance ID). |
-| `--ending-before` | Pagination cursor (balance ID, reverse). |
 | `--source` | Filter by source ID (repeatable). |
+
+See [Pagination](#pagination) for shared list controls.
 
 ### Response fields
 
@@ -203,17 +217,11 @@ When summarizing balances:
 
 ## Sources
 
-Use sources to answer questions about connected wallet sources, linked accounts, or available financial data sources.
+Use sources to answer questions about connected wallet sources, linked accounts, or available financial data sources. See [Pagination](#pagination) for shared list controls.
 
 ```bash
 link-cli sources list --format json
 ```
-
-| Flag | Description |
-|---|---|
-| `--limit` | Max results (1-100). |
-| `--starting-after` | Pagination cursor (source ID). |
-| `--ending-before` | Pagination cursor (source ID, reverse). |
 
 ### Response fields
 
@@ -234,15 +242,31 @@ When summarizing sources:
 
 ## Pagination
 
-List commands may return paginated responses. If a response includes a cursor or `has_more` indicator, use the next cursor only when more data is needed.
+All three list commands support the same pagination flags:
 
-For transaction pagination, use the returned transaction ID or cursor with `--starting-after` when applicable:
+| Flag | Description |
+|---|---|
+| `--limit` | Maximum results per page (1-100). Prefer `100` when multiple pages may be needed. |
+| `--starting-after` | Fetch the next page after a cursor value. |
+| `--ending-before` | Fetch the previous page before a cursor value. Use for reverse navigation, not normal forward collection. |
+
+JSON responses contain a `data` array and may contain `has_more`. They do not provide a separate next-cursor field. When `has_more` is `true`, derive the next cursor from the final item in `data`:
+
+| Command | Next cursor |
+|---|---|
+| `transactions list` | Final transaction's `id`. |
+| `balances list` | Final balance's `source_id`. |
+| `sources list` | Final source's `id`. |
+
+For example:
 
 ```bash
-link-cli transactions list --format json --starting-after <transaction_id>
+link-cli transactions list --format json --limit 100 --starting-after <last_transaction_id>
 ```
 
-Do not exhaustively paginate unless the user’s request requires a complete time range and the command supports retrieving it safely.
+Keep all filters identical across pages and change only `--starting-after`. Stop when `has_more` is false or absent, or when enough data has been retrieved for a non-exhaustive lookup. If `has_more` is true but `data` is empty or the required cursor is null or missing, stop and report that pagination could not continue.
+
+Do not exhaustively paginate unless the user’s request requires a complete bounded result, such as a total for a specified time range.
 
 ## Answering user questions
 
@@ -266,7 +290,7 @@ If authentication fails, ask the user to re-authenticate.
 
 If a command returns no data, say that no matching Link financial data was available for the requested scope.
 
-If the CLI returns an error indicating missing permissions or source actions, request authentication again with the specific missing action.
+If the CLI returns an error indicating missing permissions or source actions, request only the specific missing action. Use `auth upgrade` when a session is already authenticated and `auth login` when it is not, then wait for approval before retrying the data command once.
 
 If data is incomplete or paginated, clearly state that the answer is based on the data retrieved so far.
 
