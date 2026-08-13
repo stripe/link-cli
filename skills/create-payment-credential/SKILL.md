@@ -135,9 +135,9 @@ What you find determines which credential type to use:
 
 **For 402 responses:** Use `mpp pay` — it handles the entire flow automatically (probes URL, parses challenge, picks payment method, creates spend request, gets approval, and pays). See Step 5.
 
-### Step 3: Get payment methods and potentially shipping addresses
+### Step 3: Confirm payment method and potentially shipping addresses
 
-Use the default payment method, unless the user explicitly asks to select a different one.
+Link will automatically use the default payment method on the account. If the user explicitly asks to pay with a specific card or bank, use the list command to show available options. Note that not all of the user's payment methods might appear; this will filter on "agentic-ready" payment types.
 
 ```bash
 link-cli payment-methods list
@@ -157,7 +157,6 @@ Step 5 after you have read the merchant account ID from the checkout DOM.
 
 ```bash
 link-cli spend-request create \
-  --payment-method-id <id> \
   --amount <cents> \
   --context "<description>" \
   --merchant-name "<name>" \
