@@ -247,9 +247,9 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
                 Merchant: <Text bold>{duplicateRequest.merchant_name}</Text>
               </Text>
             </Box>
-            {duplicateRequest.status != 'expired' &&
-              duplicateRequest.status != 'canceled' &&
-              duplicateRequest.status != 'failed' && (
+            {duplicateRequest.status !== 'expired' &&
+              duplicateRequest.status !== 'canceled' &&
+              duplicateRequest.status !== 'failed' && (
                 <>
                   <Text dimColor>
                     {'\n'}Retrieve it to resume instead of creating a new one:
