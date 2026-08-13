@@ -8,6 +8,7 @@ import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback } from 'react';
 import { useAsyncAction } from '../../hooks/use-async-action';
+import { formatAmount } from '../../utils/format-amount';
 
 interface TransactionsListProps {
   resource: ITransactionsResource;
@@ -22,22 +23,6 @@ const STATUS_WIDTH = 10;
 const CATEGORY_WIDTH = 16;
 const MIN_DESCRIPTION_WIDTH = 16;
 const HORIZONTAL_PADDING = 4;
-
-function formatAmount(amount: number, currency: string): string {
-  const currencyCode = currency.toUpperCase();
-
-  try {
-    const formatter = new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currencyCode,
-    });
-    const fractionDigits =
-      formatter.resolvedOptions().maximumFractionDigits ?? 2;
-    return formatter.format(amount / 10 ** fractionDigits);
-  } catch {
-    return `${amount} ${currency}`;
-  }
-}
 
 function truncateCell(value: string, width: number): string {
   if (value.length <= width) {

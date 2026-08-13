@@ -10,6 +10,7 @@ import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { writeCredentialFile } from '../../utils/credential-output';
+import { formatAmount } from '../../utils/format-amount';
 import { openUrl } from '../../utils/open-url';
 import { sanitizeDeep } from '../../utils/sanitize-text';
 import { AppDownloadQrCodes } from './app-download-qr-codes';
@@ -235,7 +236,10 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
                 Amount:{' '}
                 <Text bold>
                   {duplicateRequest.amount != null
-                    ? `${duplicateRequest.amount} ${duplicateRequest.currency?.toUpperCase() ?? ''}`.trim()
+                    ? formatAmount(
+                        duplicateRequest.amount,
+                        duplicateRequest.currency ?? '',
+                      )
                     : 'N/A'}
                 </Text>
               </Text>
@@ -243,12 +247,18 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
                 Merchant: <Text bold>{duplicateRequest.merchant_name}</Text>
               </Text>
             </Box>
-            <Text dimColor>
-              {'\n'}Retrieve it to resume instead of creating a new one:
-            </Text>
-            <Text color="cyan">
-              spend-request retrieve {duplicateRequest.id}
-            </Text>
+            {duplicateRequest.status != 'expired' &&
+              duplicateRequest.status != 'canceled' &&
+              duplicateRequest.status != 'failed' && (
+                <>
+                  <Text dimColor>
+                    {'\n'}Retrieve it to resume instead of creating a new one:
+                  </Text>
+                  <Text color="cyan">
+                    spend-request retrieve {duplicateRequest.id}
+                  </Text>
+                </>
+              )}
           </Box>
         )}
       </Box>
@@ -270,7 +280,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
             Amount:{' '}
             <Text bold>
               {request?.amount != null
-                ? `${request.amount} ${request.currency?.toUpperCase() ?? ''}`.trim()
+                ? formatAmount(request.amount, request.currency ?? '')
                 : 'N/A'}
             </Text>
           </Text>

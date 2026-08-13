@@ -40,10 +40,7 @@ function normalizeSpendRequest(data: unknown): SpendRequest {
 
 /**
  * Extracts the conflicting spend request returned alongside a
- * `spend_request_rate_limited` (429) error. The API includes
- * `error.duplicate_spend_request` only when the caller is on the same
- * connection as the blocking request. Returns `null` for any other error or
- * when no duplicate is present.
+ * `spend_request_rate_limited` (429) error.
  */
 export function getDuplicateSpendRequest(error: unknown): SpendRequest | null {
   if (!(error instanceof LinkApiError)) return null;
