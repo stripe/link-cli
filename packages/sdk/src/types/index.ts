@@ -73,7 +73,39 @@ export type SpendRequestStatus =
   | 'denied'
   | 'succeeded'
   | 'failed'
-  | 'canceled';
+  | 'canceled'
+  | 'requires_action';
+
+export type NextActionType =
+  | 'ssn_verification'
+  | 'identity_verification'
+  | 'contact_support'
+  | 'select_payment_method'
+  | 'add_payment_method'
+  | 'update_payment_method'
+  | 're_authorize'
+  | 'three_d_secure'
+  | 'three_d_secure_retry';
+
+export type NextActionResolution =
+  | 'auto_resume'
+  | 'create_new_spend_request'
+  | 'create_new_spend_request_after_completion';
+
+export interface NextAction {
+  type: NextActionType;
+  resolution: NextActionResolution;
+  display_message: string;
+  action_url: string | null;
+  expires_at?: number | null;
+}
+
+export interface SpendRequestStatusDetails {
+  requires_action?: {
+    failure_code?: string;
+    next_action: NextAction;
+  };
+}
 
 export type CredentialType = 'shared_payment_token' | 'card';
 
@@ -138,6 +170,7 @@ export interface SpendRequest {
   shared_payment_token?: SharedPaymentToken;
   link_pay_token?: string;
   payment_status_details?: PaymentStatusDetails | null;
+  status_details?: SpendRequestStatusDetails | null;
   link_transaction_id?: string;
   activity_url?: string;
   metadata?: Record<string, string>;

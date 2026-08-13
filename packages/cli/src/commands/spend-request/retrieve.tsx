@@ -22,6 +22,7 @@ type Phase =
   | 'success'
   | 'declined'
   | 'finalized'
+  | 'requires_action'
   | 'timeout'
   | 'error';
 
@@ -36,6 +37,15 @@ const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
   'failed',
   'canceled',
 ]);
+
+// `requires_action` with an `auto_resume` resolution (e.g. 3D Secure) will
+// resolve on its own — keep polling through it rather than stopping.
+function isAutoResume(request: SpendRequest): boolean {
+  return (
+    request.status_details?.requires_action?.next_action?.resolution ===
+    'auto_resume'
+  );
+}
 
 export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
   repository,
@@ -100,6 +110,12 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
         } else if (result.status === 'denied') {
           setPhase('declined');
           setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
+        } else if (
+          result.status === 'requires_action' &&
+          !isAutoResume(result)
+        ) {
+          setPhase('requires_action');
+          setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
         } else if (TERMINAL_STATUSES.has(result.status)) {
           setPhase('finalized');
           setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
@@ -151,6 +167,14 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
           if (pollRef.current) clearInterval(pollRef.current);
           if (timerRef.current) clearInterval(timerRef.current);
           setPhase('declined');
+          setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
+        } else if (
+          result.status === 'requires_action' &&
+          !isAutoResume(result)
+        ) {
+          if (pollRef.current) clearInterval(pollRef.current);
+          if (timerRef.current) clearInterval(timerRef.current);
+          setPhase('requires_action');
           setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
         } else if (TERMINAL_STATUSES.has(result.status)) {
           if (pollRef.current) clearInterval(pollRef.current);
@@ -208,19 +232,38 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
   }
 
   if (phase === 'polling') {
+    const resumingNextAction =
+      request?.status === 'requires_action'
+        ? request.status_details?.requires_action?.next_action
+        : undefined;
     return (
       <Box flexDirection="column">
         <Box>
           <Text color="cyan">
-            <Spinner type="dots" /> Awaiting approval... ({elapsed}s elapsed)
+            <Spinner type="dots" />{' '}
+            {resumingNextAction
+              ? 'Waiting for 3D Secure verification to complete...'
+              : 'Awaiting approval...'}{' '}
+            ({elapsed}s elapsed)
           </Text>
         </Box>
-        {request?.approval_url && (
-          <Box marginTop={1} paddingX={2}>
-            <Text dimColor>
-              Approval URL: <Text color="cyan">{request.approval_url}</Text>
-            </Text>
+        {resumingNextAction ? (
+          <Box flexDirection="column" marginTop={1} paddingX={2}>
+            <Text dimColor>{resumingNextAction.display_message}</Text>
+            {resumingNextAction.action_url && (
+              <Text dimColor>
+                URL: <Text color="cyan">{resumingNextAction.action_url}</Text>
+              </Text>
+            )}
           </Box>
+        ) : (
+          request?.approval_url && (
+            <Box marginTop={1} paddingX={2}>
+              <Text dimColor>
+                Approval URL: <Text color="cyan">{request.approval_url}</Text>
+              </Text>
+            </Box>
+          )
         )}
       </Box>
     );
@@ -304,6 +347,34 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
               </Text>
             </Box>
           )}
+        </Box>
+      </Box>
+    );
+  }
+
+  if (phase === 'requires_action') {
+    const nextAction = request?.status_details?.requires_action?.next_action;
+    return (
+      <Box flexDirection="column">
+        <Text color="yellow">⚠ Action required before payment can proceed</Text>
+        <Box flexDirection="column" marginTop={1} paddingX={2}>
+          <Text>
+            ID: <Text bold>{request?.id}</Text>
+          </Text>
+          <Text>
+            Type: <Text bold>{nextAction?.type}</Text>
+          </Text>
+          <Text>{nextAction?.display_message}</Text>
+          {nextAction?.action_url && (
+            <Text>
+              URL: <Text color="cyan">{nextAction.action_url}</Text>
+            </Text>
+          )}
+        </Box>
+        <Box marginTop={1}>
+          <Text dimColor>
+            Complete this step, then create a new spend request.
+          </Text>
         </Box>
       </Box>
     );

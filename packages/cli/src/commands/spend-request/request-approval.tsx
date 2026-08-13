@@ -1,4 +1,8 @@
-import type { ISpendRequestResource, SpendRequest } from '@stripe/link-sdk';
+import type {
+  ISpendRequestResource,
+  NextAction,
+  SpendRequest,
+} from '@stripe/link-sdk';
 import { LinkApiError } from '@stripe/link-sdk';
 import { Box, Text, useApp, useInput } from 'ink';
 import Spinner from 'ink-spinner';
@@ -38,6 +42,7 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
     | 'error'
     | 'verification_required'
     | 'opened'
+    | 'requires_action'
   >('requesting');
   const [approvalUrl, setApprovalUrl] = useState<string>('');
   const [result, setResult] = useState<SpendRequest | null>(null);
@@ -45,9 +50,14 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
   const [verificationUrl, setVerificationUrl] = useState<string>('');
   const [supportUrl, setSupportUrl] = useState<string>('');
   const [countdown, setCountdown] = useState(30);
+  const [nextAction, setNextAction] = useState<NextAction | null>(null);
 
   const onSuccess = useCallback((r: SpendRequest) => setResult(r), []);
   const onError = useCallback((msg: string) => setError(msg), []);
+  const onRequiresAction = useCallback((r: SpendRequest) => {
+    setResult(r);
+    setNextAction(r.status_details?.requires_action?.next_action ?? null);
+  }, []);
 
   useApprovalPolling({
     status,
@@ -58,6 +68,7 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
     onComplete: completeAndExit,
     onSuccess,
     onError,
+    onRequiresAction,
   });
 
   useInput((_, key) => {
@@ -150,6 +161,25 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
         <Text color="red">✗ Failed to request approval</Text>
         <Text color="red">{error}</Text>
         <Text color="green">✓ Opened verification URL in browser</Text>
+      </Box>
+    );
+  }
+
+  if (status === 'requires_action') {
+    return (
+      <Box flexDirection="column">
+        <Text color="yellow">⚠ Action required before payment can proceed</Text>
+        <Box flexDirection="column" marginTop={1} paddingX={2}>
+          <Text>
+            ID: <Text bold>{result?.id}</Text>
+          </Text>
+          <Text>{nextAction?.display_message}</Text>
+          {nextAction?.action_url && (
+            <Text>
+              URL: <Text color="cyan">{nextAction.action_url}</Text>
+            </Text>
+          )}
+        </Box>
       </Box>
     );
   }

@@ -185,6 +185,12 @@ Recommend the user approves with the [Link app](https://link.com/download). Show
 
 **Metadata:** Attach arbitrary string data with the repeatable `--metadata "key:value"` flag (CLI) or a `{ key: value }` object (MCP/agent). Max 50 keys, key ≤ 40 chars, value ≤ 500 chars. Example: `--metadata "order_id:ord_123" --metadata "team:growth"`.
 
+If the response has `status: "requires_action"`, read `status_details.requires_action.next_action` (`type`, `display_message`, `action_url`, `resolution`). Show `display_message` to the user; present `action_url` clearly if present.
+- If `resolution` is `auto_resume` (currently only `three_d_secure`), run the returned `_next.command` (poll `spend-request retrieve <id> --interval 2 --max-attempts 300`) yourself — do not create a new spend request. The same request resumes to `approved`/`succeeded` once the user completes the bank's challenge.
+- Otherwise (`resolution` is `create_new_spend_request` or `create_new_spend_request_after_completion` — covers `ssn_verification`, `identity_verification`, `contact_support`, `select_payment_method`, `add_payment_method`, `update_payment_method`, `re_authorize`, `three_d_secure_retry`), have the user complete the indicated action, then create a **new** spend request — the old one will expire on its own.
+
+This same `requires_action` status can also appear later from `spend-request retrieve` in Step 5 — `update_payment_method`, `re_authorize`, and `three_d_secure_retry` only ever surface this way, and they all use `create_new_spend_request`. Apply the same `resolution`-based branching there.
+
 ### Step 5: Complete payment
 
 **Card:** Run `link-cli spend-request retrieve <id> --include card` to get the `card` object with `number`, `cvc`, `exp_month`, `exp_year`, `billing_address` (name, line1, line2, city, state, postal_code, country), and `valid_until` (Unix timestamp — the card stops working after this time). Enter these details into the merchant's checkout form.
@@ -343,6 +349,7 @@ All errors are output as JSON with `code` and `message` fields, with exit code 1
 | API rejects `merchant_name` or `merchant_url` | These fields are forbidden when `credential_type` is `shared_payment_token` | Remove both fields from the request; SPT flows identify the merchant via `network_id` instead |
 | Spend request approved but payment fails immediately | Wrong credential type for the merchant (e.g. `card` on a 402-only endpoint) | Go back to Step 2, re-evaluate the merchant, create a new spend request with the correct `credential_type` |
 | Auth token expired mid-session (exit code 1 during approval polling) | Token refresh failure during background polling | Re-authenticate with `auth login`, then retrieve the existing spend request or resume polling. Only create a new spend request if the original one expired, was denied, was canceled, or its shared payment token was already consumed |
+| `spend-request create` or `spend-request retrieve` returns `status: "requires_action"` | Payment method, identity verification, or authorization issue requires action before the request can proceed | Read `next_action.type`/`resolution`/`display_message`. If `resolution` is `auto_resume`, poll `spend-request retrieve` (via the returned `_next.command`) until resolved. Otherwise complete the indicated action, then create a new spend request |
 
 ## Reporting outcomes
 

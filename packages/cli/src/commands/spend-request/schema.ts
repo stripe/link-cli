@@ -66,7 +66,9 @@ export const createOptions = z.object({
   requestApproval: z
     .boolean()
     .default(true)
-    .describe('Request approval and poll until approved/denied/expired'),
+    .describe(
+      'Request approval and poll until approved/denied/expired, or until requires_action with a non-auto_resume resolution',
+    ),
   test: z
     .boolean()
     .default(false)

@@ -46,6 +46,32 @@ function makeMockRepo(result: SpendRequest) {
   } as unknown as ISpendRequestResource);
 }
 
+// Returns each entry in `getSpendRequestResults` in order on successive
+// `getSpendRequest` calls (repeating the last entry once exhausted), so tests
+// can simulate a status transitioning across polls.
+function makeSequentialMockRepo(
+  createResult: SpendRequest,
+  getSpendRequestResults: SpendRequest[],
+) {
+  let call = 0;
+  const getSpendRequest = vi.fn(async () => {
+    const result =
+      getSpendRequestResults[Math.min(call, getSpendRequestResults.length - 1)];
+    call++;
+    return result;
+  });
+  return sanitizeResource({
+    createSpendRequest: vi.fn(async () => createResult),
+    getSpendRequest,
+    updateSpendRequest: vi.fn(async () => createResult),
+    requestApproval: vi.fn(async () => ({
+      id: createResult.id,
+      approval_link: 'https://app.link.com/approve/sr_test',
+    })),
+    cancelSpendRequest: vi.fn(async () => createResult),
+  } as unknown as ISpendRequestResource);
+}
+
 describe('spend-request', () => {
   describe('verification_url', () => {
     it('CreateSpendRequest surfaces verification_url on additional_verification_required error', async () => {
@@ -100,6 +126,7 @@ describe('spend-request', () => {
         const frame = lastFrame();
         expect(frame).toContain('Failed to create spend request');
         expect(frame).toContain('https://app.link.com/finish_setup');
+        expect(frame).toContain('Press Enter to open in browser');
       });
     });
 
@@ -148,6 +175,7 @@ describe('spend-request', () => {
         const frame = lastFrame();
         expect(frame).toContain('Failed to create spend request');
         expect(frame).toContain('https://support.link.com');
+        expect(frame).toContain('Press Enter to open in browser');
       });
     });
 
@@ -255,6 +283,7 @@ describe('spend-request', () => {
         const frame = lastFrame();
         expect(frame).toContain('Failed to request approval');
         expect(frame).toContain('https://app.link.com/finish_setup');
+        expect(frame).toContain('Press Enter to open in browser');
       });
     });
 
@@ -296,8 +325,271 @@ describe('spend-request', () => {
         const frame = lastFrame();
         expect(frame).toContain('Failed to request approval');
         expect(frame).toContain('https://support.link.com');
+        expect(frame).toContain('Press Enter to open in browser');
       });
     });
+  });
+
+  describe('requires_action', () => {
+    it('CreateSpendRequest shows next_action details for a non-auto_resume type', async () => {
+      const request = makeSpendRequest({
+        status: 'requires_action',
+        status_details: {
+          requires_action: {
+            next_action: {
+              type: 'add_payment_method',
+              resolution: 'create_new_spend_request',
+              display_message: 'Add a payment method to continue.',
+              action_url: 'https://app.link.com/add_payment_method',
+            },
+          },
+        },
+      });
+      const repo = makeMockRepo(request);
+
+      const { lastFrame } = render(
+        <CreateSpendRequest
+          repository={repo}
+          params={{
+            payment_details: 'pm_1',
+            amount: 1000,
+            currency: 'usd',
+            merchant_name: 'Acme',
+            merchant_url: 'https://example.com',
+            context: 'x'.repeat(100),
+          }}
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Action required before payment can proceed');
+        expect(frame).toContain('add_payment_method');
+        expect(frame).toContain('Add a payment method to continue.');
+        expect(frame).toContain('https://app.link.com/add_payment_method');
+        expect(frame).toContain('Press Enter to open in browser');
+        expect(frame).toContain(
+          'Complete this step, then create a new spend request.',
+        );
+      });
+    });
+
+    it('CreateSpendRequest resumes polling for auto_resume (three_d_secure) and resolves to success', async () => {
+      const requiresAction = makeSpendRequest({
+        status: 'requires_action',
+        status_details: {
+          requires_action: {
+            next_action: {
+              type: 'three_d_secure',
+              resolution: 'auto_resume',
+              display_message: 'Complete 3D Secure verification.',
+              action_url: 'https://app.link.com/finish_setup?verify=3ds',
+            },
+          },
+        },
+      });
+      const approved = makeSpendRequest({ status: 'approved' });
+      const repo = makeSequentialMockRepo(requiresAction, [approved]);
+
+      const { lastFrame } = render(
+        <CreateSpendRequest
+          repository={repo}
+          params={{
+            payment_details: 'pm_1',
+            amount: 1000,
+            currency: 'usd',
+            merchant_name: 'Acme',
+            merchant_url: 'https://example.com',
+            context: 'x'.repeat(100),
+          }}
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(
+        () => {
+          const frame = lastFrame();
+          expect(frame).toContain(
+            'Waiting for 3D Secure verification to complete',
+          );
+        },
+        { timeout: 3000 },
+      );
+
+      await vi.waitFor(
+        () => {
+          const frame = lastFrame();
+          expect(frame).toContain('Spend request created');
+          expect(frame).toContain('approved');
+        },
+        { timeout: 5000 },
+      );
+    }, 8000);
+
+    it('CreateSpendRequest surfaces requires_action reached via --request-approval polling (not conflated with denied)', async () => {
+      const created = makeSpendRequest({
+        status: 'created',
+        approval_url: 'https://app.link.com/approve/sr_test',
+      });
+      const requiresAction = makeSpendRequest({
+        status: 'requires_action',
+        status_details: {
+          requires_action: {
+            next_action: {
+              type: 're_authorize',
+              resolution: 'create_new_spend_request',
+              display_message: 'Re-authorize this payment method.',
+              action_url: null,
+            },
+          },
+        },
+      });
+      const repo = makeSequentialMockRepo(created, [requiresAction]);
+
+      const { lastFrame } = render(
+        <CreateSpendRequest
+          repository={repo}
+          params={{
+            payment_details: 'pm_1',
+            amount: 1000,
+            currency: 'usd',
+            merchant_name: 'Acme',
+            merchant_url: 'https://example.com',
+            context: 'x'.repeat(100),
+          }}
+          requestApproval
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(
+        () => {
+          const frame = lastFrame();
+          expect(frame).toContain('Action required before payment can proceed');
+          expect(frame).toContain('re_authorize');
+          expect(frame).toContain('Re-authorize this payment method.');
+          expect(frame).not.toContain('denied');
+        },
+        { timeout: 3000 },
+      );
+    });
+
+    it('RequestApproval shows a minimal requires_action message reached via polling', async () => {
+      const requiresAction = makeSpendRequest({
+        status: 'requires_action',
+        status_details: {
+          requires_action: {
+            next_action: {
+              type: 'update_payment_method',
+              resolution: 'create_new_spend_request',
+              display_message: 'Update your payment method.',
+              action_url: 'https://app.link.com/update_payment_method',
+            },
+          },
+        },
+      });
+      const repo = makeSequentialMockRepo(requiresAction, [requiresAction]);
+
+      const { lastFrame } = render(
+        <RequestApproval
+          repository={repo}
+          id="sr_test"
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(
+        () => {
+          const frame = lastFrame();
+          expect(frame).toContain('Action required before payment can proceed');
+          expect(frame).toContain('Update your payment method.');
+          expect(frame).toContain('https://app.link.com/update_payment_method');
+          expect(frame).not.toContain('denied');
+        },
+        { timeout: 3000 },
+      );
+    });
+
+    it('RetrieveSpendRequest shows the requires_action phase for a non-auto_resume type', async () => {
+      const request = makeSpendRequest({
+        status: 'requires_action',
+        status_details: {
+          requires_action: {
+            next_action: {
+              type: 'select_payment_method',
+              resolution: 'create_new_spend_request',
+              display_message: 'Select a different payment method.',
+              action_url: 'https://app.link.com/select_payment_method',
+            },
+          },
+        },
+      });
+      const repo = makeMockRepo(request);
+
+      const { lastFrame } = render(
+        <RetrieveSpendRequest
+          repository={repo}
+          id="sr_test"
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Action required before payment can proceed');
+        expect(frame).toContain('select_payment_method');
+        expect(frame).toContain('Select a different payment method.');
+        expect(frame).toContain('https://app.link.com/select_payment_method');
+        expect(frame).toContain(
+          'Complete this step, then create a new spend request.',
+        );
+      });
+    });
+
+    it('RetrieveSpendRequest polls through an auto_resume requires_action and resolves to success', async () => {
+      const requiresAction = makeSpendRequest({
+        status: 'requires_action',
+        status_details: {
+          requires_action: {
+            next_action: {
+              type: 'three_d_secure',
+              resolution: 'auto_resume',
+              display_message: 'Complete 3D Secure verification.',
+              action_url: 'https://app.link.com/finish_setup?verify=3ds',
+            },
+          },
+        },
+      });
+      const approved = makeSpendRequest({ status: 'approved' });
+      const repo = makeSequentialMockRepo(requiresAction, [
+        requiresAction,
+        approved,
+      ]);
+
+      const { lastFrame } = render(
+        <RetrieveSpendRequest
+          repository={repo}
+          id="sr_test"
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain(
+          'Waiting for 3D Secure verification to complete',
+        );
+      });
+
+      await vi.waitFor(
+        () => {
+          const frame = lastFrame();
+          expect(frame).toContain('Spend request approved');
+        },
+        { timeout: 5000 },
+      );
+    }, 8000);
   });
 
   describe('activity_url', () => {

@@ -124,6 +124,8 @@ The `--request-approval` flag triggers a push notification to the user for appro
 
 Easily approve requests with the [Link app](https://link.com/download).
 
+If the created spend request comes back with `status: "requires_action"`, no approval is needed yet — the payment method or account needs attention first. Check `status_details.requires_action.next_action` for `type`, `display_message`, `action_url`, and `resolution`. For 3D Secure (`resolution: "auto_resume"`), keep polling `spend-request retrieve` — the request resolves on its own once the challenge is completed. For any other resolution, complete the indicated action and create a new spend request.
+
 #### Line items and totals
 
 `--line-item` and `--total` use repeatable `key:value` format.
@@ -223,7 +225,7 @@ For agent polling, pass `--interval` and optionally `--max-attempts`:
 link-cli spend-request retrieve lsrq_001 --interval 2 --max-attempts 300
 ```
 
-Polling exits successfully only after the request reaches a terminal status such as `approved`, `denied`, `expired`, or `canceled`. If polling reaches `--timeout` or exhausts `--max-attempts` while the request is still non-terminal, the command exits non-zero with `code: "POLLING_TIMEOUT"` so callers do not treat a still-pending request as complete.
+Polling exits successfully only after the request reaches a terminal status such as `approved`, `denied`, `expired`, or `canceled`. If the status becomes `requires_action`, behavior depends on `next_action.resolution`: `auto_resume` (used for 3D Secure) means polling continues automatically — the request resolves on its own once the user completes the challenge. Any other resolution stops polling immediately and the command exits with the `next_action` details instead of waiting for a terminal status; the caller must have the user act, then create a new spend request. If `--timeout` is reached or `--max-attempts` is exhausted while the request is still non-terminal, the command exits non-zero with `code: "POLLING_TIMEOUT"` so callers do not treat a still-pending request as complete.
 
 If the merchant supports MPP, use `link-cli mpp pay` instead:
 

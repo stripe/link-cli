@@ -1,6 +1,7 @@
 import type {
   CreateSpendRequestParams,
   ISpendRequestResource,
+  NextAction,
   SpendRequest,
 } from '@stripe/link-sdk';
 import { LinkApiError, getDuplicateSpendRequest } from '@stripe/link-sdk';
@@ -8,7 +9,11 @@ import { Box, Text, useApp, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { DISPLAY_DELAY_MS } from '../../utils/constants';
+import {
+  DISPLAY_DELAY_MS,
+  RESUME_POLL_INTERVAL_MS,
+  RESUME_TIMEOUT_MS,
+} from '../../utils/constants';
 import { writeCredentialFile } from '../../utils/credential-output';
 import { formatAmount } from '../../utils/format-amount';
 import { openUrl } from '../../utils/open-url';
@@ -44,6 +49,9 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
     | 'error'
     | 'verification_required'
     | 'opened'
+    | 'requires_action'
+    | 'resuming'
+    | 'resume_timeout'
   >('creating');
   const [request, setRequest] = useState<SpendRequest | null>(null);
   const [duplicateRequest, setDuplicateRequest] = useState<SpendRequest | null>(
@@ -55,6 +63,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
   const [countdown, setCountdown] = useState(30);
   const [outputFilePath, setOutputFilePath] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string>('');
+  const [nextAction, setNextAction] = useState<NextAction | null>(null);
 
   const approvalUrl = request?.approval_url ?? '';
 
@@ -71,6 +80,10 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
     [],
   );
   const onError = useCallback((msg: string) => setError(msg), []);
+  const onRequiresAction = useCallback((result: SpendRequest) => {
+    setRequest(result);
+    setNextAction(result.status_details?.requires_action?.next_action ?? null);
+  }, []);
 
   useApprovalPolling({
     status,
@@ -81,7 +94,77 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
     onComplete: completeAndExit,
     onSuccess,
     onError,
+    onRequiresAction,
   });
+
+  useInput(
+    (_input, key) => {
+      if (key.return && nextAction?.action_url) {
+        openUrl(nextAction.action_url);
+        completeAndExit(request);
+      }
+    },
+    {
+      isActive:
+        status === 'requires_action' &&
+        nextAction?.resolution !== 'auto_resume',
+    },
+  );
+
+  useEffect(() => {
+    if (status !== 'requires_action') return;
+    if (nextAction?.resolution === 'auto_resume') {
+      setStatus('resuming');
+    }
+  }, [status, nextAction]);
+
+  useEffect(() => {
+    if (status !== 'resuming' || !request?.id) return;
+
+    let cancelled = false;
+    const requestId = request.id;
+    const deadline = Date.now() + RESUME_TIMEOUT_MS;
+
+    const poll = async () => {
+      while (!cancelled) {
+        if (Date.now() > deadline) {
+          setStatus('resume_timeout');
+          setTimeout(() => completeAndExit(request), DISPLAY_DELAY_MS);
+          return;
+        }
+
+        await new Promise((r) => setTimeout(r, RESUME_POLL_INTERVAL_MS));
+        if (cancelled) return;
+
+        let latest: SpendRequest | null;
+        try {
+          latest = await repository.getSpendRequest(requestId);
+        } catch {
+          continue;
+        }
+        if (cancelled || !latest) continue;
+
+        setRequest(latest);
+        if (latest.status === 'requires_action') continue;
+
+        if (latest.status === 'approved' || latest.status === 'succeeded') {
+          setStatus('success');
+        } else {
+          setError(
+            `Spend request did not resolve after 3D Secure (status: ${latest.status})`,
+          );
+          setStatus('error');
+        }
+        setTimeout(() => completeAndExit(latest), DISPLAY_DELAY_MS);
+        return;
+      }
+    };
+
+    poll();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, request, repository, completeAndExit]);
 
   useInput((_, key) => {
     if (
@@ -106,12 +189,28 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
   }, [status, countdown, completeAndExit]);
 
   useEffect(() => {
+    if (status !== 'requires_action') return;
+    if (nextAction?.resolution === 'auto_resume') return;
+    if (countdown <= 0) {
+      completeAndExit(request);
+      return;
+    }
+    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [status, nextAction, countdown, completeAndExit, request]);
+
+  useEffect(() => {
     const create = async () => {
       try {
         const result = await repository.createSpendRequest(params);
         setRequest(result);
 
-        if (requestApproval) {
+        if (result.status === 'requires_action') {
+          setNextAction(
+            result.status_details?.requires_action?.next_action ?? null,
+          );
+          setStatus('requires_action');
+        } else if (requestApproval) {
           setStatus('waiting');
         } else {
           setStatus('success');
@@ -194,6 +293,80 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
         <Text color="red">✗ Failed to create spend request</Text>
         <Text color="red">{error}</Text>
         <Text color="green">✓ Opened verification URL in browser</Text>
+      </Box>
+    );
+  }
+
+  if (status === 'requires_action') {
+    return (
+      <Box flexDirection="column">
+        <Text color="yellow">⚠ Action required before payment can proceed</Text>
+        <Box flexDirection="column" marginTop={1} paddingX={2}>
+          <Text>
+            ID: <Text bold>{request?.id}</Text>
+          </Text>
+          <Text>
+            Type: <Text bold>{nextAction?.type}</Text>
+          </Text>
+          <Text>{nextAction?.display_message}</Text>
+        </Box>
+        {nextAction?.action_url && (
+          <Box
+            flexDirection="column"
+            borderStyle="round"
+            borderColor="cyan"
+            paddingX={2}
+            paddingY={1}
+            marginTop={1}
+          >
+            <Text>
+              Open:{' '}
+              <Text bold color="cyan">
+                {nextAction.action_url}
+              </Text>
+            </Text>
+            <Text dimColor>Press Enter to open in browser</Text>
+            <Text dimColor>Exiting in {countdown}s...</Text>
+          </Box>
+        )}
+        <Box marginTop={1}>
+          <Text dimColor>
+            Complete this step, then create a new spend request.
+          </Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  if (status === 'resuming') {
+    return (
+      <Box flexDirection="column">
+        <Text color="cyan">
+          <Spinner type="dots" /> Waiting for 3D Secure verification to
+          complete...
+        </Text>
+        <Box flexDirection="column" marginTop={1} paddingX={2}>
+          <Text>{nextAction?.display_message}</Text>
+          {nextAction?.action_url && (
+            <Text dimColor>
+              URL: <Text color="cyan">{nextAction.action_url}</Text>
+            </Text>
+          )}
+        </Box>
+      </Box>
+    );
+  }
+
+  if (status === 'resume_timeout') {
+    return (
+      <Box flexDirection="column">
+        <Text color="yellow">
+          ✗ Timed out waiting for 3D Secure verification to resolve
+        </Text>
+        <Text dimColor>
+          Run `spend-request retrieve {request?.id}` to check the current
+          status.
+        </Text>
       </Box>
     );
   }

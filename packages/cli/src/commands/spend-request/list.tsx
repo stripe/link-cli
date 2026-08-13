@@ -75,7 +75,8 @@ export const SpendRequestList: React.FC<SpendRequestListProps> = ({
           const statusColor =
             sr.status === 'approved'
               ? 'green'
-              : sr.status === 'pending_approval'
+              : sr.status === 'pending_approval' ||
+                  sr.status === 'requires_action'
                 ? 'yellow'
                 : 'white';
           const amount =

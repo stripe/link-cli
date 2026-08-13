@@ -31,6 +31,24 @@ import {
 } from './schema';
 import { UpdateSpendRequest } from './update';
 
+function buildRequiresActionResult(request: SpendRequest) {
+  const nextAction = request.status_details?.requires_action?.next_action;
+  const isAutoResume = nextAction?.resolution === 'auto_resume';
+
+  return {
+    ...request,
+    instruction: isAutoResume
+      ? `The spend request requires 3D Secure verification. Present action_url (${nextAction?.action_url}) to the user, then call \`spend-request retrieve ${request.id} --interval 2 --max-attempts 300\` to poll until it resolves. Do not create a new spend request — this one resumes automatically once the challenge is completed.`
+      : `The spend request requires action (${nextAction?.type}): ${nextAction?.display_message}${nextAction?.action_url ? ` URL: ${nextAction.action_url}` : ''} Have the user complete this, then create a new spend request.`,
+    _next: isAutoResume
+      ? {
+          command: `spend-request retrieve ${request.id} --interval 2 --max-attempts 300`,
+          until: 'status changes from requires_action',
+        }
+      : undefined,
+  };
+}
+
 async function applyOutputFile(
   request: SpendRequest,
   outputFile: string | undefined,
@@ -326,6 +344,10 @@ export function createSpendRequestCli(
         }
         throw err;
       }
+      if (created.status === 'requires_action') {
+        yield buildRequiresActionResult(created);
+        return;
+      }
       if (!requestApproval) {
         try {
           yield await applyOutputFile(created, outputFile, forceOverwrite);
@@ -523,9 +545,22 @@ export function createSpendRequestCli(
         'canceled',
       ]);
 
+      // `requires_action` stops polling unless resolution is `auto_resume`
+      // (e.g. 3D Secure), which resolves on its own — keep polling through it.
+      const isPollTerminal = (req: SpendRequest): boolean => {
+        if (terminalStatuses.has(req.status)) return true;
+        if (req.status === 'requires_action') {
+          return (
+            req.status_details?.requires_action?.next_action?.resolution !==
+            'auto_resume'
+          );
+        }
+        return false;
+      };
+
       for await (const result of pollUntil<SpendRequest | null>({
         fn: () => repository.getSpendRequest(id, { include }),
-        isTerminal: (req) => req === null || terminalStatuses.has(req.status),
+        isTerminal: (req) => req === null || isPollTerminal(req),
         interval,
         maxAttempts,
         timeout,
@@ -538,6 +573,11 @@ export function createSpendRequestCli(
         }
 
         if (result.terminal) {
+          if (result.value.status === 'requires_action' && !result.reason) {
+            yield buildRequiresActionResult(result.value);
+            return;
+          }
+
           // Terminal due to isTerminal or interval <= 0 — apply output file
           if (terminalStatuses.has(result.value.status) || !result.reason) {
             try {
