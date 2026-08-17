@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.13.1
+
+### Patch Changes
+
+- b1640b2: clarify correct daily limits
+
 ## 0.13.0
 
 ### Minor Changes
