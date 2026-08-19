@@ -184,8 +184,6 @@ Recommend the user approves with the [Link app](https://link.com/download). Show
 
 **Metadata:** Attach arbitrary string data with the repeatable `--metadata "key:value"` flag (CLI) or a `{ key: value }` object (MCP/agent). Max 50 keys, key ≤ 40 chars, value ≤ 500 chars. Example: `--metadata "order_id:ord_123" --metadata "team:growth"`.
 
-**Expiration:** Spend requests expire 12 hours after creation by default. Pass `--expires-at` on create with a unix timestamp (seconds) to override — must be 3 hours to 7 days in the future. Requires an allow-listed OAuth client; unlisted clients get a 400 error.
-
 If the response has `status: "requires_action"`, read `status_details.requires_action.next_action` (`type`, `display_message`, `action_url`, `resolution`). Show `display_message` to the user; present `action_url` clearly if present.
 - If `resolution` is `auto_resume` (currently only `three_d_secure`), run the returned `_next.command` (poll `spend-request retrieve <id> --interval 2 --max-attempts 300`) yourself — do not create a new spend request. The same request resumes to `approved`/`succeeded` once the user completes the bank's challenge.
 - Otherwise (`resolution` is `create_new_spend_request` or `create_new_spend_request_after_completion` — covers `ssn_verification`, `identity_verification`, `contact_support`, `select_payment_method`, `add_payment_method`, `update_payment_method`, `re_authorize`, `three_d_secure_retry`), have the user complete the indicated action, then create a **new** spend request — the old one will expire on its own.
@@ -327,7 +325,7 @@ report `blocked`. Do not reuse the LPT at a different checkout surface.
 |-------|-------|
 | Max amount per spend request | $500 (50,000 cents) |
 | Approval window | 10 minutes — user must approve within 10 min of `spend-request request-approval` |
-| Card / SPT validity (`valid_until`) | 12 hours from spend request creation by default; `--expires-at` on create can extend up to 7 days (allow-listed clients only) |
+| Card / SPT validity (`valid_until`) | 12 hours from spend request creation |
 | Daily spend per account | $500 |
 | Monthly spend per account (30 days) | $20,000 |
 | Concurrent active requests (created + approved) | 30 |

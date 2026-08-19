@@ -168,15 +168,6 @@ link-cli spend-request create ... \
 
 In MCP/agent mode, pass `metadata` as a structured `{ key: value }` object.
 
-#### Expiration
-
-By default, a spend request expires 12 hours after creation. Pass `--expires-at` with a unix timestamp (seconds) to request a longer or shorter expiration — must be between 3 hours and 7 days in the future. This requires an allow-listed OAuth client; unlisted clients get a 400 error.
-
-```bash
-link-cli spend-request create ... \
-  --expires-at 1720100000
-```
-
 #### Credential types
 
 By default, a spend request provisions a virtual card. For merchants that support the [Machine Payments Protocol](https://mpp.dev) (HTTP 402) and the Stripe payment method, instead pass `--credential-type "shared_payment_token"`. 
@@ -296,7 +287,7 @@ Link Pay Token requests require `execution_method=link_pay_token` and the
 DOM-derived `merchant_account_id`, and Link supplies their canonical merchant
 identity.
 
-**Constraints:** `context` must be at least 100 characters; `amount` must not exceed 50000 (cents); `currency` must be a 3-letter ISO code. The user has 10 minutes from when approval is requested to approve. Approved credentials (card or SPT) are valid for 12 hours from spend request creation by default — pass `--expires-at` on create to override (3 hours to 7 days; requires an allow-listed OAuth client).
+**Constraints:** `context` must be at least 100 characters; `amount` must not exceed 50000 (cents); `currency` must be a 3-letter ISO code. The user has 10 minutes from when approval is requested to approve. Approved credentials (card or SPT) are valid for 12 hours from spend request creation.
 **Test mode:** Pass `--test` to create a testmode SpendRequest. A testmode SpendRequest will return test payment credentials (e.g test card `4000009990001984`) rather than a real payment credential. Testmode SpendRequests will not charge the underlying payment method of the SpendRequest. This is useful for development and integration testing without real payment methods.
 
 ```bash
