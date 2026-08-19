@@ -98,6 +98,13 @@ export const createOptions = z.object({
     .describe(
       'Metadata key:value pair (repeatable). Attaches arbitrary string data to the spend request. Max 50 keys, key <= 40 chars, value <= 500 chars. Example: "order_id:ord_123"',
     ),
+  expiresAt: z.coerce
+    .number()
+    .int()
+    .optional()
+    .describe(
+      'Unix timestamp (seconds) when the spend request should expire. Must be 3 hours to 7 days in the future. Omit for the default 12-hour expiration. Requires an allow-listed OAuth client — the server returns a 400 error otherwise.',
+    ),
 });
 
 export const listOptions = z.object({

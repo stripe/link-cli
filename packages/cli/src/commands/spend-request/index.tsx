@@ -270,6 +270,7 @@ export function createSpendRequestCli(
         approve: opts.approve ? true : undefined,
         approval_details: approvalDetails,
         metadata,
+        expires_at: opts.expiresAt,
       };
 
       const outputFile = opts.outputFile;

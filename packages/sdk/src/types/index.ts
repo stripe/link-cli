@@ -174,6 +174,7 @@ export interface SpendRequest {
   link_transaction_id?: string;
   activity_url?: string;
   metadata?: Record<string, string>;
+  expires_at?: number;
   created_at: string;
   updated_at: string;
 }

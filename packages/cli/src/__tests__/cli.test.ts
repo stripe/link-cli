@@ -556,6 +556,58 @@ describe('production mode', () => {
       expect(sentBody.metadata).toBeUndefined();
     });
 
+    it('sends expires_at in POST body when --expires-at is used', async () => {
+      setNextResponse(200, BASE_REQUEST);
+
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '--merchant-name',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--expires-at',
+        '1720100000',
+        '--no-request-approval',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const sentBody = JSON.parse(lastRequest.body);
+      expect(sentBody.expires_at).toBe(1720100000);
+    });
+
+    it('does not include expires_at in POST body when --expires-at is omitted', async () => {
+      setNextResponse(200, BASE_REQUEST);
+
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '--merchant-name',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--no-request-approval',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const sentBody = JSON.parse(lastRequest.body);
+      expect(sentBody.expires_at).toBeUndefined();
+    });
+
     it('sends test flag in POST body when --test is used', async () => {
       setNextResponse(200, BASE_REQUEST);
 

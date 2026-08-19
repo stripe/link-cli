@@ -87,6 +87,7 @@ Key input field notes:
 - `--approval-detail` — optional JSON object (MCP/agent) or JSON string (CLI) with approval details for delegated flows. Required fields: `approved_at` (unix timestamp int), `approval_method` (`click`|`programmatic`|`voice`), `app_name`, `external_user_id`. Optional: `ip_address`, `user_agent`, `device_type` (`mobile`|`web`), `agent_log_id`, `external_user_name`, `external_session_id`, `authentication_method` (`biometric_face`|`biometric_fingerprint`|`passkey`). Sent as `approval_details` in the API request body.
 - `card` credentials include `billing_address` (name, line1, line2, city, state, postal_code, country) and `valid_until` (ISO date string — when the card expires/stops working)
 - `--output-file <path>` on `retrieve` or `create` writes full card credentials to a local file (0600 permissions) and redacts card data in stdout. `--force` allows overwriting an existing file.
+- `--expires-at <unix_seconds>` (create only) overrides the default 12-hour spend request expiration; must be 3 hours to 7 days in the future. Requires an allow-listed OAuth client — the server 400s with `"expires_at is not supported for this client"` otherwise. Not supported on `update`. The spend request response includes `expires_at` (epoch seconds) once set.
 
 ### mpp pay
 
