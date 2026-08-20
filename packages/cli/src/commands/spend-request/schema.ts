@@ -98,7 +98,11 @@ export const createOptions = z.object({
     .describe(
       'Metadata key:value pair (repeatable). Attaches arbitrary string data to the spend request. Max 50 keys, key <= 40 chars, value <= 500 chars. Example: "order_id:ord_123"',
     ),
-  expiresAt: z.coerce.number().int().optional().describe('Unix timestamp (seconds).'),
+  expiresAt: z.coerce
+    .number()
+    .int()
+    .optional()
+    .describe('Unix timestamp (seconds).'),
 });
 
 export const listOptions = z.object({
