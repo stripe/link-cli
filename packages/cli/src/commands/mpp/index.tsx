@@ -7,6 +7,7 @@ import { Cli, z } from 'incur';
 import React from 'react';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
+import { shellCommand, shellQuote } from '../../utils/shell-quote';
 import { decodeStripeChallenge } from './decode';
 import { DecodeChallengeView } from './decode-view';
 import {
@@ -159,23 +160,27 @@ export function createMppCli(
         test: opts.test || undefined,
       });
 
-      // Build the mpp pay command for _next with the spend request ID
-      const nextFlags = [`--spend-request-id ${spendRequest.id}`];
-      if (method) nextFlags.push(`-X ${method}`);
-      if (data) nextFlags.push(`-d '${data}'`);
+      // Build the mpp pay continuation for _next with the spend request ID.
+      // `url`, `data` and `header` carry merchant-controlled text, so the
+      // argv form is authoritative and `pay_command` must stay shell-quoted.
+      const nextArgs = ['pay', url, '--spend-request-id', spendRequest.id];
+      if (method) nextArgs.push('-X', method);
+      if (data) nextArgs.push('-d', data);
       if (headers) {
-        for (const h of headers) nextFlags.push(`-H '${h}'`);
+        for (const h of headers) nextArgs.push('-H', h);
       }
-      const nextCommand = `mpp pay ${url} ${nextFlags.join(' ')}`;
+      const nextCommand = `mpp ${shellCommand(nextArgs)}`;
+      const pollCommand = `spend-request retrieve ${shellQuote(spendRequest.id)} --interval 2 --max-attempts 300`;
 
       // Yield approval URL and return — agent drives completion via _next
       yield {
         ...spendRequest,
-        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${spendRequest.id} --interval 2 --max-attempts 300\` to poll until approved. Once approved, run the _next.command to complete payment. Do not wait for the user to reply — start polling immediately.`,
+        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`${pollCommand}\` to poll until approved. Once approved, run _next.pay_argv (preferred — invoke it directly without a shell) or _next.pay_command to complete payment. Do not wait for the user to reply — start polling immediately.`,
         _next: {
-          poll_command: `spend-request retrieve ${spendRequest.id} --interval 2 --max-attempts 300`,
+          poll_command: pollCommand,
           pay_command: nextCommand,
-          until: 'status changes from pending_approval, then run pay_command',
+          pay_argv: { command: 'mpp', args: nextArgs },
+          until: 'status changes from pending_approval, then run pay_argv',
         },
       };
     },

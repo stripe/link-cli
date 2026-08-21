@@ -331,6 +331,8 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
   --header "X-Custom: value"
 ```
 
+In agent mode (`--format json`), the full flow returns the payment continuation twice: as `_next.pay_argv` (`{ "command": "mpp", "args": [...] }`) and as `_next.pay_command`. Prefer `pay_argv` and invoke it directly, passing each `args` entry as its own process argument. The URL, body and headers can carry merchant-controlled text, so `pay_command` is shell-quoted for callers that must go through a shell — pass it to the shell verbatim, without unquoting or re-splitting it.
+
 Use `mpp decode` to validate a raw `WWW-Authenticate` header and extract the `network_id` needed for `shared_payment_token` spend requests:
 
 ```bash

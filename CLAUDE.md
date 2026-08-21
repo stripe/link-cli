@@ -95,6 +95,7 @@ Key input field notes:
 - `mpp pay <url> --spend-request-id <id> [--method <method>] [--data <body>] [--header <header>]...` — backward-compat mode: uses a pre-approved spend request directly, skipping creation/approval.
 - `--header` is repeatable and uses `"Name: Value"` format. `Content-Type: application/json` is auto-applied when `--data` is provided; user-provided headers take precedence.
 - The SPT is one-time-use — a failed payment requires running `mpp pay` again (creates a new spend request).
+- In agent mode the full flow yields `_next.pay_argv` (`{ command: 'mpp', args: [...] }`) alongside `_next.pay_command`. **`pay_argv` is authoritative** — it holds the raw values and is meant to be invoked without a shell. `pay_command` is the compatibility string and every dynamic part of it (url, method, body, each header, spend-request id) must go through `shellQuote` from `packages/cli/src/utils/shell-quote.ts`. See "Security: shell-quoting command strings".
 - Implemented in `packages/cli/src/commands/mpp/` — pay.tsx (logic), schema.ts (input/output schema), index.tsx (incur registration).
 
 ### demo command
@@ -135,6 +136,18 @@ Server-returned strings can contain ANSI escape sequences or control characters 
 - **Attacker-controlled data that does NOT flow through an SDK resource** — must be sanitized at its own parse boundary. `mpp pay` sanitizes the HTTP response in `readPayResult()` (`pay.tsx`); `mpp decode` sanitizes the parsed `WWW-Authenticate` challenge in `decodeStripeChallenge()` (`decode.ts`). These bypass the resource factory, so the return value of the parse/fetch helper is the chokepoint — sanitizing there covers both the interactive Ink render and the agent (toon/yaml/md) output at once.
 
 JSON output mode (`--format json`) is **not** affected — `JSON.stringify` encodes escape sequences as Unicode literals.
+
+## Security: Shell-Quoting Command Strings
+
+Any string the CLI emits for an agent to *run* (`instruction`, `_next.command`, `_next.pay_command`) is a shell-injection sink. Agents commonly execute these through Bash, so interpolating an unquoted value there gives whoever controls that value command execution on the agent's host — even though the value was safe as an argv entry. Sanitization does not help: `$(...)`, backticks and `;` are ordinary printable characters.
+
+Rules:
+
+- Every dynamic value interpolated into a command string goes through `shellQuote()` from `packages/cli/src/utils/shell-quote.ts`, or the whole argv list through `shellCommand()`. This applies to server-issued IDs too — uniform treatment removes the "is this field trusted?" judgment call from future edits.
+- Prefer emitting a **structured** continuation next to the string (`_next.pay_argv` = `{ command, args }`) and point agents at it. A list of arguments has no seam to smuggle syntax through; a string always does.
+- Naive `'${value}'` wrapping is **not** quoting — a single `'` in the value closes it and escapes.
+- Regression coverage lives in `packages/cli/src/utils/__tests__/shell-quote.test.ts` (bash round-trip) and the `_next continuation quoting` block in `packages/cli/src/__tests__/cli.test.ts`.
+
 ## Environment Variables
 
 | Variable | Effect |

@@ -1,5 +1,7 @@
 import { execFile } from 'node:child_process';
+import fs from 'node:fs';
 import http from 'node:http';
+import os from 'node:os';
 import { promisify } from 'node:util';
 import { storage } from '@stripe/link-sdk';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -103,6 +105,24 @@ function setResponseForUrl(url: string, status: number, body: unknown) {
 
 async function runProdCli(...args: string[]): Promise<CliResult> {
   return runProdCliWithEnv({}, ...args);
+}
+
+// Evaluates a command string in a real shell. Used only to prove that
+// CLI-emitted continuations carry no executable syntax.
+async function runShell(command: string): Promise<CliResult> {
+  try {
+    const { stdout, stderr } = await execFileAsync('bash', ['-c', command], {
+      timeout: 10_000,
+    });
+    return { stdout, stderr, exitCode: 0 };
+  } catch (err: unknown) {
+    const e = err as { stdout?: string; stderr?: string; code?: number };
+    return {
+      stdout: e.stdout ?? '',
+      stderr: e.stderr ?? '',
+      exitCode: e.code ?? 1,
+    };
+  }
 }
 
 async function runProdCliWithEnv(
@@ -2705,6 +2725,120 @@ describe('production mode', () => {
       expect(merchantRequests[0].headers['content-type']).toContain(
         'text/plain',
       );
+    });
+
+    // Regression: a merchant-controlled URL must never reach a shell as
+    // syntax via the _next continuation. See HackerOne #3894770.
+    describe('_next continuation quoting', () => {
+      const PENDING_SPT_REQUEST = {
+        ...BASE_REQUEST,
+        id: 'lsrq_spt_002',
+        status: 'pending_approval',
+        credential_type: 'shared_payment_token',
+        network_id: 'net_001',
+        approval_url: 'https://link.com/approve/lsrq_spt_002',
+      };
+
+      function payloadUrl(marker: string): string {
+        return `http://127.0.0.1:${merchantPort}/api/charge$(touch${'${IFS}'}${marker})`;
+      }
+
+      async function runFullFlow(url: string) {
+        setNextResponse(200, PENDING_SPT_REQUEST);
+        setMerchantResponse(402, '{"error":"payment required"}', {
+          'www-authenticate': WWW_AUTHENTICATE_STRIPE,
+        });
+
+        const result = await runProdCli(
+          'mpp',
+          'pay',
+          url,
+          '--context',
+          VALID_CONTEXT,
+          '--payment-method-id',
+          'pd_prod_test',
+          '--format',
+          'json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        const output = parseJson(result.stdout) as Array<{
+          _next: {
+            pay_command: string;
+            pay_argv: { command: string; args: string[] };
+          };
+        }>;
+        return output[0]._next;
+      }
+
+      it('carries the raw URL in pay_argv and a quoted URL in pay_command', async () => {
+        const marker = `${os.tmpdir()}/link-cli-injection-argv-${process.pid}`;
+        const url = payloadUrl(marker);
+
+        const next = await runFullFlow(url);
+
+        expect(next.pay_argv.command).toBe('mpp');
+        expect(next.pay_argv.args[0]).toBe('pay');
+        expect(next.pay_argv.args[1]).toBe(url);
+        expect(next.pay_argv.args).toContain('--spend-request-id');
+        expect(next.pay_argv.args).toContain('lsrq_spt_002');
+
+        expect(next.pay_command).not.toContain('pay $(touch');
+        expect(next.pay_command).toContain(`'${url}'`);
+      });
+
+      it('does not execute the payload when pay_command is run through bash', async () => {
+        const marker = `${os.tmpdir()}/link-cli-injection-bash-${process.pid}`;
+        if (fs.existsSync(marker)) fs.unlinkSync(marker);
+
+        const next = await runFullFlow(payloadUrl(marker));
+
+        // `mpp` is not on PATH, so this fails — but an unquoted $(...) would
+        // still have been expanded by the shell before that failure.
+        await runShell(next.pay_command);
+
+        expect(fs.existsSync(marker)).toBe(false);
+      });
+
+      it('quotes payloads passed via --data and --header', async () => {
+        setNextResponse(200, PENDING_SPT_REQUEST);
+        setMerchantResponse(402, '{"error":"payment required"}', {
+          'www-authenticate': WWW_AUTHENTICATE_STRIPE,
+        });
+
+        const marker = `${os.tmpdir()}/link-cli-injection-flags-${process.pid}`;
+        if (fs.existsSync(marker)) fs.unlinkSync(marker);
+        const dataPayload = `{"a":"'; touch ${marker}; echo '"}`;
+
+        const result = await runProdCli(
+          'mpp',
+          'pay',
+          `http://127.0.0.1:${merchantPort}/api/charge`,
+          '--context',
+          VALID_CONTEXT,
+          '--payment-method-id',
+          'pd_prod_test',
+          '--data',
+          dataPayload,
+          '--header',
+          `X-Evil: $(touch${'${IFS}'}${marker})`,
+          '--format',
+          'json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        const output = parseJson(result.stdout) as Array<{
+          _next: {
+            pay_command: string;
+            pay_argv: { command: string; args: string[] };
+          };
+        }>;
+        const next = output[0]._next;
+
+        expect(next.pay_argv.args).toContain(dataPayload);
+        await runShell(next.pay_command);
+        expect(fs.existsSync(marker)).toBe(false);
+      });
     });
   });
 

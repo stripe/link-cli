@@ -18,6 +18,7 @@ import {
 import { pollUntil } from '../../utils/poll-until';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth, requireAuthGuard } from '../../utils/require-auth';
+import { shellQuote } from '../../utils/shell-quote';
 import { CancelSpendRequest } from './cancel';
 import { CreateSpendRequest } from './create';
 import { SpendRequestList } from './list';
@@ -38,11 +39,11 @@ function buildRequiresActionResult(request: SpendRequest) {
   return {
     ...request,
     instruction: isAutoResume
-      ? `The spend request requires 3D Secure verification. Present action_url (${nextAction?.action_url}) to the user, then call \`spend-request retrieve ${request.id} --interval 2 --max-attempts 300\` to poll until it resolves. Do not create a new spend request — this one resumes automatically once the challenge is completed.`
+      ? `The spend request requires 3D Secure verification. Present action_url (${nextAction?.action_url}) to the user, then call \`spend-request retrieve ${shellQuote(request.id)} --interval 2 --max-attempts 300\` to poll until it resolves. Do not create a new spend request — this one resumes automatically once the challenge is completed.`
       : `The spend request requires action (${nextAction?.type}): ${nextAction?.display_message}${nextAction?.action_url ? ` URL: ${nextAction.action_url}` : ''} Have the user complete this, then create a new spend request.`,
     _next: isAutoResume
       ? {
-          command: `spend-request retrieve ${request.id} --interval 2 --max-attempts 300`,
+          command: `spend-request retrieve ${shellQuote(request.id)} --interval 2 --max-attempts 300`,
           until: 'status changes from requires_action',
         }
       : undefined,
@@ -363,9 +364,9 @@ export function createSpendRequestCli(
       }
       yield {
         ...created,
-        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${created.id} --interval 2 --max-attempts 300\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
+        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${shellQuote(created.id)} --interval 2 --max-attempts 300\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
         _next: {
-          command: `spend-request retrieve ${created.id} --interval 2 --max-attempts 300`,
+          command: `spend-request retrieve ${shellQuote(created.id)} --interval 2 --max-attempts 300`,
           until: 'status changes from pending_approval',
         },
       };
@@ -486,9 +487,9 @@ export function createSpendRequestCli(
       }
       yield {
         ...approval,
-        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${id} --interval 2 --max-attempts 300\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
+        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${shellQuote(id)} --interval 2 --max-attempts 300\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
         _next: {
-          command: `spend-request retrieve ${id} --interval 2 --max-attempts 300`,
+          command: `spend-request retrieve ${shellQuote(id)} --interval 2 --max-attempts 300`,
           until: 'status changes from pending_approval',
         },
       };
