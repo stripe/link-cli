@@ -764,6 +764,28 @@ describe('production mode', () => {
       expect(output).toContain('Invalid payment details');
     });
 
+    it('rejects an amount above the published per-request limit', async () => {
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '-m',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '60000',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      const output = result.stdout + result.stderr;
+      expect(output).toMatch(/amount|50000/i);
+    });
+
     it('surfaces the duplicate spend request on spend_request_rate_limited error', async () => {
       setNextResponse(429, {
         error: {
