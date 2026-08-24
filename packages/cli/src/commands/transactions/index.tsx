@@ -48,11 +48,11 @@ export function createTransactionsCli(
             params={params}
             onComplete={() => {}}
           />,
-          () => resource.listTransactions(params),
+          () => resource.list(params),
         );
       }
 
-      return resource.listTransactions(params);
+      return resource.list(params);
     },
   });
 

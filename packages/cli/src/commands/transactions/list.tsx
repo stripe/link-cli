@@ -52,10 +52,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
   params,
   onComplete,
 }) => {
-  const action = useCallback(
-    () => resource.listTransactions(params),
-    [resource, params],
-  );
+  const action = useCallback(() => resource.list(params), [resource, params]);
   const { status, data: page, error } = useAsyncAction(action, onComplete);
   const transactions = page?.data ?? [];
   const nextCursor =

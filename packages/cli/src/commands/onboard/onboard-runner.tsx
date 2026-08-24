@@ -80,7 +80,7 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
         // Phase 2: Payment methods — just check at least one exists
         setPhase('payment-methods');
         while (true) {
-          const methods = await paymentMethodsResource.listPaymentMethods();
+          const methods = await paymentMethodsResource.list();
           if (methods.length > 0) break;
           setPmMissing(true);
           await waitForEnter();

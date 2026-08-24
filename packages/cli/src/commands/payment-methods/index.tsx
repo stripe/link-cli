@@ -25,11 +25,11 @@ export function createPaymentMethodsCli(
       if (!c.agent && !c.formatExplicit) {
         return renderInteractive(
           <PaymentMethodsList resource={resource} onComplete={() => {}} />,
-          () => resource.listPaymentMethods(),
+          () => resource.list(),
         );
       }
 
-      return resource.listPaymentMethods();
+      return resource.list();
     },
   });
 

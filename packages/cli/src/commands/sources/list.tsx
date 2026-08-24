@@ -179,10 +179,7 @@ export const SourcesList: React.FC<SourcesListProps> = ({
   params,
   onComplete,
 }) => {
-  const action = useCallback(
-    () => resource.listSources(params),
-    [resource, params],
-  );
+  const action = useCallback(() => resource.list(params), [resource, params]);
   const { status, data: page, error } = useAsyncAction(action, onComplete);
   const sources = page?.data ?? [];
   const nextCursor =

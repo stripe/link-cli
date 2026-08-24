@@ -23,7 +23,7 @@ export const UpdateSpendRequest: React.FC<UpdateSpendRequestProps> = ({
   onComplete,
 }) => {
   const action = useCallback(
-    () => repository.updateSpendRequest(id, params),
+    () => repository.update(id, params),
     [repository, id, params],
   );
   const { status, data: request, error } = useAsyncAction(action, onComplete);

@@ -42,11 +42,11 @@ export function createSourcesCli(
             params={params}
             onComplete={() => {}}
           />,
-          () => resource.listSources(params),
+          () => resource.list(params),
         );
       }
 
-      return resource.listSources(params);
+      return resource.list(params);
     },
   });
 

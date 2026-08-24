@@ -97,11 +97,11 @@ export function createSpendRequestCli(
             includeHistory={opts.includeHistory}
             onComplete={() => {}}
           />,
-          () => repository.listSpendRequests(opts),
+          () => repository.list(opts),
         );
       }
 
-      return repository.listSpendRequests(opts);
+      return repository.list(opts);
     },
   });
 
@@ -302,7 +302,7 @@ export function createSpendRequestCli(
       // The agent drives the polling loop via `spend-request retrieve`.
       let created: SpendRequest;
       try {
-        created = await repository.createSpendRequest(createParams);
+        created = await repository.create(createParams);
       } catch (err) {
         if (err instanceof LinkApiError) {
           const apiErr = err.details as {
@@ -421,7 +421,7 @@ export function createSpendRequestCli(
         );
       }
 
-      return repository.updateSpendRequest(id, params);
+      return repository.update(id, params);
     },
   });
 
@@ -560,7 +560,7 @@ export function createSpendRequestCli(
       };
 
       for await (const result of pollUntil<SpendRequest | null>({
-        fn: () => repository.getSpendRequest(id, { include }),
+        fn: () => repository.retrieve(id, { include }),
         isTerminal: (req) => req === null || isPollTerminal(req),
         interval,
         maxAttempts,
@@ -642,7 +642,7 @@ export function createSpendRequestCli(
         );
       }
 
-      return repository.cancelSpendRequest(id);
+      return repository.cancel(id);
     },
   });
 

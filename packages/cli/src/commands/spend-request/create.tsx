@@ -138,7 +138,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
 
         let latest: SpendRequest | null;
         try {
-          latest = await repository.getSpendRequest(requestId);
+          latest = await repository.retrieve(requestId);
         } catch {
           continue;
         }
@@ -202,7 +202,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
   useEffect(() => {
     const create = async () => {
       try {
-        const result = await repository.createSpendRequest(params);
+        const result = await repository.create(params);
         setRequest(result);
 
         if (result.status === 'requires_action') {

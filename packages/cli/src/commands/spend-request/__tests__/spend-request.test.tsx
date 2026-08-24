@@ -38,37 +38,37 @@ function makeSpendRequest(overrides: Partial<SpendRequest> = {}): SpendRequest {
 
 function makeMockRepo(result: SpendRequest) {
   return sanitizeResource({
-    createSpendRequest: vi.fn(async () => result),
-    getSpendRequest: vi.fn(async () => result),
-    updateSpendRequest: vi.fn(async () => result),
+    create: vi.fn(async () => result),
+    retrieve: vi.fn(async () => result),
+    update: vi.fn(async () => result),
     requestApproval: vi.fn(async () => result),
-    cancelSpendRequest: vi.fn(async () => result),
+    cancel: vi.fn(async () => result),
   } as unknown as ISpendRequestResource);
 }
 
 // Returns each entry in `getSpendRequestResults` in order on successive
-// `getSpendRequest` calls (repeating the last entry once exhausted), so tests
+// `retrieve` calls (repeating the last entry once exhausted), so tests
 // can simulate a status transitioning across polls.
 function makeSequentialMockRepo(
   createResult: SpendRequest,
   getSpendRequestResults: SpendRequest[],
 ) {
   let call = 0;
-  const getSpendRequest = vi.fn(async () => {
+  const retrieve = vi.fn(async () => {
     const result =
       getSpendRequestResults[Math.min(call, getSpendRequestResults.length - 1)];
     call++;
     return result;
   });
   return sanitizeResource({
-    createSpendRequest: vi.fn(async () => createResult),
-    getSpendRequest,
-    updateSpendRequest: vi.fn(async () => createResult),
+    create: vi.fn(async () => createResult),
+    retrieve,
+    update: vi.fn(async () => createResult),
     requestApproval: vi.fn(async () => ({
       id: createResult.id,
       approval_link: 'https://app.link.com/approve/sr_test',
     })),
-    cancelSpendRequest: vi.fn(async () => createResult),
+    cancel: vi.fn(async () => createResult),
   } as unknown as ISpendRequestResource);
 }
 
@@ -98,13 +98,13 @@ describe('spend-request', () => {
         },
       );
       const repo = sanitizeResource({
-        createSpendRequest: vi.fn(async () => {
+        create: vi.fn(async () => {
           throw error;
         }),
-        getSpendRequest: vi.fn(),
-        updateSpendRequest: vi.fn(),
+        retrieve: vi.fn(),
+        update: vi.fn(),
         requestApproval: vi.fn(),
-        cancelSpendRequest: vi.fn(),
+        cancel: vi.fn(),
       } as unknown as ISpendRequestResource);
 
       const { lastFrame } = render(
@@ -147,13 +147,13 @@ describe('spend-request', () => {
         },
       );
       const repo = sanitizeResource({
-        createSpendRequest: vi.fn(async () => {
+        create: vi.fn(async () => {
           throw error;
         }),
-        getSpendRequest: vi.fn(),
-        updateSpendRequest: vi.fn(),
+        retrieve: vi.fn(),
+        update: vi.fn(),
         requestApproval: vi.fn(),
-        cancelSpendRequest: vi.fn(),
+        cancel: vi.fn(),
       } as unknown as ISpendRequestResource);
 
       const { lastFrame } = render(
@@ -209,13 +209,13 @@ describe('spend-request', () => {
         },
       );
       const repo = sanitizeResource({
-        createSpendRequest: vi.fn(async () => {
+        create: vi.fn(async () => {
           throw error;
         }),
-        getSpendRequest: vi.fn(),
-        updateSpendRequest: vi.fn(),
+        retrieve: vi.fn(),
+        update: vi.fn(),
         requestApproval: vi.fn(),
-        cancelSpendRequest: vi.fn(),
+        cancel: vi.fn(),
       } as unknown as ISpendRequestResource);
 
       const { lastFrame } = render(
@@ -262,13 +262,13 @@ describe('spend-request', () => {
         },
       );
       const repo = sanitizeResource({
-        createSpendRequest: vi.fn(),
-        getSpendRequest: vi.fn(),
-        updateSpendRequest: vi.fn(),
+        create: vi.fn(),
+        retrieve: vi.fn(),
+        update: vi.fn(),
         requestApproval: vi.fn(async () => {
           throw error;
         }),
-        cancelSpendRequest: vi.fn(),
+        cancel: vi.fn(),
       } as unknown as ISpendRequestResource);
 
       const { lastFrame } = render(
@@ -304,13 +304,13 @@ describe('spend-request', () => {
         },
       );
       const repo = sanitizeResource({
-        createSpendRequest: vi.fn(),
-        getSpendRequest: vi.fn(),
-        updateSpendRequest: vi.fn(),
+        create: vi.fn(),
+        retrieve: vi.fn(),
+        update: vi.fn(),
         requestApproval: vi.fn(async () => {
           throw error;
         }),
-        cancelSpendRequest: vi.fn(),
+        cancel: vi.fn(),
       } as unknown as ISpendRequestResource);
 
       const { lastFrame } = render(

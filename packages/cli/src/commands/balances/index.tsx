@@ -43,11 +43,11 @@ export function createBalancesCli(
             params={params}
             onComplete={() => {}}
           />,
-          () => resource.listBalances(params),
+          () => resource.list(params),
         );
       }
 
-      return resource.listBalances(params);
+      return resource.list(params);
     },
   });
 

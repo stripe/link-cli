@@ -148,7 +148,7 @@ export function createMppCli(
         pmId = methods[0].id;
       }
 
-      const spendRequest = await repository.createSpendRequest({
+      const spendRequest = await repository.create({
         payment_details: pmId,
         credential_type: 'shared_payment_token',
         network_id: networkId,

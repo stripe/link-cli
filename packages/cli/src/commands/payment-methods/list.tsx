@@ -14,7 +14,7 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
   resource,
   onComplete,
 }) => {
-  const action = useCallback(() => resource.listPaymentMethods(), [resource]);
+  const action = useCallback(() => resource.list(), [resource]);
   const { status, data: methods, error } = useAsyncAction(action, onComplete);
 
   if (status === 'loading') {

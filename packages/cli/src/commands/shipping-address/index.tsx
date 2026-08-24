@@ -24,11 +24,11 @@ export function createShippingAddressCli(
       if (!c.agent && !c.formatExplicit) {
         return renderInteractive(
           <ShippingAddressList resource={resource} onComplete={() => {}} />,
-          () => resource.listShippingAddresses(),
+          () => resource.list(),
         );
       }
 
-      return resource.listShippingAddresses();
+      return resource.list();
     },
   });
 

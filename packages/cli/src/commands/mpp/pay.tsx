@@ -117,7 +117,7 @@ export async function runMppPayWithSpendRequest(
   headers: string[] | undefined,
   repository: ISpendRequestResource,
 ): Promise<PayResult> {
-  const spendRequest = await repository.getSpendRequest(spendRequestId, {
+  const spendRequest = await repository.retrieve(spendRequestId, {
     include: ['shared_payment_token'],
   });
 
@@ -252,7 +252,7 @@ export async function runMppPayFullFlow(
 
   // 4. Create spend request
   onStep?.('creating');
-  const spendRequest = await repository.createSpendRequest({
+  const spendRequest = await repository.create({
     payment_details: pmId,
     credential_type: 'shared_payment_token',
     network_id: networkId,
@@ -278,12 +278,12 @@ export async function runMppPayFullFlow(
 
   // 6. Retrieve with SPT (retry briefly in case of propagation delay)
   onStep?.('signing');
-  let withSpt = await repository.getSpendRequest(spendRequest.id, {
+  let withSpt = await repository.retrieve(spendRequest.id, {
     include: ['shared_payment_token'],
   });
   for (let i = 0; i < 3 && withSpt && !withSpt.shared_payment_token; i++) {
     await new Promise((r) => setTimeout(r, 1000));
-    withSpt = await repository.getSpendRequest(spendRequest.id, {
+    withSpt = await repository.retrieve(spendRequest.id, {
       include: ['shared_payment_token'],
     });
   }

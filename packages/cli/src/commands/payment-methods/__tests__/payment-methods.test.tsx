@@ -11,7 +11,7 @@ describe('payment-methods', () => {
   describe('sanitization', () => {
     it('sanitizes brand and nickname in payment method list', async () => {
       const resource = sanitizeResource({
-        listPaymentMethods: vi.fn(async () => [
+        list: vi.fn(async () => [
           {
             id: 'pm_1',
             card_details: { brand: ESCAPE_PAYLOAD, last4: '4242' },

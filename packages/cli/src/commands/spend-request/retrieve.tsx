@@ -93,7 +93,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
   useEffect(() => {
     const fetch = async () => {
       try {
-        const result = await repository.getSpendRequest(id, { include });
+        const result = await repository.retrieve(id, { include });
         if (!result) {
           setError(`Spend request ${id} not found`);
           setPhase('error');
@@ -152,7 +152,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
       }
 
       try {
-        const result = await repository.getSpendRequest(id, { include });
+        const result = await repository.retrieve(id, { include });
         if (!result) return;
 
         requestRef.current = result;
