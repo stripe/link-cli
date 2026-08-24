@@ -183,7 +183,7 @@ export interface SpendRequest {
 
 export interface RequestApprovalResponse {
   id: string;
-  approval_link: string;
+  approval_url: string;
 }
 
 export interface CardDetails {

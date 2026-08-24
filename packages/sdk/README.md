@@ -59,7 +59,7 @@ const spendRequest = await link.spendRequests.create({
 });
 
 const approval = await link.spendRequests.requestApproval(spendRequest.id);
-console.log(approval.approval_link);
+console.log(approval.approval_url);
 ```
 
 ## Configuration

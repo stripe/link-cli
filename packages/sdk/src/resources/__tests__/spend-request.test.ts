@@ -321,7 +321,7 @@ describe('SpendRequestResource', () => {
       expect(opts.body).toBeUndefined();
     });
 
-    it('returns RequestApprovalResponse with id and approval_link', async () => {
+    it('normalizes approval_link to approval_url', async () => {
       const approvalResponse = {
         id: 'si_123',
         approval_link: 'https://app.link.com/approve/si_123',
@@ -331,7 +331,8 @@ describe('SpendRequestResource', () => {
       const result = await repo.requestApproval('si_123');
 
       expect(result.id).toBe('si_123');
-      expect(result.approval_link).toBe('https://app.link.com/approve/si_123');
+      expect(result.approval_url).toBe('https://app.link.com/approve/si_123');
+      expect(result).not.toHaveProperty('approval_link');
     });
 
     it('throws on HTTP error', async () => {

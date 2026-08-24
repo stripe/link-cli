@@ -29,10 +29,15 @@ const spendRequestsResponseSchema = z.looseObject({
   data: z.array(spendRequestSchema),
 });
 
-const requestApprovalResponseSchema = z.looseObject({
-  id: z.string(),
-  approval_link: z.string(),
-});
+const requestApprovalResponseSchema = z
+  .looseObject({
+    id: z.string(),
+    approval_link: z.string(),
+  })
+  .transform(({ approval_link, ...response }) => ({
+    ...response,
+    approval_url: approval_link,
+  }));
 
 const duplicateSpendRequestErrorSchema = z.looseObject({
   error: z.looseObject({

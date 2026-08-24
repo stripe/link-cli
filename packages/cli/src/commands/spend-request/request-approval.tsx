@@ -97,7 +97,7 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
     const request = async () => {
       try {
         const res = await repository.requestApproval(id);
-        setApprovalUrl(res.approval_link);
+        setApprovalUrl(res.approval_url);
         setStatus('waiting');
       } catch (err) {
         setError((err as Error).message);

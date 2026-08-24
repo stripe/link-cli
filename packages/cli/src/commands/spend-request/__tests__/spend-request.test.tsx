@@ -66,7 +66,7 @@ function makeSequentialMockRepo(
     update: vi.fn(async () => createResult),
     requestApproval: vi.fn(async () => ({
       id: createResult.id,
-      approval_link: 'https://app.link.com/approve/sr_test',
+      approval_url: 'https://app.link.com/approve/sr_test',
     })),
     cancel: vi.fn(async () => createResult),
   } as unknown as ISpendRequestResource);
