@@ -157,8 +157,9 @@ describe('BalancesResource', () => {
   it('throws when the response shape is invalid', async () => {
     mockFetchResponse(200, { data: 'not an array' });
 
-    await expect(repo.list()).rejects.toThrow(
-      'Invalid response while attempting to list balances (200): Expected balances to be an array',
-    );
+    await expect(repo.list()).rejects.toMatchObject({
+      code: 'invalid_response',
+      status: 200,
+    });
   });
 });

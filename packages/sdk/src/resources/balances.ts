@@ -1,40 +1,29 @@
 import type { LinkOptions } from '@/config';
-import { BaseResource, isRecord, requireBoolean } from '@/resources/base';
+import { BaseResource } from '@/resources/base';
 import type {
   IBalancesResource,
   ListBalancesParams,
 } from '@/resources/interfaces';
-import type { Balance, BalancesPage } from '@/types/index';
+import type { BalancesPage } from '@/types/index';
+import { z } from 'zod';
 
-function normalizeBalances(value: unknown): Balance[] {
-  if (!Array.isArray(value)) {
-    throw new TypeError('Expected balances to be an array');
-  }
-
-  return value.map((item, index) => {
-    if (!isRecord(item)) {
-      throw new TypeError(`Expected balances[${index}] to be an object`);
-    }
-    return item as Balance;
-  });
-}
-
-function normalizeBalancesPage(value: unknown): BalancesPage {
-  if (!isRecord(value)) {
-    throw new TypeError('Expected response body to be an object');
-  }
-
-  const { data, has_more, ...rest } = value;
-  const normalized = normalizeBalances(data);
-
-  return {
-    ...rest,
-    data: normalized,
-    ...(has_more !== undefined
-      ? { has_more: requireBoolean(has_more, 'has_more') }
-      : {}),
-  };
-}
+const currencyAmountsSchema = z.record(z.string(), z.number());
+const balanceSchema = z.looseObject({
+  source_id: z.string(),
+  type: z.enum(['cash', 'credit']),
+  cash: z
+    .looseObject({ available: currencyAmountsSchema })
+    .nullable()
+    .optional(),
+  credit: z.looseObject({ used: currencyAmountsSchema }).nullable().optional(),
+  current: z.number(),
+  currency: z.string(),
+  as_of: z.string(),
+});
+const balancesPageSchema = z.looseObject({
+  data: z.array(balanceSchema),
+  has_more: z.boolean().optional(),
+});
 
 export class BalancesResource
   extends BaseResource
@@ -75,8 +64,10 @@ export class BalancesResource
       this.throwApiError('list balances', status, data, rawBody);
     }
 
-    return this.parseResponse('list balances', status, () =>
-      normalizeBalancesPage(data),
+    return this.parseResponse(
+      'list balances',
+      status,
+      () => balancesPageSchema.parse(data) as BalancesPage,
     );
   }
 }

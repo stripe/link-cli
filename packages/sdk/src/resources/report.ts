@@ -1,22 +1,20 @@
 import type { LinkOptions } from '@/config';
-import { BaseResource, requireRecord, requireString } from '@/resources/base';
+import { BaseResource } from '@/resources/base';
 import type {
   CreateReportParams,
   IReportResource,
   ReportRecord,
 } from '@/resources/interfaces';
+import { z } from 'zod';
 
-function parseReportRecord(value: unknown): ReportRecord {
-  const body = requireRecord(value);
-  return {
-    object: requireString(body.object, 'object'),
-    created_at: requireString(body.created_at, 'created_at'),
-    domain: requireString(body.domain, 'domain'),
-    outcome: requireString(body.outcome, 'outcome'),
-    spend_request_id: requireString(body.spend_request_id, 'spend_request_id'),
-    status: requireString(body.status, 'status'),
-  };
-}
+const reportRecordSchema = z.looseObject({
+  object: z.string(),
+  created_at: z.string(),
+  domain: z.string(),
+  outcome: z.string(),
+  spend_request_id: z.string(),
+  status: z.string(),
+});
 
 export class ReportResource extends BaseResource implements IReportResource {
   constructor(options: LinkOptions) {
@@ -36,7 +34,7 @@ export class ReportResource extends BaseResource implements IReportResource {
     }
 
     return this.parseResponse('create report', status, () =>
-      parseReportRecord(data),
+      reportRecordSchema.parse(data),
     );
   }
 }

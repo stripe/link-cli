@@ -17,7 +17,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "conf": "^15.1.0"
+    "conf": "^15.1.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@stripe/link-typescript-config": "workspace:*",

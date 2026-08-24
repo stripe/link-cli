@@ -1,8 +1,9 @@
 import type { LinkOptions } from '@/config';
 import { LinkSdkError } from '@/errors';
-import { BaseResource, requireRecord, requireString } from '@/resources/base';
+import { BaseResource } from '@/resources/base';
 import type { IWebBotAuthResource } from '@/resources/interfaces';
 import type { WebBotAuthBlock } from '@/types/index';
+import { z } from 'zod';
 
 interface CacheEntry {
   block: WebBotAuthBlock;
@@ -11,22 +12,16 @@ interface CacheEntry {
 
 const EXPIRY_BUFFER_MS = 30_000;
 
-function parseWebBotAuthBlock(value: unknown): WebBotAuthBlock {
-  const body = requireRecord(value);
-  return {
-    signature: requireString(body.signature, 'web_bot_auth.signature'),
-    signature_input: requireString(
-      body.signature_input,
-      'web_bot_auth.signature_input',
-    ),
-    signature_agent: requireString(
-      body.signature_agent,
-      'web_bot_auth.signature_agent',
-    ),
-    authority: requireString(body.authority, 'web_bot_auth.authority'),
-    expires_at: requireString(body.expires_at, 'web_bot_auth.expires_at'),
-  };
-}
+const webBotAuthBlockSchema = z.looseObject({
+  signature: z.string(),
+  signature_input: z.string(),
+  signature_agent: z.string(),
+  authority: z.string(),
+  expires_at: z.string(),
+});
+const webBotAuthResponseSchema = z.looseObject({
+  web_bot_auth: webBotAuthBlockSchema,
+});
 
 export class WebBotAuthResource
   extends BaseResource
@@ -65,10 +60,7 @@ export class WebBotAuthResource
     const webBotAuth = this.parseResponse(
       'get web bot auth headers',
       status,
-      () => {
-        const body = requireRecord(data);
-        return parseWebBotAuthBlock(body.web_bot_auth);
-      },
+      () => webBotAuthResponseSchema.parse(data).web_bot_auth,
     );
     const expiresAt = Date.parse(webBotAuth.expires_at);
     if (Number.isNaN(expiresAt)) {

@@ -93,6 +93,9 @@ importers:
       conf:
         specifier: ^15.1.0
         version: 15.1.0
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@stripe/link-typescript-config':
         specifier: workspace:*

@@ -1,108 +1,30 @@
 import type { LinkOptions } from '@/config';
-import { BaseResource, isRecord, requireBoolean } from '@/resources/base';
+import { BaseResource } from '@/resources/base';
 import type {
   ITransactionsResource,
   ListTransactionsParams,
 } from '@/resources/interfaces';
-import type {
-  Transaction,
-  TransactionOrigin,
-  TransactionsPage,
-} from '@/types/index';
+import type { TransactionsPage } from '@/types/index';
+import { z } from 'zod';
 
-function requireString(value: unknown, field: string): string {
-  if (typeof value !== 'string') {
-    throw new TypeError(`Expected ${field} to be a string`);
-  }
-  return value;
-}
-
-function requireNullableString(value: unknown, field: string): string | null {
-  if (value === null) {
-    return null;
-  }
-  if (typeof value !== 'string') {
-    throw new TypeError(`Expected ${field} to be a string or null`);
-  }
-  return value;
-}
-
-function requireNumber(value: unknown, field: string): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new TypeError(`Expected ${field} to be a finite number`);
-  }
-  return value;
-}
-
-function requireTransactionOrigin(
-  value: unknown,
-  field: string,
-): TransactionOrigin {
-  if (value === 'link' || value === 'external_connection') {
-    return value;
-  }
-  throw new TypeError(`Expected ${field} to be a transaction origin`);
-}
-
-function normalizeTransactions(value: unknown): Transaction[] {
-  if (!Array.isArray(value)) {
-    throw new TypeError('Expected transactions to be an array');
-  }
-
-  return value.map((item, index) => {
-    if (!isRecord(item)) {
-      throw new TypeError(`Expected transactions[${index}] to be an object`);
-    }
-
-    return {
-      id: requireString(item.id, `transactions[${index}].id`),
-      source_id: requireNullableString(
-        item.source_id,
-        `transactions[${index}].source_id`,
-      ),
-      amount: requireNumber(item.amount, `transactions[${index}].amount`),
-      currency: requireString(item.currency, `transactions[${index}].currency`),
-      created_date: requireString(
-        item.created_date,
-        `transactions[${index}].created_date`,
-      ),
-      description: requireString(
-        item.description,
-        `transactions[${index}].description`,
-      ),
-      origin: requireTransactionOrigin(
-        item.origin,
-        `transactions[${index}].origin`,
-      ),
-      category: requireNullableString(
-        item.category,
-        `transactions[${index}].category`,
-      ),
-      status: requireString(item.status, `transactions[${index}].status`),
-    };
-  });
-}
-
-function normalizeTransactionsPage(value: unknown): TransactionsPage {
-  if (Array.isArray(value)) {
-    return { data: normalizeTransactions(value) };
-  }
-
-  if (!isRecord(value)) {
-    throw new TypeError('Expected response body to be an object');
-  }
-
-  const { data, has_more, ...rest } = value;
-  const normalized = normalizeTransactions(data);
-
-  return {
-    ...rest,
-    data: normalized,
-    ...(has_more !== undefined
-      ? { has_more: requireBoolean(has_more, 'has_more') }
-      : {}),
-  };
-}
+const transactionSchema = z.looseObject({
+  id: z.string(),
+  source_id: z.string().nullable(),
+  amount: z.number(),
+  currency: z.string(),
+  created_date: z.string(),
+  description: z.string(),
+  origin: z.enum(['link', 'external_connection']),
+  category: z.string().nullable(),
+  status: z.string(),
+});
+const transactionsPageSchema = z.union([
+  z.array(transactionSchema).transform((data) => ({ data })),
+  z.looseObject({
+    data: z.array(transactionSchema),
+    has_more: z.boolean().optional(),
+  }),
+]);
 
 export class TransactionsResource
   extends BaseResource
@@ -155,8 +77,10 @@ export class TransactionsResource
       this.throwApiError('list transactions', status, data, rawBody);
     }
 
-    return this.parseResponse('list transactions', status, () =>
-      normalizeTransactionsPage(data),
+    return this.parseResponse(
+      'list transactions',
+      status,
+      () => transactionsPageSchema.parse(data) as TransactionsPage,
     );
   }
 }

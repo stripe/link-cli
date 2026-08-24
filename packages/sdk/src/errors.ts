@@ -1,3 +1,5 @@
+import { ZodError, prettifyError } from 'zod';
+
 export class LinkSdkError extends Error {
   readonly code: string;
 
@@ -17,7 +19,11 @@ export class LinkResponseError extends LinkSdkError {
     options?: { cause?: unknown },
   ) {
     const detail =
-      options?.cause instanceof Error ? `: ${options.cause.message}` : '';
+      options?.cause instanceof ZodError
+        ? `: ${prettifyError(options.cause)}`
+        : options?.cause instanceof Error
+          ? `: ${options.cause.message}`
+          : '';
     super(
       `Invalid response while attempting to ${operation} (${status})${detail}`,
       { code: 'invalid_response', cause: options?.cause },

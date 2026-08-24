@@ -1,24 +1,17 @@
 import type { LinkOptions } from '@/config';
-import {
-  BaseResource,
-  requireArray,
-  requireBoolean,
-  requireRecord,
-  requireString,
-} from '@/resources/base';
+import { BaseResource } from '@/resources/base';
 import type { IPaymentMethodsResource } from '@/resources/interfaces';
 import type { PaymentMethod } from '@/types/index';
+import { z } from 'zod';
 
-function parsePaymentMethod(value: unknown, index: number): PaymentMethod {
-  const field = `payment_details[${index}]`;
-  const item = requireRecord(value, field);
-  return {
-    ...item,
-    id: requireString(item.id, `${field}.id`),
-    type: requireString(item.type, `${field}.type`),
-    is_default: requireBoolean(item.is_default, `${field}.is_default`),
-  } as PaymentMethod;
-}
+const paymentMethodSchema = z.looseObject({
+  id: z.string(),
+  type: z.string(),
+  is_default: z.boolean(),
+});
+const paymentMethodsResponseSchema = z.looseObject({
+  payment_details: z.array(paymentMethodSchema),
+});
 
 export class PaymentMethodsResource
   extends BaseResource
@@ -38,11 +31,12 @@ export class PaymentMethodsResource
       this.throwApiError('list payment methods', status, data, rawBody);
     }
 
-    return this.parseResponse('list payment methods', status, () => {
-      const body = requireRecord(data);
-      return requireArray(body.payment_details, 'payment_details').map(
-        parsePaymentMethod,
-      );
-    });
+    return this.parseResponse(
+      'list payment methods',
+      status,
+      () =>
+        paymentMethodsResponseSchema.parse(data)
+          .payment_details as PaymentMethod[],
+    );
   }
 }

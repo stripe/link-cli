@@ -1,23 +1,15 @@
 import type { LinkOptions } from '@/config';
 import { LinkApiError } from '@/errors';
-import {
-  BaseResource,
-  requireArray,
-  requireRecord,
-  requireString,
-} from '@/resources/base';
+import { BaseResource } from '@/resources/base';
 import type {
   CreateSpendRequestParams,
   ISpendRequestResource,
   UpdateSpendRequestParams,
 } from '@/resources/interfaces';
-import type {
-  RequestApprovalResponse,
-  SpendRequest,
-  SpendRequestStatus,
-} from '@/types/index';
+import type { RequestApprovalResponse, SpendRequest } from '@/types/index';
+import { z } from 'zod';
 
-const SPEND_REQUEST_STATUSES = new Set<SpendRequestStatus>([
+const spendRequestStatusSchema = z.enum([
   'created',
   'pending_approval',
   'expired',
@@ -29,70 +21,56 @@ const SPEND_REQUEST_STATUSES = new Set<SpendRequestStatus>([
   'requires_action',
 ]);
 
+const sharedPaymentTokenSchema = z.union([
+  z.string().transform((id) => ({ id })),
+  z.looseObject({ id: z.string() }),
+]);
+
+const spendRequestSchema = z.looseObject({
+  id: z.string(),
+  payment_details: z.string(),
+  status: spendRequestStatusSchema,
+  line_items: z.array(z.unknown()),
+  totals: z.array(z.unknown()),
+  created_at: z.string(),
+  updated_at: z.string(),
+  shared_payment_token: sharedPaymentTokenSchema.optional(),
+});
+
+const spendRequestsResponseSchema = z.looseObject({
+  data: z.array(spendRequestSchema),
+});
+
+const requestApprovalResponseSchema = z.looseObject({
+  id: z.string(),
+  approval_link: z.string(),
+});
+
+const duplicateSpendRequestErrorSchema = z.looseObject({
+  error: z.looseObject({
+    duplicate_spend_request: z.unknown().optional(),
+  }),
+});
+
 type InternalCreateSpendRequestParams = CreateSpendRequestParams & {
   approve?: boolean;
   expires_at?: number;
 };
 
-function requireSpendRequestStatus(
-  value: unknown,
-  field: string,
-): SpendRequestStatus {
-  const status = requireString(value, field) as SpendRequestStatus;
-  if (!SPEND_REQUEST_STATUSES.has(status)) {
-    throw new TypeError(`Expected ${field} to be a known spend request status`);
-  }
-  return status;
-}
-
 /** Normalizes the legacy string SPT response into the current object shape. */
 function parseSpendRequest(value: unknown): SpendRequest {
-  const body = requireRecord(value);
-  const sharedPaymentToken = body.shared_payment_token;
-  const normalizedSharedPaymentToken =
-    typeof sharedPaymentToken === 'string'
-      ? { id: sharedPaymentToken }
-      : sharedPaymentToken;
-  if (normalizedSharedPaymentToken !== undefined) {
-    const token = requireRecord(
-      normalizedSharedPaymentToken,
-      'shared_payment_token',
-    );
-    requireString(token.id, 'shared_payment_token.id');
-  }
-
-  requireArray(body.line_items, 'line_items');
-  requireArray(body.totals, 'totals');
-
-  return {
-    ...body,
-    id: requireString(body.id, 'id'),
-    payment_details: requireString(body.payment_details, 'payment_details'),
-    status: requireSpendRequestStatus(body.status, 'status'),
-    line_items: body.line_items as SpendRequest['line_items'],
-    totals: body.totals as SpendRequest['totals'],
-    created_at: requireString(body.created_at, 'created_at'),
-    updated_at: requireString(body.updated_at, 'updated_at'),
-    ...(normalizedSharedPaymentToken !== undefined && {
-      shared_payment_token:
-        normalizedSharedPaymentToken as SpendRequest['shared_payment_token'],
-    }),
-  } as SpendRequest;
+  return spendRequestSchema.parse(value) as SpendRequest;
 }
 
 export function getDuplicateSpendRequest(error: unknown): SpendRequest | null {
   if (!(error instanceof LinkApiError)) return null;
-  const details = error.details;
-  if (!details || typeof details !== 'object') return null;
-  const errorBody = (details as Record<string, unknown>).error;
-  if (!errorBody || typeof errorBody !== 'object') return null;
-  const duplicate = (errorBody as Record<string, unknown>)
-    .duplicate_spend_request;
-  try {
-    return duplicate === undefined ? null : parseSpendRequest(duplicate);
-  } catch {
-    return null;
-  }
+  const details = duplicateSpendRequestErrorSchema.safeParse(error.details);
+  if (!details.success) return null;
+
+  const duplicate = spendRequestSchema.safeParse(
+    details.data.error.duplicate_spend_request,
+  );
+  return duplicate.success ? (duplicate.data as SpendRequest) : null;
 }
 
 export class SpendRequestResource
@@ -116,10 +94,11 @@ export class SpendRequestResource
       this.throwApiError('list spend requests', status, data, rawBody);
     }
 
-    return this.parseResponse('list spend requests', status, () => {
-      const body = requireRecord(data);
-      return requireArray(body.data, 'data').map(parseSpendRequest);
-    });
+    return this.parseResponse(
+      'list spend requests',
+      status,
+      () => spendRequestsResponseSchema.parse(data).data as SpendRequest[],
+    );
   }
 
   async create(
@@ -184,13 +163,9 @@ export class SpendRequestResource
     if (status < 200 || status >= 300) {
       this.throwApiError('request approval', status, data, rawBody);
     }
-    return this.parseResponse('request approval', status, () => {
-      const body = requireRecord(data);
-      return {
-        id: requireString(body.id, 'id'),
-        approval_link: requireString(body.approval_link, 'approval_link'),
-      };
-    });
+    return this.parseResponse('request approval', status, () =>
+      requestApprovalResponseSchema.parse(data),
+    );
   }
 
   async retrieve(

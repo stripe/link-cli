@@ -1,38 +1,18 @@
 import type { LinkOptions } from '@/config';
-import {
-  BaseResource,
-  requireArray,
-  requireBoolean,
-  requireRecord,
-  requireString,
-} from '@/resources/base';
+import { BaseResource } from '@/resources/base';
 import type { IShippingAddressResource } from '@/resources/interfaces';
 import type { ShippingAddressRecord } from '@/types/index';
+import { z } from 'zod';
 
-function requireNullableString(value: unknown, field: string): string | null {
-  if (value === null) return null;
-  return requireString(value, field);
-}
-
-function parseShippingAddress(
-  value: unknown,
-  index: number,
-): ShippingAddressRecord {
-  const field = `shipping_addresses[${index}]`;
-  const item = requireRecord(value, field);
-  const address = item.address;
-  if (address !== null) {
-    requireRecord(address, `${field}.address`);
-  }
-
-  return {
-    ...item,
-    id: requireString(item.id, `${field}.id`),
-    is_default: requireBoolean(item.is_default, `${field}.is_default`),
-    nickname: requireNullableString(item.nickname, `${field}.nickname`),
-    address: address as ShippingAddressRecord['address'],
-  };
-}
+const shippingAddressSchema = z.looseObject({
+  id: z.string(),
+  is_default: z.boolean(),
+  nickname: z.string().nullable(),
+  address: z.looseObject({}).nullable(),
+});
+const shippingAddressesResponseSchema = z.looseObject({
+  shipping_addresses: z.array(shippingAddressSchema),
+});
 
 export class ShippingAddressResource
   extends BaseResource
@@ -52,11 +32,12 @@ export class ShippingAddressResource
       this.throwApiError('list shipping addresses', status, data, rawBody);
     }
 
-    return this.parseResponse('list shipping addresses', status, () => {
-      const body = requireRecord(data);
-      return requireArray(body.shipping_addresses, 'shipping_addresses').map(
-        parseShippingAddress,
-      );
-    });
+    return this.parseResponse(
+      'list shipping addresses',
+      status,
+      () =>
+        shippingAddressesResponseSchema.parse(data)
+          .shipping_addresses as ShippingAddressRecord[],
+    );
   }
 }

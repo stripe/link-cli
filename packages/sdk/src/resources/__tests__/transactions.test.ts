@@ -164,8 +164,9 @@ describe('TransactionsResource', () => {
   it('throws when the response shape is invalid', async () => {
     mockFetchResponse(200, { data: [{ id: 'lbctxn_123' }] });
 
-    await expect(repo.list()).rejects.toThrow(
-      'Invalid response while attempting to list transactions (200): Expected transactions[0].source_id to be a string or null',
-    );
+    await expect(repo.list()).rejects.toMatchObject({
+      code: 'invalid_response',
+      status: 200,
+    });
   });
 });
