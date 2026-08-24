@@ -1,5 +1,4 @@
 import type { LinkOptions } from '@/config';
-import { LinkApiError } from '@/errors';
 import { BaseResource, isRecord, requireBoolean } from '@/resources/base';
 import type {
   IBalancesResource,
@@ -41,7 +40,7 @@ export class BalancesResource
   extends BaseResource
   implements IBalancesResource
 {
-  constructor(options: LinkOptions = {}) {
+  constructor(options: LinkOptions) {
     super(options, '/balances');
   }
 
@@ -66,11 +65,7 @@ export class BalancesResource
     return url.toString();
   }
 
-  list(params: ListBalancesParams = {}): Promise<BalancesPage> {
-    return this.listBalances(params);
-  }
-
-  async listBalances(params: ListBalancesParams = {}): Promise<BalancesPage> {
+  async list(params: ListBalancesParams = {}): Promise<BalancesPage> {
     const { status, data, rawBody } = await this.apiFetch({
       method: 'GET',
       url: this.buildUrl(params),
@@ -80,14 +75,8 @@ export class BalancesResource
       this.throwApiError('list balances', status, data, rawBody);
     }
 
-    try {
-      return normalizeBalancesPage(data);
-    } catch (error) {
-      const reason = error instanceof Error ? `: ${error.message}` : '';
-      throw new LinkApiError(
-        `Failed to list balances (${status}): invalid response shape${reason}`,
-        { status, rawBody, details: data, cause: error },
-      );
-    }
+    return this.parseResponse('list balances', status, () =>
+      normalizeBalancesPage(data),
+    );
   }
 }

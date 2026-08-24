@@ -1,5 +1,4 @@
 import type { LinkOptions } from '@/config';
-import { LinkApiError } from '@/errors';
 import { BaseResource, isRecord, requireBoolean } from '@/resources/base';
 import type {
   ISourcesResource,
@@ -38,7 +37,7 @@ function normalizeSourcesPage(value: unknown): SourcesPage {
 }
 
 export class SourcesResource extends BaseResource implements ISourcesResource {
-  constructor(options: LinkOptions = {}) {
+  constructor(options: LinkOptions) {
     super(options, '/sources');
   }
 
@@ -58,11 +57,7 @@ export class SourcesResource extends BaseResource implements ISourcesResource {
     return url.toString();
   }
 
-  list(params: ListSourcesParams = {}): Promise<SourcesPage> {
-    return this.listSources(params);
-  }
-
-  async listSources(params: ListSourcesParams = {}): Promise<SourcesPage> {
+  async list(params: ListSourcesParams = {}): Promise<SourcesPage> {
     const { status, data, rawBody } = await this.apiFetch({
       method: 'GET',
       url: this.buildUrl(params),
@@ -72,14 +67,8 @@ export class SourcesResource extends BaseResource implements ISourcesResource {
       this.throwApiError('list sources', status, data, rawBody);
     }
 
-    try {
-      return normalizeSourcesPage(data);
-    } catch (error) {
-      const reason = error instanceof Error ? `: ${error.message}` : '';
-      throw new LinkApiError(
-        `Failed to list sources (${status}): invalid response shape${reason}`,
-        { status, rawBody, details: data, cause: error },
-      );
-    }
+    return this.parseResponse('list sources', status, () =>
+      normalizeSourcesPage(data),
+    );
   }
 }

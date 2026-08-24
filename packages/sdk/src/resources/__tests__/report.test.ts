@@ -52,7 +52,7 @@ describe('ReportResource', () => {
       await resource.create(validParams);
 
       expect(mockFetch).toHaveBeenCalledOnce();
-      const [url, opts] = mockFetch.mock.calls[0];
+      const [url, opts] = mockFetch.mock.calls[0]!;
       expect(url).toBe('https://api.link.com/agent_observations');
       expect(opts.method).toBe('POST');
       expect(opts.headers['Content-Type']).toBe('application/json');
@@ -77,7 +77,7 @@ describe('ReportResource', () => {
         spend_request_id: 'lsrq_minimal',
       });
 
-      const [, opts] = mockFetch.mock.calls[0];
+      const [, opts] = mockFetch.mock.calls[0]!;
       const body = JSON.parse(opts.body);
       expect(body.domain).toBe('shop.example.com');
       expect(body.outcome).toBe('success');
@@ -101,7 +101,7 @@ describe('ReportResource', () => {
       const result = await resource.create(validParams);
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
-      const [, secondOpts] = mockFetch.mock.calls[1];
+      const [, secondOpts] = mockFetch.mock.calls[1]!;
       expect(secondOpts.headers.Authorization).toBe('Bearer fresh_token');
       expect(result).toEqual(successResponse);
     });

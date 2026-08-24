@@ -661,9 +661,8 @@ describe('production mode', () => {
 
     it('sends request_approval in create body, outputs approval URL immediately then polls', async () => {
       setNextResponse(200, {
-        ...BASE_REQUEST,
-        status: 'approved',
-        approval_url: 'https://app.link.com/approve/lsrq_prod_001',
+        id: BASE_REQUEST.id,
+        approval_link: 'https://app.link.com/approve/lsrq_prod_001',
       });
 
       const result = await runProdCli(
@@ -697,7 +696,7 @@ describe('production mode', () => {
       // Single result with _next polling hint
       const output = parseJson(result.stdout) as Record<string, unknown>[];
       expect(output.length).toBe(1);
-      expect(output[0].approval_url).toBe(
+      expect(output[0].approval_link).toBe(
         'https://app.link.com/approve/lsrq_prod_001',
       );
       const next = output[0]._next as Record<string, unknown>;

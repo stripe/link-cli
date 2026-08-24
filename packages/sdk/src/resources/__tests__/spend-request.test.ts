@@ -40,7 +40,7 @@ const spendRequestResponse = {
   line_items: [{ name: 'Widget', unit_amount: 5000, quantity: 1 }],
   totals: [{ type: 'total', display_text: 'Total', amount: 5000 }],
   payment_details: 'pd_test123',
-  status: 'pending',
+  status: 'pending_approval',
   created_at: '2026-03-10T00:00:00Z',
   updated_at: '2026-03-10T00:00:00Z',
 };
@@ -63,10 +63,10 @@ describe('SpendRequestResource', () => {
     it('sends POST to correct endpoint with JSON body and Bearer auth header', async () => {
       mockFetchResponse(200, spendRequestResponse);
 
-      await repo.createSpendRequest(validParams);
+      await repo.create(validParams);
 
       expect(mockFetch).toHaveBeenCalledOnce();
-      const [url, opts] = mockFetch.mock.calls[0];
+      const [url, opts] = mockFetch.mock.calls[0]!;
       expect(url).toBe('https://api.link.com/spend_requests');
       expect(opts.method).toBe('POST');
       expect(opts.headers['Content-Type']).toBe('application/json');
@@ -77,15 +77,22 @@ describe('SpendRequestResource', () => {
     it('returns SpendRequest on success', async () => {
       mockFetchResponse(200, spendRequestResponse);
 
-      const result = await repo.createSpendRequest(validParams);
+      const result = await repo.create(validParams);
 
       expect(result).toEqual(spendRequestResponse);
+    });
+
+    it('rejects malformed successful responses', async () => {
+      mockFetchResponse(200, { status: 'approved' });
+
+      const error = await repo.create(validParams).catch((cause) => cause);
+      expect(error.code).toBe('invalid_response');
     });
 
     it('throws on HTTP error with error message from body', async () => {
       mockFetchResponse(422, { error: { message: 'Invalid payment details' } });
 
-      await expect(repo.createSpendRequest(validParams)).rejects.toThrow(
+      await expect(repo.create(validParams)).rejects.toThrow(
         'Failed to create spend request (422): Invalid payment details',
       );
     });
@@ -93,7 +100,7 @@ describe('SpendRequestResource', () => {
     it('throws on non-JSON error body with raw body in message', async () => {
       mockFetchRawResponse(502, 'Bad Gateway');
 
-      await expect(repo.createSpendRequest(validParams)).rejects.toThrow(
+      await expect(repo.create(validParams)).rejects.toThrow(
         'Failed to create spend request (502): Bad Gateway',
       );
     });
@@ -111,9 +118,9 @@ describe('SpendRequestResource', () => {
       };
       mockFetchResponse(200, responseWithCredential);
 
-      const result = await repo.createSpendRequest(paramsWithCredential);
+      const result = await repo.create(paramsWithCredential);
 
-      const [, opts] = mockFetch.mock.calls[0];
+      const [, opts] = mockFetch.mock.calls[0]!;
       const sentBody = JSON.parse(opts.body);
       expect(sentBody.credential_type).toBe('shared_payment_token');
       expect(sentBody.network_id).toBe('net_abc');
@@ -129,9 +136,9 @@ describe('SpendRequestResource', () => {
       };
       mockFetchResponse(200, spendRequestResponse);
 
-      await repo.createSpendRequest(paramsWithLptExecution);
+      await repo.create(paramsWithLptExecution);
 
-      const [, opts] = mockFetch.mock.calls[0];
+      const [, opts] = mockFetch.mock.calls[0]!;
       const sentBody = JSON.parse(opts.body);
       expect(sentBody.execution_method).toBe('link_pay_token');
       expect(sentBody.merchant_account_id).toBe('acct_lpt_target');
@@ -144,9 +151,9 @@ describe('SpendRequestResource', () => {
       };
       mockFetchResponse(200, spendRequestResponse);
 
-      await repo.createSpendRequest(paramsWithMetadata);
+      await repo.create(paramsWithMetadata);
 
-      const [, opts] = mockFetch.mock.calls[0];
+      const [, opts] = mockFetch.mock.calls[0]!;
       const sentBody = JSON.parse(opts.body);
       expect(sentBody.metadata).toEqual({
         order_id: 'ord_123',
@@ -157,9 +164,9 @@ describe('SpendRequestResource', () => {
     it('does not include metadata in POST body when not set', async () => {
       mockFetchResponse(200, spendRequestResponse);
 
-      await repo.createSpendRequest(validParams);
+      await repo.create(validParams);
 
-      const [, opts] = mockFetch.mock.calls[0];
+      const [, opts] = mockFetch.mock.calls[0]!;
       const sentBody = JSON.parse(opts.body);
       expect(sentBody.metadata).toBeUndefined();
     });
@@ -171,9 +178,9 @@ describe('SpendRequestResource', () => {
       };
       mockFetchResponse(200, spendRequestResponse);
 
-      await repo.createSpendRequest(paramsWithTest);
+      await repo.create(paramsWithTest);
 
-      const [, opts] = mockFetch.mock.calls[0];
+      const [, opts] = mockFetch.mock.calls[0]!;
       const sentBody = JSON.parse(opts.body);
       expect(sentBody.test).toBe(true);
     });
@@ -181,9 +188,9 @@ describe('SpendRequestResource', () => {
     it('does not include test in POST body when not set', async () => {
       mockFetchResponse(200, spendRequestResponse);
 
-      await repo.createSpendRequest(validParams);
+      await repo.create(validParams);
 
-      const [, opts] = mockFetch.mock.calls[0];
+      const [, opts] = mockFetch.mock.calls[0]!;
       const sentBody = JSON.parse(opts.body);
       expect(sentBody.test).toBeUndefined();
     });
@@ -191,12 +198,12 @@ describe('SpendRequestResource', () => {
     it('sends delegated requests to /spend_requests/create_delegated when approve is true', async () => {
       mockFetchResponse(200, spendRequestResponse);
 
-      await repo.createSpendRequest({
+      await repo.create({
         ...validParams,
         approve: true,
       });
 
-      const [url, opts] = mockFetch.mock.calls[0];
+      const [url, opts] = mockFetch.mock.calls[0]!;
       expect(url).toBe('https://api.link.com/spend_requests/create_delegated');
       const sentBody = JSON.parse(opts.body);
       expect(sentBody.approve).toBeUndefined();
@@ -205,16 +212,16 @@ describe('SpendRequestResource', () => {
     it('sends to /spend_requests when approve is not set', async () => {
       mockFetchResponse(200, spendRequestResponse);
 
-      await repo.createSpendRequest(validParams);
+      await repo.create(validParams);
 
-      const [url] = mockFetch.mock.calls[0];
+      const [url] = mockFetch.mock.calls[0]!;
       expect(url).toBe('https://api.link.com/spend_requests');
     });
 
     it('throws when no access token is available', async () => {
       getAccessToken.mockRejectedValueOnce(new Error('Missing access token'));
 
-      await expect(repo.createSpendRequest(validParams)).rejects.toThrow(
+      await expect(repo.create(validParams)).rejects.toThrow(
         'Missing access token',
       );
     });
@@ -227,9 +234,9 @@ describe('SpendRequestResource', () => {
         payment_details: 'pd_new',
       });
 
-      await repo.updateSpendRequest('si_123', { payment_details: 'pd_new' });
+      await repo.update('si_123', { payment_details: 'pd_new' });
 
-      const [url, opts] = mockFetch.mock.calls[0];
+      const [url, opts] = mockFetch.mock.calls[0]!;
       expect(url).toBe('https://api.link.com/spend_requests/si_123');
       expect(opts.method).toBe('POST');
       expect(opts.headers['Content-Type']).toBe('application/json');
@@ -241,7 +248,7 @@ describe('SpendRequestResource', () => {
       const updated = { ...spendRequestResponse, payment_details: 'pd_new' };
       mockFetchResponse(200, updated);
 
-      const result = await repo.updateSpendRequest('si_123', {
+      const result = await repo.update('si_123', {
         payment_details: 'pd_new',
       });
 
@@ -254,7 +261,7 @@ describe('SpendRequestResource', () => {
       });
 
       await expect(
-        repo.updateSpendRequest('si_123', { payment_details: 'pd_new' }),
+        repo.update('si_123', { payment_details: 'pd_new' }),
       ).rejects.toThrow(
         'Failed to update spend request (409): Cannot update request in awaiting_approval status',
       );
@@ -264,7 +271,7 @@ describe('SpendRequestResource', () => {
       getAccessToken.mockRejectedValueOnce(new Error('Missing access token'));
 
       await expect(
-        repo.updateSpendRequest('si_123', { payment_details: 'pd_new' }),
+        repo.update('si_123', { payment_details: 'pd_new' }),
       ).rejects.toThrow('Missing access token');
     });
   });
@@ -279,7 +286,7 @@ describe('SpendRequestResource', () => {
 
       await repo.requestApproval('si_123');
 
-      const [url, opts] = mockFetch.mock.calls[0];
+      const [url, opts] = mockFetch.mock.calls[0]!;
       expect(url).toBe(
         'https://api.link.com/spend_requests/si_123/request_approval',
       );
@@ -325,9 +332,9 @@ describe('SpendRequestResource', () => {
       const canceledResponse = { ...spendRequestResponse, status: 'canceled' };
       mockFetchResponse(200, canceledResponse);
 
-      await repo.cancelSpendRequest('si_123');
+      await repo.cancel('si_123');
 
-      const [url, opts] = mockFetch.mock.calls[0];
+      const [url, opts] = mockFetch.mock.calls[0]!;
       expect(url).toBe('https://api.link.com/spend_requests/si_123/cancel');
       expect(opts.method).toBe('POST');
       expect(opts.headers.Authorization).toBe('Bearer test_token');
@@ -338,7 +345,7 @@ describe('SpendRequestResource', () => {
       const canceledResponse = { ...spendRequestResponse, status: 'canceled' };
       mockFetchResponse(200, canceledResponse);
 
-      const result = await repo.cancelSpendRequest('si_123');
+      const result = await repo.cancel('si_123');
 
       expect(result.status).toBe('canceled');
       expect(result.id).toBe('si_123');
@@ -347,7 +354,7 @@ describe('SpendRequestResource', () => {
     it('throws on 404 not found', async () => {
       mockFetchResponse(404, { error: { message: 'Spend request not found' } });
 
-      await expect(repo.cancelSpendRequest('si_nonexistent')).rejects.toThrow(
+      await expect(repo.cancel('si_nonexistent')).rejects.toThrow(
         'Failed to cancel spend request (404): Spend request not found',
       );
     });
@@ -360,7 +367,7 @@ describe('SpendRequestResource', () => {
         },
       });
 
-      await expect(repo.cancelSpendRequest('si_123')).rejects.toThrow(
+      await expect(repo.cancel('si_123')).rejects.toThrow(
         'Failed to cancel spend request (409): Spend request is in a terminal state and cannot be canceled',
       );
     });
@@ -370,7 +377,7 @@ describe('SpendRequestResource', () => {
         error: { message: 'Spend request expired' },
       });
 
-      await expect(repo.cancelSpendRequest('si_123')).rejects.toThrow(
+      await expect(repo.cancel('si_123')).rejects.toThrow(
         'Failed to cancel spend request (422): Spend request expired',
       );
     });
@@ -378,7 +385,7 @@ describe('SpendRequestResource', () => {
     it('throws when no access token is available', async () => {
       getAccessToken.mockRejectedValueOnce(new Error('Missing access token'));
 
-      await expect(repo.cancelSpendRequest('si_123')).rejects.toThrow(
+      await expect(repo.cancel('si_123')).rejects.toThrow(
         'Missing access token',
       );
     });
@@ -388,9 +395,9 @@ describe('SpendRequestResource', () => {
     it('sends GET to retrieve endpoint', async () => {
       mockFetchResponse(200, spendRequestResponse);
 
-      await repo.getSpendRequest('si_123');
+      await repo.retrieve('si_123');
 
-      const [url, opts] = mockFetch.mock.calls[0];
+      const [url, opts] = mockFetch.mock.calls[0]!;
       expect(url).toBe('https://api.link.com/spend_requests/si_123');
       expect(opts.method).toBe('GET');
       expect(opts.headers.Authorization).toBe('Bearer test_token');
@@ -399,7 +406,7 @@ describe('SpendRequestResource', () => {
     it('returns SpendRequest on success', async () => {
       mockFetchResponse(200, spendRequestResponse);
 
-      const result = await repo.getSpendRequest('si_123');
+      const result = await repo.retrieve('si_123');
 
       expect(result).toEqual(spendRequestResponse);
     });
@@ -418,7 +425,7 @@ describe('SpendRequestResource', () => {
       };
       mockFetchResponse(200, approvedResponse);
 
-      const result = await repo.getSpendRequest('si_123');
+      const result = await repo.retrieve('si_123');
 
       expect(result?.status).toBe('approved');
       expect(result?.card).toEqual({
@@ -436,7 +443,7 @@ describe('SpendRequestResource', () => {
         metadata: { order_id: 'ord_123', team: 'growth' },
       });
 
-      const result = await repo.getSpendRequest('si_123');
+      const result = await repo.retrieve('si_123');
 
       expect(result?.metadata).toEqual({
         order_id: 'ord_123',
@@ -452,7 +459,7 @@ describe('SpendRequestResource', () => {
         shared_payment_token: 'spt_legacy123',
       });
 
-      const result = await repo.getSpendRequest('si_123');
+      const result = await repo.retrieve('si_123');
 
       expect(result?.shared_payment_token).toEqual({ id: 'spt_legacy123' });
     });
@@ -470,7 +477,7 @@ describe('SpendRequestResource', () => {
         shared_payment_token: sptObj,
       });
 
-      const result = await repo.getSpendRequest('si_123');
+      const result = await repo.retrieve('si_123');
 
       expect(result?.shared_payment_token).toEqual(sptObj);
     });
@@ -478,7 +485,7 @@ describe('SpendRequestResource', () => {
     it('returns null on 404', async () => {
       mockFetchResponse(404, {});
 
-      const result = await repo.getSpendRequest('si_nonexistent');
+      const result = await repo.retrieve('si_nonexistent');
 
       expect(result).toBeNull();
     });
@@ -486,7 +493,7 @@ describe('SpendRequestResource', () => {
     it('throws on other HTTP errors', async () => {
       mockFetchResponse(500, { error: { message: 'Internal server error' } });
 
-      await expect(repo.getSpendRequest('si_123')).rejects.toThrow(
+      await expect(repo.retrieve('si_123')).rejects.toThrow(
         'Failed to retrieve spend request (500): Internal server error',
       );
     });
@@ -494,7 +501,7 @@ describe('SpendRequestResource', () => {
     it('throws when no access token is available', async () => {
       getAccessToken.mockRejectedValueOnce(new Error('Missing access token'));
 
-      await expect(repo.getSpendRequest('si_123')).rejects.toThrow(
+      await expect(repo.retrieve('si_123')).rejects.toThrow(
         'Missing access token',
       );
     });
@@ -504,10 +511,10 @@ describe('SpendRequestResource', () => {
     it('sends GET to correct endpoint with Bearer auth header', async () => {
       mockFetchResponse(200, { data: [spendRequestResponse] });
 
-      await repo.listSpendRequests();
+      await repo.list();
 
       expect(mockFetch).toHaveBeenCalledOnce();
-      const [url, opts] = mockFetch.mock.calls[0];
+      const [url, opts] = mockFetch.mock.calls[0]!;
       expect(url).toBe('https://api.link.com/spend_requests');
       expect(opts.method).toBe('GET');
       expect(opts.headers.Authorization).toBe('Bearer test_token');
@@ -522,18 +529,18 @@ describe('SpendRequestResource', () => {
       ];
       mockFetchResponse(200, { data: requests });
 
-      const result = await repo.listSpendRequests();
+      const result = await repo.list();
 
       expect(result).toHaveLength(3);
-      expect(result[0].id).toBe('si_001');
-      expect(result[1].id).toBe('si_002');
-      expect(result[2].id).toBe('si_003');
+      expect(result[0]!.id).toBe('si_001');
+      expect(result[1]!.id).toBe('si_002');
+      expect(result[2]!.id).toBe('si_003');
     });
 
     it('returns empty array when no active spend requests', async () => {
       mockFetchResponse(200, { data: [] });
 
-      const result = await repo.listSpendRequests();
+      const result = await repo.list();
 
       expect(result).toEqual([]);
     });
@@ -541,7 +548,7 @@ describe('SpendRequestResource', () => {
     it('throws on HTTP error with message from body', async () => {
       mockFetchResponse(403, { error: { message: 'Forbidden' } });
 
-      await expect(repo.listSpendRequests()).rejects.toThrow(
+      await expect(repo.list()).rejects.toThrow(
         'Failed to list spend requests (403): Forbidden',
       );
     });
@@ -549,9 +556,7 @@ describe('SpendRequestResource', () => {
     it('throws when no access token is available', async () => {
       getAccessToken.mockRejectedValueOnce(new Error('Missing access token'));
 
-      await expect(repo.listSpendRequests()).rejects.toThrow(
-        'Missing access token',
-      );
+      await expect(repo.list()).rejects.toThrow('Missing access token');
     });
   });
 });

@@ -1,201 +1,132 @@
+import type { LinkOptions } from '@/config';
+import { LinkApiError } from '@/errors';
 import {
-  type LinkOptions,
-  requireFetchImplementation,
-  resolveLinkSdkConfig,
-} from '@/config';
-import { LinkApiError, LinkTransportError } from '@/errors';
+  BaseResource,
+  requireArray,
+  requireRecord,
+  requireString,
+} from '@/resources/base';
 import type {
-  AccessTokenProvider,
   CreateSpendRequestParams,
   ISpendRequestResource,
   UpdateSpendRequestParams,
 } from '@/resources/interfaces';
-import type { RequestApprovalResponse, SpendRequest } from '@/types/index';
+import type {
+  RequestApprovalResponse,
+  SpendRequest,
+  SpendRequestStatus,
+} from '@/types/index';
 
-interface ApiError {
-  error: { message: string; code?: string };
-}
+const SPEND_REQUEST_STATUSES = new Set<SpendRequestStatus>([
+  'created',
+  'pending_approval',
+  'expired',
+  'approved',
+  'denied',
+  'succeeded',
+  'failed',
+  'canceled',
+  'requires_action',
+]);
 
-interface ApiFetchOptions {
-  method: string;
-  url: string;
-  headers?: Record<string, string>;
-  body?: string;
-}
+type InternalCreateSpendRequestParams = CreateSpendRequestParams & {
+  approve?: boolean;
+  expires_at?: number;
+};
 
-/**
- * Normalizes `shared_payment_token` to always be an object with an `id` field.
- * The old API returned it as a plain string; the new API returns an object.
- */
-function normalizeSpendRequest(data: unknown): SpendRequest {
-  const sr = data as SpendRequest;
-  if (typeof sr.shared_payment_token === 'string') {
-    return {
-      ...sr,
-      shared_payment_token: { id: sr.shared_payment_token as string },
-    };
+function requireSpendRequestStatus(
+  value: unknown,
+  field: string,
+): SpendRequestStatus {
+  const status = requireString(value, field) as SpendRequestStatus;
+  if (!SPEND_REQUEST_STATUSES.has(status)) {
+    throw new TypeError(`Expected ${field} to be a known spend request status`);
   }
-  return sr;
+  return status;
 }
 
-/**
- * Extracts the conflicting spend request returned alongside a
- * `spend_request_rate_limited` (429) error.
- */
+/** Normalizes the legacy string SPT response into the current object shape. */
+function parseSpendRequest(value: unknown): SpendRequest {
+  const body = requireRecord(value);
+  const sharedPaymentToken = body.shared_payment_token;
+  const normalizedSharedPaymentToken =
+    typeof sharedPaymentToken === 'string'
+      ? { id: sharedPaymentToken }
+      : sharedPaymentToken;
+  if (normalizedSharedPaymentToken !== undefined) {
+    const token = requireRecord(
+      normalizedSharedPaymentToken,
+      'shared_payment_token',
+    );
+    requireString(token.id, 'shared_payment_token.id');
+  }
+
+  requireArray(body.line_items, 'line_items');
+  requireArray(body.totals, 'totals');
+
+  return {
+    ...body,
+    id: requireString(body.id, 'id'),
+    payment_details: requireString(body.payment_details, 'payment_details'),
+    status: requireSpendRequestStatus(body.status, 'status'),
+    line_items: body.line_items as SpendRequest['line_items'],
+    totals: body.totals as SpendRequest['totals'],
+    created_at: requireString(body.created_at, 'created_at'),
+    updated_at: requireString(body.updated_at, 'updated_at'),
+    ...(normalizedSharedPaymentToken !== undefined && {
+      shared_payment_token:
+        normalizedSharedPaymentToken as SpendRequest['shared_payment_token'],
+    }),
+  } as SpendRequest;
+}
+
 export function getDuplicateSpendRequest(error: unknown): SpendRequest | null {
   if (!(error instanceof LinkApiError)) return null;
-  const details = error.details as
-    | { error?: { duplicate_spend_request?: unknown } }
-    | undefined;
-  const duplicate = details?.error?.duplicate_spend_request;
-  if (!duplicate || typeof duplicate !== 'object') return null;
-  return normalizeSpendRequest(duplicate);
-}
-
-function extractApiError(data: unknown, rawBody: string): string {
-  if (data && typeof data === 'object') {
-    const body = data as Record<string, unknown>;
-    if (body.error && typeof body.error === 'object') {
-      const err = body.error as ApiError['error'];
-      if (typeof err.message === 'string') return err.message;
-    }
-    if (typeof body.error === 'string') return body.error;
-    if (typeof body.message === 'string') return body.message;
+  const details = error.details;
+  if (!details || typeof details !== 'object') return null;
+  const errorBody = (details as Record<string, unknown>).error;
+  if (!errorBody || typeof errorBody !== 'object') return null;
+  const duplicate = (errorBody as Record<string, unknown>)
+    .duplicate_spend_request;
+  try {
+    return duplicate === undefined ? null : parseSpendRequest(duplicate);
+  } catch {
+    return null;
   }
-  return rawBody || 'unknown error';
 }
 
-export class SpendRequestResource implements ISpendRequestResource {
-  private readonly verbose: boolean;
-  private readonly getAccessToken: AccessTokenProvider;
-  private readonly fetchImpl: typeof globalThis.fetch;
-  private readonly spendRequestsEndpoint: string;
-  private readonly logger: { debug(message: string): void };
-
+export class SpendRequestResource
+  extends BaseResource
+  implements ISpendRequestResource
+{
   constructor(options: LinkOptions) {
-    const config = resolveLinkSdkConfig(options);
-    this.verbose = config.verbose;
-    this.getAccessToken = config.getAccessToken;
-    this.fetchImpl = requireFetchImplementation(config);
-    this.spendRequestsEndpoint = `${config.spendRequestBaseUrl}/spend_requests`;
-    this.logger = config.logger;
+    super(options, '/spend_requests', 'spend');
   }
 
-  private async rawFetch(
-    opts: ApiFetchOptions,
-  ): Promise<{ status: number; data: unknown; rawBody: string }> {
-    if (this.verbose) {
-      const redactedHeaders = { ...opts.headers };
-      if (redactedHeaders.Authorization)
-        redactedHeaders.Authorization = 'Bearer <redacted>';
-      this.logger.debug(`> ${opts.method} ${opts.url}`);
-      this.logger.debug(`  Headers: ${JSON.stringify(redactedHeaders)}`);
-      if (opts.body) this.logger.debug(opts.body);
-    }
-
-    const fetchOpts: RequestInit = {
-      method: opts.method,
-      headers: opts.headers,
-    };
-
-    if (opts.body) {
-      fetchOpts.body = opts.body;
-    }
-
-    let response: Response;
-    try {
-      response = await this.fetchImpl(opts.url, fetchOpts);
-    } catch (error) {
-      throw new LinkTransportError(
-        `Request failed: ${opts.method} ${opts.url}`,
-        {
-          cause: error,
-        },
-      );
-    }
-    const rawBody = await response.text();
-
-    let data: unknown = null;
-    try {
-      data = JSON.parse(rawBody);
-    } catch {
-      // non-JSON response (e.g., from load balancer)
-    }
-
-    if (this.verbose) {
-      this.logger.debug(`< ${response.status} ${response.statusText}`);
-      response.headers.forEach((value, key) => {
-        this.logger.debug(`  ${key}: ${value}`);
-      });
-      this.logger.debug(JSON.stringify(data, null, 2) ?? rawBody);
-    }
-
-    return { status: response.status, data, rawBody };
-  }
-
-  /**
-   * Authenticated fetch: injects Bearer token, retries once on 401 after
-   * refreshing the token.
-   */
-  private async apiFetch(
-    opts: ApiFetchOptions,
-  ): Promise<{ status: number; data: unknown; rawBody: string }> {
-    const token = await this.getAccessToken();
-    const authedOpts = {
-      ...opts,
-      headers: { ...opts.headers, Authorization: `Bearer ${token}` },
-    };
-
-    const res = await this.rawFetch(authedOpts);
-
-    if (res.status === 401) {
-      const refreshedToken = await this.getAccessToken({ forceRefresh: true });
-      authedOpts.headers.Authorization = `Bearer ${refreshedToken}`;
-      return this.rawFetch(authedOpts);
-    }
-
-    return res;
-  }
-
-  list(opts?: { includeHistory?: boolean }): Promise<SpendRequest[]> {
-    return this.listSpendRequests(opts);
-  }
-
-  async listSpendRequests(opts?: { includeHistory?: boolean }): Promise<
-    SpendRequest[]
-  > {
+  async list(opts?: { includeHistory?: boolean }): Promise<SpendRequest[]> {
     const url = opts?.includeHistory
-      ? `${this.spendRequestsEndpoint}?include_history=true`
-      : this.spendRequestsEndpoint;
-
+      ? `${this.endpoint}?include_history=true`
+      : this.endpoint;
     const { status, data, rawBody } = await this.apiFetch({
       method: 'GET',
       url,
     });
 
     if (status < 200 || status >= 300) {
-      throw new LinkApiError(
-        `Failed to list spend requests (${status}): ${extractApiError(data, rawBody)}`,
-        { status, rawBody, details: data },
-      );
+      this.throwApiError('list spend requests', status, data, rawBody);
     }
 
-    const body = data as Record<string, unknown> | null;
-    const items = (body?.data as unknown[] | undefined) ?? [];
-    return items.map(normalizeSpendRequest);
+    return this.parseResponse('list spend requests', status, () => {
+      const body = requireRecord(data);
+      return requireArray(body.data, 'data').map(parseSpendRequest);
+    });
   }
 
-  create(params: CreateSpendRequestParams): Promise<SpendRequest> {
-    return this.createSpendRequest(params);
-  }
-
-  async createSpendRequest(
-    params: CreateSpendRequestParams,
+  async create(
+    params: InternalCreateSpendRequestParams,
   ): Promise<SpendRequest> {
     const { approve, ...body } = params;
-    const url = approve
-      ? `${this.spendRequestsEndpoint}/create_delegated`
-      : this.spendRequestsEndpoint;
+    const url = approve ? `${this.endpoint}/create_delegated` : this.endpoint;
     const { status, data, rawBody } = await this.apiFetch({
       method: 'POST',
       url,
@@ -204,108 +135,83 @@ export class SpendRequestResource implements ISpendRequestResource {
     });
 
     if (status < 200 || status >= 300) {
-      throw new LinkApiError(
-        `Failed to create spend request (${status}): ${extractApiError(data, rawBody)}`,
-        { status, rawBody, details: data },
-      );
+      this.throwApiError('create spend request', status, data, rawBody);
     }
-
-    return normalizeSpendRequest(data);
+    return this.parseResponse('create spend request', status, () =>
+      parseSpendRequest(data),
+    );
   }
 
-  update(id: string, params: UpdateSpendRequestParams): Promise<SpendRequest> {
-    return this.updateSpendRequest(id, params);
-  }
-
-  async updateSpendRequest(
+  async update(
     id: string,
     params: UpdateSpendRequestParams,
   ): Promise<SpendRequest> {
     const { status, data, rawBody } = await this.apiFetch({
       method: 'POST',
-      url: `${this.spendRequestsEndpoint}/${id}`,
+      url: `${this.endpoint}/${id}`,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
     });
 
     if (status < 200 || status >= 300) {
-      throw new LinkApiError(
-        `Failed to update spend request (${status}): ${extractApiError(data, rawBody)}`,
-        { status, rawBody, details: data },
-      );
+      this.throwApiError('update spend request', status, data, rawBody);
     }
-
-    return normalizeSpendRequest(data);
+    return this.parseResponse('update spend request', status, () =>
+      parseSpendRequest(data),
+    );
   }
 
-  cancel(id: string): Promise<SpendRequest> {
-    return this.cancelSpendRequest(id);
-  }
-
-  async cancelSpendRequest(id: string): Promise<SpendRequest> {
+  async cancel(id: string): Promise<SpendRequest> {
     const { status, data, rawBody } = await this.apiFetch({
       method: 'POST',
-      url: `${this.spendRequestsEndpoint}/${id}/cancel`,
+      url: `${this.endpoint}/${id}/cancel`,
     });
 
     if (status < 200 || status >= 300) {
-      throw new LinkApiError(
-        `Failed to cancel spend request (${status}): ${extractApiError(data, rawBody)}`,
-        { status, rawBody, details: data },
-      );
+      this.throwApiError('cancel spend request', status, data, rawBody);
     }
-
-    return normalizeSpendRequest(data);
+    return this.parseResponse('cancel spend request', status, () =>
+      parseSpendRequest(data),
+    );
   }
 
   async requestApproval(id: string): Promise<RequestApprovalResponse> {
     const { status, data, rawBody } = await this.apiFetch({
       method: 'POST',
-      url: `${this.spendRequestsEndpoint}/${id}/request_approval`,
+      url: `${this.endpoint}/${id}/request_approval`,
     });
 
     if (status < 200 || status >= 300) {
-      throw new LinkApiError(
-        `Failed to request approval (${status}): ${extractApiError(data, rawBody)}`,
-        { status, rawBody, details: data },
-      );
+      this.throwApiError('request approval', status, data, rawBody);
     }
-
-    return data as RequestApprovalResponse;
+    return this.parseResponse('request approval', status, () => {
+      const body = requireRecord(data);
+      return {
+        id: requireString(body.id, 'id'),
+        approval_link: requireString(body.approval_link, 'approval_link'),
+      };
+    });
   }
 
-  retrieve(
+  async retrieve(
     id: string,
     opts?: { include?: string[] },
   ): Promise<SpendRequest | null> {
-    return this.getSpendRequest(id, opts);
-  }
-
-  async getSpendRequest(
-    id: string,
-    opts?: { include?: string[] },
-  ): Promise<SpendRequest | null> {
-    const url = new URL(`${this.spendRequestsEndpoint}/${id}`);
+    const url = new URL(`${this.endpoint}/${id}`);
     if (opts?.include?.length) {
       url.searchParams.set('include', opts.include.join(','));
     }
-
     const { status, data, rawBody } = await this.apiFetch({
       method: 'GET',
       url: url.toString(),
     });
 
-    if (status === 404) {
-      return null;
-    }
-
+    if (status === 404) return null;
     if (status < 200 || status >= 300) {
-      throw new LinkApiError(
-        `Failed to retrieve spend request (${status}): ${extractApiError(data, rawBody)}`,
-        { status, rawBody, details: data },
-      );
+      this.throwApiError('retrieve spend request', status, data, rawBody);
     }
-
-    return normalizeSpendRequest(data);
+    return this.parseResponse('retrieve spend request', status, () =>
+      parseSpendRequest(data),
+    );
   }
 }

@@ -42,10 +42,10 @@ describe('PaymentMethodsResource', () => {
       ],
     });
 
-    const result = await repo.listPaymentMethods();
+    const result = await repo.list();
 
     expect(mockFetch).toHaveBeenCalledOnce();
-    const [url, opts] = mockFetch.mock.calls[0];
+    const [url, opts] = mockFetch.mock.calls[0]!;
     expect(url).toBe('https://api.link.com/payment-details');
     expect(opts.method).toBe('GET');
     expect(opts.headers.Authorization).toBe('Bearer test_token');
@@ -78,21 +78,48 @@ describe('PaymentMethodsResource', () => {
       .mockResolvedValueOnce('test_token')
       .mockResolvedValueOnce('fresh_token');
 
-    const result = await repo.listPaymentMethods();
+    const result = await repo.list();
 
     expect(result).toEqual([]);
     expect(getAccessToken).toHaveBeenNthCalledWith(1);
     expect(getAccessToken).toHaveBeenNthCalledWith(2, { forceRefresh: true });
     expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect(mockFetch.mock.calls[1][1].headers.Authorization).toBe(
+    expect(mockFetch.mock.calls[1]![1].headers.Authorization).toBe(
       'Bearer fresh_token',
     );
+  });
+
+  it('never logs tokens or response bodies in verbose mode', async () => {
+    const debug = vi.fn();
+    repo = new PaymentMethodsResource({
+      getAccessToken,
+      verbose: true,
+      logger: { debug },
+    });
+    mockFetchResponse(200, {
+      payment_details: [{ id: 'pm_secret', type: 'card', is_default: true }],
+    });
+
+    await repo.list();
+
+    const output = debug.mock.calls.flat().join('\n');
+    expect(output).not.toContain('test_token');
+    expect(output).not.toContain('pm_secret');
+  });
+
+  it('rejects malformed successful responses', async () => {
+    mockFetchResponse(200, {
+      payment_details: [{ id: 123, type: 'card', is_default: true }],
+    });
+
+    const error = await repo.list().catch((cause) => cause);
+    expect(error.code).toBe('invalid_response');
   });
 
   it('throws API errors with the response message', async () => {
     mockFetchResponse(403, { message: 'Forbidden' });
 
-    await expect(repo.listPaymentMethods()).rejects.toThrow(
+    await expect(repo.list()).rejects.toThrow(
       'Failed to list payment methods (403): Forbidden',
     );
   });
@@ -100,7 +127,7 @@ describe('PaymentMethodsResource', () => {
   it('extracts message from nested error object instead of [object Object]', async () => {
     mockFetchResponse(400, { error: { message: 'card not supported' } });
 
-    await expect(repo.listPaymentMethods()).rejects.toThrow(
+    await expect(repo.list()).rejects.toThrow(
       'Failed to list payment methods (400): card not supported',
     );
   });
@@ -108,8 +135,6 @@ describe('PaymentMethodsResource', () => {
   it('throws when no access token is available', async () => {
     getAccessToken.mockRejectedValueOnce(new Error('Missing access token'));
 
-    await expect(repo.listPaymentMethods()).rejects.toThrow(
-      'Missing access token',
-    );
+    await expect(repo.list()).rejects.toThrow('Missing access token');
   });
 });

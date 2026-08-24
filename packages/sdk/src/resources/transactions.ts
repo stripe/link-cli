@@ -1,5 +1,4 @@
 import type { LinkOptions } from '@/config';
-import { LinkApiError } from '@/errors';
 import { BaseResource, isRecord, requireBoolean } from '@/resources/base';
 import type {
   ITransactionsResource,
@@ -109,7 +108,7 @@ export class TransactionsResource
   extends BaseResource
   implements ITransactionsResource
 {
-  constructor(options: LinkOptions = {}) {
+  constructor(options: LinkOptions) {
     super(options, '/transactions');
   }
 
@@ -146,13 +145,7 @@ export class TransactionsResource
     return url.toString();
   }
 
-  list(params: ListTransactionsParams = {}): Promise<TransactionsPage> {
-    return this.listTransactions(params);
-  }
-
-  async listTransactions(
-    params: ListTransactionsParams = {},
-  ): Promise<TransactionsPage> {
+  async list(params: ListTransactionsParams = {}): Promise<TransactionsPage> {
     const { status, data, rawBody } = await this.apiFetch({
       method: 'GET',
       url: this.buildUrl(params),
@@ -162,14 +155,8 @@ export class TransactionsResource
       this.throwApiError('list transactions', status, data, rawBody);
     }
 
-    try {
-      return normalizeTransactionsPage(data);
-    } catch (error) {
-      const reason = error instanceof Error ? `: ${error.message}` : '';
-      throw new LinkApiError(
-        `Failed to list transactions (${status}): invalid response shape${reason}`,
-        { status, rawBody, details: data, cause: error },
-      );
-    }
+    return this.parseResponse('list transactions', status, () =>
+      normalizeTransactionsPage(data),
+    );
   }
 }

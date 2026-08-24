@@ -486,7 +486,7 @@ export function createSpendRequestCli(
       }
       yield {
         ...approval,
-        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${id} --interval 2 --max-attempts 300\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
+        instruction: `Present the approval_link to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${id} --interval 2 --max-attempts 300\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
         _next: {
           command: `spend-request retrieve ${id} --interval 2 --max-attempts 300`,
           until: 'status changes from pending_approval',
