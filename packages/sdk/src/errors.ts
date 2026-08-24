@@ -1,12 +1,28 @@
 export class LinkSdkError extends Error {
   readonly code: string;
-  readonly cause?: unknown;
 
   constructor(message: string, options?: { code?: string; cause?: unknown }) {
-    super(message);
+    super(message, { cause: options?.cause });
     this.name = new.target.name;
     this.code = options?.code ?? 'sdk_error';
-    this.cause = options?.cause;
+  }
+}
+
+export class LinkResponseError extends LinkSdkError {
+  readonly status: number;
+
+  constructor(
+    operation: string,
+    status: number,
+    options?: { cause?: unknown },
+  ) {
+    const detail =
+      options?.cause instanceof Error ? `: ${options.cause.message}` : '';
+    super(
+      `Invalid response while attempting to ${operation} (${status})${detail}`,
+      { code: 'invalid_response', cause: options?.cause },
+    );
+    this.status = status;
   }
 }
 

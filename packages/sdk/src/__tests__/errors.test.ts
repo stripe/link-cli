@@ -3,6 +3,7 @@ import {
   LinkApiError,
   LinkAuthenticationError,
   LinkConfigurationError,
+  LinkResponseError,
   LinkSdkError,
   LinkTransportError,
 } from '../errors';
@@ -28,6 +29,12 @@ describe('SDK error codes', () => {
     expect(err.code).toBe('transport_error');
   });
 
+  it('LinkResponseError has code invalid_response and preserves status', () => {
+    const err = new LinkResponseError('list resources', 200);
+    expect(err.code).toBe('invalid_response');
+    expect(err.status).toBe(200);
+  });
+
   it('LinkApiError defaults to api_error', () => {
     const err = new LinkApiError('bad request', { status: 400 });
     expect(err.code).toBe('api_error');
@@ -43,6 +50,7 @@ describe('SDK error codes', () => {
 
   it('all errors are instances of LinkSdkError', () => {
     expect(new LinkConfigurationError('x')).toBeInstanceOf(LinkSdkError);
+    expect(new LinkResponseError('x', 200)).toBeInstanceOf(LinkSdkError);
     expect(new LinkAuthenticationError('x')).toBeInstanceOf(LinkSdkError);
     expect(new LinkTransportError('x')).toBeInstanceOf(LinkSdkError);
     expect(new LinkApiError('x', { status: 500 })).toBeInstanceOf(LinkSdkError);
