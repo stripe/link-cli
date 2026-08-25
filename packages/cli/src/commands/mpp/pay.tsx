@@ -11,6 +11,10 @@ import React, { useEffect, useState } from 'react';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
 import { sanitizeDeep } from '../../utils/sanitize-text';
 import {
+  resolvePaymentCredentialHeader,
+  shouldEchoCredentialHeader,
+} from './credential-header';
+import {
   decodeStripeChallenge,
   getStripeChargeChallengeFromResponse,
 } from './decode';
@@ -52,11 +56,19 @@ export async function readPayResult(response: Response): Promise<PayResult> {
   });
 }
 
-function createStripePaymentClient(spt: string) {
+function withAdvertisedHeader<T extends object>(
+  challenge: T,
+  credentialHeader: string,
+): T {
+  if (!shouldEchoCredentialHeader(credentialHeader)) return challenge;
+  return { ...challenge, header: credentialHeader } as T;
+}
+
+function createStripePaymentClient(spt: string, credentialHeader: string) {
   const stripeCharge = Method.toClient(StripeMethods.charge, {
     async createCredential({ challenge }) {
       return Credential.serialize({
-        challenge,
+        challenge: withAdvertisedHeader(challenge, credentialHeader),
         payload: { spt },
       });
     },
@@ -67,7 +79,7 @@ function createStripePaymentClient(spt: string) {
     {
       async createCredential({ challenge }) {
         return Credential.serialize({
-          challenge,
+          challenge: withAdvertisedHeader(challenge, credentialHeader),
           payload: { action: 'open', grantedToken: spt },
         });
       },
@@ -87,7 +99,7 @@ function createStripePaymentClient(spt: string) {
       },
       setCredential(request, credential) {
         const nextHeaders = new Headers(request.headers);
-        nextHeaders.set('Authorization', credential);
+        nextHeaders.set(credentialHeader, credential);
         return { ...request, headers: nextHeaders };
       },
     }),
@@ -168,15 +180,27 @@ export async function payWithSpt(
     return readPayResult(initialResponse);
   }
 
-  const authHeader =
-    await createStripePaymentClient(spt).createCredential(initialResponse);
+  const wwwAuthenticate = initialResponse.headers.get('www-authenticate');
+  if (!wwwAuthenticate) {
+    throw new Error('URL returned 402 but no WWW-Authenticate header');
+  }
+
+  const challenge = getStripeChargeChallengeFromResponse(initialResponse);
+  const credentialHeader = resolvePaymentCredentialHeader(
+    wwwAuthenticate,
+    challenge.id,
+  );
+  const credential = await createStripePaymentClient(
+    spt,
+    credentialHeader,
+  ).createCredential(initialResponse);
 
   const retryResponse = await fetch(url, {
     method: httpMethod,
     body: data,
     headers: {
       ...requestHeaders,
-      Authorization: authHeader,
+      [credentialHeader]: credential,
     },
   });
 

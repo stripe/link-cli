@@ -35,6 +35,27 @@ describe('decodeStripeChallenge', () => {
     });
   });
 
+  it('includes header when the stripe challenge advertises Payment-Authorization', () => {
+    const header = [
+      'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge",',
+      'header="Payment-Authorization",',
+      `request="${encodeRequest({
+        amount: '1000',
+        currency: 'usd',
+        methodDetails: {
+          networkId: 'net_001',
+          paymentMethodTypes: ['card'],
+        },
+      })}"`,
+    ].join(' ');
+
+    expect(decodeStripeChallenge(header)).toMatchObject({
+      id: 'ch_001',
+      header: 'Payment-Authorization',
+      network_id: 'net_001',
+    });
+  });
+
   it('handles escaped quoted-string values in challenge parameters', () => {
     const header = [
       'Payment id="ch_001",',

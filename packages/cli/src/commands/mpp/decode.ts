@@ -1,5 +1,9 @@
 import { Challenge } from 'mppx';
 import { sanitizeDeep } from '../../utils/sanitize-text';
+import {
+  resolvePaymentCredentialHeader,
+  shouldEchoCredentialHeader,
+} from './credential-header';
 
 type StripeChargeChallenge = Challenge.Challenge<
   Record<string, unknown>,
@@ -21,6 +25,8 @@ export interface DecodedStripeChallenge {
   description?: string;
   digest?: string;
   expires?: string;
+  /** Present only when the challenge advertised a non-default credential field. */
+  header?: string;
   network_id: string;
   request_json: Record<string, unknown>;
 }
@@ -118,6 +124,10 @@ export function decodeStripeChallenge(
   const { challenge, networkId, request } = resolveStripeChallenge(
     Challenge.deserializeList(challengeHeader),
   );
+  const credentialHeader = resolvePaymentCredentialHeader(
+    challengeHeader,
+    challenge.id,
+  );
 
   return sanitizeDeep({
     id: challenge.id,
@@ -127,6 +137,9 @@ export function decodeStripeChallenge(
     description: challenge.description,
     digest: challenge.digest,
     expires: challenge.expires,
+    ...(shouldEchoCredentialHeader(credentialHeader)
+      ? { header: credentialHeader }
+      : {}),
     network_id: networkId,
     request_json: request,
   });

@@ -2449,7 +2449,7 @@ describe('production mode', () => {
     ].join(' ');
 
     function decodeCredential(authorizationHeader: string): {
-      challenge: { intent: string };
+      challenge: { intent: string; header?: string };
       payload: Record<string, unknown>;
     } {
       const encoded = authorizationHeader.replace(/^Payment\s+/i, '');
@@ -2482,6 +2482,51 @@ describe('production mode', () => {
       expect(parsed.body).toContain('success');
       expect(merchantRequests).toHaveLength(2);
       expect(merchantRequests[1].headers.authorization).toMatch(/^Payment /);
+    });
+
+    it('retries with Payment-Authorization when the challenge advertises that header', async () => {
+      const wwwAuthenticate = [
+        'Payment id="ch_001",',
+        'realm="127.0.0.1",',
+        'method="stripe",',
+        'intent="charge",',
+        'header="Payment-Authorization",',
+        `request="${Buffer.from(JSON.stringify({ networkId: 'net_001', amount: '1000', currency: 'usd', decimals: 2, paymentMethodTypes: ['card'] })).toString('base64')}",`,
+        'expires="2099-01-01T00:00:00Z"',
+      ].join(' ');
+
+      setNextResponse(200, APPROVED_SPT_REQUEST);
+      setMerchantResponse(402, '{"error":"payment required"}', {
+        'www-authenticate': wwwAuthenticate,
+      });
+      setMerchantResponse(200, '{"success":true}');
+
+      const result = await runProdCli(
+        'mpp',
+        'pay',
+        `http://127.0.0.1:${merchantPort}/api/charge`,
+        '--spend-request-id',
+        'lsrq_spt_001',
+        '--header',
+        'Authorization: Bearer app-token',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(merchantRequests).toHaveLength(2);
+      expect(merchantRequests[1].headers.authorization).toBe(
+        'Bearer app-token',
+      );
+      expect(merchantRequests[1].headers['payment-authorization']).toMatch(
+        /^Payment /,
+      );
+      const credential = decodeCredential(
+        merchantRequests[1].headers['payment-authorization'] as string,
+      );
+      expect(credential.challenge).toMatchObject({
+        intent: 'charge',
+        header: 'Payment-Authorization',
+      });
     });
 
     it('returns structured response when the paid retry fails', async () => {
