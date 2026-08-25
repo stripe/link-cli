@@ -17,6 +17,7 @@ jobs:
     outputs:
       published: ${{ steps.changesets.outputs.published }}
       publishedPackages: ${{ steps.changesets.outputs.publishedPackages }}
+      cliPublished: ${{ steps.cli_published.outputs.value }}
     steps:
       - uses: actions/checkout@v6
 
@@ -41,8 +42,18 @@ jobs:
           commit: 'Version Packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Upload built CLI to GitHub Release
+
+      - name: Check whether the CLI was published
+        id: cli_published
         if: steps.changesets.outputs.published == 'true'
+        env:
+          PUBLISHED_PACKAGES: ${{ steps.changesets.outputs.publishedPackages }}
+        run: |
+          cli_published="$(jq -r 'any(.[]; .name == "@stripe/link-cli")' <<<"$PUBLISHED_PACKAGES")"
+          echo "value=$cli_published" >> "$GITHUB_OUTPUT"
+
+      - name: Upload built CLI to GitHub Release
+        if: steps.cli_published.outputs.value == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -55,7 +66,7 @@ jobs:
 
   build-sea:
     needs: release
-    if: needs.release.outputs.published == 'true'
+    if: needs.release.outputs.cliPublished == 'true'
     strategy:
       matrix:
         include:

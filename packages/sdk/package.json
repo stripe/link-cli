@@ -1,18 +1,47 @@
 {
   "name": "@stripe/link-sdk",
-  "version": "1.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Node.js SDK for building agents that use Link",
   "type": "module",
   "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stripe/link-cli.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/stripe/link-cli/tree/main/packages/sdk#readme",
+  "bugs": "https://github.com/stripe/link-cli/issues",
+  "keywords": [
+    "stripe",
+    "link",
+    "payments",
+    "agents"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsup",
+    "prepack": "pnpm run build",
     "typecheck": "tsc",
     "test": "vitest run"
   },

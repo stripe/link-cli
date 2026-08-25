@@ -416,35 +416,38 @@ pnpm biome check .
 
 ## Releasing
 
-This project uses [Changesets](https://github.com/changesets/changesets) to manage versioning and publishing. Only `@stripe/link-cli` is published to npm — internal packages (`@stripe/link-sdk`, `@stripe/link-typescript-config`) are ignored by changesets.
+This project uses [Changesets](https://github.com/changesets/changesets) to
+version and publish `@stripe/link-cli` and `@stripe/link-sdk`.
+`@stripe/link-typescript-config` is private and is not published.
 
 ### Add a changeset
 
-When you make a user-facing change, add a changeset before merging:
+Add a changeset for any user-facing change before merging:
 
 ```bash
 pnpm changeset
 ```
 
-Follow the prompts to select the package (`@stripe/link-cli`) and the semver bump type (patch, minor, or major). This creates a markdown file in `.changeset/` describing the change.
-
-### Version
-
-Once changesets have accumulated on `main`, create a version PR:
-
-```bash
-pnpm changeset version
-```
-
-This consumes all pending changesets, bumps the version in `packages/cli/package.json`, and updates `CHANGELOG.md`.
+Select each affected public package and its semver bump. Commit the generated
+file in `.changeset/` with the change.
 
 ### Publish
 
-After the version PR is merged:
+After changesets reach `main`, the release workflow creates or updates the
+**Version Packages** pull request. Review and merge that PR to publish the
+new package versions to npm. The workflow uses npm trusted publishing and
+generates provenance attestations for the SDK; no npm token or local publish
+command is needed.
+
+CLI releases also upload the bundled JavaScript, standalone executables, and
+checksums to the corresponding GitHub Release. SDK-only releases skip that CLI
+artifact work.
+
+To inspect the packages without publishing them:
 
 ```bash
-pnpm run build
-pnpm changeset publish
+pnpm turbo run build
+pnpm --filter @stripe/link-cli --filter @stripe/link-sdk publish --dry-run --no-git-checks
 ```
 
-This publishes `@stripe/link-cli` to npm. CI also runs `pnpm --filter @stripe/link-cli publish --dry-run --no-git-checks` on every push to `main` to verify the package is publishable.
+CI runs the same publish dry-run for every pull request.
