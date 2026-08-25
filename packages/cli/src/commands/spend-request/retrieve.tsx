@@ -433,7 +433,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
         <Text>
           Line Items:{' '}
           <Text bold>
-            {request?.line_items.map((li) => li.name).join(', ')}
+            {request?.line_items?.map((li) => li.name).join(', ') || 'N/A'}
           </Text>
         </Text>
         {request?.link_pay_token && (

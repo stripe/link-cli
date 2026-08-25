@@ -9,18 +9,6 @@ import type {
 import type { RequestApprovalResponse, SpendRequest } from '@/types/index';
 import { z } from 'zod';
 
-const spendRequestStatusSchema = z.enum([
-  'created',
-  'pending_approval',
-  'expired',
-  'approved',
-  'denied',
-  'succeeded',
-  'failed',
-  'canceled',
-  'requires_action',
-]);
-
 const sharedPaymentTokenSchema = z.union([
   z.string().transform((id) => ({ id })),
   z.looseObject({ id: z.string() }),
@@ -28,13 +16,13 @@ const sharedPaymentTokenSchema = z.union([
 
 const spendRequestSchema = z.looseObject({
   id: z.string(),
-  payment_details: z.string(),
-  status: spendRequestStatusSchema,
-  line_items: z.array(z.unknown()),
-  totals: z.array(z.unknown()),
+  payment_details: z.string().optional(),
+  status: z.string(),
+  line_items: z.array(z.unknown()).optional(),
+  totals: z.array(z.unknown()).optional(),
   created_at: z.string(),
   updated_at: z.string(),
-  shared_payment_token: sharedPaymentTokenSchema.optional(),
+  shared_payment_token: sharedPaymentTokenSchema.nullable().optional(),
 });
 
 const spendRequestsResponseSchema = z.looseObject({

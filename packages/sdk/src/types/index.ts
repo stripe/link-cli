@@ -65,6 +65,7 @@ export interface Card {
   valid_until?: string;
 }
 
+/** Known statuses, while remaining forward-compatible with new API values. */
 export type SpendRequestStatus =
   | 'created'
   | 'pending_approval'
@@ -74,7 +75,8 @@ export type SpendRequestStatus =
   | 'succeeded'
   | 'failed'
   | 'canceled'
-  | 'requires_action';
+  | 'requires_action'
+  | (string & Record<never, never>);
 
 export type NextActionType =
   | 'ssn_verification'
@@ -156,10 +158,10 @@ export interface SpendRequest {
   context?: string;
   amount?: number;
   currency?: string;
-  line_items: LineItem[];
-  totals: Total[];
+  line_items?: LineItem[];
+  totals?: Total[];
   payment_method?: string;
-  payment_details: string;
+  payment_details?: string;
   credential_type?: CredentialType;
   network_id?: string;
   card_brand?: string;
@@ -167,7 +169,7 @@ export interface SpendRequest {
   status: SpendRequestStatus;
   approval_url?: string;
   card?: Card;
-  shared_payment_token?: SharedPaymentToken;
+  shared_payment_token?: SharedPaymentToken | null;
   link_pay_token?: string;
   payment_status_details?: PaymentStatusDetails | null;
   status_details?: SpendRequestStatusDetails | null;

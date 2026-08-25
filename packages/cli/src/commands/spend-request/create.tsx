@@ -463,7 +463,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
           <Text>
             Line Items:{' '}
             <Text bold>
-              {request?.line_items.map((li) => li.name).join(', ') || 'N/A'}
+              {request?.line_items?.map((li) => li.name).join(', ') || 'N/A'}
             </Text>
           </Text>
           {request?.credential_type === 'shared_payment_token' &&

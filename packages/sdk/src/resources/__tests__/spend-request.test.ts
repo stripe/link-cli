@@ -45,6 +45,14 @@ const spendRequestResponse = {
   updated_at: '2026-03-10T00:00:00Z',
 };
 
+const sparseSpendRequestResponse = {
+  id: 'si_sparse',
+  status: 'created',
+  created_at: '2026-03-10T00:00:00Z',
+  updated_at: '2026-03-10T00:00:00Z',
+  shared_payment_token: null,
+};
+
 describe('SpendRequestResource', () => {
   let repo: SpendRequestResource;
 
@@ -80,6 +88,24 @@ describe('SpendRequestResource', () => {
       const result = await repo.create(validParams);
 
       expect(result).toEqual(spendRequestResponse);
+    });
+
+    it('accepts omitted optional fields and a null shared payment token', async () => {
+      mockFetchResponse(200, sparseSpendRequestResponse);
+
+      await expect(repo.create(validParams)).resolves.toEqual(
+        sparseSpendRequestResponse,
+      );
+    });
+
+    it('accepts statuses added by newer API versions', async () => {
+      const response = {
+        ...sparseSpendRequestResponse,
+        status: 'pending_merchant_action',
+      };
+      mockFetchResponse(200, response);
+
+      await expect(repo.create(validParams)).resolves.toEqual(response);
     });
 
     it('rejects malformed successful responses', async () => {
@@ -451,6 +477,14 @@ describe('SpendRequestResource', () => {
       });
     });
 
+    it('accepts a sparse response', async () => {
+      mockFetchResponse(200, sparseSpendRequestResponse);
+
+      await expect(repo.retrieve('si_sparse')).resolves.toEqual(
+        sparseSpendRequestResponse,
+      );
+    });
+
     it('normalizes legacy string shared_payment_token to object form', async () => {
       mockFetchResponse(200, {
         ...spendRequestResponse,
@@ -537,6 +571,12 @@ describe('SpendRequestResource', () => {
       expect(result[2]!.id).toBe('si_003');
     });
 
+    it('accepts sparse spend requests in the response', async () => {
+      mockFetchResponse(200, { data: [sparseSpendRequestResponse] });
+
+      await expect(repo.list()).resolves.toEqual([sparseSpendRequestResponse]);
+    });
+
     it('returns empty array when no active spend requests', async () => {
       mockFetchResponse(200, { data: [] });
 
@@ -590,6 +630,20 @@ describe('getDuplicateSpendRequest', () => {
     });
 
     expect(getDuplicateSpendRequest(err)).toEqual(duplicate);
+  });
+
+  it('extracts a sparse duplicate spend request', () => {
+    const err = new LinkApiError('Failed to create spend request (429): ...', {
+      status: 429,
+      details: {
+        error: {
+          code: 'spend_request_rate_limited',
+          duplicate_spend_request: sparseSpendRequestResponse,
+        },
+      },
+    });
+
+    expect(getDuplicateSpendRequest(err)).toEqual(sparseSpendRequestResponse);
   });
 
   it('normalizes a legacy string shared_payment_token on the duplicate', () => {
