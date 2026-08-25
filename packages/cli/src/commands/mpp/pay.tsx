@@ -11,6 +11,9 @@ import React, { useEffect, useState } from 'react';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
 import { sanitizeDeep } from '../../utils/sanitize-text';
 import {
+  DEFAULT_CREDENTIAL_HEADER,
+  PAYMENT_AUTHORIZATION_HEADER,
+  type PaymentCredentialHeader,
   resolvePaymentCredentialHeader,
   shouldEchoCredentialHeader,
 } from './credential-header';
@@ -58,13 +61,28 @@ export async function readPayResult(response: Response): Promise<PayResult> {
 
 function withAdvertisedHeader<T extends object>(
   challenge: T,
-  credentialHeader: string,
+  credentialHeader: PaymentCredentialHeader,
 ): T {
   if (!shouldEchoCredentialHeader(credentialHeader)) return challenge;
   return { ...challenge, header: credentialHeader } as T;
 }
 
-function createStripePaymentClient(spt: string, credentialHeader: string) {
+function setPaymentCredential(
+  headers: Headers,
+  credentialHeader: PaymentCredentialHeader,
+  credential: string,
+): void {
+  if (credentialHeader === PAYMENT_AUTHORIZATION_HEADER) {
+    headers.set(PAYMENT_AUTHORIZATION_HEADER, credential);
+    return;
+  }
+  headers.set(DEFAULT_CREDENTIAL_HEADER, credential);
+}
+
+function createStripePaymentClient(
+  spt: string,
+  credentialHeader: PaymentCredentialHeader,
+) {
   const stripeCharge = Method.toClient(StripeMethods.charge, {
     async createCredential({ challenge }) {
       return Credential.serialize({
@@ -99,7 +117,7 @@ function createStripePaymentClient(spt: string, credentialHeader: string) {
       },
       setCredential(request, credential) {
         const nextHeaders = new Headers(request.headers);
-        nextHeaders.set(credentialHeader, credential);
+        setPaymentCredential(nextHeaders, credentialHeader, credential);
         return { ...request, headers: nextHeaders };
       },
     }),
@@ -195,13 +213,13 @@ export async function payWithSpt(
     credentialHeader,
   ).createCredential(initialResponse);
 
+  const retryHeaders = new Headers(requestHeaders);
+  setPaymentCredential(retryHeaders, credentialHeader, credential);
+
   const retryResponse = await fetch(url, {
     method: httpMethod,
     body: data,
-    headers: {
-      ...requestHeaders,
-      [credentialHeader]: credential,
-    },
+    headers: retryHeaders,
   });
 
   return readPayResult(retryResponse);

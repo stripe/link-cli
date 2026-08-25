@@ -25,7 +25,7 @@ export interface DecodedStripeChallenge {
   description?: string;
   digest?: string;
   expires?: string;
-  /** Present only when the challenge advertised a non-default credential field. */
+  /** Present only when the challenge advertised Payment-Authorization. */
   header?: string;
   network_id: string;
   request_json: Record<string, unknown>;

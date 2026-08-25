@@ -1,18 +1,22 @@
 export const DEFAULT_CREDENTIAL_HEADER = 'Authorization';
 export const PAYMENT_AUTHORIZATION_HEADER = 'Payment-Authorization';
 
+export type PaymentCredentialHeader =
+  | typeof DEFAULT_CREDENTIAL_HEADER
+  | typeof PAYMENT_AUTHORIZATION_HEADER;
+
 /**
  * HTTP field the client must use for the Payment credential.
  *
  * mppx 0.8.x drops unknown WWW-Authenticate auth-params (including `header`)
  * when parsing challenges, so this reads `header` from the raw challenge
- * string. Omitted `header` defaults to Authorization. The only advertised
- * alternate this CLI supports is Payment-Authorization.
+ * string. The protocol only allows Authorization (omitted / default) or
+ * Payment-Authorization.
  */
 export function resolvePaymentCredentialHeader(
   wwwAuthenticate: string,
   challengeId: string,
-): string {
+): PaymentCredentialHeader {
   const chunk = paymentSchemeChunks(wwwAuthenticate).find(
     (scheme) => authParam(scheme, 'id') === challengeId,
   );
@@ -23,7 +27,7 @@ export function resolvePaymentCredentialHeader(
 
 export function canonicalizeCredentialHeader(
   value: string | undefined,
-): string {
+): PaymentCredentialHeader {
   if (value == null || value === '') {
     return DEFAULT_CREDENTIAL_HEADER;
   }
@@ -38,8 +42,10 @@ export function canonicalizeCredentialHeader(
   );
 }
 
-export function shouldEchoCredentialHeader(header: string): boolean {
-  return !equalsHeaderName(header, DEFAULT_CREDENTIAL_HEADER);
+export function shouldEchoCredentialHeader(
+  header: PaymentCredentialHeader,
+): boolean {
+  return header === PAYMENT_AUTHORIZATION_HEADER;
 }
 
 function equalsHeaderName(left: string, right: string): boolean {
