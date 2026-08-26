@@ -2480,6 +2480,8 @@ describe('production mode', () => {
       expect(parsed.status).toBe(200);
       expect(parsed.body).toContain('success');
       expect(merchantRequests).toHaveLength(2);
+      expect(merchantRequests[0].headers['user-agent']).toMatch(/^link-cli\//);
+      expect(merchantRequests[1].headers['user-agent']).toMatch(/^link-cli\//);
       expect(merchantRequests[1].headers.authorization).toMatch(/^Payment /);
     });
 
@@ -2662,6 +2664,25 @@ describe('production mode', () => {
 
       expect(merchantRequests[0].headers['x-custom-header']).toBe('hello');
       expect(merchantRequests[0].headers['x-another']).toBe('world');
+      expect(merchantRequests[0].headers['user-agent']).toMatch(/^link-cli\//);
+    });
+
+    it('lets --header override the default User-Agent', async () => {
+      setNextResponse(200, APPROVED_SPT_REQUEST);
+      setMerchantResponse(200, '{"ok":true}');
+
+      await runProdCli(
+        'mpp',
+        'pay',
+        `http://127.0.0.1:${merchantPort}/api/endpoint`,
+        '--spend-request-id',
+        'lsrq_spt_001',
+        '--header',
+        'User-Agent: CustomBot/1.0',
+        '--json',
+      );
+
+      expect(merchantRequests[0].headers['user-agent']).toBe('CustomBot/1.0');
     });
 
     it('auto-applies Content-Type application/json when --data is provided', async () => {

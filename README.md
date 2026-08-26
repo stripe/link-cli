@@ -254,7 +254,7 @@ link-cli mpp decode \
   --challenge 'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge", request="..."'
 ```
 
-Use `mpp pay` to complete purchases: 
+Use `mpp pay` to complete purchases. Merchant requests send `User-Agent: link-cli/<version>`; pass `--header "User-Agent: …"` to override.
 
 ```bash
 link-cli mpp pay https://climate.stripe.dev/api/contribute \
@@ -392,7 +392,7 @@ In MCP/agent mode, pass `metadata` as a structured `{ key: value }` object.
 | `LINK_NO_REFRESH` | When set, never auto-refresh the access token — error instead |
 | `LINK_API_BASE_URL` | Override the API base URL |
 | `LINK_AUTH_BASE_URL` | Override the auth base URL |
-| `LINK_HTTP_PROXY` | Route all requests through an HTTP proxy (requires `undici`) |
+| `LINK_HTTP_PROXY` | Route all requests, including `mpp pay` merchant requests, through an HTTP proxy (requires `undici`) |
 
 ## Integrating into agents
 

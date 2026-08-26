@@ -96,7 +96,7 @@ Key input field notes:
 
 - `mpp pay <url> --context <ctx> [-X <method>] [-d <body>] [-H <header>]... [--amount <cents>] [--payment-method-id <id>] [--test]` — handles the full MPP flow end-to-end: probes the URL for a 402 challenge, parses the `www-authenticate` header to extract network_id and amount, creates a spend request (credential_type: shared_payment_token), gets user approval, retrieves the SPT, and pays. Amount/currency are derived from the 402 challenge; `--amount` overrides. `--context` is required (min 100 chars) — describe the purchase and rationale. Default payment method is used unless `--payment-method-id` is specified.
 - `mpp pay <url> --spend-request-id <id> [--method <method>] [--data <body>] [--header <header>]...` — backward-compat mode: uses a pre-approved spend request directly, skipping creation/approval.
-- `--header` is repeatable and uses `"Name: Value"` format. `Content-Type: application/json` is auto-applied when `--data` is provided; user-provided headers take precedence.
+- `--header` is repeatable and uses `"Name: Value"` format. `Content-Type: application/json` is auto-applied when `--data` is provided; user-provided headers take precedence. Merchant probes and paid retries send `User-Agent: link-cli/<version>` unless `-H User-Agent` overrides it. The same configured fetch is used for those merchant requests (so `LINK_HTTP_PROXY` applies too).
 - The SPT is one-time-use — a failed payment requires running `mpp pay` again (creates a new spend request).
 - Implemented in `packages/cli/src/commands/mpp/` — pay.tsx (logic), schema.ts (input/output schema), index.tsx (incur registration).
 
@@ -148,4 +148,4 @@ JSON output mode (`--format json`) is **not** affected — `JSON.stringify` enco
 | `LINK_NO_REFRESH` | When set, never auto-refresh the access token — error instead |
 | `LINK_API_BASE_URL` | Override API base URL |
 | `LINK_AUTH_BASE_URL` | Override auth base URL |
-| `LINK_HTTP_PROXY` | Route all SDK requests through an HTTP proxy (requires `undici` installed) |
+| `LINK_HTTP_PROXY` | Route all outbound HTTP (Link API and `mpp pay` merchant requests) through an HTTP proxy (requires `undici` installed) |
