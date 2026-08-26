@@ -31,6 +31,9 @@ Documentation:
 - [Development](#development)
 - [Releasing](#releasing)
 
+[!TIP]
+If you're looking to integrate the Link CLI into your product or agent for consumers to pay with, be sure to look at [Integrating into your agent](#integrating-into-agents).
+
 ## Installation
 
 ```bash
