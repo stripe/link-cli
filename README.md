@@ -26,7 +26,7 @@ Documentation:
   - [Approval details](#approval-details)
   - [Metadata](#metadata)
   - [Environment variables](#environment-variables)
-- [Integrating into your agent](#integ)
+- [Integrating into your agent](#integrating-into-agents)
 - [Onboarding and Demos](#onboarding-and-demos)
 - [Development](#development)
 - [Releasing](#releasing)
@@ -379,8 +379,6 @@ link-cli spend-request create ... \
 
 In MCP/agent mode, pass `metadata` as a structured `{ key: value }` object.
 
-
-
 ### Environment variables
 
 | Variable | Effect |
@@ -395,7 +393,7 @@ In MCP/agent mode, pass `metadata` as a structured `{ key: value }` object.
 
 ## Integrating into agents
 
-If you are building an agent and want to offer Link as a native experinece to your consumers (as a connector, plugin, pre-installed capability etc.) 
+If you are building an agent and want to offer Link as a native experience to your consumers (as a connector, plugin, pre-installed capability etc.), 
 please reach out to `danhill at stripe.com`. We can support higher limits, more embedded approval flows, and additional advanced capabilities.
 
 ## Onboarding and Demos
