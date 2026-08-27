@@ -6,24 +6,27 @@ on:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
-permissions:
-  contents: write
-  pull-requests: write
-  id-token: write
+permissions: {}
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
     outputs:
       published: ${{ steps.changesets.outputs.published }}
       publishedPackages: ${{ steps.changesets.outputs.publishedPackages }}
       cliPublished: ${{ steps.cli_published.outputs.value }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
           cache: pnpm
@@ -35,7 +38,7 @@ jobs:
 
       - name: Create release PR or publish
         id: changesets
-        uses: changesets/action@v1
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1
         with:
           publish: pnpm changeset publish
           title: 'Version Packages'
@@ -56,8 +59,9 @@ jobs:
         if: steps.cli_published.outputs.value == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STEPS_CHANGESETS_OUTPUTS_PUBLISHEDPACKAGES: ${{ steps.changesets.outputs.publishedPackages }}
         run: |
-          TAG=$(echo '${{ steps.changesets.outputs.publishedPackages }}' \
+          TAG=$(printf '%s' "$STEPS_CHANGESETS_OUTPUTS_PUBLISHEDPACKAGES" \
             | jq -r '.[] | select(.name == "@stripe/link-cli") | "@stripe/link-cli@" + .version')
           if [ -n "$TAG" ]; then
             sha256sum packages/cli/dist/cli.js > packages/cli/dist/cli.js.sha256
@@ -67,6 +71,8 @@ jobs:
   build-sea:
     needs: release
     if: needs.release.outputs.cliPublished == 'true'
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:
@@ -78,9 +84,11 @@ jobs:
             asset_name: link-cli-win-x64.exe
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 26
           cache: pnpm
@@ -112,8 +120,9 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEEDS_RELEASE_OUTPUTS_PUBLISHEDPACKAGES: ${{ needs.release.outputs.publishedPackages }}
         run: |
-          TAG=$(echo '${{ needs.release.outputs.publishedPackages }}' \
+          TAG=$(printf '%s' "$NEEDS_RELEASE_OUTPUTS_PUBLISHEDPACKAGES" \
             | jq -r '.[] | select(.name == "@stripe/link-cli") | "@stripe/link-cli@" + .version')
           gh release upload "$TAG" \
             ${{ matrix.asset_name }} \

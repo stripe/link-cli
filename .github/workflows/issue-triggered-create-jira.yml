@@ -73,7 +73,12 @@ jobs:
         if: failure()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_LINK_PQ_WEBHOOK_URL }}
+          GITHUB_EVENT_ISSUE_HTML_URL: ${{ github.event.issue.html_url }}
         run: |
+          PAYLOAD=$(jq -n \
+            --arg issue_url "$GITHUB_EVENT_ISSUE_HTML_URL" \
+            '{text: ("❌ ACTION REQUIRED: Jira sync failed for " + $issue_url + ". Re-run the failed jobs via https://github.com/stripe/link-cli/actions/workflows/issue-triggered-create-jira.yml.")}')
+
           curl -s -X POST "$SLACK_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
-            --data-raw '{"text": "❌ ACTION REQUIRED: Jira sync failed for ${{ github.event.issue.html_url }}. Re-run the failed jobs via https://github.com/stripe/link-cli/actions/workflows/issue-triggered-create-jira.yml."}'
+            --data-raw "$PAYLOAD"
