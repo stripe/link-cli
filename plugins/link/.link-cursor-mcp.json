@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "link": {
+      "url": "https://api.cursor.com/rest-mcp/stripe-link/mcp"
+    }
+  }
+}
