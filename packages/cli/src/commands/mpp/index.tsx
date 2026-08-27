@@ -10,7 +10,6 @@ import { requireAuth } from '../../utils/require-auth';
 import { decodeStripeChallenge } from './decode';
 import { DecodeChallengeView } from './decode-view';
 import {
-  type MerchantFetch,
   MppPay,
   type PayResult,
   buildHeaders,
@@ -25,7 +24,6 @@ export function createMppCli(
   paymentMethodsFactory: () => IPaymentMethodsResource,
   authStorage?: CliAuthStorage,
   envAccessToken?: string,
-  fetchImpl: MerchantFetch = globalThis.fetch,
 ) {
   const cli = Cli.create('mpp', {
     description: 'Machine payment protocol (MPP) commands',
@@ -63,7 +61,6 @@ export function createMppCli(
             test={opts.test}
             repository={repository}
             paymentMethodsFactory={paymentMethodsFactory}
-            fetch={fetchImpl}
             onComplete={(result) => {
               capturedResult = result;
             }}
@@ -84,7 +81,6 @@ export function createMppCli(
           data,
           headers,
           repository,
-          fetchImpl,
         );
         return;
       }
@@ -94,7 +90,7 @@ export function createMppCli(
       const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
       const requestHeaders = buildHeaders(data, headers);
 
-      const probeResponse = await fetchImpl(url, {
+      const probeResponse = await fetch(url, {
         method: httpMethod,
         body: data,
         headers: requestHeaders,

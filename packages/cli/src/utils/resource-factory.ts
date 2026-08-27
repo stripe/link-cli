@@ -18,7 +18,6 @@ import { LinkAuthenticationError } from '../auth/errors';
 import { createAccessTokenProvider } from '../auth/session';
 import type { CliAuthStorage } from '../auth/storage';
 import type { IAuthResource } from '../auth/types';
-import { withDefaultHeaders } from './fetch';
 import { sanitizeDeep } from './sanitize-text';
 
 /**
@@ -133,16 +132,6 @@ export class ResourceFactory {
       options.fetch ??
       (proxyUrl ? createProxyFetch(globalThis.fetch, proxyUrl) : undefined);
     this._authResource = options.authResource;
-  }
-
-  /**
-   * Fetch used for merchant-facing requests (`mpp pay` probes/retries).
-   * Applies LINK_HTTP_PROXY (when set) and default headers such as User-Agent,
-   * without overriding headers the caller already set.
-   */
-  getMerchantFetch(): typeof globalThis.fetch {
-    const base = this.fetch ?? globalThis.fetch;
-    return withDefaultHeaders(base, this.defaultHeaders ?? {});
   }
 
   private createSdkOptions(getAccessToken: AccessTokenProvider): LinkOptions {

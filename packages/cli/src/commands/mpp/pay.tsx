@@ -21,7 +21,7 @@ export type PayResult = {
   body: string;
 };
 
-export type MerchantFetch = typeof globalThis.fetch;
+declare const __CLI_VERSION__: string;
 
 export function buildHeaders(
   data: string | undefined,
@@ -37,6 +37,9 @@ export function buildHeaders(
     const key = line.slice(0, idx).trim();
     const value = line.slice(idx + 1).trim();
     if (key) result[key] = value;
+  }
+  if (!Object.keys(result).some((key) => key.toLowerCase() === 'user-agent')) {
+    result['User-Agent'] = `link-cli/${__CLI_VERSION__}`;
   }
   return result;
 }
@@ -107,7 +110,6 @@ export interface MppPayFullFlowOptions {
   test: boolean;
   repository: ISpendRequestResource;
   paymentMethodsFactory: () => IPaymentMethodsResource;
-  fetch?: MerchantFetch;
   onStep?: (step: Step) => void;
   onApprovalUrl?: (url: string) => void;
 }
@@ -119,7 +121,6 @@ export async function runMppPayWithSpendRequest(
   data: string | undefined,
   headers: string[] | undefined,
   repository: ISpendRequestResource,
-  fetchImpl: MerchantFetch = globalThis.fetch,
 ): Promise<PayResult> {
   const spendRequest = await repository.retrieve(spendRequestId, {
     include: ['shared_payment_token'],
@@ -149,7 +150,6 @@ export async function runMppPayWithSpendRequest(
     method,
     data,
     headers,
-    fetchImpl,
   );
 }
 
@@ -159,12 +159,11 @@ export async function payWithSpt(
   method: string | undefined,
   data: string | undefined,
   headers: string[] | undefined,
-  fetchImpl: MerchantFetch = globalThis.fetch,
 ): Promise<PayResult> {
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
   const requestHeaders = buildHeaders(data, headers);
 
-  const initialResponse = await fetchImpl(url, {
+  const initialResponse = await fetch(url, {
     method: httpMethod,
     body: data,
     headers: requestHeaders,
@@ -177,7 +176,7 @@ export async function payWithSpt(
   const authHeader =
     await createStripePaymentClient(spt).createCredential(initialResponse);
 
-  const retryResponse = await fetchImpl(url, {
+  const retryResponse = await fetch(url, {
     method: httpMethod,
     body: data,
     headers: {
@@ -203,7 +202,6 @@ export async function runMppPayFullFlow(
     test,
     repository,
     paymentMethodsFactory,
-    fetch: fetchImpl = globalThis.fetch,
     onStep,
     onApprovalUrl,
   } = opts;
@@ -213,7 +211,7 @@ export async function runMppPayFullFlow(
 
   // 1. Probe URL
   onStep?.('probing');
-  const probeResponse = await fetchImpl(url, {
+  const probeResponse = await fetch(url, {
     method: httpMethod,
     body: data,
     headers: requestHeaders,
@@ -306,7 +304,6 @@ export async function runMppPayFullFlow(
     method,
     data,
     headers,
-    fetchImpl,
   );
 }
 
@@ -330,7 +327,6 @@ export function MppPay({
   test,
   repository,
   paymentMethodsFactory,
-  fetch: fetchImpl = globalThis.fetch,
   onComplete,
 }: {
   url: string;
@@ -344,7 +340,6 @@ export function MppPay({
   test?: boolean;
   repository: ISpendRequestResource;
   paymentMethodsFactory: () => IPaymentMethodsResource;
-  fetch?: MerchantFetch;
   onComplete: (result: PayResult | null) => void;
 }) {
   const [step, setStep] = useState<Step>(
@@ -368,7 +363,6 @@ export function MppPay({
             data,
             headers,
             repository,
-            fetchImpl,
           );
         } else {
           if (!context) {
@@ -387,7 +381,6 @@ export function MppPay({
             test: test ?? false,
             repository,
             paymentMethodsFactory,
-            fetch: fetchImpl,
             onStep: setStep,
             onApprovalUrl: (u) => setApprovalUrl(u),
           });
@@ -414,7 +407,6 @@ export function MppPay({
     repository,
     paymentMethodsFactory,
     onComplete,
-    fetchImpl,
   ]);
 
   const stepLabels: Record<Step, string> = {

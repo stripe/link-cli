@@ -44,29 +44,6 @@ describe('ResourceFactory', () => {
     expect(factory.createWebBotAuthResource().signUrl).toBeTypeOf('function');
   });
 
-  it('applies default User-Agent on merchant fetch unless the caller set one', async () => {
-    const mockFetch = vi.fn().mockResolvedValue(new Response());
-    const factory = new ResourceFactory({
-      fetch: mockFetch,
-      defaultHeaders: { 'User-Agent': 'link-cli/0.14.0 (GrokBot)' },
-    });
-
-    await factory.getMerchantFetch()('https://merchant.example/pay', {
-      method: 'GET',
-    });
-    await factory.getMerchantFetch()('https://merchant.example/pay', {
-      method: 'GET',
-      headers: { 'User-Agent': 'CustomBot/1.0' },
-    });
-
-    expect(
-      new Headers(mockFetch.mock.calls[0][1].headers).get('User-Agent'),
-    ).toBe('link-cli/0.14.0 (GrokBot)');
-    expect(
-      new Headers(mockFetch.mock.calls[1][1].headers).get('User-Agent'),
-    ).toBe('CustomBot/1.0');
-  });
-
   describe('env-based token provider', () => {
     it('returns LINK_ACCESS_TOKEN directly', async () => {
       const factory = new ResourceFactory({ envAccessToken: 'at_env' });

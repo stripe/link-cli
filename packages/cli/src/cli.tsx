@@ -121,7 +121,6 @@ cli.command(
     () => factory.createPaymentMethodsResource(),
     authStorage,
     envAccessToken,
-    factory.getMerchantFetch(),
   ),
 );
 // cli.command(
