@@ -294,6 +294,29 @@ surface. Each returned LPT is valid for up to 30 minutes, or until the
 SpendRequest expires. If either DOM marker is absent, create a regular virtual
 card SpendRequest instead; do not create an LPT request.
 
+#### Delegated approval
+
+OAuth clients authorized for `spend_requests:approve` can skip consumer
+approval and create an already-approved LPT request directly, via
+`--approve` combined with `--no-request-approval`:
+
+```bash
+link-cli spend-request create \
+  --payment-method-id csmrpd_xxx \
+  --execution-method link_pay_token \
+  --merchant-account-id acct_... \
+  --context "Purchasing an item from the checkout the agent inspected. The user delegated approval for this purchase." \
+  --amount 3500 \
+  --approve \
+  --no-request-approval
+```
+
+`--approve` routes the request through the delegated-creation endpoint and
+returns an already-approved request unless Link requires step-up. Because the
+response is already approved, `--no-request-approval` is required alongside
+`--approve` — the CLI rejects the combination otherwise, to avoid ambiguity
+between the two approval modes.
+
 
 ### Limits
 

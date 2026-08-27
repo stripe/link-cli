@@ -158,11 +158,11 @@ export function createSpendRequestCli(
               'test cannot be used when execution-method is link_pay_token',
           });
         }
-        if (opts.approve) {
+        if (opts.approve && requestApproval) {
           return c.error({
             code: 'INVALID_INPUT',
             message:
-              'approve cannot be used when execution-method is link_pay_token; use request-approval instead',
+              '--approve with --execution-method link_pay_token requires --no-request-approval',
           });
         }
         if (opts.merchantName || opts.merchantUrl) {

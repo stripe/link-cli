@@ -359,6 +359,82 @@ describe('production mode', () => {
       expect(sentBody.merchant_url).toBeUndefined();
     });
 
+    it('creates a delegated Link Pay Token spend request via create_delegated', async () => {
+      setNextResponse(200, {
+        ...BASE_REQUEST,
+        status: 'approved',
+        merchant_name: 'Canonical Merchant',
+        merchant_url: 'https://canonical.example',
+        execution_method: 'link_pay_token',
+        merchant_account_id: 'acct_lpt_target',
+      });
+
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '--execution-method',
+        'link_pay_token',
+        '--merchant-account-id',
+        'acct_lpt_target',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '3500',
+        '--approve',
+        '--no-request-approval',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(requests).toHaveLength(1);
+      expect(lastRequest.url).toBe('/spend_requests/create_delegated');
+
+      const sentBody = JSON.parse(lastRequest.body);
+      expect(sentBody).toMatchObject({
+        payment_details: 'pd_prod_test',
+        credential_type: 'card',
+        execution_method: 'link_pay_token',
+        merchant_account_id: 'acct_lpt_target',
+      });
+      expect(sentBody.approve).toBeUndefined();
+      expect(sentBody.request_approval).toBeUndefined();
+      expect(sentBody.merchant_name).toBeUndefined();
+      expect(sentBody.merchant_url).toBeUndefined();
+
+      const output = parseJson(result.stdout) as Record<string, unknown>[];
+      const request = output[0];
+      expect(request.status).toBe('approved');
+      expect(request._next).toBeUndefined();
+      expect(request.instruction).toBeUndefined();
+    });
+
+    it('rejects delegated Link Pay Token approval without --no-request-approval', async () => {
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '--execution-method',
+        'link_pay_token',
+        '--merchant-account-id',
+        'acct_lpt_target',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '3500',
+        '--approve',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout + result.stderr).toContain(
+        '--approve with --execution-method link_pay_token requires --no-request-approval',
+      );
+      expect(requests).toHaveLength(0);
+    });
+
     const invalidLptCreateCases = [
       {
         name: 'merchant-account-id without execution-method',
@@ -419,18 +495,6 @@ describe('production mode', () => {
           '--test',
         ],
         message: 'test cannot be used when execution-method is link_pay_token',
-      },
-      {
-        name: 'delegated approval',
-        args: [
-          '--execution-method',
-          'link_pay_token',
-          '--merchant-account-id',
-          'acct_lpt_target',
-          '--approve',
-        ],
-        message:
-          'approve cannot be used when execution-method is link_pay_token; use request-approval instead',
       },
       {
         name: 'agent-provided merchant identity',

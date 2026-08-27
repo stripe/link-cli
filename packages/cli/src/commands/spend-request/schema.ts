@@ -67,7 +67,7 @@ export const createOptions = z.object({
     .boolean()
     .default(true)
     .describe(
-      'Request approval and poll until approved/denied/expired, or until requires_action with a non-auto_resume resolution',
+      'Request normal consumer approval (poll until approved/denied/expired, or until requires_action with a non-auto_resume resolution). Not used for delegated approval — pass --no-request-approval with --approve instead',
     ),
   test: z
     .boolean()
@@ -75,7 +75,12 @@ export const createOptions = z.object({
     .describe(
       'Use test mode (creates testmode credentials from test card data)',
     ),
-  approve: z.boolean().default(false).describe(''),
+  approve: z
+    .boolean()
+    .default(false)
+    .describe(
+      'Create through the delegated-approval endpoint (spend_requests/create_delegated), returning an already-approved request unless step-up is required. Requires an OAuth client authorized for spend_requests:approve. When used with execution-method link_pay_token, --no-request-approval is required',
+    ),
   outputFile: z
     .string()
     .optional()
