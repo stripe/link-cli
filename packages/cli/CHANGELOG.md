@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.15.0
+
+### Minor Changes
+
+- 91f5e8e: Support delegated approval for merchant-bound Link Pay Token spend requests
+
 ## 0.14.2
 
 ### Patch Changes
