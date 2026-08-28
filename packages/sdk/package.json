@@ -1,6 +1,6 @@
 {
   "name": "@stripe/link-sdk",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Node.js SDK for building agents that use Link",
   "type": "module",
   "main": "./dist/index.js",

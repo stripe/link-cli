@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.15.1
+
+### Patch Changes
+
+- a1c6872: Fix: allow nickname to be undefined in shipping address resource
+
 ## 0.15.0
 
 ### Minor Changes
