@@ -1,7 +1,7 @@
 import { Challenge } from 'mppx';
 import { sanitizeDeep } from '../../utils/sanitize-text';
 import {
-  resolvePaymentCredentialHeader,
+  canonicalizeCredentialHeader,
   shouldEchoCredentialHeader,
 } from './credential-header';
 
@@ -124,10 +124,7 @@ export function decodeStripeChallenge(
   const { challenge, networkId, request } = resolveStripeChallenge(
     Challenge.deserializeList(challengeHeader),
   );
-  const credentialHeader = resolvePaymentCredentialHeader(
-    challengeHeader,
-    challenge.id,
-  );
+  const credentialHeader = canonicalizeCredentialHeader(challenge.header);
 
   return sanitizeDeep({
     id: challenge.id,

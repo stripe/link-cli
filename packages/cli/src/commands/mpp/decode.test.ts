@@ -56,6 +56,65 @@ describe('decodeStripeChallenge', () => {
     });
   });
 
+  it('does not inherit header from a different Payment challenge', () => {
+    const header = [
+      'Payment id="tempo_001", realm="merchant.example", method="tempo", intent="charge",',
+      'header="Payment-Authorization", request="e30=",',
+      'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge",',
+      `request="${encodeRequest({
+        amount: '1000',
+        currency: 'usd',
+        methodDetails: {
+          networkId: 'net_001',
+          paymentMethodTypes: ['card'],
+        },
+      })}"`,
+    ].join(' ');
+
+    expect(decodeStripeChallenge(header)).not.toHaveProperty('header');
+  });
+
+  it('keeps header when a quoted description contains Payment', () => {
+    const header = [
+      'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge",',
+      'description="Payment required",',
+      'header="Payment-Authorization",',
+      `request="${encodeRequest({
+        amount: '1000',
+        currency: 'usd',
+        methodDetails: {
+          networkId: 'net_001',
+          paymentMethodTypes: ['card'],
+        },
+      })}"`,
+    ].join(' ');
+
+    expect(decodeStripeChallenge(header)).toMatchObject({
+      header: 'Payment-Authorization',
+      description: 'Payment required',
+      network_id: 'net_001',
+    });
+  });
+
+  it('rejects an unsupported advertised header', () => {
+    const header = [
+      'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge",',
+      'header="X-Payment",',
+      `request="${encodeRequest({
+        amount: '1000',
+        currency: 'usd',
+        methodDetails: {
+          networkId: 'net_001',
+          paymentMethodTypes: ['card'],
+        },
+      })}"`,
+    ].join(' ');
+
+    expect(() => decodeStripeChallenge(header)).toThrow(
+      /Unsupported payment credential header/i,
+    );
+  });
+
   it('handles escaped quoted-string values in challenge parameters', () => {
     const header = [
       'Payment id="ch_001",',

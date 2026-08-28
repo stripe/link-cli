@@ -14,8 +14,7 @@ import {
   DEFAULT_CREDENTIAL_HEADER,
   PAYMENT_AUTHORIZATION_HEADER,
   type PaymentCredentialHeader,
-  resolvePaymentCredentialHeader,
-  shouldEchoCredentialHeader,
+  canonicalizeCredentialHeader,
 } from './credential-header';
 import {
   decodeStripeChallenge,
@@ -59,14 +58,6 @@ export async function readPayResult(response: Response): Promise<PayResult> {
   });
 }
 
-function withAdvertisedHeader<T extends object>(
-  challenge: T,
-  credentialHeader: PaymentCredentialHeader,
-): T {
-  if (!shouldEchoCredentialHeader(credentialHeader)) return challenge;
-  return { ...challenge, header: credentialHeader } as T;
-}
-
 function setPaymentCredential(
   headers: Headers,
   credentialHeader: PaymentCredentialHeader,
@@ -79,14 +70,12 @@ function setPaymentCredential(
   headers.set(DEFAULT_CREDENTIAL_HEADER, credential);
 }
 
-function createStripePaymentClient(
-  spt: string,
-  credentialHeader: PaymentCredentialHeader,
-) {
+function createStripePaymentClient(spt: string) {
   const stripeCharge = Method.toClient(StripeMethods.charge, {
     async createCredential({ challenge }) {
+      canonicalizeCredentialHeader(challenge.header);
       return Credential.serialize({
-        challenge: withAdvertisedHeader(challenge, credentialHeader),
+        challenge,
         payload: { spt },
       });
     },
@@ -96,8 +85,9 @@ function createStripePaymentClient(
     { ...StripeMethods.charge, intent: 'session' as const },
     {
       async createCredential({ challenge }) {
+        canonicalizeCredentialHeader(challenge.header);
         return Credential.serialize({
-          challenge: withAdvertisedHeader(challenge, credentialHeader),
+          challenge,
           payload: { action: 'open', grantedToken: spt },
         });
       },
@@ -112,10 +102,13 @@ function createStripePaymentClient(
       isPaymentRequired(response) {
         return response.status === 402;
       },
-      getChallenge(response) {
-        return getStripeChargeChallengeFromResponse(response);
+      getChallenges(response) {
+        return [getStripeChargeChallengeFromResponse(response)];
       },
-      setCredential(request, credential) {
+      setCredential(request, credential, options) {
+        const credentialHeader = canonicalizeCredentialHeader(
+          options?.challenge?.header,
+        );
         const nextHeaders = new Headers(request.headers);
         setPaymentCredential(nextHeaders, credentialHeader, credential);
         return { ...request, headers: nextHeaders };
@@ -204,14 +197,9 @@ export async function payWithSpt(
   }
 
   const challenge = getStripeChargeChallengeFromResponse(initialResponse);
-  const credentialHeader = resolvePaymentCredentialHeader(
-    wwwAuthenticate,
-    challenge.id,
-  );
-  const credential = await createStripePaymentClient(
-    spt,
-    credentialHeader,
-  ).createCredential(initialResponse);
+  const credentialHeader = canonicalizeCredentialHeader(challenge.header);
+  const credential =
+    await createStripePaymentClient(spt).createCredential(initialResponse);
 
   const retryHeaders = new Headers(requestHeaders);
   setPaymentCredential(retryHeaders, credentialHeader, credential);
