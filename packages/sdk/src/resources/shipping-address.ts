@@ -7,7 +7,7 @@ import { z } from 'zod';
 const shippingAddressSchema = z.looseObject({
   id: z.string(),
   is_default: z.boolean(),
-  nickname: z.string().nullable(),
+  nickname: z.optional(z.string().nullable()),
   address: z.looseObject({}).nullable(),
 });
 const shippingAddressesResponseSchema = z.looseObject({
