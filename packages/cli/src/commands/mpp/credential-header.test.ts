@@ -53,6 +53,49 @@ describe('resolvePaymentCredentialHeader', () => {
     );
   });
 
+  it('does not treat Payment inside a quoted auth-param as a new scheme', () => {
+    const wwwAuthenticate = [
+      'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge",',
+      'description="Payment required",',
+      'header="Payment-Authorization",',
+      `request="${STRIPE_REQUEST}"`,
+    ].join(' ');
+
+    expect(resolvePaymentCredentialHeader(wwwAuthenticate, 'ch_001')).toBe(
+      PAYMENT_AUTHORIZATION_HEADER,
+    );
+  });
+
+  it('still splits real Payment schemes after a quoted Payment substring', () => {
+    const wwwAuthenticate = [
+      'Payment id="tempo_001", realm="merchant.example", method="tempo", intent="charge",',
+      'description="Payment required", request="e30=",',
+      'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge",',
+      'header="Payment-Authorization",',
+      `request="${STRIPE_REQUEST}"`,
+    ].join(' ');
+
+    expect(resolvePaymentCredentialHeader(wwwAuthenticate, 'ch_001')).toBe(
+      PAYMENT_AUTHORIZATION_HEADER,
+    );
+    expect(resolvePaymentCredentialHeader(wwwAuthenticate, 'tempo_001')).toBe(
+      DEFAULT_CREDENTIAL_HEADER,
+    );
+  });
+
+  it('ignores escaped quotes when locating Payment scheme boundaries', () => {
+    const wwwAuthenticate = [
+      'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge",',
+      'description="Say \\"Payment required\\", then pay",',
+      'header="Payment-Authorization",',
+      `request="${STRIPE_REQUEST}"`,
+    ].join(' ');
+
+    expect(resolvePaymentCredentialHeader(wwwAuthenticate, 'ch_001')).toBe(
+      PAYMENT_AUTHORIZATION_HEADER,
+    );
+  });
+
   it('rejects an unsupported advertised header', () => {
     const wwwAuthenticate = [
       'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge",',

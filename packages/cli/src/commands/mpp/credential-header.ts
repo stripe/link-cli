@@ -53,15 +53,60 @@ function equalsHeaderName(left: string, right: string): boolean {
 }
 
 function paymentSchemeChunks(wwwAuthenticate: string): string[] {
-  const starts: number[] = [];
-  for (const match of wwwAuthenticate.matchAll(/Payment\s+/gi)) {
-    if (match.index !== undefined) starts.push(match.index);
-  }
+  const starts = paymentSchemeStarts(wwwAuthenticate);
   return starts.map((start, index) => {
     const nextStart = starts[index + 1];
     const end = nextStart === undefined ? wwwAuthenticate.length : nextStart;
     return wwwAuthenticate.slice(start, end).replace(/,\s*$/, '');
   });
+}
+
+/**
+ * Scheme starts are `Payment` followed by whitespace, ignoring that same
+ * substring inside quoted auth-param values (e.g. description="Payment required").
+ */
+function paymentSchemeStarts(wwwAuthenticate: string): number[] {
+  const starts: number[] = [];
+  let i = 0;
+  while (i < wwwAuthenticate.length) {
+    const char = wwwAuthenticate[i];
+    if (char === '"') {
+      i = skipQuotedString(wwwAuthenticate, i);
+      continue;
+    }
+    if (isPaymentSchemeAt(wwwAuthenticate, i)) {
+      starts.push(i);
+      i += 'Payment'.length;
+      continue;
+    }
+    i += 1;
+  }
+  return starts;
+}
+
+function skipQuotedString(value: string, quoteIndex: number): number {
+  let i = quoteIndex + 1;
+  while (i < value.length) {
+    const char = value[i];
+    if (char === '\\') {
+      i += 2;
+      continue;
+    }
+    if (char === '"') {
+      return i + 1;
+    }
+    i += 1;
+  }
+  return value.length;
+}
+
+function isPaymentSchemeAt(value: string, index: number): boolean {
+  const scheme = 'Payment';
+  if (index + scheme.length >= value.length) return false;
+  if (value.slice(index, index + scheme.length).toLowerCase() !== 'payment') {
+    return false;
+  }
+  return /\s/.test(value[index + scheme.length] ?? '');
 }
 
 function authParam(chunk: string, name: string): string | undefined {
