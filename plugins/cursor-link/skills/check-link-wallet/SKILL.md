@@ -36,7 +36,8 @@ The statuses mean:
 - **`approved`** — ready to spend against.
 - Expired and terminal states are only visible with `includeHistory`, and
   cannot be spent against. A user who still wants the purchase needs a fresh
-  request.
+  one, raised with `request_virtual_card` — but only if they ask for it. Do not
+  offer to re-run a purchase off the back of a status question.
 
 `get_spend_request` returns the status of a single request by id. **Do not pass
 the `include` parameter here.** `include: ["card"]` and

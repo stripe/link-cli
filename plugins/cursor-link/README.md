@@ -36,12 +36,16 @@ The hosted server exposes reads plus two non-spend writes:
 `list_payment_methods`, `list_shipping_addresses`, `sign_web_bot_auth`,
 `report_agent_observation`.
 
-**No tool writes to a spend request.** Creating one, and requesting approval
-for one, are excluded by design rather than pending: approval details attach at
-creation time, so whatever creates a request defines what the user consents to,
-and that belongs to a human acting through an approval surface. The skills here
-are written to that boundary — they find and spend against a request the user
-already approved, and stop when none exists.
+**No tool on that server writes to a spend request**, by design rather than
+omission: approval details attach at creation time, so whatever creates a
+request defines what the user consents to, and that belongs to a human.
+
+Spend approvals instead run through Cursor's own `request_virtual_card` tool,
+which raises an approval card showing the amount, merchant, reason, and
+itemized cart. The agent's turn ends there. Nothing is created unless the user
+approves, and on approval they finish authorizing on Link's page and the agent
+is resumed with the spend request id to poll. `complete-link-purchase` is
+written around that handoff.
 
 Transactions, balances, and funding sources are not yet reachable, so this
 plugin ships no financial-insights skill. `plugins/link/` still covers that
