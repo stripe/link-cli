@@ -5,13 +5,15 @@
     "email": "agent-spend@stripe.com"
   },
   "metadata": {
-    "description": "Stripe Link plugin — lets agents get secure, one-time-use payment credentials from a Link wallet to complete purchases on your behalf."
+    "description": "Stripe Link plugin — lets agents complete purchases with secure, one-time-use payment credentials from a Link wallet, using spend requests the user has approved."
   },
   "plugins": [
     {
       "name": "link",
-      "source": "plugins/link",
-      "description": "Get secure, one-time-use payment credentials from a Link wallet so agents can complete purchases on your behalf."
+      "source": "plugins/cursor-link",
+      "description": "Complete purchases with one-time-use payment credentials from a Link wallet, using spend requests the user has approved.",
+      "category": "payments",
+      "tags": ["payments", "stripe", "link", "agents", "mcp"]
     }
   ]
 }
