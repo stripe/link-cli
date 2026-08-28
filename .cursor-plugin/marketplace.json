@@ -5,7 +5,7 @@
     "email": "agent-spend@stripe.com"
   },
   "metadata": {
-    "description": "Stripe Link plugin — lets agents complete purchases with secure, one-time-use payment credentials from a Link wallet, using spend requests the user has approved."
+    "description": "Link plugin — lets agents complete purchases with secure, one-time-use payment credentials from a Link wallet, using spend requests the user has approved."
   },
   "plugins": [
     {
