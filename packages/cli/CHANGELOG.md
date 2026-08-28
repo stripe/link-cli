@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.14.2
+
+### Patch Changes
+
+- f77d745: Move the Cursor plugin into its own `plugins/cursor-link` directory with MCP-first skills
+
 ## 0.14.1
 
 ### Patch Changes
