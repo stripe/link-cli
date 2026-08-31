@@ -11,6 +11,12 @@ import React, { useEffect, useState } from 'react';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
 import { sanitizeDeep } from '../../utils/sanitize-text';
 import {
+  DEFAULT_CREDENTIAL_HEADER,
+  PAYMENT_AUTHORIZATION_HEADER,
+  type PaymentCredentialHeader,
+  canonicalizeCredentialHeader,
+} from './credential-header';
+import {
   decodeStripeChallenge,
   getStripeChargeChallengeFromResponse,
 } from './decode';
@@ -57,9 +63,22 @@ export async function readPayResult(response: Response): Promise<PayResult> {
   });
 }
 
+function setPaymentCredential(
+  headers: Headers,
+  credentialHeader: PaymentCredentialHeader,
+  credential: string,
+): void {
+  if (credentialHeader === PAYMENT_AUTHORIZATION_HEADER) {
+    headers.set(PAYMENT_AUTHORIZATION_HEADER, credential);
+    return;
+  }
+  headers.set(DEFAULT_CREDENTIAL_HEADER, credential);
+}
+
 function createStripePaymentClient(spt: string) {
   const stripeCharge = Method.toClient(StripeMethods.charge, {
     async createCredential({ challenge }) {
+      canonicalizeCredentialHeader(challenge.header);
       return Credential.serialize({
         challenge,
         payload: { spt },
@@ -71,6 +90,7 @@ function createStripePaymentClient(spt: string) {
     { ...StripeMethods.charge, intent: 'session' as const },
     {
       async createCredential({ challenge }) {
+        canonicalizeCredentialHeader(challenge.header);
         return Credential.serialize({
           challenge,
           payload: { action: 'open', grantedToken: spt },
@@ -87,12 +107,15 @@ function createStripePaymentClient(spt: string) {
       isPaymentRequired(response) {
         return response.status === 402;
       },
-      getChallenge(response) {
-        return getStripeChargeChallengeFromResponse(response);
+      getChallenges(response) {
+        return [getStripeChargeChallengeFromResponse(response)];
       },
-      setCredential(request, credential) {
+      setCredential(request, credential, options) {
+        const credentialHeader = canonicalizeCredentialHeader(
+          options?.challenge?.header,
+        );
         const nextHeaders = new Headers(request.headers);
-        nextHeaders.set('Authorization', credential);
+        setPaymentCredential(nextHeaders, credentialHeader, credential);
         return { ...request, headers: nextHeaders };
       },
     }),
@@ -173,16 +196,23 @@ export async function payWithSpt(
     return readPayResult(initialResponse);
   }
 
-  const authHeader =
+  const wwwAuthenticate = initialResponse.headers.get('www-authenticate');
+  if (!wwwAuthenticate) {
+    throw new Error('URL returned 402 but no WWW-Authenticate header');
+  }
+
+  const challenge = getStripeChargeChallengeFromResponse(initialResponse);
+  const credentialHeader = canonicalizeCredentialHeader(challenge.header);
+  const credential =
     await createStripePaymentClient(spt).createCredential(initialResponse);
+
+  const retryHeaders = new Headers(requestHeaders);
+  setPaymentCredential(retryHeaders, credentialHeader, credential);
 
   const retryResponse = await fetch(url, {
     method: httpMethod,
     body: data,
-    headers: {
-      ...requestHeaders,
-      Authorization: authHeader,
-    },
+    headers: retryHeaders,
   });
 
   return readPayResult(retryResponse);
