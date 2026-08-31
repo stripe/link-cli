@@ -193,6 +193,7 @@ export interface PaymentMethod {
   id: string;
   type: string;
   is_default: boolean;
+  name: string;
   nickname?: string;
   card_details?: CardDetails;
   bank_account_details?: BankAccountDetails;
