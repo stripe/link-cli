@@ -111,7 +111,15 @@ describe('PaymentMethodsResource', () => {
       logger: { debug },
     });
     mockFetchResponse(200, {
-      payment_details: [{ id: 'pm_secret', type: 'card', is_default: true, name: 'Visa Credit', nickname: 'Home Credit' }],
+      payment_details: [
+        {
+          id: 'pm_secret',
+          type: 'card',
+          is_default: true,
+          name: 'Visa Credit',
+          nickname: 'Home Credit',
+        },
+      ],
     });
 
     await repo.list();
@@ -123,7 +131,15 @@ describe('PaymentMethodsResource', () => {
 
   it('rejects malformed successful responses', async () => {
     mockFetchResponse(200, {
-      payment_details: [{ id: 123, type: 'card', is_default: true, name: 'Visa Credit', nickname: 'Home Credit' }],
+      payment_details: [
+        {
+          id: 123,
+          type: 'card',
+          is_default: true,
+          name: 'Visa Credit',
+          nickname: 'Home Credit',
+        },
+      ],
     });
 
     const error = await repo.list().catch((cause) => cause);
