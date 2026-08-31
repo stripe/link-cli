@@ -1,0 +1,4 @@
+interface:
+  display_name: "Link CLI"
+  short_description: "Set up Link for payments and insights"
+  default_prompt: "Use $link-cli to set up Link CLI for my intended use case."
