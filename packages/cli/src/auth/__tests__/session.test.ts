@@ -1,7 +1,27 @@
-import { LinkAuthenticationError, MemoryStorage } from '@stripe/link-sdk';
 import { describe, expect, it, vi } from 'vitest';
+import { LinkAuthenticationError } from '../errors';
 import { createAccessTokenProvider } from '../session';
-import type { IAuthResource } from '../types';
+import type { AuthStorage, AuthTokens, IAuthResource } from '../types';
+
+class MemoryAuthStorage implements AuthStorage {
+  private tokens: AuthTokens | null;
+
+  constructor(tokens: AuthTokens | null = null) {
+    this.tokens = tokens;
+  }
+
+  getTokens(): AuthTokens | null {
+    return this.tokens;
+  }
+
+  setTokens(tokens: AuthTokens): void {
+    this.tokens = tokens;
+  }
+
+  clearTokens(): void {
+    this.tokens = null;
+  }
+}
 
 function createMockAuthRepo(
   refreshResult = {
@@ -21,7 +41,7 @@ function createMockAuthRepo(
 
 describe('createAccessTokenProvider', () => {
   it('throws LinkAuthenticationError with not_authenticated code when no auth stored', async () => {
-    const storage = new MemoryStorage(null);
+    const storage = new MemoryAuthStorage(null);
     const repo = createMockAuthRepo();
     const provider = createAccessTokenProvider(repo, storage);
 
@@ -34,11 +54,12 @@ describe('createAccessTokenProvider', () => {
   });
 
   it('returns cached token when not expired', async () => {
-    const storage = new MemoryStorage({
+    const storage = new MemoryAuthStorage({
       access_token: 'at_cached',
       refresh_token: 'rt_123',
       expires_in: 3600,
       token_type: 'Bearer',
+      expires_at: Date.now() + 3_600_000,
     });
     const repo = createMockAuthRepo();
     const provider = createAccessTokenProvider(repo, storage);
@@ -48,17 +69,10 @@ describe('createAccessTokenProvider', () => {
   });
 
   it('refreshes token when expired (within 60s buffer)', async () => {
-    const storage = new MemoryStorage({
+    const storage = new MemoryAuthStorage({
       access_token: 'at_old',
       refresh_token: 'rt_123',
-      expires_in: 30, // 30s, will be within 60s buffer after MemoryStorage computes expires_at
-      token_type: 'Bearer',
-    });
-    // Override expires_at to be within the buffer
-    storage.setAuth({
-      access_token: 'at_old',
-      refresh_token: 'rt_123',
-      expires_in: 0,
+      expires_in: 30,
       token_type: 'Bearer',
       expires_at: Date.now() + 30_000,
     });
@@ -72,11 +86,12 @@ describe('createAccessTokenProvider', () => {
   });
 
   it('refreshes token when forceRefresh is true', async () => {
-    const storage = new MemoryStorage({
+    const storage = new MemoryAuthStorage({
       access_token: 'at_cached',
       refresh_token: 'rt_123',
       expires_in: 3600,
       token_type: 'Bearer',
+      expires_at: Date.now() + 3_600_000,
     });
     const repo = createMockAuthRepo();
     const provider = createAccessTokenProvider(repo, storage);
@@ -88,13 +103,7 @@ describe('createAccessTokenProvider', () => {
   });
 
   it('throws when noRefresh is true and token is expired', async () => {
-    const storage = new MemoryStorage({
-      access_token: 'at_old',
-      refresh_token: 'rt_123',
-      expires_in: 0,
-      token_type: 'Bearer',
-    });
-    storage.setAuth({
+    const storage = new MemoryAuthStorage({
       access_token: 'at_old',
       refresh_token: 'rt_123',
       expires_in: 0,
@@ -111,11 +120,12 @@ describe('createAccessTokenProvider', () => {
   });
 
   it('throws when noRefresh is true and forceRefresh is requested', async () => {
-    const storage = new MemoryStorage({
+    const storage = new MemoryAuthStorage({
       access_token: 'at_cached',
       refresh_token: 'rt_123',
       expires_in: 3600,
       token_type: 'Bearer',
+      expires_at: Date.now() + 3_600_000,
     });
     const repo = createMockAuthRepo();
     const provider = createAccessTokenProvider(repo, storage, {

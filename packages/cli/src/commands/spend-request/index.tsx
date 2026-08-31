@@ -1,6 +1,5 @@
 import { LinkApiError, getDuplicateSpendRequest } from '@stripe/link-sdk';
 import type {
-  AuthStorage,
   CredentialType,
   ISpendRequestResource,
   LineItem,
@@ -9,6 +8,7 @@ import type {
 } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import React from 'react';
+import type { CliAuthStorage } from '../../auth/storage';
 import { writeCredentialFile } from '../../utils/credential-output';
 import {
   parseKvString,
@@ -75,7 +75,7 @@ async function applyOutputFile(
 
 export function createSpendRequestCli(
   repository: ISpendRequestResource,
-  authStorage?: AuthStorage,
+  authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ) {
   const cli = Cli.create('spend-request', {
@@ -98,11 +98,11 @@ export function createSpendRequestCli(
             includeHistory={opts.includeHistory}
             onComplete={() => {}}
           />,
-          () => repository.listSpendRequests(opts),
+          () => repository.list(opts),
         );
       }
 
-      return repository.listSpendRequests(opts);
+      return repository.list(opts);
     },
   });
 
@@ -159,11 +159,11 @@ export function createSpendRequestCli(
               'test cannot be used when execution-method is link_pay_token',
           });
         }
-        if (opts.approve) {
+        if (opts.approve && requestApproval) {
           return c.error({
             code: 'INVALID_INPUT',
             message:
-              'approve cannot be used when execution-method is link_pay_token; use request-approval instead',
+              '--approve with --execution-method link_pay_token requires --no-request-approval',
           });
         }
         if (opts.merchantName || opts.merchantUrl) {
@@ -303,7 +303,7 @@ export function createSpendRequestCli(
       // The agent drives the polling loop via `spend-request retrieve`.
       let created: SpendRequest;
       try {
-        created = await repository.createSpendRequest(createParams);
+        created = await repository.create(createParams);
       } catch (err) {
         if (err instanceof LinkApiError) {
           const apiErr = err.details as {
@@ -422,7 +422,7 @@ export function createSpendRequestCli(
         );
       }
 
-      return repository.updateSpendRequest(id, params);
+      return repository.update(id, params);
     },
   });
 
@@ -561,7 +561,7 @@ export function createSpendRequestCli(
       };
 
       for await (const result of pollUntil<SpendRequest | null>({
-        fn: () => repository.getSpendRequest(id, { include }),
+        fn: () => repository.retrieve(id, { include }),
         isTerminal: (req) => req === null || isPollTerminal(req),
         interval,
         maxAttempts,
@@ -643,7 +643,7 @@ export function createSpendRequestCli(
         );
       }
 
-      return repository.cancelSpendRequest(id);
+      return repository.cancel(id);
     },
   });
 

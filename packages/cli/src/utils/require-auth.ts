@@ -1,6 +1,8 @@
-import type { AuthStorage } from '@stripe/link-sdk';
-import { storage as defaultStorage } from '@stripe/link-sdk';
 import type { MiddlewareHandler } from 'incur';
+import {
+  type CliAuthStorage,
+  storage as defaultStorage,
+} from '../auth/storage';
 
 interface AuthErrorOptions {
   code: string;
@@ -17,7 +19,7 @@ export const NOT_AUTHENTICATED_ERROR: AuthErrorOptions = {
 };
 
 export function requireAuth(
-  authStorage?: AuthStorage,
+  authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ): MiddlewareHandler {
   const store = authStorage ?? defaultStorage;
@@ -31,7 +33,7 @@ export function requireAuth(
 
 export function requireAuthGuard(
   c: { error: (err: AuthErrorOptions) => never },
-  authStorage?: AuthStorage,
+  authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ) {
   const store = authStorage ?? defaultStorage;

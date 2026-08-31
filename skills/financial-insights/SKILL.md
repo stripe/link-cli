@@ -1,5 +1,5 @@
 ---
-version: 0.13.1
+version: 0.15.0
 name: financial-insights
 description: |
   Reads a user's Link financial data — transactions, balances, and wallet sources — so agents can answer questions about spending and available source capabilities. Use when the user says "check my balance", "how much did I spend", "show my transactions", "what accounts are connected", "summarize my spending", "recent purchases", or asks about their financial activity, account balances, or linked sources.

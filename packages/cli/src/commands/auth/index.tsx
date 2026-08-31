@@ -1,8 +1,3 @@
-import {
-  type AuthStorage,
-  type SourceAction,
-  storage as defaultStorage,
-} from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import { Text } from 'ink';
 import React from 'react';
@@ -12,7 +7,11 @@ import {
 } from '../../auth/authorization-details';
 import { computeMergedAccess } from '../../auth/merge-access';
 import { normalizeScopeInput } from '../../auth/scopes';
-import type { IAuthResource, JsonValue } from '../../auth/types';
+import {
+  type CliAuthStorage,
+  storage as defaultStorage,
+} from '../../auth/storage';
+import type { IAuthResource, JsonValue, SourceAction } from '../../auth/types';
 import { pollUntil } from '../../utils/poll-until';
 import { renderInteractive } from '../../utils/render-interactive';
 import { sanitizeDeep } from '../../utils/sanitize-text';
@@ -31,7 +30,7 @@ interface PollAuthOptions {
 
 async function* pollAuthStatus(
   authResource: IAuthResource,
-  storage: AuthStorage,
+  storage: CliAuthStorage,
   opts: PollAuthOptions,
   update?: {
     current_version: string;
@@ -48,10 +47,10 @@ async function* pollAuthStatus(
       // and do NOT report the old session as done until the new tokens land.
       // On success, swap in the new tokens and revoke the old grant.
       if (pending?.replaces_existing_session) {
-        const previousRefreshToken = storage.getAuth()?.refresh_token;
+        const previousRefreshToken = storage.getTokens()?.refresh_token;
         const tokens = await authResource.pollDeviceAuth(pending.device_code);
         if (tokens) {
-          storage.setAuth(tokens);
+          storage.setTokens(tokens);
           storage.clearPendingDeviceAuth();
           if (previousRefreshToken) {
             try {
@@ -85,12 +84,12 @@ async function* pollAuthStatus(
       if (pending && !storage.isAuthenticated()) {
         const tokens = await authResource.pollDeviceAuth(pending.device_code);
         if (tokens) {
-          storage.setAuth(tokens);
+          storage.setTokens(tokens);
           storage.clearPendingDeviceAuth();
         }
       }
 
-      const auth = storage.getAuth();
+      const auth = storage.getTokens();
       if (auth) {
         return {
           authenticated: true as const,
@@ -130,9 +129,9 @@ async function* pollAuthStatus(
 
 async function maybeRevokeAndClearAuth(
   authResource: IAuthResource,
-  storage: AuthStorage,
+  storage: CliAuthStorage,
 ) {
-  const auth = storage.getAuth();
+  const auth = storage.getTokens();
   if (auth?.refresh_token) {
     try {
       await authResource.revokeToken(auth.refresh_token);
@@ -140,7 +139,7 @@ async function maybeRevokeAndClearAuth(
       // best-effort: clear local storage regardless
     }
   }
-  storage.clearAuth();
+  storage.clearTokens();
   storage.clearPendingDeviceAuth();
 }
 
@@ -159,7 +158,7 @@ interface DeviceAuthParams {
 // optional `warning` is attached to the first yield for degraded-mode callers.
 async function* startDeviceAuthAndPoll(
   authResource: IAuthResource,
-  storage: AuthStorage,
+  storage: CliAuthStorage,
   params: DeviceAuthParams,
   opts: PollAuthOptions,
   warning?: string,
@@ -213,7 +212,7 @@ async function* startDeviceAuthAndPoll(
 export function createAuthCli(
   authResource: IAuthResource,
   getUpdateInfo?: UpdateInfoProvider,
-  authStorage?: AuthStorage,
+  authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ) {
   const storage = authStorage ?? defaultStorage;
@@ -252,13 +251,13 @@ export function createAuthCli(
         });
       }
 
-      const existingAuth = storage.getAuth();
+      const existingAuth = storage.getTokens();
       if (existingAuth?.refresh_token) {
         try {
           const refreshed = await authResource.refreshToken(
             existingAuth.refresh_token,
           );
-          storage.setAuth(refreshed);
+          storage.setTokens(refreshed);
           const alreadyLoggedInMessage =
             'You are already logged in. To switch accounts, run `link-cli auth logout` first.';
           const alreadyLoggedIn = sanitizeDeep({
@@ -358,7 +357,7 @@ export function createAuthCli(
       let previousRefreshToken: string | undefined;
       let warning: string | undefined;
 
-      const existingAuth = storage.getAuth();
+      const existingAuth = storage.getTokens();
       if (existingAuth?.refresh_token) {
         try {
           const refreshed = await authResource.refreshToken(
@@ -366,7 +365,7 @@ export function createAuthCli(
           );
           // Persist the rotated tokens so the session stays valid throughout
           // the pending approval (and if initiateDeviceAuth below fails).
-          storage.setAuth(refreshed);
+          storage.setTokens(refreshed);
           previousRefreshToken = refreshed.refresh_token;
           const merged = computeMergedAccess({
             requestedScope,
@@ -382,7 +381,7 @@ export function createAuthCli(
           // Existing token is no longer valid — warn and continue with only the
           // requested access (per spec, upgrade never hard-fails on this).
           // Clear the dead session so the poll isn't short-circuited by it.
-          storage.clearAuth();
+          storage.clearTokens();
           storage.clearPendingDeviceAuth();
           warning =
             'could not refresh the existing session; continuing with only the requested access.';

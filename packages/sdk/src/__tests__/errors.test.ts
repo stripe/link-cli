@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   LinkApiError,
-  LinkAuthenticationError,
   LinkConfigurationError,
   LinkSdkError,
   LinkTransportError,
@@ -16,11 +15,6 @@ describe('SDK error codes', () => {
   it('LinkConfigurationError has code configuration_error', () => {
     const err = new LinkConfigurationError('bad config');
     expect(err.code).toBe('configuration_error');
-  });
-
-  it('LinkAuthenticationError has code not_authenticated', () => {
-    const err = new LinkAuthenticationError('not logged in');
-    expect(err.code).toBe('not_authenticated');
   });
 
   it('LinkTransportError has code transport_error', () => {
@@ -43,7 +37,6 @@ describe('SDK error codes', () => {
 
   it('all errors are instances of LinkSdkError', () => {
     expect(new LinkConfigurationError('x')).toBeInstanceOf(LinkSdkError);
-    expect(new LinkAuthenticationError('x')).toBeInstanceOf(LinkSdkError);
     expect(new LinkTransportError('x')).toBeInstanceOf(LinkSdkError);
     expect(new LinkApiError('x', { status: 500 })).toBeInstanceOf(LinkSdkError);
   });

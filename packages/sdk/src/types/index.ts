@@ -4,28 +4,6 @@ export type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue };
 
-export interface DeviceAuthRequest {
-  device_code: string;
-  user_code: string;
-  verification_url: string;
-  verification_url_complete: string;
-  expires_in: number;
-  interval: number;
-}
-
-export interface AuthTokens {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  token_type: string;
-  /** Absolute epoch-ms when the access token expires (computed on store). */
-  expires_at?: number;
-  /** Space-separated scopes granted for this session (echoed by the token endpoint). */
-  scope?: string;
-  /** Authorization details granted for this session (echoed by the token endpoint). */
-  authorization_details?: JsonValue[];
-}
-
 export interface LineItem {
   name: string;
   url?: string;
@@ -65,6 +43,7 @@ export interface Card {
   valid_until?: string;
 }
 
+/** Known statuses, while remaining forward-compatible with new API values. */
 export type SpendRequestStatus =
   | 'created'
   | 'pending_approval'
@@ -74,7 +53,8 @@ export type SpendRequestStatus =
   | 'succeeded'
   | 'failed'
   | 'canceled'
-  | 'requires_action';
+  | 'requires_action'
+  | (string & Record<never, never>);
 
 export type NextActionType =
   | 'ssn_verification'
@@ -156,10 +136,10 @@ export interface SpendRequest {
   context?: string;
   amount?: number;
   currency?: string;
-  line_items: LineItem[];
-  totals: Total[];
+  line_items?: LineItem[];
+  totals?: Total[];
   payment_method?: string;
-  payment_details: string;
+  payment_details?: string;
   credential_type?: CredentialType;
   network_id?: string;
   card_brand?: string;
@@ -167,7 +147,7 @@ export interface SpendRequest {
   status: SpendRequestStatus;
   approval_url?: string;
   card?: Card;
-  shared_payment_token?: SharedPaymentToken;
+  shared_payment_token?: SharedPaymentToken | null;
   link_pay_token?: string;
   payment_status_details?: PaymentStatusDetails | null;
   status_details?: SpendRequestStatusDetails | null;
@@ -181,7 +161,7 @@ export interface SpendRequest {
 
 export interface RequestApprovalResponse {
   id: string;
-  approval_link: string;
+  approval_url: string;
 }
 
 export interface CardDetails {

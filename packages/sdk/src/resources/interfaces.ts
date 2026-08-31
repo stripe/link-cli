@@ -1,10 +1,7 @@
 import type {
   ApprovalDetail,
-  AuthTokens,
   BalancesPage,
   CredentialType,
-  DeviceAuthRequest,
-  JsonValue,
   LineItem,
   PaymentMethod,
   RequestApprovalResponse,
@@ -17,31 +14,6 @@ import type {
   UserInfo,
   WebBotAuthBlock,
 } from '@/types/index';
-
-export const SOURCE_ACTIONS = [
-  'read_balances',
-  'read_external_transactions',
-  'read_link_transactions',
-  'read_source_details',
-] as const;
-
-export type SourceAction = (typeof SOURCE_ACTIONS)[number];
-
-export interface InitiateDeviceAuthOptions {
-  clientName?: string;
-  scope?: string;
-  sourceActions?: SourceAction[];
-  authorizationDetails?: JsonValue[];
-}
-
-export interface IAuthResource {
-  initiateDeviceAuth(
-    options?: InitiateDeviceAuthOptions,
-  ): Promise<DeviceAuthRequest>;
-  pollDeviceAuth(deviceCode: string): Promise<AuthTokens | null>;
-  refreshToken(refreshToken: string): Promise<AuthTokens>;
-  revokeToken(token: string): Promise<void>;
-}
 
 export interface GetAccessTokenOptions {
   forceRefresh?: boolean;
@@ -66,10 +38,8 @@ export interface CreateSpendRequestParams {
   totals?: Total[];
   request_approval?: boolean;
   test?: boolean;
-  approve?: boolean;
   approval_details?: ApprovalDetail;
   metadata?: Record<string, string>;
-  expires_at?: number;
 }
 
 export interface UpdateSpendRequestParams {
@@ -85,24 +55,11 @@ export interface UpdateSpendRequestParams {
 
 export interface ISpendRequestResource {
   list(opts?: { includeHistory?: boolean }): Promise<SpendRequest[]>;
-  listSpendRequests(opts?: { includeHistory?: boolean }): Promise<
-    SpendRequest[]
-  >;
   create(params: CreateSpendRequestParams): Promise<SpendRequest>;
-  createSpendRequest(params: CreateSpendRequestParams): Promise<SpendRequest>;
   update(id: string, params: UpdateSpendRequestParams): Promise<SpendRequest>;
-  updateSpendRequest(
-    id: string,
-    params: UpdateSpendRequestParams,
-  ): Promise<SpendRequest>;
   requestApproval(id: string): Promise<RequestApprovalResponse>;
   cancel(id: string): Promise<SpendRequest>;
-  cancelSpendRequest(id: string): Promise<SpendRequest>;
   retrieve(
-    id: string,
-    opts?: { include?: string[] },
-  ): Promise<SpendRequest | null>;
-  getSpendRequest(
     id: string,
     opts?: { include?: string[] },
   ): Promise<SpendRequest | null>;
@@ -110,12 +67,10 @@ export interface ISpendRequestResource {
 
 export interface IPaymentMethodsResource {
   list(): Promise<PaymentMethod[]>;
-  listPaymentMethods(): Promise<PaymentMethod[]>;
 }
 
 export interface IShippingAddressResource {
   list(): Promise<ShippingAddressRecord[]>;
-  listShippingAddresses(): Promise<ShippingAddressRecord[]>;
 }
 
 export interface IUserInfoResource {
@@ -139,7 +94,6 @@ export interface ListTransactionsParams {
 
 export interface ITransactionsResource {
   list(params?: ListTransactionsParams): Promise<TransactionsPage>;
-  listTransactions(params?: ListTransactionsParams): Promise<TransactionsPage>;
 }
 
 export interface ListSourcesParams {
@@ -150,7 +104,6 @@ export interface ListSourcesParams {
 
 export interface ISourcesResource {
   list(params?: ListSourcesParams): Promise<SourcesPage>;
-  listSources(params?: ListSourcesParams): Promise<SourcesPage>;
 }
 
 export interface ListBalancesParams {
@@ -162,7 +115,6 @@ export interface ListBalancesParams {
 
 export interface IBalancesResource {
   list(params?: ListBalancesParams): Promise<BalancesPage>;
-  listBalances(params?: ListBalancesParams): Promise<BalancesPage>;
 }
 
 export const REPORT_OUTCOMES = ['success', 'blocked', 'abandoned'] as const;

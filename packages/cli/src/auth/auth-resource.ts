@@ -1,10 +1,5 @@
 import { hostname } from 'node:os';
-import {
-  LinkApiError,
-  LinkAuthorizationDeclinedError,
-  LinkTransportError,
-  type ScopeEligibility,
-} from '@stripe/link-sdk';
+import { LinkApiError, LinkTransportError } from '@stripe/link-sdk';
 import { buildAuthorizationDetails } from './authorization-details';
 import {
   type AuthResourceOptions,
@@ -12,6 +7,10 @@ import {
   requireFetchImplementation,
   resolveAuthResourceConfig,
 } from './config';
+import {
+  LinkAuthorizationDeclinedError,
+  type ScopeEligibility,
+} from './errors';
 import { DEFAULT_SCOPE } from './scopes';
 import type {
   DeviceAuthRequest,

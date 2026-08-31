@@ -35,7 +35,7 @@ describe('UserInfoResource', () => {
     const result = await resource.retrieve();
 
     expect(mockFetch).toHaveBeenCalledOnce();
-    const [url, opts] = mockFetch.mock.calls[0];
+    const [url, opts] = mockFetch.mock.calls[0]!;
     expect(url).toBe('https://api.link.com/userinfo');
     expect(opts.method).toBe('GET');
     expect(opts.headers.Authorization).toBe('Bearer test_token');
@@ -133,7 +133,7 @@ describe('UserInfoResource', () => {
     expect(getAccessToken).toHaveBeenNthCalledWith(1);
     expect(getAccessToken).toHaveBeenNthCalledWith(2, { forceRefresh: true });
     expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect(mockFetch.mock.calls[1][1].headers.Authorization).toBe(
+    expect(mockFetch.mock.calls[1]![1].headers.Authorization).toBe(
       'Bearer fresh_token',
     );
   });

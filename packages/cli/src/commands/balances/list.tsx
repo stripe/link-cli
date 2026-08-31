@@ -69,10 +69,7 @@ export const BalancesList: React.FC<BalancesListProps> = ({
   params,
   onComplete,
 }) => {
-  const action = useCallback(
-    () => resource.listBalances(params),
-    [resource, params],
-  );
+  const action = useCallback(() => resource.list(params), [resource, params]);
   const { status, data: page, error } = useAsyncAction(action, onComplete);
   const balances = page?.data ?? [];
   const nextCursor =

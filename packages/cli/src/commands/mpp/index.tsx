@@ -1,10 +1,10 @@
 import type {
-  AuthStorage,
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import React from 'react';
+import type { CliAuthStorage } from '../../auth/storage';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
 import { shellCommand, shellQuote } from '../../utils/shell-quote';
@@ -23,7 +23,7 @@ import { decodeOptions, payOptions } from './schema';
 export function createMppCli(
   repository: ISpendRequestResource,
   paymentMethodsFactory: () => IPaymentMethodsResource,
-  authStorage?: AuthStorage,
+  authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ) {
   const cli = Cli.create('mpp', {
@@ -149,7 +149,7 @@ export function createMppCli(
         pmId = methods[0].id;
       }
 
-      const spendRequest = await repository.createSpendRequest({
+      const spendRequest = await repository.create({
         payment_details: pmId,
         credential_type: 'shared_payment_token',
         network_id: networkId,

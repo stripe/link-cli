@@ -3,8 +3,8 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import { promisify } from 'node:util';
-import { storage } from '@stripe/link-sdk';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { storage } from '../auth/storage';
 
 const execFileAsync = promisify(execFile);
 
@@ -29,7 +29,7 @@ function parseJson(raw: string): unknown {
 
 beforeEach(() => {
   storage.clearAll();
-  storage.setAuth(AUTH_TOKENS);
+  storage.setTokens(AUTH_TOKENS);
 });
 
 afterAll(() => {
@@ -230,7 +230,7 @@ describe('production mode', () => {
     responsesByUrl = {};
     merchantRequests = [];
     merchantResponses = [];
-    storage.setAuth(PROD_AUTH_TOKENS);
+    storage.setTokens(PROD_AUTH_TOKENS);
     setNextResponse(200, BASE_REQUEST);
   });
 
@@ -377,6 +377,82 @@ describe('production mode', () => {
       expect(sentBody.merchant_url).toBeUndefined();
     });
 
+    it('creates a delegated Link Pay Token spend request via create_delegated', async () => {
+      setNextResponse(200, {
+        ...BASE_REQUEST,
+        status: 'approved',
+        merchant_name: 'Canonical Merchant',
+        merchant_url: 'https://canonical.example',
+        execution_method: 'link_pay_token',
+        merchant_account_id: 'acct_lpt_target',
+      });
+
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '--execution-method',
+        'link_pay_token',
+        '--merchant-account-id',
+        'acct_lpt_target',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '3500',
+        '--approve',
+        '--no-request-approval',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(requests).toHaveLength(1);
+      expect(lastRequest.url).toBe('/spend_requests/create_delegated');
+
+      const sentBody = JSON.parse(lastRequest.body);
+      expect(sentBody).toMatchObject({
+        payment_details: 'pd_prod_test',
+        credential_type: 'card',
+        execution_method: 'link_pay_token',
+        merchant_account_id: 'acct_lpt_target',
+      });
+      expect(sentBody.approve).toBeUndefined();
+      expect(sentBody.request_approval).toBeUndefined();
+      expect(sentBody.merchant_name).toBeUndefined();
+      expect(sentBody.merchant_url).toBeUndefined();
+
+      const output = parseJson(result.stdout) as Record<string, unknown>[];
+      const request = output[0];
+      expect(request.status).toBe('approved');
+      expect(request._next).toBeUndefined();
+      expect(request.instruction).toBeUndefined();
+    });
+
+    it('rejects delegated Link Pay Token approval without --no-request-approval', async () => {
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '--execution-method',
+        'link_pay_token',
+        '--merchant-account-id',
+        'acct_lpt_target',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '3500',
+        '--approve',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout + result.stderr).toContain(
+        '--approve with --execution-method link_pay_token requires --no-request-approval',
+      );
+      expect(requests).toHaveLength(0);
+    });
+
     const invalidLptCreateCases = [
       {
         name: 'merchant-account-id without execution-method',
@@ -437,18 +513,6 @@ describe('production mode', () => {
           '--test',
         ],
         message: 'test cannot be used when execution-method is link_pay_token',
-      },
-      {
-        name: 'delegated approval',
-        args: [
-          '--execution-method',
-          'link_pay_token',
-          '--merchant-account-id',
-          'acct_lpt_target',
-          '--approve',
-        ],
-        message:
-          'approve cannot be used when execution-method is link_pay_token; use request-approval instead',
       },
       {
         name: 'agent-provided merchant identity',
@@ -869,11 +933,10 @@ describe('production mode', () => {
   });
 
   describe('spend-request request-approval', () => {
-    it('sends POST to /spend-requests/:id/request_approval, outputs approval_link immediately then polls', async () => {
+    it('sends POST to /spend-requests/:id/request_approval, outputs approval_url immediately then polls', async () => {
       setNextResponse(200, {
-        ...BASE_REQUEST,
-        status: 'approved',
-        approval_url: 'https://app.link.com/approve/lsrq_prod_001',
+        id: BASE_REQUEST.id,
+        approval_link: 'https://app.link.com/approve/lsrq_prod_001',
       });
 
       const result = await runProdCli(
@@ -1321,7 +1384,7 @@ describe('production mode', () => {
     });
 
     it('rejects unauthenticated requests before hitting the API', async () => {
-      storage.clearAuth();
+      storage.clearTokens();
 
       const result = await runProdCli('shipping-address', 'list', '--json');
 
@@ -1432,7 +1495,7 @@ describe('production mode', () => {
     });
 
     it('rejects unauthenticated requests before hitting the API', async () => {
-      storage.clearAuth();
+      storage.clearTokens();
 
       const result = await runProdCli('transactions', 'list', '--json');
 
@@ -1513,7 +1576,7 @@ describe('production mode', () => {
     });
 
     it('rejects unauthenticated requests before hitting the API', async () => {
-      storage.clearAuth();
+      storage.clearTokens();
 
       const result = await runProdCli('sources', 'list', '--json');
 
@@ -1593,7 +1656,7 @@ describe('production mode', () => {
     });
 
     it('rejects unauthenticated requests before hitting the API', async () => {
-      storage.clearAuth();
+      storage.clearTokens();
 
       const result = await runProdCli('balances', 'list', '--json');
 
@@ -1689,7 +1752,7 @@ describe('production mode', () => {
     });
 
     it('passes a normalized custom --scope to /device/code', async () => {
-      storage.clearAuth();
+      storage.clearTokens();
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
 
       const result = await runProdCli(
@@ -1713,7 +1776,7 @@ describe('production mode', () => {
     });
 
     it('does not translate source-related --scope values into authorization_details', async () => {
-      storage.clearAuth();
+      storage.clearTokens();
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
 
       const result = await runProdCli(
@@ -1740,7 +1803,7 @@ describe('production mode', () => {
     });
 
     it('passes source actions via authorization_details', async () => {
-      storage.clearAuth();
+      storage.clearTokens();
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
 
       const result = await runProdCli(
@@ -1773,7 +1836,7 @@ describe('production mode', () => {
     });
 
     it('passes freeform authorization_details entries after source actions', async () => {
-      storage.clearAuth();
+      storage.clearTokens();
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
 
       const result = await runProdCli(
@@ -1905,7 +1968,7 @@ describe('production mode', () => {
     });
 
     it('skips revoke when not previously authenticated', async () => {
-      storage.clearAuth();
+      storage.clearTokens();
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
 
       const result = await runProdCli(
@@ -1924,7 +1987,7 @@ describe('production mode', () => {
     });
 
     it('with --interval, yields code first then polls until authenticated', async () => {
-      storage.clearAuth();
+      storage.clearTokens();
       setResponseForUrl('/device/revoke', 200, 'ok');
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
       setResponseForUrl('/device/token', 200, TOKEN_RESPONSE);
@@ -1954,7 +2017,7 @@ describe('production mode', () => {
     });
 
     it('with --interval, yields unauthenticated status on timeout (exit 0)', async () => {
-      storage.clearAuth();
+      storage.clearTokens();
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
       setResponseForUrl('/device/token', 400, {
         error: 'authorization_pending',
@@ -1979,7 +2042,7 @@ describe('production mode', () => {
     });
 
     it('with --interval, exits with error on access_denied', async () => {
-      storage.clearAuth();
+      storage.clearTokens();
       setResponseForUrl('/device/revoke', 200, 'ok');
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
       setResponseForUrl('/device/token', 400, { error: 'access_denied' });
@@ -2044,7 +2107,7 @@ describe('production mode', () => {
       // Deferred lifecycle: the existing session is preserved (NOT cleared) and
       // the pending is flagged so the poll completes the new approval and
       // revokes the old grant only once the widened tokens land.
-      expect(storage.getAuth()).not.toBeNull();
+      expect(storage.getTokens()).not.toBeNull();
       expect(storage.getPendingDeviceAuth()?.replaces_existing_session).toBe(
         true,
       );
@@ -2158,7 +2221,7 @@ describe('production mode', () => {
     });
 
     it('warns and continues when there is no active session', async () => {
-      storage.clearAuth();
+      storage.clearTokens();
       setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
 
       const result = await runProdCli(
@@ -2274,7 +2337,7 @@ describe('production mode', () => {
     });
 
     it('succeeds when no auth tokens are stored', async () => {
-      storage.clearAuth();
+      storage.clearTokens();
 
       const result = await runProdCli('auth', 'logout', '--format', 'json');
 
@@ -2290,7 +2353,7 @@ describe('production mode', () => {
 
   describe('auth guard', () => {
     it('rejects unauthenticated requests before hitting the API', async () => {
-      storage.clearAuth();
+      storage.clearTokens();
 
       const result = await runProdCli(
         'spend-request',
@@ -2319,7 +2382,7 @@ describe('production mode', () => {
     const ENV_TOKEN = 'env_access_token_abc123';
 
     beforeEach(() => {
-      storage.clearAuth();
+      storage.clearTokens();
     });
 
     it('allows user-info retrieve with no stored auth', async () => {
@@ -2499,6 +2562,8 @@ describe('production mode', () => {
       expect(parsed.status).toBe(200);
       expect(parsed.body).toContain('success');
       expect(merchantRequests).toHaveLength(2);
+      expect(merchantRequests[0].headers['user-agent']).toMatch(/^link-cli\//);
+      expect(merchantRequests[1].headers['user-agent']).toMatch(/^link-cli\//);
       expect(merchantRequests[1].headers.authorization).toMatch(/^Payment /);
     });
 
@@ -2681,6 +2746,25 @@ describe('production mode', () => {
 
       expect(merchantRequests[0].headers['x-custom-header']).toBe('hello');
       expect(merchantRequests[0].headers['x-another']).toBe('world');
+      expect(merchantRequests[0].headers['user-agent']).toMatch(/^link-cli\//);
+    });
+
+    it('lets --header override the default User-Agent', async () => {
+      setNextResponse(200, APPROVED_SPT_REQUEST);
+      setMerchantResponse(200, '{"ok":true}');
+
+      await runProdCli(
+        'mpp',
+        'pay',
+        `http://127.0.0.1:${merchantPort}/api/endpoint`,
+        '--spend-request-id',
+        'lsrq_spt_001',
+        '--header',
+        'User-Agent: CustomBot/1.0',
+        '--json',
+      );
+
+      expect(merchantRequests[0].headers['user-agent']).toBe('CustomBot/1.0');
     });
 
     it('auto-applies Content-Type application/json when --data is provided', async () => {

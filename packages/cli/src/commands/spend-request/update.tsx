@@ -23,7 +23,7 @@ export const UpdateSpendRequest: React.FC<UpdateSpendRequestProps> = ({
   onComplete,
 }) => {
   const action = useCallback(
-    () => repository.updateSpendRequest(id, params),
+    () => repository.update(id, params),
     [repository, id, params],
   );
   const { status, data: request, error } = useAsyncAction(action, onComplete);
@@ -61,7 +61,7 @@ export const UpdateSpendRequest: React.FC<UpdateSpendRequestProps> = ({
           Amount:{' '}
           <Text bold>
             {(() => {
-              const t = request?.totals.find((t) => t.type === 'total');
+              const t = request?.totals?.find((t) => t.type === 'total');
               return t ? String(t.amount) : 'N/A';
             })()}
           </Text>
@@ -72,7 +72,7 @@ export const UpdateSpendRequest: React.FC<UpdateSpendRequestProps> = ({
         <Text>
           Line Items:{' '}
           <Text bold>
-            {request?.line_items.map((li) => li.name).join(', ')}
+            {request?.line_items?.map((li) => li.name).join(', ') || 'N/A'}
           </Text>
         </Text>
       </Box>

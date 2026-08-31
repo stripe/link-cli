@@ -3,13 +3,15 @@ import {
   requireFetchImplementation,
   resolveLinkSdkConfig,
 } from '@/config';
-import { LinkApiError, LinkTransportError } from '@/errors';
+import { LinkApiError, LinkResponseError, LinkTransportError } from '@/errors';
 import type { AccessTokenProvider } from '@/resources/interfaces';
 
 export interface ApiFetchOptions {
   method: string;
   url: string;
   headers?: Record<string, string>;
+  body?: string;
+  signal?: AbortSignal;
 }
 
 export interface ApiFetchResult {
@@ -18,15 +20,8 @@ export interface ApiFetchResult {
   rawBody: string;
 }
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-export function requireBoolean(value: unknown, field: string): boolean {
-  if (typeof value !== 'boolean') {
-    throw new TypeError(`Expected ${field} to be a boolean`);
-  }
-  return value;
 }
 
 export function extractErrorMessage(data: unknown, rawBody: string): string {
@@ -54,34 +49,41 @@ export function extractErrorMessage(data: unknown, rawBody: string): string {
 export abstract class BaseResource {
   protected readonly verbose: boolean;
   protected readonly getAccessToken: AccessTokenProvider;
+  protected readonly canRefreshAccessToken: boolean;
   protected readonly fetchImpl: typeof globalThis.fetch;
   protected readonly endpoint: string;
   protected readonly logger: { debug(message: string): void };
 
-  constructor(options: LinkOptions, endpointPath: string) {
+  constructor(
+    options: LinkOptions,
+    endpointPath: string,
+    base: 'api' | 'spend' = 'api',
+  ) {
     const config = resolveLinkSdkConfig(options);
     this.verbose = config.verbose;
     this.getAccessToken = config.getAccessToken;
+    this.canRefreshAccessToken = config.canRefreshAccessToken;
     this.fetchImpl = requireFetchImplementation(config);
-    this.endpoint = `${config.apiBaseUrl}${endpointPath}`;
+    const baseUrl =
+      base === 'spend' ? config.spendRequestBaseUrl : config.apiBaseUrl;
+    this.endpoint = `${baseUrl}${endpointPath}`;
     this.logger = config.logger;
   }
 
   protected async rawFetch(opts: ApiFetchOptions): Promise<ApiFetchResult> {
     if (this.verbose) {
-      const redactedHeaders = { ...opts.headers };
-      if (redactedHeaders.Authorization)
-        redactedHeaders.Authorization = 'Bearer <redacted>';
       this.logger.debug(`> ${opts.method} ${opts.url}`);
-      this.logger.debug(`  Headers: ${JSON.stringify(redactedHeaders)}`);
     }
 
     let response: Response;
     try {
-      response = await this.fetchImpl(opts.url, {
+      const init: RequestInit = {
         method: opts.method,
-        headers: opts.headers,
-      });
+        ...(opts.headers !== undefined && { headers: opts.headers }),
+        ...(opts.body !== undefined && { body: opts.body }),
+        ...(opts.signal !== undefined && { signal: opts.signal }),
+      };
+      response = await this.fetchImpl(opts.url, init);
     } catch (error) {
       throw new LinkTransportError(
         `Request failed: ${opts.method} ${opts.url}`,
@@ -99,10 +101,6 @@ export abstract class BaseResource {
 
     if (this.verbose) {
       this.logger.debug(`< ${response.status} ${response.statusText}`);
-      response.headers.forEach((value, key) => {
-        this.logger.debug(`  ${key}: ${value}`);
-      });
-      this.logger.debug(rawBody);
     }
 
     return { status: response.status, data, rawBody };
@@ -120,7 +118,7 @@ export abstract class BaseResource {
 
     const res = await this.rawFetch(authedOpts);
 
-    if (res.status === 401) {
+    if (res.status === 401 && this.canRefreshAccessToken) {
       const refreshedToken = await this.getAccessToken({ forceRefresh: true });
       authedOpts.headers.Authorization = `Bearer ${refreshedToken}`;
       return this.rawFetch(authedOpts);
@@ -143,5 +141,17 @@ export abstract class BaseResource {
       details: data,
       cause,
     });
+  }
+
+  protected parseResponse<T>(
+    operation: string,
+    status: number,
+    parser: () => T,
+  ): T {
+    try {
+      return parser();
+    } catch (error) {
+      throw new LinkResponseError(operation, status, { cause: error });
+    }
   }
 }

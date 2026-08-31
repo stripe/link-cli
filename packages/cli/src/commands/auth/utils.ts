@@ -1,4 +1,5 @@
-import type { AuthStorage, JsonValue } from '@stripe/link-sdk';
+import type { JsonValue } from '@stripe/link-sdk';
+import type { CliAuthStorage } from '../../auth/storage';
 
 export type AuthInfo =
   | {
@@ -20,7 +21,7 @@ export type AuthInfo =
 
 export function resolveAuthInfo(
   envAccessToken: string | undefined,
-  authStorage: AuthStorage,
+  authStorage: CliAuthStorage,
 ): AuthInfo {
   if (envAccessToken) {
     return {
@@ -30,7 +31,7 @@ export function resolveAuthInfo(
       tokenType: 'Bearer',
     };
   }
-  const auth = authStorage.getAuth();
+  const auth = authStorage.getTokens();
   const credentialsPath = authStorage.getPath();
   if (auth) {
     return {

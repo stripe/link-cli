@@ -1,5 +1,42 @@
 # @stripe/link-cli
 
+## 0.15.1
+
+### Patch Changes
+
+- a1c6872: Fix: allow nickname to be undefined in shipping address resource
+
+## 0.15.0
+
+### Minor Changes
+
+- 91f5e8e: Support delegated approval for merchant-bound Link Pay Token spend requests
+
+## 0.14.2
+
+### Patch Changes
+
+- f77d745: Move the Cursor plugin into its own `plugins/cursor-link` directory with MCP-first skills
+
+## 0.14.1
+
+### Patch Changes
+
+- 7e18e3c: cursor plugin upgrade
+
+## 0.14.0
+
+### Minor Changes
+
+- e3b991f: Add an undocumented `--expires-at` option to `spend-request create` for allow-listed OAuth clients, allowing spend request expiration to be extended up to 7 days out instead of the default 12 hours.
+
+### Patch Changes
+
+- e3b991f: Move OAuth device-authorization, refresh-token persistence, and login state ownership from the SDK into the CLI; the SDK now only accepts credentials. No change to CLI commands or output.
+- e3b991f: Internal refactor: CLI commands now call canonical SDK resource methods instead of ad-hoc wrappers. No user-facing behavior change.
+- e3b991f: Harden SDK error handling: malformed or unexpected API responses now surface a clearer `invalid_response` error instead of an opaque parse failure.
+- e3b991f: Validate SDK resource API responses with Zod. Malformed responses from the server now fail with a descriptive error instead of surfacing incorrect data.
+
 ## 0.13.1
 
 ### Patch Changes

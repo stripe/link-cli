@@ -1,6 +1,5 @@
 import {
-  type AuthStorage,
-  BalancesResource,
+  type AccessTokenProvider,
   type IBalancesResource,
   type IPaymentMethodsResource,
   type IReportResource,
@@ -10,18 +9,14 @@ import {
   type ITransactionsResource,
   type IUserInfoResource,
   type IWebBotAuthResource,
-  LinkAuthenticationError,
-  PaymentMethodsResource,
-  ReportResource,
-  ShippingAddressResource,
-  SourcesResource,
-  SpendRequestResource,
-  TransactionsResource,
-  UserInfoResource,
-  WebBotAuthResource,
+  default as Link,
+  LinkConfigurationError,
+  type LinkOptions,
 } from '@stripe/link-sdk';
 import { LinkAuthResource } from '../auth/auth-resource';
+import { LinkAuthenticationError } from '../auth/errors';
 import { createAccessTokenProvider } from '../auth/session';
+import type { CliAuthStorage } from '../auth/storage';
 import type { IAuthResource } from '../auth/types';
 import { sanitizeDeep } from './sanitize-text';
 
@@ -65,22 +60,54 @@ export function sanitizeResource<T extends object>(resource: T): T {
 interface ResourceFactoryOptions {
   verbose?: boolean;
   defaultHeaders?: Record<string, string>;
-  authStorage?: AuthStorage;
+  authStorage?: CliAuthStorage;
   envAccessToken?: string;
   envRefreshToken?: string;
   noRefresh?: boolean;
   authResource?: IAuthResource;
+  apiBaseUrl?: string;
+  spendRequestBaseUrl?: string;
+  fetch?: typeof globalThis.fetch;
+}
+
+function createProxyFetch(
+  baseFetch: typeof globalThis.fetch,
+  proxyUrl: string,
+): typeof globalThis.fetch {
+  let dispatcherPromise: Promise<unknown> | null = null;
+  return ((input: RequestInfo | URL, init?: RequestInit) => {
+    const moduleName = 'undici';
+    dispatcherPromise ??= (
+      import(moduleName) as Promise<{
+        ProxyAgent: new (url: string) => unknown;
+      }>
+    )
+      .then(({ ProxyAgent }) => new ProxyAgent(proxyUrl))
+      .catch((error) => {
+        throw new LinkConfigurationError(
+          'LINK_HTTP_PROXY requires the "undici" package. Install it with: npm install undici',
+          { cause: error },
+        );
+      });
+    return dispatcherPromise.then((dispatcher) =>
+      baseFetch(input, { ...init, dispatcher } as RequestInit),
+    );
+  }) as typeof globalThis.fetch;
 }
 
 export class ResourceFactory {
   private readonly verbose: boolean;
   private readonly defaultHeaders?: Record<string, string>;
-  private readonly authStorage?: AuthStorage;
+  private readonly authStorage?: CliAuthStorage;
   private readonly envAccessToken?: string;
   private readonly envRefreshToken?: string;
   private readonly noRefresh: boolean;
+  private readonly apiBaseUrl?: string;
+  private readonly spendRequestBaseUrl?: string;
+  private readonly fetch?: typeof globalThis.fetch;
   private _authResource?: IAuthResource;
   private accessTokenProvider?: ReturnType<typeof createAccessTokenProvider>;
+  private sdkClient?: Link;
   private spendRequestResource?: ISpendRequestResource;
   private paymentMethodsResource?: IPaymentMethodsResource;
   private shippingAddressResource?: IShippingAddressResource;
@@ -98,7 +125,33 @@ export class ResourceFactory {
     this.envAccessToken = options.envAccessToken;
     this.envRefreshToken = options.envRefreshToken;
     this.noRefresh = options.noRefresh ?? false;
+    this.apiBaseUrl = options.apiBaseUrl ?? process.env.LINK_API_BASE_URL;
+    this.spendRequestBaseUrl = options.spendRequestBaseUrl ?? this.apiBaseUrl;
+    const proxyUrl = process.env.LINK_HTTP_PROXY;
+    this.fetch =
+      options.fetch ??
+      (proxyUrl ? createProxyFetch(globalThis.fetch, proxyUrl) : undefined);
     this._authResource = options.authResource;
+  }
+
+  private createSdkOptions(getAccessToken: AccessTokenProvider): LinkOptions {
+    return {
+      verbose: this.verbose,
+      defaultHeaders: this.defaultHeaders,
+      getAccessToken,
+      apiBaseUrl: this.apiBaseUrl,
+      spendRequestBaseUrl: this.spendRequestBaseUrl,
+      fetch: this.fetch,
+      logger: this.verbose
+        ? {
+            debug(message: string) {
+              process.stderr.write(
+                message.endsWith('\n') ? message : `${message}\n`,
+              );
+            },
+          }
+        : undefined,
+    };
   }
 
   createAuthResource(): IAuthResource {
@@ -116,7 +169,7 @@ export class ResourceFactory {
     return this._authResource;
   }
 
-  getAuthStorage(): AuthStorage | undefined {
+  getAuthStorage(): CliAuthStorage | undefined {
     return this.authStorage;
   }
 
@@ -158,18 +211,22 @@ export class ResourceFactory {
     return this.accessTokenProvider;
   }
 
+  private createSdkClient(): Link {
+    if (!this.sdkClient) {
+      this.sdkClient = new Link(
+        this.createSdkOptions(this.createSdkAccessTokenProvider()),
+      );
+    }
+    return this.sdkClient;
+  }
+
   createSpendRequestResource(): ISpendRequestResource {
     if (this.spendRequestResource) {
       return this.spendRequestResource;
     }
 
-    const getAccessToken = this.createSdkAccessTokenProvider();
     this.spendRequestResource = sanitizeResource(
-      new SpendRequestResource({
-        verbose: this.verbose,
-        defaultHeaders: this.defaultHeaders,
-        getAccessToken,
-      }),
+      this.createSdkClient().spendRequests,
     );
 
     return this.spendRequestResource;
@@ -180,13 +237,8 @@ export class ResourceFactory {
       return this.paymentMethodsResource;
     }
 
-    const getAccessToken = this.createSdkAccessTokenProvider();
     this.paymentMethodsResource = sanitizeResource(
-      new PaymentMethodsResource({
-        verbose: this.verbose,
-        defaultHeaders: this.defaultHeaders,
-        getAccessToken,
-      }),
+      this.createSdkClient().paymentMethods,
     );
 
     return this.paymentMethodsResource;
@@ -197,13 +249,8 @@ export class ResourceFactory {
       return this.shippingAddressResource;
     }
 
-    const getAccessToken = this.createSdkAccessTokenProvider();
     this.shippingAddressResource = sanitizeResource(
-      new ShippingAddressResource({
-        verbose: this.verbose,
-        defaultHeaders: this.defaultHeaders,
-        getAccessToken,
-      }),
+      this.createSdkClient().shippingAddresses,
     );
 
     return this.shippingAddressResource;
@@ -214,14 +261,7 @@ export class ResourceFactory {
       return this.userInfoResource;
     }
 
-    const getAccessToken = this.createSdkAccessTokenProvider();
-    this.userInfoResource = sanitizeResource(
-      new UserInfoResource({
-        verbose: this.verbose,
-        defaultHeaders: this.defaultHeaders,
-        getAccessToken,
-      }),
-    );
+    this.userInfoResource = sanitizeResource(this.createSdkClient().userInfo);
 
     return this.userInfoResource;
   }
@@ -231,13 +271,8 @@ export class ResourceFactory {
       return this.transactionsResource;
     }
 
-    const getAccessToken = this.createSdkAccessTokenProvider();
     this.transactionsResource = sanitizeResource(
-      new TransactionsResource({
-        verbose: this.verbose,
-        defaultHeaders: this.defaultHeaders,
-        getAccessToken,
-      }),
+      this.createSdkClient().transactions,
     );
 
     return this.transactionsResource;
@@ -248,14 +283,7 @@ export class ResourceFactory {
       return this.sourcesResource;
     }
 
-    const getAccessToken = this.createSdkAccessTokenProvider();
-    this.sourcesResource = sanitizeResource(
-      new SourcesResource({
-        verbose: this.verbose,
-        defaultHeaders: this.defaultHeaders,
-        getAccessToken,
-      }),
-    );
+    this.sourcesResource = sanitizeResource(this.createSdkClient().sources);
 
     return this.sourcesResource;
   }
@@ -265,14 +293,7 @@ export class ResourceFactory {
       return this.balancesResource;
     }
 
-    const getAccessToken = this.createSdkAccessTokenProvider();
-    this.balancesResource = sanitizeResource(
-      new BalancesResource({
-        verbose: this.verbose,
-        defaultHeaders: this.defaultHeaders,
-        getAccessToken,
-      }),
-    );
+    this.balancesResource = sanitizeResource(this.createSdkClient().balances);
 
     return this.balancesResource;
   }
@@ -282,13 +303,8 @@ export class ResourceFactory {
       return this.webBotAuthResource;
     }
 
-    const getAccessToken = this.createSdkAccessTokenProvider();
     this.webBotAuthResource = sanitizeResource(
-      new WebBotAuthResource({
-        verbose: this.verbose,
-        defaultHeaders: this.defaultHeaders,
-        getAccessToken,
-      }),
+      this.createSdkClient().webBotAuth,
     );
 
     return this.webBotAuthResource;
@@ -299,14 +315,7 @@ export class ResourceFactory {
       return this.reportResource;
     }
 
-    const getAccessToken = this.createSdkAccessTokenProvider();
-    this.reportResource = sanitizeResource(
-      new ReportResource({
-        verbose: this.verbose,
-        defaultHeaders: this.defaultHeaders,
-        getAccessToken,
-      }),
-    );
+    this.reportResource = sanitizeResource(this.createSdkClient().reports);
 
     return this.reportResource;
   }

@@ -1,5 +1,5 @@
-import { type AuthStorage, Storage, storage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
+import { type CliAuthStorage, Storage, storage } from './auth/storage';
 import { createAuthCli } from './commands/auth';
 import { createBalancesCli } from './commands/balances';
 import { createDemoCli } from './commands/demo';
@@ -44,7 +44,7 @@ const credentialFilePath =
 if (authFileIndex !== -1) {
   process.argv.splice(authFileIndex, 2);
 }
-const authStorage: AuthStorage = credentialFilePath
+const authStorage: CliAuthStorage = credentialFilePath
   ? new Storage({ configPath: credentialFilePath })
   : storage;
 

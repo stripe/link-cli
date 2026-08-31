@@ -58,10 +58,7 @@ export const ShippingAddressList: React.FC<ShippingAddressListProps> = ({
   resource,
   onComplete,
 }) => {
-  const action = useCallback(
-    () => resource.listShippingAddresses(),
-    [resource],
-  );
+  const action = useCallback(() => resource.list(), [resource]);
   const {
     status,
     data: shippingAddresses,

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 Link CLI — lets agents get secure, one-time-use payment credentials from a Link wallet. pnpm + Turborepo monorepo:
 
-- **`@stripe/link-sdk`** (`packages/sdk`): Repository interfaces, API implementations, types, and local storage. Entry: `src/index.ts`.
+- **`@stripe/link-sdk`** (`packages/sdk`): Typed Link API client and resource implementations. It accepts `accessToken` or `getAccessToken`; it does not own OAuth state. Entry: `src/index.ts`.
 - **`@stripe/link-cli`** (`packages/cli`): Commander.js + Ink/React CLI that consumes `@stripe/link-sdk`. Entry: `src/cli.tsx`.
 
 ## Commands
@@ -38,8 +38,11 @@ node packages/cli/dist/cli.js <command>
 ### SDK Resources
 
 Defined in `packages/sdk/src/resources/interfaces.ts`:
-- `IAuthResource` — device auth flow (initiate, poll, refresh)
 - `ISpendRequestResource` — CRUD + request-approval for spend requests
+
+The SDK only accepts credentials. Device authorization, refresh-token
+persistence, login state, and auth-specific errors live under
+`packages/cli/src/auth/`.
 
 ### CLI Command Structure
 
@@ -60,14 +63,14 @@ Input is passed via flags. Define options in the command's zod schema — incur 
 - `auth login --client-name <name>` — optional flag to identify the agent or app; shown in the user's Link app as `<name> on <hostname>`. Defined in `loginOptions` in `packages/cli/src/commands/auth/schema.ts`.
 - `auth login --interval <seconds> [--timeout <seconds>] [--max-attempts <n>]` — when `--interval` is provided, the command yields the verification code immediately then polls inline until authenticated or timed out. Without `--interval`, returns the code with a `_next` hint for separate polling via `auth status`.
 - The token endpoint echoes `scope` and `authorization_details` back with the tokens on login/refresh. These are persisted in the credential file (part of `AuthTokens`) and surfaced on `auth status` in both interactive and JSON modes, only when present.
-- **Gotcha — two parallel `AuthResource` implementations.** `packages/cli/src/auth/auth-resource.ts` duplicates `packages/sdk/src/resources/auth.ts` (device auth flow, token parsing). The CLI uses its *own* via `ResourceFactory.createAuthResource()` (`packages/cli/src/utils/resource-factory.ts`) — the SDK class is not on the CLI's runtime path. Any change to token-response handling (new fields, parsing) must be applied to **both**, or the CLI silently drops it.
+- `packages/cli/src/auth/auth-resource.ts` owns device authorization, token parsing, refresh, and revocation. `ResourceFactory` exposes the resulting access token to SDK resources through `getAccessToken`.
 
 ### auth upgrade
 
 - `auth upgrade` — takes the **same flags** as `auth login` (reuses `loginOptions`; `--client-name`, `--scope`, `--source-actions`, `--authorization-detail`, `--interval`/`--timeout`/`--max-attempts`) and starts a new device-authorization requesting a **superset** of the current access. Implemented alongside `login` in `createAuthCli` (`packages/cli/src/commands/auth/index.tsx`); `auth login` is unchanged. The device-auth tail (initiate → yield code → poll) is shared with `login` via the `startDeviceAuthAndPoll` helper.
 - Where `auth login` bails out with "already logged in" when a valid session exists, `auth upgrade` **never bails**: it refreshes the existing token, merges the requested `scope`/`authorization_details` with the currently granted access via `computeMergedAccess` (`packages/cli/src/auth/merge-access.ts`, returning `mergedScope` + `mergedAuthorizationDetails`), and initiates device auth for the union.
 - If the existing token is invalid or absent, it writes a warning to **stderr** and includes a `warning` field in the JSON yield, then continues with only the requested access (never hard-fails). `--source-actions` are folded into `authorization_details` before merging (via `buildAuthorizationDetails`), so `source` merges by `type` like any other detail.
-- **Deferred session replacement (key invariant).** Upgrade does **not** clear or revoke the current session up front — the existing grant stays valid throughout the pending approval, so a failed `initiateDeviceAuth` or an abandoned approval leaves it usable. The refreshed tokens are persisted; the pending device-auth record is flagged `replaces_existing_session` (field on `PendingDeviceAuth` in the SDK). `pollAuthStatus` completes a flagged pending **even while `isAuthenticated()` is true** (it doesn't report the old session as done), and on success swaps in the new tokens and **revokes the old grant**. The interactive path does the same via the `<Login>` `revokeRefreshTokenOnSuccess` prop. Abandon → the flagged pending expires (auto-cleared by `getPendingDeviceAuth`) and the old session remains.
+- **Deferred session replacement (key invariant).** Upgrade does **not** clear or revoke the current session up front — the existing grant stays valid throughout the pending approval, so a failed `initiateDeviceAuth` or an abandoned approval leaves it usable. The refreshed tokens are persisted; the pending device-auth record is flagged `replaces_existing_session` (field on the CLI-owned `PendingDeviceAuth` in `packages/cli/src/auth/storage.ts`). `pollAuthStatus` completes a flagged pending **even while `isAuthenticated()` is true** (it doesn't report the old session as done), and on success swaps in the new tokens and **revokes the old grant**. The interactive path does the same via the `<Login>` `revokeRefreshTokenOnSuccess` prop. Abandon → the flagged pending expires (auto-cleared by `getPendingDeviceAuth`) and the old session remains.
 - Scope-token comparison for the merge tolerates commas (the token endpoint echoes `scope` back comma-delimited) — but only inside `merge-access.ts`. `auth login`'s `--scope` parsing (`normalizeScopeInput` in `scopes.ts`) remains strictly space-separated, so `login` is genuinely unchanged.
 
 ### spend-request command
@@ -114,7 +117,7 @@ Key input field notes:
 
 - **ESM everywhere** — `"type": "module"` in all package.json files
 - **Biome** — 2-space indent, single quotes, organized imports
-- **tsup** — ESM output, Node 18 target
+- **tsup** — ESM output; Node 20 target for the SDK and Node 18 target for the CLI
 - **Vitest** — test files in `__tests__/` directories adjacent to source
 - **TypeScript strict mode** — `tsconfig.base.json` at root
 - **React 18 + Ink 5** for interactive rendering

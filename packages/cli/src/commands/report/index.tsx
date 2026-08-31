@@ -1,11 +1,12 @@
-import type { AuthStorage, IReportResource } from '@stripe/link-sdk';
+import type { IReportResource } from '@stripe/link-sdk';
 import { Cli } from 'incur';
+import type { CliAuthStorage } from '../../auth/storage';
 import { requireAuthGuard } from '../../utils/require-auth';
 import { reportOptions } from './schema';
 
 export function createReportCli(
   createResource: () => IReportResource,
-  authStorage?: AuthStorage,
+  authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ) {
   const cli = Cli.create('report', {

@@ -1,13 +1,14 @@
-import type { AuthStorage, IUserInfoResource } from '@stripe/link-sdk';
+import type { IUserInfoResource } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import React from 'react';
+import type { CliAuthStorage } from '../../auth/storage';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
 import { UserInfoRetrieve } from './retrieve';
 
 export function createUserInfoCli(
   createResource: () => IUserInfoResource,
-  authStorage?: AuthStorage,
+  authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ) {
   const cli = Cli.create('user-info', {

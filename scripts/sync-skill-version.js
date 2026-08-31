@@ -41,8 +41,8 @@ syncSkillVersion(
   resolve(root, 'skills/financial-insights/SKILL.md'),
 );
 syncPluginJsonVersion(
-  '.cursor-plugin/plugin.json',
-  resolve(root, 'plugins/link/.cursor-plugin/plugin.json'),
+  'cursor-link/.cursor-plugin/plugin.json',
+  resolve(root, 'plugins/cursor-link/.cursor-plugin/plugin.json'),
 );
 syncPluginJsonVersion(
   '.claude-plugin/plugin.json',

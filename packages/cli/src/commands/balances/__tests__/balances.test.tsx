@@ -9,7 +9,7 @@ const CLEAN_TEXT = 'EvilHidden';
 
 function makeResource(page: BalancesPage): IBalancesResource {
   return sanitizeResource({
-    listBalances: vi.fn(async () => page),
+    list: vi.fn(async () => page),
   } as unknown as IBalancesResource);
 }
 

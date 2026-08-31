@@ -1,6 +1,6 @@
 {
   "name": "@stripe/link-cli",
-  "version": "0.13.1",
+  "version": "0.15.1",
   "type": "module",
   "bin": {
     "link-cli": "./dist/cli.js"
@@ -32,6 +32,7 @@
     "dev": "tsx src/cli.tsx"
   },
   "dependencies": {
+    "conf": "^15.1.0",
     "incur": "^0.4.26",
     "ink": "^5.2.1",
     "ink-spinner": "^5.0.0",

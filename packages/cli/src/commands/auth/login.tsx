@@ -1,15 +1,16 @@
-import {
-  type AuthStorage,
-  LinkAuthorizationDeclinedError,
-  type ScopeEligibility,
-  type SourceAction,
-  storage as defaultStorage,
-} from '@stripe/link-sdk';
 import { Box, Text, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useEffect, useState } from 'react';
-import type { IAuthResource, JsonValue } from '../../auth/types';
+import {
+  LinkAuthorizationDeclinedError,
+  type ScopeEligibility,
+} from '../../auth/errors';
+import {
+  type CliAuthStorage,
+  storage as defaultStorage,
+} from '../../auth/storage';
+import type { IAuthResource, JsonValue, SourceAction } from '../../auth/types';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { openUrl } from '../../utils/open-url';
 
@@ -19,7 +20,7 @@ interface LoginProps {
   scope?: string;
   sourceActions?: SourceAction[];
   authorizationDetails?: JsonValue[];
-  authStorage?: AuthStorage;
+  authStorage?: CliAuthStorage;
   // Set by `auth upgrade`: the still-valid refresh token of the session being
   // replaced. Revoked (best-effort) only after the new tokens are stored, so an
   // abandoned upgrade leaves the existing session intact. `login` omits it.
@@ -92,7 +93,7 @@ export const Login: React.FC<LoginProps> = ({
 
           if (tokens) {
             clearInterval(pollInterval);
-            storage.setAuth(tokens);
+            storage.setTokens(tokens);
             // Upgrade only: revoke the replaced session's grant now that the
             // widened tokens are stored. Best-effort — a failure here must not
             // fail the login that just succeeded.

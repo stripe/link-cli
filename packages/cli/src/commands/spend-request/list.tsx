@@ -18,7 +18,7 @@ export const SpendRequestList: React.FC<SpendRequestListProps> = ({
 }) => {
   const { exit } = useApp();
   const action = useCallback(
-    () => repository.listSpendRequests({ includeHistory }),
+    () => repository.list({ includeHistory }),
     [repository, includeHistory],
   );
   const wrappedOnComplete = useCallback(

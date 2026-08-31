@@ -1,16 +1,16 @@
-import type { AuthStorage } from '@stripe/link-sdk';
 import { describe, expect, it, vi } from 'vitest';
+import type { CliAuthStorage } from '../../auth/storage';
 import { requireAuth, requireAuthGuard } from '../require-auth';
 
-function makeStorage(authenticated: boolean): AuthStorage {
+function makeStorage(authenticated: boolean): CliAuthStorage {
   return {
     isAuthenticated: vi.fn(() => authenticated),
-    getAuth: vi.fn(() => null),
-    setAuth: vi.fn(),
-    clearAuth: vi.fn(),
+    getTokens: vi.fn(() => null),
+    setTokens: vi.fn(),
+    clearTokens: vi.fn(),
     clearAll: vi.fn(),
     getPath: vi.fn(() => '/tmp/fake'),
-  } as unknown as AuthStorage;
+  } as unknown as CliAuthStorage;
 }
 
 function makeContext() {

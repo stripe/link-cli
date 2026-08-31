@@ -1,123 +1,45 @@
-import {
-  type LinkOptions,
-  requireFetchImplementation,
-  resolveLinkSdkConfig,
-} from '@/config';
-import { LinkApiError, LinkTransportError } from '@/errors';
-import { extractErrorMessage } from '@/resources/base';
-import type {
-  AccessTokenProvider,
-  IUserInfoResource,
-} from '@/resources/interfaces';
+import type { LinkOptions } from '@/config';
+import { BaseResource } from '@/resources/base';
+import type { IUserInfoResource } from '@/resources/interfaces';
 import type { UserInfo } from '@/types/index';
+import { z } from 'zod';
 
-interface ApiFetchOptions {
-  method: string;
-  url: string;
-  headers?: Record<string, string>;
-}
+const userInfoSchema = z
+  .looseObject({
+    email: z.string().nullable().optional(),
+    name: z.string().nullable().optional(),
+    first_name: z.string().nullable().optional(),
+    last_name: z.string().nullable().optional(),
+    phone: z.string().nullable().optional(),
+  })
+  .transform(({ email, name, first_name, last_name, phone }) => ({
+    email: email ?? null,
+    name: name ?? null,
+    first_name: first_name ?? null,
+    last_name: last_name ?? null,
+    phone: phone ?? null,
+  }));
 
-export class UserInfoResource implements IUserInfoResource {
-  private readonly verbose: boolean;
-  private readonly getAccessToken: AccessTokenProvider;
-  private readonly fetchImpl: typeof globalThis.fetch;
-  private readonly userInfoEndpoint: string;
-  private readonly logger: { debug(message: string): void };
-
+export class UserInfoResource
+  extends BaseResource
+  implements IUserInfoResource
+{
   constructor(options: LinkOptions) {
-    const config = resolveLinkSdkConfig(options);
-    this.verbose = config.verbose;
-    this.getAccessToken = config.getAccessToken;
-    this.fetchImpl = requireFetchImplementation(config);
-    this.userInfoEndpoint = `${config.apiBaseUrl}/userinfo`;
-    this.logger = config.logger;
-  }
-
-  private async rawFetch(
-    opts: ApiFetchOptions,
-  ): Promise<{ status: number; data: unknown; rawBody: string }> {
-    if (this.verbose) {
-      const redactedHeaders = { ...opts.headers };
-      if (redactedHeaders.Authorization)
-        redactedHeaders.Authorization = 'Bearer <redacted>';
-      this.logger.debug(`> ${opts.method} ${opts.url}`);
-      this.logger.debug(`  Headers: ${JSON.stringify(redactedHeaders)}`);
-    }
-
-    let response: Response;
-    try {
-      response = await this.fetchImpl(opts.url, {
-        method: opts.method,
-        headers: opts.headers,
-      });
-    } catch (error) {
-      throw new LinkTransportError(
-        `Request failed: ${opts.method} ${opts.url}`,
-        {
-          cause: error,
-        },
-      );
-    }
-    const rawBody = await response.text();
-
-    let data: unknown = null;
-    try {
-      data = JSON.parse(rawBody);
-    } catch {
-      // non-JSON response
-    }
-
-    if (this.verbose) {
-      this.logger.debug(`< ${response.status} ${response.statusText}`);
-      response.headers.forEach((value, key) => {
-        this.logger.debug(`  ${key}: ${value}`);
-      });
-      this.logger.debug(rawBody);
-    }
-
-    return { status: response.status, data, rawBody };
-  }
-
-  private async apiFetch(
-    opts: ApiFetchOptions,
-  ): Promise<{ status: number; data: unknown; rawBody: string }> {
-    const token = await this.getAccessToken();
-    const authedOpts = {
-      ...opts,
-      headers: { ...opts.headers, Authorization: `Bearer ${token}` },
-    };
-
-    const res = await this.rawFetch(authedOpts);
-
-    if (res.status === 401) {
-      const refreshedToken = await this.getAccessToken({ forceRefresh: true });
-      authedOpts.headers.Authorization = `Bearer ${refreshedToken}`;
-      return this.rawFetch(authedOpts);
-    }
-
-    return res;
+    super(options, '/userinfo');
   }
 
   async retrieve(): Promise<UserInfo> {
     const { status, data, rawBody } = await this.apiFetch({
       method: 'GET',
-      url: this.userInfoEndpoint,
+      url: this.endpoint,
     });
 
     if (status < 200 || status >= 300) {
-      throw new LinkApiError(
-        `Failed to retrieve user info (${status}): ${extractErrorMessage(data, rawBody)}`,
-        { status, rawBody, details: data },
-      );
+      this.throwApiError('retrieve user info', status, data, rawBody);
     }
 
-    const body = data as Record<string, unknown> | null;
-    return {
-      email: (body?.email as string | null | undefined) ?? null,
-      name: (body?.name as string | null | undefined) ?? null,
-      first_name: (body?.first_name as string | null | undefined) ?? null,
-      last_name: (body?.last_name as string | null | undefined) ?? null,
-      phone: (body?.phone as string | null | undefined) ?? null,
-    };
+    return this.parseResponse('retrieve user info', status, () =>
+      userInfoSchema.parse(data),
+    );
   }
 }

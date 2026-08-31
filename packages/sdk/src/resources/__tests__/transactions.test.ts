@@ -47,10 +47,10 @@ describe('TransactionsResource', () => {
       has_more: true,
     });
 
-    const result = await repo.listTransactions();
+    const result = await repo.list();
 
     expect(mockFetch).toHaveBeenCalledOnce();
-    const [url, opts] = mockFetch.mock.calls[0];
+    const [url, opts] = mockFetch.mock.calls[0]!;
     expect(url).toBe('https://api.link.com/transactions');
     expect(opts.method).toBe('GET');
     expect(opts.headers.Authorization).toBe('Bearer test_token');
@@ -76,7 +76,7 @@ describe('TransactionsResource', () => {
   it('encodes optional list params in the query string', async () => {
     mockFetchResponse(200, { data: [] });
 
-    await repo.listTransactions({
+    await repo.list({
       limit: 50,
       starting_after: 'cursor_a',
       ending_before: 'cursor_b',
@@ -87,7 +87,7 @@ describe('TransactionsResource', () => {
       sources: ['csmrpd_a', 'csmrpd_b'],
     });
 
-    const url = new URL(mockFetch.mock.calls[0][0]);
+    const url = new URL(mockFetch.mock.calls[0]![0]);
     expect(url.searchParams.get('limit')).toBe('50');
     expect(url.searchParams.get('starting_after')).toBe('cursor_a');
     expect(url.searchParams.get('ending_before')).toBe('cursor_b');
@@ -104,14 +104,16 @@ describe('TransactionsResource', () => {
     expect(url.searchParams.has('transaction_category')).toBe(false);
   });
 
-  it('resolves the base URL from LINK_API_BASE_URL when set', async () => {
-    vi.stubEnv('LINK_API_BASE_URL', 'https://api.qa.link.com');
-    repo = new TransactionsResource({ getAccessToken });
+  it('uses an explicitly configured base URL', async () => {
+    repo = new TransactionsResource({
+      getAccessToken,
+      apiBaseUrl: 'https://api.qa.link.com',
+    });
     mockFetchResponse(200, { data: [] });
 
-    await repo.listTransactions();
+    await repo.list();
 
-    expect(mockFetch.mock.calls[0][0]).toBe(
+    expect(mockFetch.mock.calls[0]![0]).toBe(
       'https://api.qa.link.com/transactions',
     );
   });
@@ -134,13 +136,13 @@ describe('TransactionsResource', () => {
       .mockResolvedValueOnce('test_token')
       .mockResolvedValueOnce('fresh_token');
 
-    const result = await repo.listTransactions();
+    const result = await repo.list();
 
     expect(result).toEqual({ data: [] });
     expect(getAccessToken).toHaveBeenNthCalledWith(1);
     expect(getAccessToken).toHaveBeenNthCalledWith(2, { forceRefresh: true });
     expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect(mockFetch.mock.calls[1][1].headers.Authorization).toBe(
+    expect(mockFetch.mock.calls[1]![1].headers.Authorization).toBe(
       'Bearer fresh_token',
     );
   });
@@ -148,7 +150,7 @@ describe('TransactionsResource', () => {
   it('throws API errors with the response message', async () => {
     mockFetchResponse(500, { message: 'boom' });
 
-    await expect(repo.listTransactions()).rejects.toThrow(
+    await expect(repo.list()).rejects.toThrow(
       'Failed to list transactions (500): boom',
     );
   });
@@ -156,16 +158,15 @@ describe('TransactionsResource', () => {
   it('throws when no access token is available', async () => {
     getAccessToken.mockRejectedValueOnce(new Error('Missing access token'));
 
-    await expect(repo.listTransactions()).rejects.toThrow(
-      'Missing access token',
-    );
+    await expect(repo.list()).rejects.toThrow('Missing access token');
   });
 
   it('throws when the response shape is invalid', async () => {
     mockFetchResponse(200, { data: [{ id: 'lbctxn_123' }] });
 
-    await expect(repo.listTransactions()).rejects.toThrow(
-      'Failed to list transactions (200): invalid response shape: Expected transactions[0].source_id to be a string or null',
-    );
+    await expect(repo.list()).rejects.toMatchObject({
+      code: 'invalid_response',
+      status: 200,
+    });
   });
 });

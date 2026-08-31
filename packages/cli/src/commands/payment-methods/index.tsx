@@ -1,6 +1,7 @@
-import type { AuthStorage, IPaymentMethodsResource } from '@stripe/link-sdk';
+import type { IPaymentMethodsResource } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import React from 'react';
+import type { CliAuthStorage } from '../../auth/storage';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
 import { AddPaymentMethod, WALLET_URL } from './add';
@@ -8,7 +9,7 @@ import { PaymentMethodsList } from './list';
 
 export function createPaymentMethodsCli(
   createResource: () => IPaymentMethodsResource,
-  authStorage?: AuthStorage,
+  authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ) {
   const cli = Cli.create('payment-methods', {
@@ -25,11 +26,11 @@ export function createPaymentMethodsCli(
       if (!c.agent && !c.formatExplicit) {
         return renderInteractive(
           <PaymentMethodsList resource={resource} onComplete={() => {}} />,
-          () => resource.listPaymentMethods(),
+          () => resource.list(),
         );
       }
 
-      return resource.listPaymentMethods();
+      return resource.list();
     },
   });
 
