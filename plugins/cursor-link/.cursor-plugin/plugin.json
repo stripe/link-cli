@@ -1,7 +1,7 @@
 {
   "name": "link",
   "displayName": "Link",
-  "version": "0.15.0",
+  "version": "0.15.1",
   "description": "Complete purchases with one-time-use payment credentials from a Link wallet, using spend requests the user has approved.",
   "author": {
     "name": "Stripe"
@@ -10,7 +10,13 @@
   "repository": "https://github.com/stripe/link-cli",
   "license": "MIT",
   "logo": "./assets/link.svg",
-  "keywords": ["payment", "link", "stripe", "agentic-commerce", "mcp"],
+  "keywords": [
+    "payment",
+    "link",
+    "stripe",
+    "agentic-commerce",
+    "mcp"
+  ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json"
 }

@@ -49,7 +49,7 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
       <Text bold>Payment Methods</Text>
       <Box flexDirection="column" marginTop={1}>
         {methods.map((pm) => {
-          const label =
+          const label = pm.name ??
             pm.card_details?.brand ??
             pm.bank_account_details?.bank_name ??
             'Bank account';

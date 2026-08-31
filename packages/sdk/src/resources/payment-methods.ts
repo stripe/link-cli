@@ -8,6 +8,8 @@ const paymentMethodSchema = z.looseObject({
   id: z.string(),
   type: z.string(),
   is_default: z.boolean(),
+  name: z.string(),
+  nickname: z.optional(z.string().nullable()),
 });
 const paymentMethodsResponseSchema = z.looseObject({
   payment_details: z.array(paymentMethodSchema),
