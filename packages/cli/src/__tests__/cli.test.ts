@@ -107,8 +107,6 @@ async function runProdCli(...args: string[]): Promise<CliResult> {
   return runProdCliWithEnv({}, ...args);
 }
 
-// Evaluates a command string in a real shell. Used only to prove that
-// CLI-emitted continuations carry no executable syntax.
 async function runShell(command: string): Promise<CliResult> {
   try {
     const { stdout, stderr } = await execFileAsync('bash', ['-c', command], {
@@ -2727,8 +2725,6 @@ describe('production mode', () => {
       );
     });
 
-    // Regression: a merchant-controlled URL must never reach a shell as
-    // syntax via the _next continuation. See HackerOne #3894770.
     describe('_next continuation quoting', () => {
       const PENDING_SPT_REQUEST = {
         ...BASE_REQUEST,

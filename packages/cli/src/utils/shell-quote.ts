@@ -14,14 +14,8 @@ const SAFE_RE = /^[A-Za-z0-9_@%+=:,./-]+$/;
 /**
  * Encodes a single value for safe interpolation into a shell command string.
  *
- * Command strings the CLI emits for an agent to run (`instruction`,
- * `_next.command`, `_next.pay_command`) are shell-injection sinks: agents
- * commonly execute them via Bash, so an unquoted value there gives whoever
- * controls it command execution on the agent's host — even though the same
- * value was harmless as an argv entry. Merchant-derived URLs, request bodies
- * and headers all reach these strings, so every interpolated value must go
- * through this function. Text sanitization does not substitute for it: `$(…)`,
- * backticks and `;` are ordinary printable characters.
+ * Ensure that command strings the CLI emits for an agent to run (`instruction`,
+ * `_next.command`, `_next.pay_command`) are shell-safe.
  *
  * Values made only of shell-inert characters (see `SAFE_RE`) are returned
  * as-is, purely so ordinary URLs and IDs stay readable. Everything else is
@@ -33,9 +27,6 @@ const SAFE_RE = /^[A-Za-z0-9_@%+=:,./-]+$/;
  * this function exists to prevent.
  */
 export function shellQuote(value: string): string {
-  // Redundant with SAFE_RE (which requires one or more characters, so an empty
-  // string already takes the quoting branch and yields `''`) but stated
-  // explicitly: an empty argument must survive as `''`, not disappear.
   if (value === '') {
     return "''";
   }
