@@ -2,7 +2,7 @@
 version: 0.15.0
 name: financial-insights
 description: |
-  Reads a user's Link financial data — transactions, balances, and wallet sources — so agents can answer questions about spending and available source capabilities. Use when the user says "check my balance", "how much did I spend", "show my transactions", "what accounts are connected", "summarize my spending", "recent purchases", or asks about their financial activity, account balances, or linked sources.
+  Reads a user's Link financial data — transactions, balances, and wallet sources — so agents can answer questions about spending and available source capabilities, and can update a transaction's category or description. Use when the user says "check my balance", "how much did I spend", "show my transactions", "what accounts are connected", "summarize my spending", "recent purchases", "recategorize this transaction", "update transaction", "fix the category", "rename this transaction", or asks about their financial activity, account balances, or linked sources.
 allowed-tools:
  - Bash(link-cli:*)
  - Bash(npx --yes @stripe/link-cli:*)
@@ -35,7 +35,7 @@ Use this skill to answer questions about a user’s Link-connected financial dat
 - Linked wallet sources
 - Basic summaries derived from the user’s financial data
 
-All commands are read-only. They do not move money, initiate payments, modify accounts, or expose payment credentials.
+The `transactions list` command is read-only, and `transactions update` is a write command that updates the category or description on a transaction.
 
 ## Safety and privacy
 
@@ -45,7 +45,7 @@ Only retrieve the data needed to answer the user’s request. Do not run every l
 
 Do not expose sensitive identifiers, access tokens, credentials, or payment instrument details. Summarize financial information at the level needed to answer the user’s question.
 
-If the user asks for an action that would move money, reference `skills/create-payment-credential/SKILL.md` instead.
+If the user asks for an action that would move money — a payment, purchase, or transfer — reference `skills/create-payment-credential/SKILL.md` instead.
 
 ## Authentication
 
@@ -65,20 +65,26 @@ Use the minimum required source actions:
 - Transactions imported from bank connections: `read_external_transactions`
 - Account balances: `read_balances`
 - Data source details and descriptions: `read_source_details`
+- Updating transactions processed through Link: `write_link_transactions`
+- Updating transactions imported from bank connections: `write_external_transactions`
+
+A write action implies the matching read action, so a session granted `write_link_transactions` can also read Link transactions.
 
 If the user asks a question that requires multiple data types, request all relevant actions together.
 
-Example for a new login that needs all financial data types:
+Example for a new login that needs all financial data types and the ability to update transactions:
 
 ```bash
 link-cli auth login \
   --client-name "<your-agent-name>" \
-  --source-actions read_link_transactions \
+  --source-actions write_link_transactions \
+  --source-actions write_external_transactions \
   --source-actions read_balances \
-  --source-actions read_external_transactions \
   --source-actions read_source_details \
   --format json
 ```
+
+For read-only access, use `read_link_transactions` and `read_external_transactions` in place of the two `write_` actions.
 
 Example for adding balance access to an existing session:
 
@@ -86,6 +92,16 @@ Example for adding balance access to an existing session:
 link-cli auth upgrade \
   --client-name "<your-agent-name>" \
   --source-actions read_balances \
+  --format json
+```
+
+Example for adding transaction-update access to an existing read-only session:
+
+```bash
+link-cli auth upgrade \
+  --client-name "<your-agent-name>" \
+  --source-actions write_link_transactions \
+  --source-actions write_external_transactions \
   --format json
 ```
 
@@ -106,6 +122,7 @@ Use the smallest command set that answers the user’s question.
 | Recent purchases, merchants, spend, transaction history, income, deposits, subscriptions | `link-cli transactions list` |
 | Current available balance, account balance, cash position | `link-cli balances list` |
 | Connected accounts, cards, banks, wallet sources, source metadata | `link-cli sources list` |
+| Recategorize a transaction, fix or change a transaction's category or description | `link-cli transactions update` |
 
 Examples:
 
@@ -113,6 +130,7 @@ Examples:
 - “What is my current checking account balance?” → Use balances only.
 - “Which accounts are connected?” → Use sources only.
 - “Summarize my cash position and recent spending.” → Use balances and transactions.
+- “That Trader Joes charge should be groceries, not shopping.” → Use `transactions list` to find the transaction ID, then `transactions update`.
 
 ## Output format
 
@@ -166,6 +184,26 @@ link-cli transactions list --format json --source <source_id> --source <source_i
 | `--source` | Filter by source ID (repeatable). |
 
 See [Pagination](#pagination) for shared list controls.
+
+### Updating a transaction
+
+Use `transactions update` to correct a transaction's category or description. Find the transaction ID with `transactions list` first — there is no retrieve-by-ID command.
+
+```bash
+link-cli transactions update <transaction_id> --category groceries --description "Trader Joes" --format json
+```
+
+| Flag | Description |
+|---|---|
+| `--category` | New category. Must be a **subcategory** — e.g. `groceries`, `restaurants`, `rent`, `flights`, `coffee`, `electronics`. |
+| `--description` | New description. Replaces the existing description. |
+
+Rules:
+
+- At least one of `--category` or `--description` is required.
+- Omitted fields are preserved — updating only the category leaves the description unchanged.
+- The response is a **single transaction object**, not enveloped in `data` (unlike `transactions list`).
+- Requires the `write_link_transactions` or `write_external_transactions` source action, plus ownership of the transaction.
 
 ### Response fields
 
@@ -308,7 +346,7 @@ Do not:
 
 Do:
 
-- Use read-only commands.
+- Use read-only commands, unless the user asks to change information about a transaction.
 - Authenticate before retrieval.
 - Request the minimum required source actions.
 - Use `--format json` for parsing.

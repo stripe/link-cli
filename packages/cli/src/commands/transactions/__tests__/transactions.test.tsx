@@ -7,6 +7,7 @@ import { render } from 'ink-testing-library';
 import { describe, expect, it, vi } from 'vitest';
 import { sanitizeResource } from '../../../utils/resource-factory';
 import { TransactionsList } from '../list';
+import { TransactionUpdate } from '../update';
 
 const ESCAPE_PAYLOAD = '\x1b[2JEvil\rText';
 const CLEAN_TEXT = 'EvilText';
@@ -14,6 +15,12 @@ const CLEAN_TEXT = 'EvilText';
 function makeResource(page: TransactionsPage): ITransactionsResource {
   return sanitizeResource({
     list: vi.fn(async () => page),
+  } as unknown as ITransactionsResource);
+}
+
+function makeUpdateResource(result: Transaction): ITransactionsResource {
+  return sanitizeResource({
+    update: vi.fn(async () => result),
   } as unknown as ITransactionsResource);
 }
 
@@ -141,6 +148,79 @@ describe('transactions list component', () => {
       const frame = lastFrame();
       expect(frame).toContain('has_more: false');
       expect(frame).not.toContain('--starting-after');
+    });
+  });
+});
+
+describe('transactions update component', () => {
+  it('renders the updated transaction', async () => {
+    const resource = makeUpdateResource(
+      transaction({ category: 'groceries', description: 'Trader Joes' }),
+    );
+
+    const { lastFrame } = render(
+      <TransactionUpdate
+        resource={resource}
+        id="lbctxn_1"
+        params={{ category: 'groceries', description: 'Trader Joes' }}
+        onComplete={() => {}}
+      />,
+    );
+
+    await vi.waitFor(() => {
+      const frame = lastFrame();
+      expect(frame).toContain('Transaction updated');
+      expect(frame).toContain('lbctxn_1');
+      expect(frame).toContain('Trader Joes');
+      expect(frame).toContain('groceries');
+      expect(frame).toContain('-$9.79');
+      expect(frame).toContain('2026-06-08');
+      expect(frame).toContain('succeeded');
+    });
+  });
+
+  it('renders an error state when the resource rejects', async () => {
+    const resource = sanitizeResource({
+      update: vi.fn(async () => {
+        throw new Error('Invalid category: shopping');
+      }),
+    } as unknown as ITransactionsResource);
+
+    const { lastFrame } = render(
+      <TransactionUpdate
+        resource={resource}
+        id="lbctxn_1"
+        params={{ category: 'shopping' }}
+        onComplete={() => {}}
+      />,
+    );
+
+    await vi.waitFor(() => {
+      const frame = lastFrame();
+      expect(frame).toContain('Failed to update transaction');
+      expect(frame).toContain('Invalid category: shopping');
+    });
+  });
+
+  it('sanitizes escape sequences in the updated transaction', async () => {
+    const resource = makeUpdateResource(
+      transaction({ description: ESCAPE_PAYLOAD }),
+    );
+
+    const { lastFrame } = render(
+      <TransactionUpdate
+        resource={resource}
+        id="lbctxn_1"
+        params={{ description: ESCAPE_PAYLOAD }}
+        onComplete={() => {}}
+      />,
+    );
+
+    await vi.waitFor(() => {
+      const frame = lastFrame();
+      expect(frame).toContain(CLEAN_TEXT);
+      expect(frame).not.toContain('\x1b[2J');
+      expect(frame).not.toContain('\r');
     });
   });
 });

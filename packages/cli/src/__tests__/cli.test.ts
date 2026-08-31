@@ -1498,6 +1498,149 @@ describe('production mode', () => {
     });
   });
 
+  describe('transactions update', () => {
+    it('POSTs to /transactions/:id and returns the bare transaction', async () => {
+      setResponseForUrl('/transactions/lbctxn_001', 200, {
+        ...SAMPLE_TRANSACTION,
+        category: 'groceries',
+        description: 'Trader Joes',
+      });
+
+      const result = await runProdCli(
+        'transactions',
+        'update',
+        'lbctxn_001',
+        '--category',
+        'groceries',
+        '--description',
+        'Trader Joes',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.method).toBe('POST');
+      expect(lastRequest.url).toBe('/transactions/lbctxn_001');
+      expect(lastRequest.headers.authorization).toBe(
+        'Bearer prod_test_access_token',
+      );
+      expect(JSON.parse(lastRequest.body)).toEqual({
+        category: 'groceries',
+        description: 'Trader Joes',
+      });
+
+      const output = parseJson(result.stdout) as Record<string, unknown>;
+      expect(output.id).toBe('lbctxn_001');
+      expect(output.category).toBe('groceries');
+      expect(output.description).toBe('Trader Joes');
+      expect(output.data).toBeUndefined();
+    });
+
+    it('drops a blank --description instead of clearing it server-side', async () => {
+      setResponseForUrl('/transactions/lbctxn_001', 200, {
+        ...SAMPLE_TRANSACTION,
+        category: 'groceries',
+      });
+
+      const result = await runProdCli(
+        'transactions',
+        'update',
+        'lbctxn_001',
+        '--category',
+        'groceries',
+        '--description',
+        '   ',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const sentBody = JSON.parse(lastRequest.body);
+      expect(sentBody).toEqual({ category: 'groceries' });
+    });
+
+    it('fails locally without making a request when both flags are missing', async () => {
+      const result = await runProdCli(
+        'transactions',
+        'update',
+        'lbctxn_001',
+        '--json',
+      );
+
+      expect(result.exitCode).not.toBe(0);
+      const output = parseJson(result.stdout) as Record<string, unknown>;
+      expect(output.code).toBe('MISSING_UPDATE_FIELDS');
+      const txnRequest = requests.find(
+        (r) => r.url === '/transactions/lbctxn_001',
+      );
+      expect(txnRequest).toBeUndefined();
+    });
+
+    it('surfaces the server error code and message for invalid_category', async () => {
+      setResponseForUrl('/transactions/lbctxn_001', 400, {
+        error: {
+          code: 'invalid_category',
+          message: 'Invalid category: shopping',
+        },
+      });
+
+      const result = await runProdCli(
+        'transactions',
+        'update',
+        'lbctxn_001',
+        '--category',
+        'shopping',
+        '--json',
+      );
+
+      expect(result.exitCode).not.toBe(0);
+      const output = parseJson(result.stdout) as Record<string, unknown>;
+      expect(output.code).toBe('invalid_category');
+      expect(String(output.message)).toContain('Invalid category: shopping');
+    });
+
+    it('falls back to API_ERROR when the error envelope omits code', async () => {
+      setResponseForUrl('/transactions/lbctxn_001', 404, {
+        error: { message: 'Transaction not found' },
+      });
+
+      const result = await runProdCli(
+        'transactions',
+        'update',
+        'lbctxn_001',
+        '--description',
+        'Trader Joes',
+        '--json',
+      );
+
+      expect(result.exitCode).not.toBe(0);
+      const output = parseJson(result.stdout) as Record<string, unknown>;
+      expect(output.code).toBe('API_ERROR');
+      expect(String(output.message)).toContain('Transaction not found');
+    });
+
+    it('rejects unauthenticated requests before hitting the API', async () => {
+      storage.clearTokens();
+
+      const result = await runProdCli(
+        'transactions',
+        'update',
+        'lbctxn_001',
+        '--category',
+        'groceries',
+        '--description',
+        'Trader Joes',
+        '--json',
+      );
+
+      expect(result.exitCode).not.toBe(0);
+      const output = parseJson(result.stdout) as Record<string, unknown>;
+      expect(output.code).toBe('NOT_AUTHENTICATED');
+      const txnRequest = requests.find(
+        (r) => r.url === '/transactions/lbctxn_001',
+      );
+      expect(txnRequest).toBeUndefined();
+    });
+  });
+
   const SAMPLE_SOURCE = {
     id: 'csmrpd_001',
     name: 'Checking 1234',

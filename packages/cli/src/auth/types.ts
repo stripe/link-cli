@@ -5,6 +5,8 @@ export const SOURCE_ACTIONS = [
   'read_external_transactions',
   'read_link_transactions',
   'read_source_details',
+  'write_external_transactions',
+  'write_link_transactions',
 ] as const;
 
 export type SourceAction = (typeof SOURCE_ACTIONS)[number];

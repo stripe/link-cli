@@ -38,3 +38,18 @@ export const listOptions = z.object({
     .default([])
     .describe('Filter by source ID. Repeat to include multiple sources.'),
 });
+
+export const updateOptions = z.object({
+  category: z
+    .string()
+    .optional()
+    .describe(
+      'New category for the transaction. Omitted fields are preserved.',
+    ),
+  description: z
+    .string()
+    .optional()
+    .describe(
+      'New description for the transaction, replacing the existing description. Omitted fields are preserved.',
+    ),
+});
