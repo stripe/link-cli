@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.16.0
+
+### Minor Changes
+
+- 033cee0: security: sanitize mpp output for shell-unsafe output
+
 ## 0.15.1
 
 ### Patch Changes
