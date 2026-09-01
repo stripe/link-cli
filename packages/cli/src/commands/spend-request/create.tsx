@@ -26,6 +26,7 @@ interface CreateSpendRequestProps {
   repository: ISpendRequestResource;
   params: CreateSpendRequestParams;
   requestApproval?: boolean;
+  approve?: boolean;
   outputFile?: string;
   force?: boolean;
   onComplete: (result: SpendRequest | null) => void;
@@ -35,6 +36,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
   repository,
   params,
   requestApproval = false,
+  approve = false,
   outputFile,
   force,
   onComplete,
@@ -210,7 +212,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
             result.status_details?.requires_action?.next_action ?? null,
           );
           setStatus('requires_action');
-        } else if (requestApproval) {
+        } else if (requestApproval && result.status !== 'approved') {
           setStatus('waiting');
         } else {
           setStatus('success');
@@ -518,7 +520,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
             )}
           </Box>
         )}
-        <AppDownloadQrCodes />
+        {!approve && <AppDownloadQrCodes />}
       </Box>
     );
   }

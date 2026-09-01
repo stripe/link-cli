@@ -284,6 +284,7 @@ export function createSpendRequestCli(
             repository={repository}
             params={createParams}
             requestApproval={requestApproval}
+            approve={opts.approve ? true : undefined}
             outputFile={outputFile}
             force={forceOverwrite}
             onComplete={(result) => {

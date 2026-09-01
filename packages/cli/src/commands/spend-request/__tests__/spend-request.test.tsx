@@ -330,6 +330,67 @@ describe('spend-request', () => {
     });
   });
 
+  describe('approve', () => {
+    it('CreateSpendRequest skips the approval-waiting/QR view when the request is already approved', async () => {
+      const request = makeSpendRequest({ status: 'approved' });
+      const repo = makeMockRepo(request);
+
+      const { lastFrame } = render(
+        <CreateSpendRequest
+          repository={repo}
+          params={{
+            payment_details: 'pm_1',
+            amount: 1000,
+            currency: 'usd',
+            merchant_name: 'Acme',
+            merchant_url: 'https://example.com',
+            context: 'x'.repeat(100),
+          }}
+          requestApproval
+          approve
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Spend request created');
+        expect(frame).not.toContain('Approve at:');
+        expect(frame).not.toContain('Get the Link app');
+      });
+    });
+
+    it('CreateSpendRequest still shows the approval-waiting/QR view when requestApproval is set and the request is not yet approved', async () => {
+      const created = makeSpendRequest({
+        status: 'created',
+        approval_url: 'https://app.link.com/approve/sr_test',
+      });
+      const repo = makeMockRepo(created);
+
+      const { lastFrame } = render(
+        <CreateSpendRequest
+          repository={repo}
+          params={{
+            payment_details: 'pm_1',
+            amount: 1000,
+            currency: 'usd',
+            merchant_name: 'Acme',
+            merchant_url: 'https://example.com',
+            context: 'x'.repeat(100),
+          }}
+          requestApproval
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Approve at:');
+        expect(frame).toContain('Get the Link app');
+      });
+    });
+  });
+
   describe('requires_action', () => {
     it('CreateSpendRequest shows next_action details for a non-auto_resume type', async () => {
       const request = makeSpendRequest({
