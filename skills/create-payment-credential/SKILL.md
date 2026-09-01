@@ -104,6 +104,10 @@ Replace `<your-agent-name>` with the name of your agent or application (for exam
 
 The response includes a `_next` command — run it to poll until authenticated. If your environment cannot relay the verification code while a separate polling command blocks I/O, use inline polling instead: `auth login --client-name "<name>" --interval 5 --timeout 300`. This yields the code immediately then polls in the same command.
 
+If the user's email is already known, save them time by adding it as the
+URL-encoded `fromEmail` query parameter to any `app.link.com` verification or
+action URL; preserve existing query parameters.
+
 DO NOT PROCEED until the user is authenticated with Link.
 
 Always check the current authentication status before starting a new login flow — the user might already be logged in.

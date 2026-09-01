@@ -100,6 +100,10 @@ Authorization is a multi-step flow:
 2. Run the returned `_next.command` immediately to poll for approval; do not wait for another user reply before polling.
 3. Continue only when the result reports successful authentication and the required grants.
 
+If the user's email is already known, save them time by adding it as the
+URL-encoded `fromEmail` query parameter to any `app.link.com` verification or
+action URL; preserve existing query parameters.
+
 The response includes a `_next` command — run it to poll until authenticated. If your environment cannot relay the verification code while a separate polling command blocks I/O, use inline polling instead by adding `--interval 5 --timeout 300` to the initial `auth login` or `auth upgrade` command. This yields the code immediately then polls in the same command.
 
 DO NOT PROCEED until the user is authenticated with Link.
