@@ -50,6 +50,10 @@ type InternalCreateSpendRequestParams = CreateSpendRequestParams & {
   expires_at?: number;
 };
 
+type InternalUpdateSpendRequestParams = UpdateSpendRequestParams & {
+  approve?: boolean;
+};
+
 /** Normalizes the legacy string SPT response into the current object shape. */
 function parseSpendRequest(value: unknown): SpendRequest {
   return spendRequestSchema.parse(value) as SpendRequest;
@@ -116,13 +120,17 @@ export class SpendRequestResource
 
   async update(
     id: string,
-    params: UpdateSpendRequestParams,
+    params: InternalUpdateSpendRequestParams,
   ): Promise<SpendRequest> {
+    const { approve, ...body } = params;
+    const url = approve
+      ? `${this.endpoint}/${id}/update_delegated`
+      : `${this.endpoint}/${id}`;
     const { status, data, rawBody } = await this.apiFetch({
       method: 'POST',
-      url: `${this.endpoint}/${id}`,
+      url,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify(body),
     });
 
     if (status < 200 || status >= 300) {

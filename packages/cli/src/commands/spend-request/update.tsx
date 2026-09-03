@@ -3,11 +3,17 @@ import type {
   SpendRequest,
   UpdateSpendRequestParams,
 } from '@stripe/link-sdk';
-import { Box, Text } from 'ink';
+import { Box, Text, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useAsyncAction } from '../../hooks/use-async-action';
+import { openUrl } from '../../utils/open-url';
+import {
+  type SpendRequestUpdatePollResult,
+  pollUntilSpendRequestUpdate,
+} from '../../utils/poll-until-spend-request-update';
+import { ApprovalWaitingView } from './approval-waiting-view';
 
 interface UpdateSpendRequestProps {
   repository: ISpendRequestResource;
@@ -16,19 +22,65 @@ interface UpdateSpendRequestProps {
   onComplete: (result: SpendRequest | null) => void;
 }
 
+type UpdateResult =
+  | SpendRequestUpdatePollResult
+  | {
+      request: SpendRequest;
+      outcome: 'updated';
+    };
+
 export const UpdateSpendRequest: React.FC<UpdateSpendRequestProps> = ({
   repository,
   id,
   params,
   onComplete,
 }) => {
-  const action = useCallback(
-    () => repository.update(id, params),
-    [repository, id, params],
+  const [pendingApproval, setPendingApproval] = useState<SpendRequest | null>(
+    null,
   );
-  const { status, data: request, error } = useAsyncAction(action, onComplete);
+
+  const action = useCallback(async (): Promise<UpdateResult> => {
+    const request = await repository.update(id, params);
+    if (
+      params.amount !== undefined &&
+      request.status === 'approved' &&
+      request.approval_url
+    ) {
+      setPendingApproval(request);
+      return pollUntilSpendRequestUpdate(repository, id, params.amount);
+    }
+    return { request, outcome: 'updated' };
+  }, [repository, id, params]);
+
+  const handleComplete = useCallback(
+    (result: UpdateResult | null) => onComplete(result?.request ?? null),
+    [onComplete],
+  );
+  const {
+    status,
+    data: result,
+    error,
+  } = useAsyncAction(action, handleComplete);
+  const request = result?.request ?? pendingApproval;
+
+  useInput(
+    (_input, key) => {
+      if (key.return && pendingApproval?.approval_url) {
+        openUrl(pendingApproval.approval_url);
+      }
+    },
+    { isActive: status === 'loading' && pendingApproval !== null },
+  );
 
   if (status === 'loading') {
+    if (pendingApproval?.approval_url) {
+      return (
+        <ApprovalWaitingView
+          status="polling"
+          approvalUrl={pendingApproval.approval_url}
+        />
+      );
+    }
     return (
       <Box>
         <Text color="cyan">
@@ -47,6 +99,22 @@ export const UpdateSpendRequest: React.FC<UpdateSpendRequestProps> = ({
     );
   }
 
+  if (result?.outcome === 'denied') {
+    return (
+      <Box flexDirection="column">
+        <Text color="yellow">✗ Spend request update denied</Text>
+        <Box flexDirection="column" marginTop={1} paddingX={2}>
+          <Text>
+            ID: <Text bold>{request?.id}</Text>
+          </Text>
+          <Text>
+            Amount: <Text bold>{request?.amount ?? 'N/A'}</Text>
+          </Text>
+        </Box>
+      </Box>
+    );
+  }
+
   return (
     <Box flexDirection="column">
       <Text color="green">✓ Spend request updated</Text>
@@ -60,10 +128,7 @@ export const UpdateSpendRequest: React.FC<UpdateSpendRequestProps> = ({
         <Text>
           Amount:{' '}
           <Text bold>
-            {(() => {
-              const t = request?.totals?.find((t) => t.type === 'total');
-              return t ? String(t.amount) : 'N/A';
-            })()}
+            {request?.amount !== undefined ? String(request.amount) : 'N/A'}
           </Text>
         </Text>
         <Text>

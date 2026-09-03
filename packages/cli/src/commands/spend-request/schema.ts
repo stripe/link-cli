@@ -166,4 +166,8 @@ export const updateOptions = z.object({
     .describe(
       'Total (repeatable, key:value format). Keys: type (required; one of: subtotal, tax, total, items_base_amount, items_discount, discount, fulfillment, shipping, fee, gift_wrap, tip, store_credit), display_text (required), amount (required). Example: "type:total,display_text:Total,amount:5000"',
     ),
+  approve: z
+    .boolean()
+    .default(false)
+    .describe('Use the delegated approval flow for this update'),
 });

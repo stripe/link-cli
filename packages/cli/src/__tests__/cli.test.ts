@@ -912,6 +912,31 @@ describe('production mode', () => {
       expect(sentBody.merchant_url).toBe('https://updated.com');
     });
 
+    it('uses the delegated update endpoint when --approve is set', async () => {
+      setNextResponse(200, {
+        ...BASE_REQUEST,
+        amount: 6000,
+        approval_url: 'https://app.link.com/approve/lsrq_prod_001',
+      });
+
+      const result = await runProdCli(
+        'spend-request',
+        'update',
+        'lsrq_prod_001',
+        '--amount',
+        '6000',
+        '--approve',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.method).toBe('POST');
+      expect(lastRequest.url).toBe(
+        '/spend_requests/lsrq_prod_001/update_delegated',
+      );
+      expect(JSON.parse(lastRequest.body)).toEqual({ amount: 6000 });
+    });
+
     it('surfaces API errors for update', async () => {
       setNextResponse(409, {
         error: { message: 'Cannot update request in pending_approval status' },
