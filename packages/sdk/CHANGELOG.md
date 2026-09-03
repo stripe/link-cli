@@ -1,5 +1,11 @@
 # @stripe/link-sdk
 
+## 0.3.0
+
+### Minor Changes
+
+- ec7fc04: Support incremental auth workflows; refine UCP command; Do not render approval qr code for delegated spend requests; Document email-prefilled Link URLs- #287
+
 ## 0.2.1
 
 ### Patch Changes
