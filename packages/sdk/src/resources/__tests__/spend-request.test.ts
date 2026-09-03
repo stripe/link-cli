@@ -270,6 +270,32 @@ describe('SpendRequestResource', () => {
       expect(opts.body).toBe(JSON.stringify({ payment_details: 'pd_new' }));
     });
 
+    it('sends delegated updates to update_delegated without the approve routing flag', async () => {
+      mockFetchResponse(200, {
+        ...spendRequestResponse,
+        amount: 6000,
+        approval_url: 'https://app.link.com/approve/si_123',
+      });
+
+      await repo.update('si_123', { amount: 6000, approve: true });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.link.com/spend_requests/si_123/update_delegated',
+        expect.objectContaining({ body: JSON.stringify({ amount: 6000 }) }),
+      );
+    });
+
+    it('uses the standard endpoint when approve is false', async () => {
+      mockFetchResponse(200, { ...spendRequestResponse, amount: 6000 });
+
+      await repo.update('si_123', { amount: 6000, approve: false });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.link.com/spend_requests/si_123',
+        expect.objectContaining({ body: JSON.stringify({ amount: 6000 }) }),
+      );
+    });
+
     it('returns updated SpendRequest on success', async () => {
       const updated = { ...spendRequestResponse, payment_details: 'pd_new' };
       mockFetchResponse(200, updated);

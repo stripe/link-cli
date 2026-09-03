@@ -73,6 +73,119 @@ function makeSequentialMockRepo(
 }
 
 describe('spend-request', () => {
+  describe('UpdateSpendRequest', () => {
+    it('shows the approval URL while polling a delegated amount update', async () => {
+      const request = makeSpendRequest({
+        amount: 1000,
+        approval_url: 'https://app.link.com/approve/sr_test',
+      });
+      const repo = sanitizeResource({
+        update: vi.fn(async () => request),
+        retrieve: vi.fn(() => new Promise<SpendRequest | null>(() => {})),
+      } as unknown as ISpendRequestResource);
+      const onComplete = vi.fn();
+
+      const { lastFrame } = render(
+        <UpdateSpendRequest
+          repository={repo}
+          id="sr_test"
+          params={{ amount: 2000 }}
+          onComplete={onComplete}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Approve at:');
+        expect(frame).toContain('https://app.link.com/approve/sr_test');
+        expect(frame).toContain('Waiting for approval');
+        expect(frame).not.toContain('Spend request updated');
+        expect(onComplete).not.toHaveBeenCalled();
+      });
+    });
+
+    it('shows the applied amount after the update is approved', async () => {
+      const pending = makeSpendRequest({
+        amount: 1000,
+        approval_url: 'https://app.link.com/approve/sr_test',
+      });
+      const approved = makeSpendRequest({
+        amount: 2000,
+        approval_url: 'https://app.link.com/approve/sr_test',
+      });
+      const repo = sanitizeResource({
+        update: vi.fn(async () => pending),
+        retrieve: vi.fn(async () => approved),
+      } as unknown as ISpendRequestResource);
+
+      const { lastFrame } = render(
+        <UpdateSpendRequest
+          repository={repo}
+          id="sr_test"
+          params={{ amount: 2000 }}
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Spend request updated');
+        expect(frame).toMatch(/Amount:\s+2000/);
+      });
+    });
+
+    it('shows a denied result when the approval URL disappears', async () => {
+      const pending = makeSpendRequest({
+        amount: 1000,
+        approval_url: 'https://app.link.com/approve/sr_test',
+      });
+      const denied = makeSpendRequest({
+        amount: 1000,
+        approval_url: undefined,
+      });
+      const repo = sanitizeResource({
+        update: vi.fn(async () => pending),
+        retrieve: vi.fn(async () => denied),
+      } as unknown as ISpendRequestResource);
+
+      const { lastFrame } = render(
+        <UpdateSpendRequest
+          repository={repo}
+          id="sr_test"
+          params={{ amount: 2000 }}
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Spend request update denied');
+        expect(frame).toMatch(/Amount:\s+1000/);
+      });
+    });
+
+    it('renders a zero amount from the updated response', async () => {
+      const request = makeSpendRequest({ amount: 0, approval_url: undefined });
+      const repo = makeMockRepo(request);
+
+      const { lastFrame } = render(
+        <UpdateSpendRequest
+          repository={repo}
+          id="sr_test"
+          params={{ amount: 0 }}
+          onComplete={() => {}}
+        />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Spend request updated');
+        expect(frame).toMatch(/Amount:\s+0/);
+        expect(frame).not.toContain('Amount: N/A');
+      });
+    });
+  });
+
   describe('verification_url', () => {
     it('CreateSpendRequest surfaces verification_url on additional_verification_required error', async () => {
       const error = new LinkApiError(

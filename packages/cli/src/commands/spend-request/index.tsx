@@ -402,6 +402,9 @@ export function createSpendRequestCli(
         params.totals = opts.total.map((item: unknown) =>
           typeof item === 'string' ? parseTotalFlag(item) : item,
         );
+      if (opts.approve !== undefined) {
+        params.approve = opts.approve;
+      }
 
       if (!c.agent && !c.formatExplicit) {
         let capturedResult: SpendRequest | null = null;
