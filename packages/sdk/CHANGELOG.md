@@ -1,5 +1,11 @@
 # @stripe/link-sdk
 
+## 0.3.1
+
+### Patch Changes
+
+- ca643dc: Expose Agent Wallet spend limits and user step-up status through user-info retrieve.
+
 ## 0.3.0
 
 ### Minor Changes
