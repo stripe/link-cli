@@ -366,7 +366,8 @@ link-cli report \
   --spend-request-id <lsrq_...> \
   [--tag <tag>] \
   [--step <step>] \
-  [--freeform-context "<details>"]
+  [--freeform-context "<details>"] \
+  [--attempt-trace "<step-by-step account>"]
 ```
 
 ### When to report
@@ -396,6 +397,35 @@ Add one or more `--tag` flags to classify what happened. Prefer the most specifi
 | `payment_declined` | Payment was declined by processor |
 | `other` | Other (describe in freeform-context) |
 
+### Attempt trace
+
+`--attempt-trace` is a step-by-step account of the path you took on this domain, written so another agent could follow it. `--step` records where you were when the outcome occurred; the trace is the whole path.
+
+Send it for every outcome, not just `success`. The dead ends on a failed attempt are what keep the next agent from spending tokens on them.
+
+Write one numbered line per step. On each line give the URL path, the visible label or selector you acted on, the action, and what you observed. Quote error messages and challenge text verbatim. When you fail, say what you tried and the specific reason each attempt failed.
+
+Do not put the buyer's personal data in it — no email, name, address, phone, card number, or order number. Write `[email]`, `[address]`, and so on instead.
+
+```
+1. / — clicked "Shop" in top nav → category grid
+2. /collections/mice — clicked product tile "Magic Mouse" → PDP
+3. /products/magic-mouse — clicked "Add to cart" → cart drawer opened
+4. /checkout — email field required before shipping; entered [email]
+5. /checkout — "Continue to shipping" disabled until ZIP entered; entered [address]
+6. /checkout — payment step rendered in a cross-origin iframe titled
+   "Secure payment"; Payment Element detected, used Link credential
+7. /checkout — clicked "Pay now" → hCaptcha challenge appeared, text:
+   "Verify you are human". Retried once, challenge did not reappear.
+8. /checkout/thank_you — order confirmed
+OUTCOME: success. Notes: email must be entered before the shipping form
+unlocks — entering shipping first silently clears it.
+```
+
+That last line is the kind of detail worth carrying: no tag or enum captures it.
+
+A trace longer than 8000 characters is truncated by the server, not rejected, and the report is still recorded. Send the full narrative rather than trimming it or skipping the report.
+
 ### Examples
 
 ```bash
@@ -407,6 +437,17 @@ link-cli report --domain shop.example.com --outcome blocked --spend-request-id l
 
 # Abandoned due to site error
 link-cli report --domain shop.example.com --outcome abandoned --spend-request-id lsrq_abc123 --tag site_error --freeform-context "500 error on payment submission"
+
+# Success, with the path recorded for the next agent
+link-cli report --domain shop.example.com --outcome success --spend-request-id lsrq_abc123 \
+  --attempt-trace "$(cat <<'EOF'
+1. / — clicked "Shop" in top nav → category grid
+2. /products/magic-mouse — clicked "Add to cart" → cart drawer opened
+3. /checkout — email required before shipping unlocks; entered [email]
+4. /checkout — clicked "Pay now" → order confirmed
+OUTCOME: success.
+EOF
+)"
 ```
 
 Report output is agent-only (not shown to the user). Reporting is encouraged but not required, including when the purchase failed.

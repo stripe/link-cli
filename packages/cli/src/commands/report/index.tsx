@@ -24,6 +24,7 @@ export function createReportCli(
         tags: c.options.tag,
         step: c.options.step,
         freeform_context: c.options.freeformContext,
+        attempt_trace: c.options.attemptTrace,
       });
       return result;
     },

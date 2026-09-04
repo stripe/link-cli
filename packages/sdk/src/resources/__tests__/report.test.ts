@@ -1,5 +1,6 @@
 import { LinkApiError, LinkTransportError } from '@/errors';
 import type { CreateReportParams, ReportRecord } from '@/resources/interfaces';
+import { REPORT_ATTEMPT_TRACE_MAX_LENGTH } from '@/resources/interfaces';
 import { ReportResource } from '@/resources/report';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -85,6 +86,37 @@ describe('ReportResource', () => {
       expect(body.tags).toBeUndefined();
       expect(body.step).toBeUndefined();
       expect(body.freeform_context).toBeUndefined();
+      expect(body.attempt_trace).toBeUndefined();
+    });
+
+    it('sends attempt_trace in the body when provided', async () => {
+      mockFetchResponse(201, successResponse);
+
+      const attemptTrace = [
+        '1. / — clicked "Shop" → category grid',
+        '2. /checkout — email required before shipping unlocks; entered [email]',
+        '3. /checkout — clicked "Pay now" → order confirmed',
+      ].join('\n');
+
+      await resource.create({ ...validParams, attempt_trace: attemptTrace });
+
+      const [, opts] = mockFetch.mock.calls[0]!;
+      expect(JSON.parse(opts.body).attempt_trace).toBe(attemptTrace);
+    });
+
+    it('sends an attempt_trace over the cap unchanged and lets the API truncate', async () => {
+      mockFetchResponse(201, successResponse);
+
+      const oversized = 'x'.repeat(REPORT_ATTEMPT_TRACE_MAX_LENGTH + 500);
+
+      const result = await resource.create({
+        ...validParams,
+        attempt_trace: oversized,
+      });
+
+      const [, opts] = mockFetch.mock.calls[0]!;
+      expect(JSON.parse(opts.body).attempt_trace).toBe(oversized);
+      expect(result).toEqual(successResponse);
     });
 
     it('retries with refreshed token on 401', async () => {

@@ -344,9 +344,17 @@ link-cli report --domain shop.example.com --outcome blocked --spend-request-id l
 # Abandoned due to timeout
 link-cli report --domain shop.example.com --outcome abandoned --spend-request-id lsrq_abc123 \
   --tag timeout
+
+# With a step-by-step account of the path taken
+link-cli report --domain shop.example.com --outcome success --spend-request-id lsrq_abc123 \
+  --attempt-trace '1. / — clicked "Shop" → category grid
+2. /checkout — email required before shipping unlocks; entered [email]
+3. /checkout — clicked "Pay now" → order confirmed'
 ```
 
 Outcomes: `success`, `blocked`, `abandoned`. Tags: `stripe_checkout`, `captcha`, `anti_bot_script`, `cdn_block`, `waf_block`, `dns_block`, `rate_limited`, `login_required`, `3ds_challenge`, `page_inaccessible`, `timeout`, `site_error`, `payment_declined`, `other`.
+
+`--step` records where the agent was when the outcome occurred. `--attempt-trace` is the whole path: one numbered line per step, each giving the URL path, the label acted on, the action, and the observed result, so another agent can follow it. Send it on failures too — the dead ends are the useful part. Omit the buyer's personal data and write `[email]`, `[address]` in its place. Over 8000 characters is truncated by the server rather than rejected, so send the full narrative instead of skipping the report.
 
 
 

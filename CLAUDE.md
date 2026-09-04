@@ -50,7 +50,7 @@ Commands in `packages/cli/src/cli.tsx` (incur framework). Each has two output mo
 - **Interactive** (default): Ink/React components from `packages/cli/src/commands/`
 - **JSON** (`--format json`): JSON to stdout, errors as JSON with `code` and `message` fields with exit code 1
 
-Commands: `auth login|logout|status`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `serve`.
+Commands: `auth login|logout|status`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `report`, `serve`.
 
 The CLI also runs as an MCP server (`--mcp`) and serves skill files via `skills` subcommand, both provided by incur.
 
@@ -108,6 +108,12 @@ Key input field notes:
 ### onboard command
 
 - `onboard` — Guided setup: authenticates (skips if already logged in), checks payment methods (prompts to add one if missing, shows picker if multiple), shows app download QR code, then runs the full demo. Requires a TTY.
+
+### report command
+
+- `report --domain <d> --outcome <success|blocked|abandoned> --spend-request-id <lsrq_...> [--tag <t>]... [--step <s>] [--freeform-context <s>] [--attempt-trace <s>]` — records the outcome of a purchase attempt. Options in `packages/cli/src/commands/report/schema.ts`, SDK params in `CreateReportParams`. API endpoint: `/agent_observations`. Output policy is `agent-only`.
+- `--step` is where the agent was when the outcome occurred (max 500). `--attempt-trace` is the whole path it took, one numbered line per step, intended to be replayable by another agent. Both are optional and independent.
+- `--attempt-trace` intentionally carries **no** zod `.max()`. The API truncates at `REPORT_ATTEMPT_TRACE_MAX_LENGTH` (8000, exported from the SDK) and still records the report, so client-side rejection would trade a long narrative for a lost outcome. `--step` and `--freeform-context` keep their `.max(500)` because the API rejects those outright.
 
 ### serve command
 
