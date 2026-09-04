@@ -21,7 +21,7 @@ interface CatalogRow {
   price: string;
   availability: string;
   merchant: string;
-  networkId: string;
+  business: string;
 }
 
 const TITLE_MAX_WIDTH = 30;
@@ -46,7 +46,7 @@ function toRow(product: UcpSearchResult['data'][number]): CatalogRow {
     product.first_variant_price?.currency;
   const availability =
     product.availability ?? firstVariant?.availability?.status;
-  const networkId = product.profile_id ?? firstVariant?.profile_id;
+  const business = product.profile_id ?? firstVariant?.profile_id;
   const merchant = product.merchant_name ?? firstVariant?.merchant_name;
   return {
     sku: sku ?? '—',
@@ -54,7 +54,7 @@ function toRow(product: UcpSearchResult['data'][number]): CatalogRow {
     price: formatPrice(priceAmount, priceCurrency) || '—',
     availability: availability ?? '—',
     merchant: merchant ?? '—',
-    networkId: networkId ?? '—',
+    business: business ?? '—',
   };
 }
 
@@ -63,7 +63,7 @@ function truncate(value: string, width: number): string {
   return `${value.slice(0, Math.max(0, width - 1))}…`;
 }
 
-// Identifier columns (SKU, network id) are never truncated — they must be
+// Identifier columns (SKU, business) are never truncated — they must be
 // copyable verbatim into `ucp checkout create`. Only the display-only title
 // column is capped.
 function columnWidths(rows: CatalogRow[]) {
@@ -98,7 +98,7 @@ function columnWidths(rows: CatalogRow[]) {
 
 function formatRow(
   row: Record<'sku' | 'title' | 'price' | 'availability' | 'merchant', string>,
-  networkId: string,
+  business: string,
   widths: ReturnType<typeof columnWidths>,
 ): string {
   return [
@@ -107,7 +107,7 @@ function formatRow(
     row.price.padEnd(widths.price),
     row.availability.padEnd(widths.availability),
     row.merchant.padEnd(widths.merchant),
-    networkId,
+    business,
   ].join(' ');
 }
 
@@ -180,22 +180,22 @@ export const CatalogSearch: React.FC<CatalogSearchProps> = ({
               availability: 'AVAIL',
               merchant: 'MERCHANT',
             },
-            'NETWORK ID',
+            'BUSINESS',
             widths,
           )}
         </Text>
         {rows.map((row, index) => (
           <Text key={row.sku !== '—' ? row.sku : String(index)}>
-            {formatRow(row, row.networkId, widths)}
+            {formatRow(row, row.business, widths)}
           </Text>
         ))}
       </Box>
       <Box marginTop={1}>
         <Text dimColor>
-          Create a checkout with a SKU and its network id:{' '}
+          Create a checkout with a SKU and its business:{' '}
           <Text color="cyan">
-            ucp checkout create --network-id &lt;NETWORK ID&gt; --line-item
-            "sku_id:&lt;SKU&gt;,quantity:1"
+            ucp checkout create --business &lt;BUSINESS&gt; --line-item
+            "id:&lt;SKU&gt;,quantity:1"
           </Text>
         </Text>
       </Box>

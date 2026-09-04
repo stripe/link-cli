@@ -6,13 +6,11 @@ export const catalogSearchOptions = z.object({
     .max(200)
     .nonempty()
     .describe('Free-text search query (required, max 200 chars)'),
-  networkId: z
+  business: z
     .string()
     .optional()
-    .describe(
-      'Seller network profile ID to restrict results to a single seller',
-    ),
-  sku: z.string().optional().describe('Exact SKU ID to look up'),
+    .describe('Business target to restrict results to a single seller'),
+  id: z.string().optional().describe('Exact SKU ID to look up'),
   brand: z
     .array(z.string())
     .default([])
@@ -86,12 +84,12 @@ export const catalogSearchOptions = z.object({
 });
 
 export const checkoutCreateOptions = z.object({
-  networkId: z.string().describe('Seller network profile ID (required)'),
+  business: z.string().describe('Business target (required)'),
   lineItem: z
     .array(z.union([z.string(), z.record(z.string(), z.unknown())]))
     .default([])
     .describe(
-      'Line item (repeatable, key:value format). Keys: sku_id (required), quantity (required, positive integer). Example: "sku_id:sku_123,quantity:2"',
+      'Line item (repeatable, key:value format). Keys: id (required), quantity (required, positive integer). Example: "id:sku_123,quantity:2"',
     ),
   currency: z
     .string()
@@ -116,7 +114,7 @@ export const checkoutCompleteOptions = z.object({
   sharedPaymentToken: z
     .string()
     .describe(
-      'Shared Payment Token that authorizes the payment. Mint one with `spend-request create --credential-type shared_payment_token` and approve it',
+      'Shared Payment Token that authorizes the payment. Mint one with `spend-request create --credential-type shared_payment_token --network-id <business>`, using the same business value passed to UCP, and approve it',
     ),
   test: z
     .boolean()

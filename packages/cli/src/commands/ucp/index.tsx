@@ -26,15 +26,15 @@ function parseUcpLineItem(item: unknown): UcpLineItem {
     typeof item === 'string'
       ? parseKvString(item)
       : (item as Record<string, unknown>);
-  const skuId = raw.sku_id;
-  if (typeof skuId !== 'string' || skuId.length === 0) {
-    throw new Error('Each line item requires a sku_id');
+  const id = raw.id;
+  if (typeof id !== 'string' || id.length === 0) {
+    throw new Error('Each line item requires an id');
   }
   const quantity = Number(raw.quantity);
   if (!Number.isInteger(quantity) || quantity <= 0) {
     throw new Error('Each line item requires a positive integer quantity');
   }
-  return { sku_id: skuId, quantity };
+  return { sku_id: id, quantity };
 }
 
 export function createUcpCli(
@@ -64,8 +64,8 @@ export function createUcpCli(
 
       const params: SearchUcpCatalogParams = {
         query: opts.query,
-        profile_id: opts.networkId,
-        sku: opts.sku,
+        profile_id: opts.business,
+        sku: opts.id,
         brand: opts.brand.length ? opts.brand : undefined,
         category: opts.category.length ? opts.category : undefined,
         color: opts.color.length ? opts.color : undefined,
@@ -126,7 +126,7 @@ export function createUcpCli(
         return c.error({
           code: 'INVALID_INPUT',
           message:
-            'At least one --line-item is required (format: "sku_id:sku_123,quantity:1")',
+            'At least one --line-item is required (format: "id:sku_123,quantity:1")',
         });
       }
 
@@ -156,7 +156,7 @@ export function createUcpCli(
       }
 
       const params: CreateUcpCheckoutParams = {
-        profile_id: opts.networkId,
+        profile_id: opts.business,
         line_items: lineItems,
         currency: opts.currency,
         fulfillment_details: fulfillmentDetails,
@@ -187,7 +187,7 @@ export function createUcpCli(
       const testFlag = opts.test ? ' --test' : '';
       return {
         ...created,
-        instruction: `Checkout ${created.id} needs payment of ${created.amount_total ?? 'the total'} ${created.currency ?? ''}. Mint a Shared Payment Token for this amount with \`spend-request create --credential-type shared_payment_token\`, get it approved, then complete the checkout with the SPT id.`,
+        instruction: `Checkout ${created.id} needs payment of ${created.amount_total ?? 'the total'} ${created.currency ?? ''}. Mint a Shared Payment Token for this amount with \`spend-request create --credential-type shared_payment_token --network-id ${opts.business}\`; spend-request calls the UCP business value a network ID. Get it approved, then complete the checkout with the SPT id.`,
         _next: {
           command: `ucp checkout complete ${created.id} --shared-payment-token <spt_id>${testFlag}`,
           until: 'checkout status becomes completed',

@@ -54,11 +54,12 @@ describe('ucp catalog search component', () => {
     await vi.waitFor(() => {
       const frame = lastFrame();
       expect(frame).toContain('Catalog results');
+      expect(frame).toContain('BUSINESS');
       expect(frame).toContain('sku_1');
       // sale_price is preferred over price.
       expect(frame).toContain('$99.00 USD');
       expect(frame).toContain('in_stock');
-      // profile_id is surfaced so the agent can create a checkout.
+      // profile_id is surfaced as the business so the agent can create a checkout.
       expect(frame).toContain('np_demo_footwear');
       expect(frame).toContain('Demo Footwear Co');
       expect(frame).toContain(CLEAN_TEXT);
@@ -103,7 +104,8 @@ describe('ucp catalog search component', () => {
               {
                 merchant_sku: 'CJPB158377701AZ',
                 merchant_name: 'Poemusart Inc.',
-                profile_id: 'profile_61UnURSooufCZI1dNA6UnURR8PSQ9lq8RrWwUUOkq64m',
+                profile_id:
+                  'profile_61UnURSooufCZI1dNA6UnURR8PSQ9lq8RrWwUUOkq64m',
                 price: { amount: 50, currency: 'usd' },
                 availability: { status: 'in_stock' },
               },
@@ -208,6 +210,9 @@ describe('ucp checkout create component', () => {
       expect(frame).toContain('requires_payment');
       expect(frame).toContain('$55.00 USD');
       expect(frame).toContain('$5.00 USD'); // shipping
+      expect(frame).toContain('spend-request create');
+      expect(frame).toContain('--credential-type shared_payment_token');
+      expect(frame).toContain('--network-id np_1');
       expect(frame).toContain('ucp checkout complete dcs_1');
     });
   });
