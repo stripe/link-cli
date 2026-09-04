@@ -10,6 +10,10 @@ interface UserInfoRetrieveProps {
   onComplete: (result: UserInfo | null) => void;
 }
 
+function formatLimit(value: number | null): string {
+  return value === null ? 'Unlimited' : `${value} cents`;
+}
+
 export const UserInfoRetrieve: React.FC<UserInfoRetrieveProps> = ({
   resource,
   onComplete,
@@ -52,6 +56,49 @@ export const UserInfoRetrieve: React.FC<UserInfoRetrieveProps> = ({
           <Text dimColor>Phone: </Text>
           {userInfo?.phone ?? <Text dimColor>Not set</Text>}
         </Text>
+        {userInfo?.agent_wallet_spend_limits && (
+          <Box flexDirection="column" marginTop={1}>
+            <Text bold>Agent Wallet Spend Limits</Text>
+            <Box flexDirection="column" paddingLeft={2}>
+              <Text>
+                <Text dimColor>Per-transaction: </Text>
+                {formatLimit(
+                  userInfo.agent_wallet_spend_limits.per_transaction.limit,
+                )}
+              </Text>
+              <Text>
+                <Text dimColor>Daily: </Text>
+                limit{' '}
+                {formatLimit(userInfo.agent_wallet_spend_limits.daily.limit)},
+                used {userInfo.agent_wallet_spend_limits.daily.used} cents,
+                remaining{' '}
+                {formatLimit(
+                  userInfo.agent_wallet_spend_limits.daily.remaining,
+                )}
+              </Text>
+              <Text>
+                <Text dimColor>30-day: </Text>
+                limit{' '}
+                {formatLimit(
+                  userInfo.agent_wallet_spend_limits.thirty_day.limit,
+                )}
+                , used {userInfo.agent_wallet_spend_limits.thirty_day.used}{' '}
+                cents, remaining{' '}
+                {formatLimit(
+                  userInfo.agent_wallet_spend_limits.thirty_day.remaining,
+                )}
+              </Text>
+            </Box>
+          </Box>
+        )}
+        {userInfo?.agent_wallet_step_up && (
+          <Box marginTop={1}>
+            <Text>
+              <Text dimColor>Agent Wallet step-up status: </Text>
+              {userInfo.agent_wallet_step_up.status}
+            </Text>
+          </Box>
+        )}
       </Box>
     </Box>
   );

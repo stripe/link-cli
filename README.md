@@ -111,6 +111,29 @@ link-cli auth login
 
 You receive a verification URL and a short phrase. Visit the URL, log in to your Link account, and enter the phrase to approve the connection.
 
+### Retrieve user info
+
+```bash
+link-cli user-info retrieve --format json
+```
+
+In addition to identity fields, the response can include Agent Wallet spend limits and step-up status:
+
+```json
+{
+  "email": "jane@example.com",
+  "name": "Jane Doe",
+  "agent_wallet_spend_limits": {
+    "per_transaction": { "limit": 50000 },
+    "daily": { "limit": 500000, "used": 120000, "remaining": 380000 },
+    "thirty_day": { "limit": null, "used": 600000, "remaining": null }
+  },
+  "agent_wallet_step_up": { "status": "not_required" }
+}
+```
+
+Finite spend-limit values are cents because this response does not include a currency. A `null` limit or remaining amount means unlimited. Either Agent Wallet object can be absent when backend enrichment is unavailable; absence does not imply a limit or step-up status.
+
 ### List payment methods
 
 ```bash

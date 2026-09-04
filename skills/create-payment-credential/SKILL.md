@@ -114,6 +114,8 @@ Always check the current authentication status before starting a new login flow 
 
 If the user is already authenticated but you need broader access (an additional `scope`, `--source-actions`, or `--authorization-detail`), use `auth upgrade` instead of `auth login`. It takes the same flags but, rather than stopping with an "already logged in" message, merges what you request with the current `scope`/`authorization_details` and starts a new approval for the superset — so existing access is never dropped. Check `auth status` first so you know what's already granted. The current session stays valid during the approval and is only replaced once the user approves the new one, so an abandoned upgrade leaves the existing session working.
 
+Optionally, before a purchase, run `link-cli user-info retrieve --format json` to inspect any available Agent Wallet spend limits and step-up status. Finite limit values are cents, while `null` limit or remaining values mean unlimited. Either Agent Wallet object may be absent when enrichment is unavailable; treat this preflight as informational, not as permission or denial to purchase. Spend-request responses and their existing `requires_action` behavior remain authoritative.
+
 ### Step 2: Evaluate the merchant site BEFORE creating a spend request
 
 **CRITICAL:** Before calling `spend-request create` you must complete this checklist:

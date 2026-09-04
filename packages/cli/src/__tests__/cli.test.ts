@@ -2414,6 +2414,12 @@ describe('production mode', () => {
       setResponseForUrl('/userinfo', 200, {
         email: 'user@example.com',
         name: 'Test User',
+        agent_wallet_spend_limits: {
+          per_transaction: { limit: null },
+          daily: { limit: 500000, used: 120000, remaining: 380000 },
+          thirty_day: { limit: null, used: 600000, remaining: null },
+        },
+        agent_wallet_step_up: { status: 'not_required' },
       });
 
       const result = await runProdCliWithEnv(
@@ -2426,6 +2432,12 @@ describe('production mode', () => {
       expect(result.exitCode).toBe(0);
       const output = parseJson(result.stdout) as Record<string, unknown>;
       expect(output.email).toBe('user@example.com');
+      expect(output.agent_wallet_spend_limits).toEqual({
+        per_transaction: { limit: null },
+        daily: { limit: 500000, used: 120000, remaining: 380000 },
+        thirty_day: { limit: null, used: 600000, remaining: null },
+      });
+      expect(output.agent_wallet_step_up).toEqual({ status: 'not_required' });
       const userInfoRequest = requests.find((r) => r.url === '/userinfo');
       expect(userInfoRequest).toBeDefined();
       expect(userInfoRequest?.headers.authorization).toBe(
