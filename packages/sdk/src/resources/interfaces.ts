@@ -9,6 +9,7 @@ import type {
   SourcesPage,
   SpendRequest,
   Total,
+  Transaction,
   TransactionOrigin,
   TransactionsPage,
   UserInfo,
@@ -92,8 +93,14 @@ export interface ListTransactionsParams {
   sources?: string[];
 }
 
+export interface UpdateTransactionParams {
+  category?: string;
+  description?: string;
+}
+
 export interface ITransactionsResource {
   list(params?: ListTransactionsParams): Promise<TransactionsPage>;
+  update(id: string, params: UpdateTransactionParams): Promise<Transaction>;
 }
 
 export interface ListSourcesParams {

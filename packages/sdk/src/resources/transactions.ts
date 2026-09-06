@@ -3,8 +3,9 @@ import { BaseResource } from '@/resources/base';
 import type {
   ITransactionsResource,
   ListTransactionsParams,
+  UpdateTransactionParams,
 } from '@/resources/interfaces';
-import type { TransactionsPage } from '@/types/index';
+import type { Transaction, TransactionsPage } from '@/types/index';
 import { z } from 'zod';
 
 const transactionSchema = z.looseObject({
@@ -81,6 +82,36 @@ export class TransactionsResource
       'list transactions',
       status,
       () => transactionsPageSchema.parse(data) as TransactionsPage,
+    );
+  }
+
+  async update(
+    id: string,
+    params: UpdateTransactionParams,
+  ): Promise<Transaction> {
+    const body: Record<string, unknown> = {};
+    if (params.category !== undefined) {
+      body.category = params.category;
+    }
+    if (params.description !== undefined) {
+      body.description = params.description;
+    }
+
+    const { status, data, rawBody } = await this.apiFetch({
+      method: 'POST',
+      url: `${this.endpoint}/${id}`,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (status < 200 || status >= 300) {
+      this.throwApiError('update transaction', status, data, rawBody);
+    }
+
+    return this.parseResponse(
+      'update transaction',
+      status,
+      () => transactionSchema.parse(data) as Transaction,
     );
   }
 }
