@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.17.3
+
+### Patch Changes
+
+- 02d4dcf: Update the create-payment-credential skill file and README with simplified user-info guidance.
+
 ## 0.17.2
 
 ### Patch Changes
