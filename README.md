@@ -117,7 +117,7 @@ You receive a verification URL and a short phrase. Visit the URL, log in to your
 link-cli user-info retrieve --format json
 ```
 
-In addition to identity fields, the response can include Agent Wallet spend limits and a verification requirement:
+In addition to identity fields, the response can include spend limits and verification requirements:
 
 ```json
 {
@@ -135,7 +135,7 @@ In addition to identity fields, the response can include Agent Wallet spend limi
 }
 ```
 
-Finite spend-limit values are cents because this response does not include a currency. A `null` limit or remaining amount means unlimited. The verification requirement's `action_url` is null when no action is available. Either Agent Wallet object can be absent when backend enrichment is unavailable; absence does not imply a limit or verification status.
+Finite spend-limit values are cents because this response does not include a currency. A null limit or remaining amount means unlimited. The verification requirement's action_url is null when no action is available.
 
 ### List payment methods
 
