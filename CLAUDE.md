@@ -94,10 +94,10 @@ Key input field notes:
 
 ### user-info retrieve
 
-- `user-info retrieve` returns the existing identity fields and can include `agent_wallet_spend_limits` and `agent_wallet_step_up` enrichment.
+- `user-info retrieve` returns the existing identity fields and can include `agent_wallet_spend_limits` and `agent_wallet_verification_requirement` enrichment.
 - Spend limits contain per-transaction, daily, and 30-day values. Finite values are cents because `/userinfo` does not return currency. A `null` limit or remaining amount explicitly means unlimited; `used` remains numeric.
-- Either enrichment object can be omitted independently when enrichment is disabled or unavailable. Do not interpret omission as unlimited or as a default step-up status.
-- Step-up status is one of `not_required`, `ssn_verification`, `identity_verification`, `contact_support`, or `complete`. It is informational and does not change spend-request or `requires_action` handling.
+- Either enrichment object can be omitted independently when enrichment is disabled or unavailable. Do not interpret omission as unlimited or as a default verification status.
+- Verification status is one of `not_required`, `ssn_verification`, `identity_verification`, `contact_support`, or `complete`. `action_url` is nullable and directs the user to the required action when present. This is informational and does not change spend-request or `requires_action` handling.
 
 ### mpp pay
 

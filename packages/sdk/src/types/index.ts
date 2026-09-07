@@ -176,7 +176,7 @@ export interface BankAccountDetails {
   bank_name?: string;
 }
 
-export type AgentWalletStepUpStatus =
+export type AgentWalletVerificationStatus =
   | 'not_required'
   | 'ssn_verification'
   | 'identity_verification'
@@ -199,8 +199,9 @@ export interface AgentWalletSpendLimits {
   };
 }
 
-export interface AgentWalletStepUp {
-  status: AgentWalletStepUpStatus;
+export interface AgentWalletVerificationRequirement {
+  status: AgentWalletVerificationStatus;
+  action_url: string | null;
 }
 
 export interface UserInfo {
@@ -210,7 +211,7 @@ export interface UserInfo {
   last_name?: string | null;
   phone?: string | null;
   agent_wallet_spend_limits?: AgentWalletSpendLimits;
-  agent_wallet_step_up?: AgentWalletStepUp;
+  agent_wallet_verification_requirement?: AgentWalletVerificationRequirement;
 }
 
 export interface ProductCapability {

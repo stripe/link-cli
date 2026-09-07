@@ -91,12 +91,18 @@ export const UserInfoRetrieve: React.FC<UserInfoRetrieveProps> = ({
             </Box>
           </Box>
         )}
-        {userInfo?.agent_wallet_step_up && (
-          <Box marginTop={1}>
+        {userInfo?.agent_wallet_verification_requirement && (
+          <Box flexDirection="column" marginTop={1}>
             <Text>
-              <Text dimColor>Agent Wallet step-up status: </Text>
-              {userInfo.agent_wallet_step_up.status}
+              <Text dimColor>Agent Wallet verification requirement: </Text>
+              {userInfo.agent_wallet_verification_requirement.status}
             </Text>
+            {userInfo.agent_wallet_verification_requirement.action_url && (
+              <Text>
+                <Text dimColor>Action URL: </Text>
+                {userInfo.agent_wallet_verification_requirement.action_url}
+              </Text>
+            )}
           </Box>
         )}
       </Box>

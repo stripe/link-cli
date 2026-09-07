@@ -10,7 +10,7 @@ function makeResource(userInfo: UserInfo): IUserInfoResource {
 }
 
 describe('user-info retrieve component', () => {
-  it('renders finite Agent Wallet limits and step-up status', async () => {
+  it('renders finite Agent Wallet limits and verification requirement', async () => {
     const resource = makeResource({
       email: 'jane@example.com',
       name: 'Jane Doe',
@@ -24,7 +24,11 @@ describe('user-info retrieve component', () => {
           remaining: 1400000,
         },
       },
-      agent_wallet_step_up: { status: 'identity_verification' },
+      agent_wallet_verification_requirement: {
+        status: 'identity_verification',
+        action_url:
+          'https://app.link.com/finish_setup?verify=identity_verification&intended_email=jane%40example.com&fromEmail=jane%40example.com',
+      },
     });
 
     const { lastFrame } = render(
@@ -42,8 +46,12 @@ describe('user-info retrieve component', () => {
         '30-day: limit 2000000 cents, used 600000 cents, remaining 1400000 cents',
       );
       expect(frame).toContain(
-        'Agent Wallet step-up status: identity_verification',
+        'Agent Wallet verification requirement: identity_verification',
       );
+      expect(frame).toContain(
+        'Action URL: https://app.link.com/finish_setup?verify=identity_verification',
+      );
+      expect(frame).toContain('fromEmail=jane%40example.com');
     });
   });
 
@@ -87,9 +95,12 @@ describe('user-info retrieve component', () => {
     });
   });
 
-  it('renders independently available step-up enrichment', async () => {
+  it('renders an independently available verification requirement', async () => {
     const resource = makeResource({
-      agent_wallet_step_up: { status: 'not_required' },
+      agent_wallet_verification_requirement: {
+        status: 'not_required',
+        action_url: null,
+      },
     });
 
     const { lastFrame } = render(
@@ -98,7 +109,10 @@ describe('user-info retrieve component', () => {
 
     await vi.waitFor(() => {
       const frame = lastFrame();
-      expect(frame).toContain('Agent Wallet step-up status: not_required');
+      expect(frame).toContain(
+        'Agent Wallet verification requirement: not_required',
+      );
+      expect(frame).not.toContain('Action URL:');
       expect(frame).not.toContain('Agent Wallet Spend Limits');
     });
   });

@@ -2419,7 +2419,7 @@ describe('production mode', () => {
           daily: { limit: 500000, used: 120000, remaining: 380000 },
           thirty_day: { limit: null, used: 600000, remaining: null },
         },
-        agent_wallet_step_up: { status: 'not_required' },
+        agent_wallet_step_up: { status: 'not_required', action_url: null },
       });
 
       const result = await runProdCliWithEnv(
@@ -2437,7 +2437,10 @@ describe('production mode', () => {
         daily: { limit: 500000, used: 120000, remaining: 380000 },
         thirty_day: { limit: null, used: 600000, remaining: null },
       });
-      expect(output.agent_wallet_step_up).toEqual({ status: 'not_required' });
+      expect(output.agent_wallet_verification_requirement).toEqual({
+        status: 'not_required',
+        action_url: null,
+      });
       const userInfoRequest = requests.find((r) => r.url === '/userinfo');
       expect(userInfoRequest).toBeDefined();
       expect(userInfoRequest?.headers.authorization).toBe(

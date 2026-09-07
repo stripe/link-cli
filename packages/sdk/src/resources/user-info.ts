@@ -18,7 +18,7 @@ const agentWalletSpendLimitsSchema = z.object({
   thirty_day: rollingSpendLimitSchema,
 });
 
-const agentWalletStepUpSchema = z.object({
+const agentWalletVerificationRequirementSchema = z.object({
   status: z.enum([
     'not_required',
     'ssn_verification',
@@ -26,6 +26,7 @@ const agentWalletStepUpSchema = z.object({
     'contact_support',
     'complete',
   ]),
+  action_url: z.string().nullable(),
 });
 
 const userInfoSchema = z
@@ -36,7 +37,7 @@ const userInfoSchema = z
     last_name: z.string().nullable().optional(),
     phone: z.string().nullable().optional(),
     agent_wallet_spend_limits: agentWalletSpendLimitsSchema.optional(),
-    agent_wallet_step_up: agentWalletStepUpSchema.optional(),
+    agent_wallet_step_up: agentWalletVerificationRequirementSchema.optional(),
   })
   .transform(
     ({
@@ -56,7 +57,9 @@ const userInfoSchema = z
       ...(agent_wallet_spend_limits === undefined
         ? {}
         : { agent_wallet_spend_limits }),
-      ...(agent_wallet_step_up === undefined ? {} : { agent_wallet_step_up }),
+      ...(agent_wallet_step_up === undefined
+        ? {}
+        : { agent_wallet_verification_requirement: agent_wallet_step_up }),
     }),
   );
 
