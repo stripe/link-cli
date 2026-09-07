@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.17.2
+
+### Patch Changes
+
+- 1fe657f: Rename the Agent Wallet user-info step-up field to `agent_wallet_verification_requirement` and expose its nullable `action_url`.
+
 ## 0.17.1
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @stripe/link-sdk
 
+## 0.3.2
+
+### Patch Changes
+
+- 1fe657f: Rename the Agent Wallet user-info step-up field to `agent_wallet_verification_requirement` and expose its nullable `action_url`.
+
 ## 0.3.1
 
 ### Patch Changes
