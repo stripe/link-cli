@@ -26,11 +26,7 @@ export const createOptions = z.object({
     .describe(
       'Stripe account ID from data-stripe-merchant-account; required with execution_method link_pay_token',
     ),
-  amount: z.coerce
-    .number()
-    .int()
-    .positive()
-    .describe('Amount in cents'),
+  amount: z.coerce.number().int().positive().describe('Amount in cents'),
   currency: z.string().length(3).default('usd').describe('Currency code'),
   merchantName: z
     .string()
