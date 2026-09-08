@@ -15,6 +15,7 @@ import { createTransactionsCli } from './commands/transactions';
 import { createUserInfoCli } from './commands/user-info';
 import { createWebBotAuthCli } from './commands/web-bot-auth';
 import { buildMcpCommand } from './utils/package-runner';
+import { installAuthoredSkills, isSkillsAddInvocation } from './skills-install';
 import { ResourceFactory } from './utils/resource-factory';
 import {
   createAgentUpdateInfoProvider,
@@ -176,6 +177,11 @@ cli.command(
 );
 cli.command(createServeCli(cli));
 
-cli.serve();
+const argv = process.argv.slice(2);
+if (isSkillsAddInvocation(argv)) {
+  process.exitCode = installAuthoredSkills(argv.slice(2));
+} else {
+  await cli.serve();
+}
 
 export default cli;
