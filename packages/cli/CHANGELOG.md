@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.18.0
+
+### Minor Changes
+
+- a4ab163: Remove explicit CLI-side amount validation
+
 ## 0.17.3
 
 ### Patch Changes
