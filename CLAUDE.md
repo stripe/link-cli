@@ -7,6 +7,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 Link CLI — lets agents get secure, one-time-use payment credentials from a Link wallet. pnpm + Turborepo monorepo:
 
 - **`@stripe/link-sdk`** (`packages/sdk`): Typed Link API client and resource implementations. It accepts `accessToken` or `getAccessToken`; it does not own OAuth state. Entry: `src/index.ts`.
+- **Link Go SDK** (`packages/sdk-go`): Go equivalent of `@stripe/link-sdk`. It accepts `AccessToken` or `GetAccessToken`; it does not own OAuth state. Package name: `link`.
 - **`@stripe/link-cli`** (`packages/cli`): Commander.js + Ink/React CLI that consumes `@stripe/link-sdk`. Entry: `src/cli.tsx`.
 
 ## Commands
@@ -16,6 +17,7 @@ pnpm install                    # install dependencies
 pnpm run build                  # build all packages (turbo)
 pnpm run dev                    # watch mode
 pnpm run test                   # run all tests
+pnpm run test:go                # run the Go SDK tests
 pnpm run typecheck              # type-check all packages
 pnpm biome check .              # lint + format check (CI)
 pnpm run check                  # lint + format with auto-fix
@@ -43,6 +45,10 @@ Defined in `packages/sdk/src/resources/interfaces.ts`:
 The SDK only accepts credentials. Device authorization, refresh-token
 persistence, login state, and auth-specific errors live under
 `packages/cli/src/auth/`.
+
+The Go SDK currently mirrors the Link API resources exposed by the TypeScript
+SDK. Until a server-owned OpenAPI schema is available, keep API changes aligned
+through implementation review and each package's unit tests.
 
 ### CLI Command Structure
 

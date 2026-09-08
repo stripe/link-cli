@@ -23,12 +23,32 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6
+        with:
+          go-version-file: packages/sdk-go/go.mod
+          cache-dependency-path: packages/sdk-go/go.mod
+
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm turbo run build
       - run: pnpm turbo run typecheck
       - run: pnpm biome check .
       - run: pnpm turbo run test
+
+      - name: Check Go SDK
+        run: |
+          unformatted="$(gofmt -l packages/sdk-go/*.go)"
+          if [ -n "$unformatted" ]; then
+            echo "The following Go files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+          go -C packages/sdk-go mod tidy -diff
+          go -C packages/sdk-go vet ./...
+
+      - name: Test Go SDK
+        working-directory: packages/sdk-go
+        run: go test -race ./...
 
       - name: Verify publishable
         run: pnpm --filter @stripe/link-cli --filter @stripe/link-sdk publish --dry-run --no-git-checks

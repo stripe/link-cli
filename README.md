@@ -27,6 +27,7 @@ Documentation:
   - [Metadata](#metadata)
   - [Environment variables](#environment-variables)
 - [Integrating into your agent](#integrating-into-agents)
+- [SDKs](#sdks)
 - [Onboarding and Demos](#onboarding-and-demos)
 - [Development](#development)
 - [Releasing](#releasing)
@@ -443,6 +444,14 @@ In MCP/agent mode, pass `metadata` as a structured `{ key: value }` object.
 If you are building an agent and want to offer Link as a native experience to your consumers (as a connector, plugin, pre-installed capability etc.), 
 please reach out to `danhill at stripe.com`. We can support higher limits, more embedded approval flows, and additional advanced capabilities.
 
+## SDKs
+
+Applications can use the credential-only Link client directly in either
+[TypeScript](packages/sdk/README.md) or [Go](packages/sdk-go/README.md). Both
+SDKs expose the same resources, wire models, enum values, request behavior, and
+response normalization. Authentication flows and credential persistence remain
+the embedding application's responsibility.
+
 ## Onboarding and Demos
 
 Run the guided setup flow — authenticates, checks payment methods, shows the app download QR, and runs both demo flows:
@@ -478,6 +487,9 @@ Run tests:
 ```bash
 pnpm run test
 ```
+
+This runs the TypeScript and Go suites. Go SDK development requires Go 1.23 or
+newer.
 
 Type-check and lint:
 
@@ -523,3 +535,7 @@ pnpm --filter @stripe/link-cli --filter @stripe/link-sdk publish --dry-run --no-
 ```
 
 CI runs the same publish dry-run for every pull request.
+
+The Go SDK is a nested module and is released with a repository tag such as
+`packages/sdk-go/v0.1.0`. Go module tags are independent of npm package
+versions.
