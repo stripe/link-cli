@@ -29,6 +29,7 @@ function run() {
     'npx',
     ['--yes', 'skills', 'add', REPO, '-g', '-y'],
     {
+      env: { ...process.env, GH_HOST: 'github.com' },
       stdio: 'inherit',
       timeout: 60_000,
     },
