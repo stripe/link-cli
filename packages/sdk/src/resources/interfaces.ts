@@ -138,6 +138,12 @@ export const REPORT_TAGS = [
 ] as const;
 export type ReportTag = (typeof REPORT_TAGS)[number];
 
+/**
+ * Server-side cap on `attempt_trace`. Longer values are truncated by the API
+ * rather than rejected, so callers do not need to pre-trim.
+ */
+export const REPORT_ATTEMPT_TRACE_MAX_LENGTH = 8000;
+
 export interface CreateReportParams {
   domain: string;
   outcome: ReportOutcome;
@@ -145,6 +151,7 @@ export interface CreateReportParams {
   tags?: ReportTag[];
   step?: string;
   freeform_context?: string;
+  attempt_trace?: string;
 }
 
 export interface ReportRecord {
