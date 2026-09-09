@@ -15,7 +15,11 @@ import { createTransactionsCli } from './commands/transactions';
 import { createUserInfoCli } from './commands/user-info';
 import { createWebBotAuthCli } from './commands/web-bot-auth';
 import { buildMcpCommand } from './utils/package-runner';
-import { installAuthoredSkills, isSkillsAddInvocation } from './skills-install';
+import {
+  installAuthoredSkills,
+  installAuthoredSkillsNatively,
+  isSkillsAddInvocation,
+} from './skills-install';
 import { ResourceFactory } from './utils/resource-factory';
 import {
   createAgentUpdateInfoProvider,
@@ -25,6 +29,7 @@ import {
 
 declare const __CLI_VERSION__: string;
 declare const __CLI_NAME__: string;
+declare const __CLI_STANDALONE__: boolean;
 
 const cliVersion = __CLI_VERSION__;
 const cliName = __CLI_NAME__;
@@ -179,7 +184,10 @@ cli.command(createServeCli(cli));
 
 const argv = process.argv.slice(2);
 if (isSkillsAddInvocation(argv)) {
-  process.exitCode = installAuthoredSkills(argv.slice(2));
+  process.exitCode =
+    typeof __CLI_STANDALONE__ !== 'undefined' && __CLI_STANDALONE__
+      ? await installAuthoredSkillsNatively(argv)
+      : installAuthoredSkills(argv);
 } else {
   await cli.serve();
 }

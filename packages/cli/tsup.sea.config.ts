@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'tsup';
+import { authoredSkillsDefine } from './skill-bundle';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'));
@@ -39,6 +40,8 @@ export default defineConfig({
     ].join('\n'),
   },
   define: {
+    __AUTHORED_SKILLS__: authoredSkillsDefine(__dirname),
+    __CLI_STANDALONE__: 'true',
     __CLI_VERSION__: JSON.stringify(pkg.version),
     __CLI_NAME__: JSON.stringify(pkg.name),
   },
