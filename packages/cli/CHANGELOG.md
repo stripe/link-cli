@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.19.0
+
+### Minor Changes
+
+- c6464e3: Add `--attempt-trace` to `link-cli report` (and `attempt_trace` to the SDK's `CreateReportParams`): a step-by-step account of the path the agent took on a domain, written so another agent could follow it. Sent for successes and failures alike — the dead ends on a failed attempt are the useful part. The API truncates past 8000 characters rather than rejecting, so the flag carries no client-side length limit.
+
 ## 0.18.0
 
 ### Minor Changes
