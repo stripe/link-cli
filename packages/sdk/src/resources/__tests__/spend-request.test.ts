@@ -187,6 +187,32 @@ describe('SpendRequestResource', () => {
       });
     });
 
+    it('serializes idempotency_key in the normal create body', async () => {
+      mockFetchResponse(200, spendRequestResponse);
+
+      await repo.create({
+        ...validParams,
+        idempotency_key: '550e8400-e29b-41d4-a716-446655440000',
+      });
+
+      const [url, opts] = mockFetch.mock.calls[0]!;
+      const sentBody = JSON.parse(opts.body);
+      expect(url).toBe('https://api.link.com/spend_requests');
+      expect(sentBody.idempotency_key).toBe(
+        '550e8400-e29b-41d4-a716-446655440000',
+      );
+    });
+
+    it('does not include idempotency_key when it is omitted', async () => {
+      mockFetchResponse(200, spendRequestResponse);
+
+      await repo.create(validParams);
+
+      const [, opts] = mockFetch.mock.calls[0]!;
+      const sentBody = JSON.parse(opts.body);
+      expect(sentBody.idempotency_key).toBeUndefined();
+    });
+
     it('does not include metadata in POST body when not set', async () => {
       mockFetchResponse(200, spendRequestResponse);
 
@@ -227,12 +253,28 @@ describe('SpendRequestResource', () => {
       await repo.create({
         ...validParams,
         approve: true,
+        idempotency_key: 'delegated-key',
       });
 
       const [url, opts] = mockFetch.mock.calls[0]!;
       expect(url).toBe('https://api.link.com/spend_requests/create_delegated');
       const sentBody = JSON.parse(opts.body);
       expect(sentBody.approve).toBeUndefined();
+      expect(sentBody.idempotency_key).toBe('delegated-key');
+    });
+
+    it('keeps an incomplete keyed creation 409 as a LinkApiError', async () => {
+      mockFetchResponse(409, {
+        error: { message: 'The keyed creation is still in progress' },
+      });
+
+      const error = await repo
+        .create({ ...validParams, idempotency_key: 'incomplete-key' })
+        .catch((cause) => cause);
+
+      expect(error).toBeInstanceOf(LinkApiError);
+      expect(error.status).toBe(409);
+      expect(error.message).toContain('still in progress');
     });
 
     it('sends to /spend_requests when approve is not set', async () => {
