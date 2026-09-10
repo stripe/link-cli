@@ -14,6 +14,7 @@ Documentation:
 
 - [Installation](#installation)
 - [Quickstart](#quickstart)
+- [Where to use Link Agent Wallet](#where-to-use-link-agent-wallet)
 - [Advanced usage](#advanced)
   - [Authentication](#authentication)
   - [The spend request lifecycle](#spend-request-lifecycle)
@@ -196,6 +197,16 @@ For agent polling, pass `--interval` and optionally `--max-attempts`:
 ```bash
 link-cli spend-request retrieve lsrq_001 --interval 2 --max-attempts 300
 ```
+
+## Where to use Link Agent Wallet
+
+Link is already integrated with the following agents:
+
+- [Muse by Meta](https://muse.ai)
+- [Grok Bot](https://x.ai/bot)
+- [Instinct](https://instinct.com)
+- [Browser Use](https://browser-use.com/)
+
 
 ## Advanced
 
@@ -450,7 +461,8 @@ In MCP/agent mode, pass `metadata` as a structured `{ key: value }` object.
 ## Integrating into agents
 
 If you are building an agent and want to offer Link as a native experience to your consumers (as a connector, plugin, pre-installed capability etc.), 
-please reach out to `danhill at stripe.com`. We can support higher limits, more embedded approval flows, and additional advanced capabilities.
+please reach out to `agent-spend at stripe.com`. We can support higher limits, more embedded approval flows, and additional advanced capabilities 
+for certain agents.
 
 ## SDKs
 
