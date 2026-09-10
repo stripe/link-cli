@@ -5,17 +5,23 @@ import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { openUrl } from '../../utils/open-url';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
 
-export type ApprovalStatus = 'waiting' | 'polling' | 'success' | 'error';
+export type ApprovalStatus =
+  | 'waiting'
+  | 'polling'
+  | 'success'
+  | 'error'
+  | 'requires_action';
 
 interface UseApprovalPollingOptions {
   status: string;
-  setStatus: (s: 'polling' | 'success' | 'error') => void;
+  setStatus: (s: 'polling' | 'success' | 'error' | 'requires_action') => void;
   approvalUrl: string;
   repository: ISpendRequestResource;
   requestId: string | null;
   onComplete: (result: SpendRequest) => void;
   onSuccess: (result: SpendRequest) => void;
   onError: (msg: string) => void;
+  onRequiresAction: (result: SpendRequest) => void;
 }
 
 export function useApprovalPolling({
@@ -27,6 +33,7 @@ export function useApprovalPolling({
   onComplete,
   onSuccess,
   onError,
+  onRequiresAction,
 }: UseApprovalPollingOptions): void {
   const isWaiting = status === 'waiting' || status === 'polling';
 
@@ -52,6 +59,12 @@ export function useApprovalPolling({
       try {
         const final = await pollUntilApproved(repository, requestId);
         if (cancelled) return;
+        if (final.status === 'requires_action') {
+          onRequiresAction(final);
+          setStatus('requires_action');
+          setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
+          return;
+        }
         if (final.status !== 'approved') {
           onError(
             `Spend request did not reach approved (status: ${final.status})`,
@@ -82,6 +95,7 @@ export function useApprovalPolling({
     onComplete,
     onSuccess,
     onError,
+    onRequiresAction,
     setStatus,
   ]);
 }

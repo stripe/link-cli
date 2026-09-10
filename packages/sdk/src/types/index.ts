@@ -4,28 +4,6 @@ export type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue };
 
-export interface DeviceAuthRequest {
-  device_code: string;
-  user_code: string;
-  verification_url: string;
-  verification_url_complete: string;
-  expires_in: number;
-  interval: number;
-}
-
-export interface AuthTokens {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  token_type: string;
-  /** Absolute epoch-ms when the access token expires (computed on store). */
-  expires_at?: number;
-  /** Space-separated scopes granted for this session (echoed by the token endpoint). */
-  scope?: string;
-  /** Authorization details granted for this session (echoed by the token endpoint). */
-  authorization_details?: JsonValue[];
-}
-
 export interface LineItem {
   name: string;
   url?: string;
@@ -65,6 +43,7 @@ export interface Card {
   valid_until?: string;
 }
 
+/** Known statuses, while remaining forward-compatible with new API values. */
 export type SpendRequestStatus =
   | 'created'
   | 'pending_approval'
@@ -73,7 +52,40 @@ export type SpendRequestStatus =
   | 'denied'
   | 'succeeded'
   | 'failed'
-  | 'canceled';
+  | 'canceled'
+  | 'requires_action'
+  | (string & Record<never, never>);
+
+export type NextActionType =
+  | 'ssn_verification'
+  | 'identity_verification'
+  | 'contact_support'
+  | 'select_payment_method'
+  | 'add_payment_method'
+  | 'update_payment_method'
+  | 're_authorize'
+  | 'three_d_secure'
+  | 'three_d_secure_retry';
+
+export type NextActionResolution =
+  | 'auto_resume'
+  | 'create_new_spend_request'
+  | 'create_new_spend_request_after_completion';
+
+export interface NextAction {
+  type: NextActionType;
+  resolution: NextActionResolution;
+  display_message: string;
+  action_url: string | null;
+  expires_at?: number | null;
+}
+
+export interface SpendRequestStatusDetails {
+  requires_action?: {
+    failure_code?: string;
+    next_action: NextAction;
+  };
+}
 
 export type CredentialType = 'shared_payment_token' | 'card';
 
@@ -124,10 +136,10 @@ export interface SpendRequest {
   context?: string;
   amount?: number;
   currency?: string;
-  line_items: LineItem[];
-  totals: Total[];
+  line_items?: LineItem[];
+  totals?: Total[];
   payment_method?: string;
-  payment_details: string;
+  payment_details?: string;
   credential_type?: CredentialType;
   network_id?: string;
   card_brand?: string;
@@ -135,19 +147,21 @@ export interface SpendRequest {
   status: SpendRequestStatus;
   approval_url?: string;
   card?: Card;
-  shared_payment_token?: SharedPaymentToken;
+  shared_payment_token?: SharedPaymentToken | null;
   link_pay_token?: string;
   payment_status_details?: PaymentStatusDetails | null;
+  status_details?: SpendRequestStatusDetails | null;
   link_transaction_id?: string;
   activity_url?: string;
   metadata?: Record<string, string>;
+  expires_at?: number;
   created_at: string;
   updated_at: string;
 }
 
 export interface RequestApprovalResponse {
   id: string;
-  approval_link: string;
+  approval_url: string;
 }
 
 export interface CardDetails {
@@ -162,12 +176,42 @@ export interface BankAccountDetails {
   bank_name?: string;
 }
 
+export type AgentWalletVerificationStatus =
+  | 'not_required'
+  | 'ssn_verification'
+  | 'identity_verification'
+  | 'contact_support'
+  | 'complete';
+
+export interface AgentWalletSpendLimits {
+  per_transaction: {
+    limit: number | null;
+  };
+  daily: {
+    limit: number | null;
+    used: number;
+    remaining: number | null;
+  };
+  thirty_day: {
+    limit: number | null;
+    used: number;
+    remaining: number | null;
+  };
+}
+
+export interface AgentWalletVerificationRequirement {
+  status: AgentWalletVerificationStatus;
+  action_url: string | null;
+}
+
 export interface UserInfo {
   email?: string | null;
   name?: string | null;
   first_name?: string | null;
   last_name?: string | null;
   phone?: string | null;
+  agent_wallet_spend_limits?: AgentWalletSpendLimits;
+  agent_wallet_verification_requirement?: AgentWalletVerificationRequirement;
 }
 
 export interface ProductCapability {
@@ -179,6 +223,7 @@ export interface PaymentMethod {
   id: string;
   type: string;
   is_default: boolean;
+  name: string;
   nickname?: string;
   card_details?: CardDetails;
   bank_account_details?: BankAccountDetails;

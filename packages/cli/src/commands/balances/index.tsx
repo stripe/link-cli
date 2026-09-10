@@ -1,10 +1,7 @@
-import type {
-  AuthStorage,
-  IBalancesResource,
-  ListBalancesParams,
-} from '@stripe/link-sdk';
+import type { IBalancesResource, ListBalancesParams } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import React from 'react';
+import type { CliAuthStorage } from '../../auth/storage';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
 import { BalancesList } from './list';
@@ -12,11 +9,11 @@ import { listOptions } from './schema';
 
 export function createBalancesCli(
   createResource: () => IBalancesResource,
-  authStorage?: AuthStorage,
+  authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ) {
   const cli = Cli.create('balances', {
-    description: 'List balances from your Link wallet',
+    description: '[beta] List balances from your Link wallet',
   });
 
   cli.command('list', {
@@ -43,11 +40,11 @@ export function createBalancesCli(
             params={params}
             onComplete={() => {}}
           />,
-          () => resource.listBalances(params),
+          () => resource.list(params),
         );
       }
 
-      return resource.listBalances(params);
+      return resource.list(params);
     },
   });
 

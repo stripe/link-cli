@@ -16,10 +16,7 @@ export const CancelSpendRequest: React.FC<CancelSpendRequestProps> = ({
   id,
   onComplete,
 }) => {
-  const action = useCallback(
-    () => repository.cancelSpendRequest(id),
-    [repository, id],
-  );
+  const action = useCallback(() => repository.cancel(id), [repository, id]);
   const { status, data: request, error } = useAsyncAction(action, onComplete);
 
   if (status === 'loading') {

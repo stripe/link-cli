@@ -1,5 +1,4 @@
-import type { SourceAction } from '@stripe/link-sdk';
-import type { JsonValue } from './types';
+import type { JsonValue, SourceAction } from './types';
 
 export const INVALID_AUTHORIZATION_DETAIL_MESSAGE =
   'authorization-detail must be valid JSON';

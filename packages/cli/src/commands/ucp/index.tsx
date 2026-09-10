@@ -1,5 +1,4 @@
 import type {
-  AuthStorage,
   CreateUcpCheckoutParams,
   IUcpResource,
   SearchUcpCatalogParams,
@@ -9,6 +8,7 @@ import type {
 } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import React from 'react';
+import type { CliAuthStorage } from '../../auth/storage';
 import { parseKvString } from '../../utils/line-item-parser';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
@@ -39,7 +39,7 @@ function parseUcpLineItem(item: unknown): UcpLineItem {
 
 export function createUcpCli(
   repositoryFactory: () => IUcpResource,
-  authStorage?: AuthStorage,
+  authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ) {
   const catalog = Cli.create('catalog', {

@@ -14,7 +14,7 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
   resource,
   onComplete,
 }) => {
-  const action = useCallback(() => resource.listPaymentMethods(), [resource]);
+  const action = useCallback(() => resource.list(), [resource]);
   const { status, data: methods, error } = useAsyncAction(action, onComplete);
 
   if (status === 'loading') {
@@ -50,6 +50,7 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
       <Box flexDirection="column" marginTop={1}>
         {methods.map((pm) => {
           const label =
+            pm.name ??
             pm.card_details?.brand ??
             pm.bank_account_details?.bank_name ??
             'Bank account';

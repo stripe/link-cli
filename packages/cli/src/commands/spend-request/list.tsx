@@ -18,7 +18,7 @@ export const SpendRequestList: React.FC<SpendRequestListProps> = ({
 }) => {
   const { exit } = useApp();
   const action = useCallback(
-    () => repository.listSpendRequests({ includeHistory }),
+    () => repository.list({ includeHistory }),
     [repository, includeHistory],
   );
   const wrappedOnComplete = useCallback(
@@ -75,7 +75,8 @@ export const SpendRequestList: React.FC<SpendRequestListProps> = ({
           const statusColor =
             sr.status === 'approved'
               ? 'green'
-              : sr.status === 'pending_approval'
+              : sr.status === 'pending_approval' ||
+                  sr.status === 'requires_action'
                 ? 'yellow'
                 : 'white';
           const amount =

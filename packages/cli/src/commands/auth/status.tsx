@@ -1,12 +1,15 @@
-import { type AuthStorage, storage as defaultStorage } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import {
+  type CliAuthStorage,
+  storage as defaultStorage,
+} from '../../auth/storage';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { resolveAuthInfo } from './utils';
 
 interface AuthStatusProps {
-  authStorage?: AuthStorage;
+  authStorage?: CliAuthStorage;
   envAccessToken?: string;
   onComplete: () => void;
 }

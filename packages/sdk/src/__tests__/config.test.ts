@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 function captureHeaders(
   fetchSpy: ReturnType<typeof vi.fn>,
 ): Headers | Record<string, string> {
-  const [, init] = fetchSpy.mock.calls[0] as [unknown, RequestInit];
+  const [, init] = fetchSpy.mock.calls[0]! as [unknown, RequestInit];
   return init.headers as Headers | Record<string, string>;
 }
 
@@ -15,6 +15,7 @@ describe('resolveLinkSdkConfig', () => {
         .fn()
         .mockResolvedValue({ status: 200, text: async () => '{}' });
       const config = resolveLinkSdkConfig({
+        accessToken: 'test_token',
         fetch: mockFetch,
         defaultHeaders: {
           'User-Agent': 'link-cli/0.1.0',
@@ -35,6 +36,7 @@ describe('resolveLinkSdkConfig', () => {
         .fn()
         .mockResolvedValue({ status: 200, text: async () => '{}' });
       const config = resolveLinkSdkConfig({
+        accessToken: 'test_token',
         fetch: mockFetch,
         defaultHeaders: { 'User-Agent': 'link-cli/0.1.0' },
       });
@@ -50,7 +52,10 @@ describe('resolveLinkSdkConfig', () => {
 
     it('does not wrap fetch when defaultHeaders is not provided', () => {
       const mockFetch = vi.fn();
-      const config = resolveLinkSdkConfig({ fetch: mockFetch });
+      const config = resolveLinkSdkConfig({
+        accessToken: 'test_token',
+        fetch: mockFetch,
+      });
 
       expect(config.fetch).toBe(mockFetch);
     });
@@ -58,11 +63,44 @@ describe('resolveLinkSdkConfig', () => {
     it('does not wrap fetch when defaultHeaders is empty', () => {
       const mockFetch = vi.fn();
       const config = resolveLinkSdkConfig({
+        accessToken: 'test_token',
         fetch: mockFetch,
         defaultHeaders: {},
       });
 
       expect(config.fetch).toBe(mockFetch);
+    });
+  });
+
+  describe('credentials', () => {
+    it('uses a fixed access token without enabling refresh', async () => {
+      const config = resolveLinkSdkConfig({ accessToken: 'test_token' });
+
+      expect(await config.getAccessToken()).toBe('test_token');
+      expect(config.canRefreshAccessToken).toBe(false);
+    });
+
+    it('uses a token provider and enables refresh', () => {
+      const getAccessToken = vi.fn(() => 'test_token');
+      const config = resolveLinkSdkConfig({ getAccessToken });
+
+      expect(config.getAccessToken).toBe(getAccessToken);
+      expect(config.canRefreshAccessToken).toBe(true);
+    });
+
+    it('rejects missing, empty, or conflicting credentials', () => {
+      expect(() =>
+        resolveLinkSdkConfig({} as Parameters<typeof resolveLinkSdkConfig>[0]),
+      ).toThrow('Pass `accessToken` or `getAccessToken`');
+      expect(() => resolveLinkSdkConfig({ accessToken: '  ' })).toThrow(
+        '`accessToken` cannot be empty',
+      );
+      expect(() =>
+        resolveLinkSdkConfig({
+          accessToken: 'test_token',
+          getAccessToken: () => 'other_token',
+        } as unknown as Parameters<typeof resolveLinkSdkConfig>[0]),
+      ).toThrow('not both');
     });
   });
 });

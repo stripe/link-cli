@@ -1,12 +1,14 @@
 import type {
-  AuthStorage,
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
-import { storage as defaultStorage } from '@stripe/link-sdk';
 import { Box, Text, useApp, useInput } from 'ink';
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
+import {
+  type CliAuthStorage,
+  storage as defaultStorage,
+} from '../../auth/storage';
 import type { IAuthResource } from '../../auth/types';
 import { Login } from '../auth/login';
 import { ONBOARD as O } from '../demo/content';
@@ -18,7 +20,7 @@ interface OnboardRunnerProps {
   authRepo: IAuthResource;
   spendRequestRepo: ISpendRequestResource;
   paymentMethodsResource: IPaymentMethodsResource;
-  authStorage?: AuthStorage;
+  authStorage?: CliAuthStorage;
   onComplete: () => void;
 }
 
@@ -80,7 +82,7 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
         // Phase 2: Payment methods — just check at least one exists
         setPhase('payment-methods');
         while (true) {
-          const methods = await paymentMethodsResource.listPaymentMethods();
+          const methods = await paymentMethodsResource.list();
           if (methods.length > 0) break;
           setPmMissing(true);
           await waitForEnter();

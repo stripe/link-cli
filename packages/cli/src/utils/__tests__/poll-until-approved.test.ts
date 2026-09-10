@@ -6,7 +6,7 @@ describe('pollUntilApproved', () => {
   it('resolves when status reaches approved', async () => {
     let calls = 0;
     const repo = {
-      getSpendRequest: vi.fn(async () => {
+      retrieve: vi.fn(async () => {
         calls++;
         return {
           id: 'sr_1',
@@ -27,7 +27,7 @@ describe('pollUntilApproved', () => {
   it('keeps polling through created and pending_approval statuses', async () => {
     let calls = 0;
     const repo = {
-      getSpendRequest: vi.fn(async () => {
+      retrieve: vi.fn(async () => {
         calls++;
         return {
           id: 'sr_1',
@@ -50,10 +50,10 @@ describe('pollUntilApproved', () => {
     'stops immediately on terminal status %s',
     async (terminalStatus) => {
       const repo = {
-        getSpendRequest: vi.fn(async () => ({
+        retrieve: vi.fn(async () => ({
           id: 'sr_1',
           status: terminalStatus,
-        })) as unknown as ISpendRequestResource['getSpendRequest'],
+        })) as unknown as ISpendRequestResource['retrieve'],
       } as unknown as ISpendRequestResource;
 
       const result = await pollUntilApproved(repo, 'sr_1', {
@@ -67,7 +67,7 @@ describe('pollUntilApproved', () => {
 
   it('rejects on timeout', async () => {
     const repo = {
-      getSpendRequest: vi.fn(
+      retrieve: vi.fn(
         async () =>
           ({
             id: 'sr_1',
@@ -83,7 +83,7 @@ describe('pollUntilApproved', () => {
 
   it('rejects if spend request is not found', async () => {
     const repo = {
-      getSpendRequest: vi.fn(async () => null),
+      retrieve: vi.fn(async () => null),
     } as unknown as ISpendRequestResource;
 
     await expect(
@@ -95,7 +95,7 @@ describe('pollUntilApproved', () => {
     let calls = 0;
     const progressCalls: number[] = [];
     const repo = {
-      getSpendRequest: vi.fn(async () => {
+      retrieve: vi.fn(async () => {
         calls++;
         return {
           id: 'sr_1',

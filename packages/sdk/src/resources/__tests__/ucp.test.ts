@@ -49,7 +49,7 @@ describe('UcpResource', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledOnce();
-      const [url, opts] = mockFetch.mock.calls[0];
+      const [url, opts] = mockFetch.mock.calls[0]!;
       const parsed = new URL(url);
       expect(parsed.pathname).toBe('/ucp/catalog/search');
       expect(parsed.searchParams.get('query')).toBe('sneakers');
@@ -60,7 +60,7 @@ describe('UcpResource', () => {
       expect(opts.method).toBe('GET');
       expect(opts.headers.Authorization).toBe('Bearer test_token');
 
-      expect(result.data[0].sku_id).toBe('sku_1');
+      expect(result.data[0]!.sku_id).toBe('sku_1');
       expect(result.total_count).toBe(1);
     });
 
@@ -101,7 +101,7 @@ describe('UcpResource', () => {
         test: true,
       });
 
-      const [url, opts] = mockFetch.mock.calls[0];
+      const [url, opts] = mockFetch.mock.calls[0]!;
       expect(url).toBe('https://api.link.com/ucp/checkout');
       expect(opts.method).toBe('POST');
       expect(opts.headers['Content-Type']).toBe('application/json');
@@ -123,7 +123,7 @@ describe('UcpResource', () => {
         line_items: [{ sku_id: 'sku_1', quantity: 1 }],
       });
 
-      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const body = JSON.parse(mockFetch.mock.calls[0]![1].body);
       expect(body).not.toHaveProperty('fulfillment_details');
       expect(body).not.toHaveProperty('test');
     });
@@ -154,7 +154,7 @@ describe('UcpResource', () => {
         test: true,
       });
 
-      const [url, opts] = mockFetch.mock.calls[0];
+      const [url, opts] = mockFetch.mock.calls[0]!;
       expect(url).toBe('https://api.link.com/ucp/checkout/dcs_1/complete');
       expect(opts.method).toBe('POST');
       expect(JSON.parse(opts.body)).toEqual({
@@ -174,7 +174,7 @@ describe('UcpResource', () => {
         profile_id: 'np_1',
       });
 
-      expect(mockFetch.mock.calls[0][0]).toBe(
+      expect(mockFetch.mock.calls[0]![0]).toBe(
         'https://api.link.com/ucp/checkout/dcs%2Fweird/complete',
       );
     });
@@ -215,7 +215,7 @@ describe('UcpResource', () => {
     await repo.searchCatalog({ query: 'sneakers' });
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect(mockFetch.mock.calls[1][1].headers.Authorization).toBe(
+    expect(mockFetch.mock.calls[1]![1].headers.Authorization).toBe(
       'Bearer fresh_token',
     );
     expect(getAccessToken).toHaveBeenCalledWith({ forceRefresh: true });

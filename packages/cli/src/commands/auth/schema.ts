@@ -1,5 +1,5 @@
-import { SOURCE_ACTIONS } from '@stripe/link-sdk';
 import { z } from 'incur';
+import { SOURCE_ACTIONS } from '../../auth/types';
 
 const SOURCE_ACTIONS_DESCRIPTION = SOURCE_ACTIONS.join(', ');
 

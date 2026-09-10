@@ -1,99 +1,24 @@
-import {
-  type LinkOptions,
-  requireFetchImplementation,
-  resolveLinkSdkConfig,
-} from '@/config';
-import { LinkApiError, LinkTransportError } from '@/errors';
+import type { LinkOptions } from '@/config';
+import { BaseResource } from '@/resources/base';
 import type {
-  AccessTokenProvider,
   CreateReportParams,
   IReportResource,
   ReportRecord,
 } from '@/resources/interfaces';
+import { z } from 'zod';
 
-interface ApiFetchOptions {
-  method: string;
-  url: string;
-  headers?: Record<string, string>;
-  body?: string;
-}
+const reportRecordSchema = z.looseObject({
+  object: z.string(),
+  created_at: z.string(),
+  domain: z.string(),
+  outcome: z.string(),
+  spend_request_id: z.string(),
+  status: z.string(),
+});
 
-export class ReportResource implements IReportResource {
-  private readonly verbose: boolean;
-  private readonly getAccessToken: AccessTokenProvider;
-  private readonly fetchImpl: typeof globalThis.fetch;
-  private readonly endpoint: string;
-  private readonly logger: { debug(message: string): void };
-
+export class ReportResource extends BaseResource implements IReportResource {
   constructor(options: LinkOptions) {
-    const config = resolveLinkSdkConfig(options);
-    this.verbose = config.verbose;
-    this.getAccessToken = config.getAccessToken;
-    this.fetchImpl = requireFetchImplementation(config);
-    this.endpoint = `${config.apiBaseUrl}/agent_observations`;
-    this.logger = config.logger;
-  }
-
-  private async rawFetch(
-    opts: ApiFetchOptions,
-  ): Promise<{ status: number; data: unknown; rawBody: string }> {
-    if (this.verbose) {
-      const redactedHeaders = { ...opts.headers };
-      if (redactedHeaders.Authorization)
-        redactedHeaders.Authorization = 'Bearer <redacted>';
-      this.logger.debug(`> ${opts.method} ${opts.url}`);
-      this.logger.debug(`  Headers: ${JSON.stringify(redactedHeaders)}`);
-      if (opts.body) this.logger.debug(opts.body);
-    }
-
-    let response: Response;
-    try {
-      response = await this.fetchImpl(opts.url, {
-        method: opts.method,
-        headers: opts.headers,
-        body: opts.body,
-      });
-    } catch (error) {
-      throw new LinkTransportError(
-        `Request failed: ${opts.method} ${opts.url}`,
-        { cause: error },
-      );
-    }
-    const rawBody = await response.text();
-
-    let data: unknown = null;
-    try {
-      data = JSON.parse(rawBody);
-    } catch {
-      // non-JSON response
-    }
-
-    if (this.verbose) {
-      this.logger.debug(`< ${response.status} ${response.statusText}`);
-      this.logger.debug(JSON.stringify(data, null, 2) ?? rawBody);
-    }
-
-    return { status: response.status, data, rawBody };
-  }
-
-  private async apiFetch(
-    opts: ApiFetchOptions,
-  ): Promise<{ status: number; data: unknown; rawBody: string }> {
-    const token = await this.getAccessToken();
-    const authedOpts = {
-      ...opts,
-      headers: { ...opts.headers, Authorization: `Bearer ${token}` },
-    };
-
-    const res = await this.rawFetch(authedOpts);
-
-    if (res.status === 401) {
-      const refreshedToken = await this.getAccessToken({ forceRefresh: true });
-      authedOpts.headers.Authorization = `Bearer ${refreshedToken}`;
-      return this.rawFetch(authedOpts);
-    }
-
-    return res;
+    super(options, '/agent_observations');
   }
 
   async create(params: CreateReportParams): Promise<ReportRecord> {
@@ -105,20 +30,11 @@ export class ReportResource implements IReportResource {
     });
 
     if (status < 200 || status >= 300) {
-      const message =
-        data &&
-        typeof data === 'object' &&
-        'error' in data &&
-        typeof (data as Record<string, unknown>).error === 'object'
-          ? ((data as Record<string, { message?: string }>).error?.message ??
-            rawBody)
-          : rawBody;
-      throw new LinkApiError(
-        `Failed to create report (${status}): ${message}`,
-        { status, rawBody, details: data },
-      );
+      this.throwApiError('create report', status, data, rawBody);
     }
 
-    return data as ReportRecord;
+    return this.parseResponse('create report', status, () =>
+      reportRecordSchema.parse(data),
+    );
   }
 }

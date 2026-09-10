@@ -1,5 +1,113 @@
 # @stripe/link-cli
 
+## 0.19.0
+
+### Minor Changes
+
+- c6464e3: Add `--attempt-trace` to `link-cli report` (and `attempt_trace` to the SDK's `CreateReportParams`): a step-by-step account of the path the agent took on a domain, written so another agent could follow it. Sent for successes and failures alike — the dead ends on a failed attempt are the useful part. The API truncates past 8000 characters rather than rejecting, so the flag carries no client-side length limit.
+
+## 0.18.0
+
+### Minor Changes
+
+- a4ab163: Remove explicit CLI-side amount validation
+
+## 0.17.3
+
+### Patch Changes
+
+- 02d4dcf: Update the create-payment-credential skill file and README with simplified user-info guidance.
+
+## 0.17.2
+
+### Patch Changes
+
+- 1fe657f: Rename the Agent Wallet user-info step-up field to `agent_wallet_verification_requirement` and expose its nullable `action_url`.
+
+## 0.17.1
+
+### Patch Changes
+
+- ca643dc: Expose Agent Wallet spend limits and user step-up status through user-info retrieve.
+
+## 0.17.0
+
+### Minor Changes
+
+- ec7fc04: Support incremental auth workflows; refine UCP command; Do not render approval qr code for delegated spend requests; Document email-prefilled Link URLs- #287
+
+### Patch Changes
+
+- f766173: Tell agents to prefill known email addresses in Link OAuth and spend-request step-up URLs.
+- bd20966: Fix `spend-request create --approve` showing the approval-waiting screen and QR code even though the request is already approved.
+
+## 0.16.0
+
+### Minor Changes
+
+- 033cee0: security: sanitize mpp output for shell-unsafe output
+
+## 0.15.1
+
+### Patch Changes
+
+- a1c6872: Fix: allow nickname to be undefined in shipping address resource
+
+## 0.15.0
+
+### Minor Changes
+
+- 91f5e8e: Support delegated approval for merchant-bound Link Pay Token spend requests
+
+## 0.14.2
+
+### Patch Changes
+
+- f77d745: Move the Cursor plugin into its own `plugins/cursor-link` directory with MCP-first skills
+
+## 0.14.1
+
+### Patch Changes
+
+- 7e18e3c: cursor plugin upgrade
+
+## 0.14.0
+
+### Minor Changes
+
+- e3b991f: Add an undocumented `--expires-at` option to `spend-request create` for allow-listed OAuth clients, allowing spend request expiration to be extended up to 7 days out instead of the default 12 hours.
+
+### Patch Changes
+
+- e3b991f: Move OAuth device-authorization, refresh-token persistence, and login state ownership from the SDK into the CLI; the SDK now only accepts credentials. No change to CLI commands or output.
+- e3b991f: Internal refactor: CLI commands now call canonical SDK resource methods instead of ad-hoc wrappers. No user-facing behavior change.
+- e3b991f: Harden SDK error handling: malformed or unexpected API responses now surface a clearer `invalid_response` error instead of an opaque parse failure.
+- e3b991f: Validate SDK resource API responses with Zod. Malformed responses from the server now fail with a descriptive error instead of surfacing incorrect data.
+
+## 0.13.1
+
+### Patch Changes
+
+- b1640b2: clarify correct daily limits
+
+## 0.13.0
+
+### Minor Changes
+
+- 70453ff: Expose the financial insights commands (`balances`, `sources`, `transactions`) in the CLI's command list and ship the `financial-insights` skill file
+- 1675a70: Surface duplicate spend request error messaging in interactive mode
+
+## 0.12.0
+
+### Minor Changes
+
+- 9103637: Add merchant-bound Link Pay Token options to spend-request creation.
+
+### Patch Changes
+
+- f05d954: Dependency updgrades
+- e9a8f69: Sanitize output of decode call during mpp flow
+
 ## 0.11.0
 
 ### Minor Changes

@@ -1,44 +1,33 @@
 import type { LinkOptions } from '@/config';
-import { LinkApiError } from '@/errors';
-import { BaseResource, isRecord, requireBoolean } from '@/resources/base';
+import { BaseResource } from '@/resources/base';
 import type {
   ISourcesResource,
   ListSourcesParams,
 } from '@/resources/interfaces';
-import type { Source, SourcesPage } from '@/types/index';
+import type { SourcesPage } from '@/types/index';
+import { z } from 'zod';
 
-function normalizeSources(value: unknown): Source[] {
-  if (!Array.isArray(value)) {
-    throw new TypeError('Expected sources to be an array');
-  }
-
-  return value.map((item, index) => {
-    if (!isRecord(item)) {
-      throw new TypeError(`Expected sources[${index}] to be an object`);
-    }
-    return item as Source;
-  });
-}
-
-function normalizeSourcesPage(value: unknown): SourcesPage {
-  if (!isRecord(value)) {
-    throw new TypeError('Expected response body to be an object');
-  }
-
-  const { data, has_more, ...rest } = value;
-  const normalized = normalizeSources(data);
-
-  return {
-    ...rest,
-    data: normalized,
-    ...(has_more !== undefined
-      ? { has_more: requireBoolean(has_more, 'has_more') }
-      : {}),
-  };
-}
+const nullableRecordSchema = z
+  .record(z.string(), z.unknown())
+  .nullable()
+  .optional();
+const sourceSchema = z.looseObject({
+  id: z.string().nullable().optional(),
+  name: z.string().nullable().optional(),
+  type: z.string().nullable().optional(),
+  capabilities: nullableRecordSchema,
+  external_connection: nullableRecordSchema,
+  granted_actions: z.array(z.string()).nullable().optional(),
+  bank_account: nullableRecordSchema,
+  card: nullableRecordSchema,
+});
+const sourcesPageSchema = z.looseObject({
+  data: z.array(sourceSchema),
+  has_more: z.boolean().optional(),
+});
 
 export class SourcesResource extends BaseResource implements ISourcesResource {
-  constructor(options: LinkOptions = {}) {
+  constructor(options: LinkOptions) {
     super(options, '/sources');
   }
 
@@ -58,11 +47,7 @@ export class SourcesResource extends BaseResource implements ISourcesResource {
     return url.toString();
   }
 
-  list(params: ListSourcesParams = {}): Promise<SourcesPage> {
-    return this.listSources(params);
-  }
-
-  async listSources(params: ListSourcesParams = {}): Promise<SourcesPage> {
+  async list(params: ListSourcesParams = {}): Promise<SourcesPage> {
     const { status, data, rawBody } = await this.apiFetch({
       method: 'GET',
       url: this.buildUrl(params),
@@ -72,14 +57,10 @@ export class SourcesResource extends BaseResource implements ISourcesResource {
       this.throwApiError('list sources', status, data, rawBody);
     }
 
-    try {
-      return normalizeSourcesPage(data);
-    } catch (error) {
-      const reason = error instanceof Error ? `: ${error.message}` : '';
-      throw new LinkApiError(
-        `Failed to list sources (${status}): invalid response shape${reason}`,
-        { status, rawBody, details: data, cause: error },
-      );
-    }
+    return this.parseResponse(
+      'list sources',
+      status,
+      () => sourcesPageSchema.parse(data) as SourcesPage,
+    );
   }
 }

@@ -12,14 +12,21 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
+
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6
+        with:
+          go-version-file: packages/sdk-go/go.mod
+          cache-dependency-path: packages/sdk-go/go.mod
 
       - run: pnpm install --frozen-lockfile
 
@@ -28,5 +35,20 @@ jobs:
       - run: pnpm biome check .
       - run: pnpm turbo run test
 
+      - name: Check Go SDK
+        run: |
+          unformatted="$(gofmt -l packages/sdk-go/*.go)"
+          if [ -n "$unformatted" ]; then
+            echo "The following Go files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+          go -C packages/sdk-go mod tidy -diff
+          go -C packages/sdk-go vet ./...
+
+      - name: Test Go SDK
+        working-directory: packages/sdk-go
+        run: go test -race ./...
+
       - name: Verify publishable
-        run: pnpm --filter @stripe/link-cli publish --dry-run --no-git-checks
+        run: pnpm --filter @stripe/link-cli --filter @stripe/link-sdk publish --dry-run --no-git-checks

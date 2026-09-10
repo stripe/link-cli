@@ -1,10 +1,10 @@
 import type {
-  AuthStorage,
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import React from 'react';
+import type { CliAuthStorage } from '../../auth/storage';
 import type { IAuthResource } from '../../auth/types';
 import { renderInteractive } from '../../utils/render-interactive';
 import { OnboardRunner } from './onboard-runner';
@@ -13,7 +13,7 @@ export function createOnboardCli(
   authRepo: IAuthResource,
   spendRequestRepo: ISpendRequestResource,
   createPaymentMethodsResource: () => IPaymentMethodsResource,
-  authStorage?: AuthStorage,
+  authStorage?: CliAuthStorage,
 ) {
   return Cli.create('onboard', {
     description:

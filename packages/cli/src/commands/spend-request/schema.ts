@@ -26,12 +26,7 @@ export const createOptions = z.object({
     .describe(
       'Stripe account ID from data-stripe-merchant-account; required with execution_method link_pay_token',
     ),
-  amount: z.coerce
-    .number()
-    .int()
-    .positive()
-    .max(500000)
-    .describe('Amount in cents, max 500000 ($5,000.00)'),
+  amount: z.coerce.number().int().positive().describe('Amount in cents'),
   currency: z.string().length(3).default('usd').describe('Currency code'),
   merchantName: z
     .string()
@@ -66,7 +61,9 @@ export const createOptions = z.object({
   requestApproval: z
     .boolean()
     .default(true)
-    .describe('Request approval and poll until approved/denied/expired'),
+    .describe(
+      'Request approval and poll until approved/denied/expired, or until requires_action with a non-auto_resume resolution',
+    ),
   test: z
     .boolean()
     .default(false)
@@ -96,6 +93,11 @@ export const createOptions = z.object({
     .describe(
       'Metadata key:value pair (repeatable). Attaches arbitrary string data to the spend request. Max 50 keys, key <= 40 chars, value <= 500 chars. Example: "order_id:ord_123"',
     ),
+  expiresAt: z.coerce
+    .number()
+    .int()
+    .optional()
+    .describe('Unix timestamp (seconds).'),
 });
 
 export const listOptions = z.object({
@@ -159,4 +161,8 @@ export const updateOptions = z.object({
     .describe(
       'Total (repeatable, key:value format). Keys: type (required; one of: subtotal, tax, total, items_base_amount, items_discount, discount, fulfillment, shipping, fee, gift_wrap, tip, store_credit), display_text (required), amount (required). Example: "type:total,display_text:Total,amount:5000"',
     ),
+  approve: z
+    .boolean()
+    .default(false)
+    .describe('Use the delegated approval flow for this update'),
 });

@@ -21,6 +21,8 @@ export type PayResult = {
   body: string;
 };
 
+declare const __CLI_VERSION__: string;
+
 export function buildHeaders(
   data: string | undefined,
   headers: string[] | undefined,
@@ -35,6 +37,9 @@ export function buildHeaders(
     const key = line.slice(0, idx).trim();
     const value = line.slice(idx + 1).trim();
     if (key) result[key] = value;
+  }
+  if (!Object.keys(result).some((key) => key.toLowerCase() === 'user-agent')) {
+    result['User-Agent'] = `link-cli/${__CLI_VERSION__}`;
   }
   return result;
 }
@@ -117,7 +122,7 @@ export async function runMppPayWithSpendRequest(
   headers: string[] | undefined,
   repository: ISpendRequestResource,
 ): Promise<PayResult> {
-  const spendRequest = await repository.getSpendRequest(spendRequestId, {
+  const spendRequest = await repository.retrieve(spendRequestId, {
     include: ['shared_payment_token'],
   });
 
@@ -252,7 +257,7 @@ export async function runMppPayFullFlow(
 
   // 4. Create spend request
   onStep?.('creating');
-  const spendRequest = await repository.createSpendRequest({
+  const spendRequest = await repository.create({
     payment_details: pmId,
     credential_type: 'shared_payment_token',
     network_id: networkId,
@@ -278,12 +283,12 @@ export async function runMppPayFullFlow(
 
   // 6. Retrieve with SPT (retry briefly in case of propagation delay)
   onStep?.('signing');
-  let withSpt = await repository.getSpendRequest(spendRequest.id, {
+  let withSpt = await repository.retrieve(spendRequest.id, {
     include: ['shared_payment_token'],
   });
   for (let i = 0; i < 3 && withSpt && !withSpt.shared_payment_token; i++) {
     await new Promise((r) => setTimeout(r, 1000));
-    withSpt = await repository.getSpendRequest(spendRequest.id, {
+    withSpt = await repository.retrieve(spendRequest.id, {
       include: ['shared_payment_token'],
     });
   }

@@ -1,5 +1,5 @@
-import { type AuthStorage, Storage, storage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
+import { type CliAuthStorage, Storage, storage } from './auth/storage';
 import { createAuthCli } from './commands/auth';
 import { createBalancesCli } from './commands/balances';
 import { createDemoCli } from './commands/demo';
@@ -45,7 +45,7 @@ const credentialFilePath =
 if (authFileIndex !== -1) {
   process.argv.splice(authFileIndex, 2);
 }
-const authStorage: AuthStorage = credentialFilePath
+const authStorage: CliAuthStorage = credentialFilePath
   ? new Storage({ configPath: credentialFilePath })
   : storage;
 
@@ -64,38 +64,14 @@ const factory = new ResourceFactory({
 const authRepo = factory.createAuthResource();
 const spendRequestRepo = factory.createSpendRequestResource();
 
-const requestedCommand = process.argv[2];
-const hiddenCli =
-  requestedCommand === 'transactions'
-    ? createTransactionsCli(
-        () => factory.createTransactionsResource(),
-        authStorage,
-        envAccessToken,
-      )
-    : requestedCommand === 'sources'
-      ? createSourcesCli(
-          () => factory.createSourcesResource(),
-          authStorage,
-          envAccessToken,
-        )
-      : requestedCommand === 'balances'
-        ? createBalancesCli(
-            () => factory.createBalancesResource(),
-            authStorage,
-            envAccessToken,
-          )
-        : null;
-if (hiddenCli) {
-  process.argv.splice(2, 1);
-}
-
-const cli =
-  hiddenCli ??
-  Cli.create('link-cli', {
-    description:
-      'Create a secure, one-time payment credential from a Link wallet to let agents complete purchases on behalf of users.',
-    version: cliVersion,
-  });
+const cli = Cli.create('link-cli', {
+  description:
+    'Create a secure, one-time payment credential from a Link wallet to let agents complete purchases on behalf of users.',
+  version: cliVersion,
+  sync: {
+    include: ['skills/*'],
+  },
+});
 
 const isAgent =
   process.argv.includes('--format') || process.argv.includes('--mcp');
@@ -113,77 +89,96 @@ if (!isAgent && process.stdout.isTTY) {
   }
 }
 
-if (!hiddenCli) {
-  cli.command(
-    createAuthCli(authRepo, getUpdateInfo, authStorage, envAccessToken),
-  );
-  cli.command(
-    createSpendRequestCli(spendRequestRepo, authStorage, envAccessToken),
-  );
-  cli.command(
-    createPaymentMethodsCli(
-      () => factory.createPaymentMethodsResource(),
-      authStorage,
-      envAccessToken,
-    ),
-  );
-  cli.command(
-    createShippingAddressCli(
-      () => factory.createShippingAddressResource(),
-      authStorage,
-      envAccessToken,
-    ),
-  );
-  cli.command(
-    createUserInfoCli(
-      () => factory.createUserInfoResource(),
-      authStorage,
-      envAccessToken,
-    ),
-  );
-  cli.command(
-    createMppCli(
-      spendRequestRepo,
-      () => factory.createPaymentMethodsResource(),
-      authStorage,
-      envAccessToken,
-    ),
-  );
-  // cli.command(
-  //   createWebBotAuthCli(() => factory.createWebBotAuthResource(), authStorage),
-  // );
-  cli.command(
-    createReportCli(
-      () => factory.createReportResource(),
-      authStorage,
-      envAccessToken,
-    ),
-  );
-  cli.command(
-    createUcpCli(
-      () => factory.createUcpResource(),
-      authStorage,
-      envAccessToken,
-    ),
-  );
-  cli.command(
-    createDemoCli(
-      authRepo,
-      spendRequestRepo,
-      () => factory.createPaymentMethodsResource(),
-      authStorage,
-    ),
-  );
-  cli.command(
-    createOnboardCli(
-      authRepo,
-      spendRequestRepo,
-      () => factory.createPaymentMethodsResource(),
-      authStorage,
-    ),
-  );
-  cli.command(createServeCli(cli));
-}
+cli.command(
+  createAuthCli(authRepo, getUpdateInfo, authStorage, envAccessToken),
+);
+cli.command(
+  createSpendRequestCli(spendRequestRepo, authStorage, envAccessToken),
+);
+cli.command(
+  createPaymentMethodsCli(
+    () => factory.createPaymentMethodsResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+cli.command(
+  createShippingAddressCli(
+    () => factory.createShippingAddressResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+cli.command(
+  createUserInfoCli(
+    () => factory.createUserInfoResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+cli.command(
+  createMppCli(
+    spendRequestRepo,
+    () => factory.createPaymentMethodsResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+// cli.command(
+//   createWebBotAuthCli(() => factory.createWebBotAuthResource(), authStorage),
+// );
+cli.command(
+  createReportCli(
+    () => factory.createReportResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+cli.command(
+  createBalancesCli(
+    () => factory.createBalancesResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+cli.command(
+  createSourcesCli(
+    () => factory.createSourcesResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+cli.command(
+  createTransactionsCli(
+    () => factory.createTransactionsResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+cli.command(
+  createUcpCli(
+    () => factory.createUcpResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+cli.command(
+  createDemoCli(
+    authRepo,
+    spendRequestRepo,
+    () => factory.createPaymentMethodsResource(),
+    authStorage,
+  ),
+);
+cli.command(
+  createOnboardCli(
+    authRepo,
+    spendRequestRepo,
+    () => factory.createPaymentMethodsResource(),
+    authStorage,
+  ),
+);
+cli.command(createServeCli(cli));
 
 cli.serve();
 

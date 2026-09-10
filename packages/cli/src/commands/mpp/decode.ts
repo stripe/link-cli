@@ -1,4 +1,5 @@
 import { Challenge } from 'mppx';
+import { sanitizeDeep } from '../../utils/sanitize-text';
 
 type StripeChargeChallenge = Challenge.Challenge<
   Record<string, unknown>,
@@ -118,7 +119,7 @@ export function decodeStripeChallenge(
     Challenge.deserializeList(challengeHeader),
   );
 
-  return {
+  return sanitizeDeep({
     id: challenge.id,
     realm: challenge.realm,
     method: 'stripe',
@@ -128,5 +129,5 @@ export function decodeStripeChallenge(
     expires: challenge.expires,
     network_id: networkId,
     request_json: request,
-  };
+  });
 }

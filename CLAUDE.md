@@ -6,7 +6,8 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 Link CLI — lets agents get secure, one-time-use payment credentials from a Link wallet. pnpm + Turborepo monorepo:
 
-- **`@stripe/link-sdk`** (`packages/sdk`): Repository interfaces, API implementations, types, and local storage. Entry: `src/index.ts`.
+- **`@stripe/link-sdk`** (`packages/sdk`): Typed Link API client and resource implementations. It accepts `accessToken` or `getAccessToken`; it does not own OAuth state. Entry: `src/index.ts`.
+- **Link Go SDK** (`packages/sdk-go`): Go equivalent of `@stripe/link-sdk`. It accepts `AccessToken` or `GetAccessToken`; it does not own OAuth state. Package name: `link`.
 - **`@stripe/link-cli`** (`packages/cli`): Commander.js + Ink/React CLI that consumes `@stripe/link-sdk`. Entry: `src/cli.tsx`.
 
 ## Commands
@@ -16,6 +17,7 @@ pnpm install                    # install dependencies
 pnpm run build                  # build all packages (turbo)
 pnpm run dev                    # watch mode
 pnpm run test                   # run all tests
+pnpm run test:go                # run the Go SDK tests
 pnpm run typecheck              # type-check all packages
 pnpm biome check .              # lint + format check (CI)
 pnpm run check                  # lint + format with auto-fix
@@ -38,8 +40,15 @@ node packages/cli/dist/cli.js <command>
 ### SDK Resources
 
 Defined in `packages/sdk/src/resources/interfaces.ts`:
-- `IAuthResource` — device auth flow (initiate, poll, refresh)
 - `ISpendRequestResource` — CRUD + request-approval for spend requests
+
+The SDK only accepts credentials. Device authorization, refresh-token
+persistence, login state, and auth-specific errors live under
+`packages/cli/src/auth/`.
+
+The Go SDK currently mirrors the Link API resources exposed by the TypeScript
+SDK. Until a server-owned OpenAPI schema is available, keep API changes aligned
+through implementation review and each package's unit tests.
 
 ### CLI Command Structure
 
@@ -47,7 +56,7 @@ Commands in `packages/cli/src/cli.tsx` (incur framework). Each has two output mo
 - **Interactive** (default): Ink/React components from `packages/cli/src/commands/`
 - **JSON** (`--format json`): JSON to stdout, errors as JSON with `code` and `message` fields with exit code 1
 
-Commands: `auth login|logout|status`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `serve`.
+Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `report`, `serve`.
 
 The CLI also runs as an MCP server (`--mcp`) and serves skill files via `skills` subcommand, both provided by incur.
 
@@ -60,14 +69,14 @@ Input is passed via flags. Define options in the command's zod schema — incur 
 - `auth login --client-name <name>` — optional flag to identify the agent or app; shown in the user's Link app as `<name> on <hostname>`. Defined in `loginOptions` in `packages/cli/src/commands/auth/schema.ts`.
 - `auth login --interval <seconds> [--timeout <seconds>] [--max-attempts <n>]` — when `--interval` is provided, the command yields the verification code immediately then polls inline until authenticated or timed out. Without `--interval`, returns the code with a `_next` hint for separate polling via `auth status`.
 - The token endpoint echoes `scope` and `authorization_details` back with the tokens on login/refresh. These are persisted in the credential file (part of `AuthTokens`) and surfaced on `auth status` in both interactive and JSON modes, only when present.
-- **Gotcha — two parallel `AuthResource` implementations.** `packages/cli/src/auth/auth-resource.ts` duplicates `packages/sdk/src/resources/auth.ts` (device auth flow, token parsing). The CLI uses its *own* via `ResourceFactory.createAuthResource()` (`packages/cli/src/utils/resource-factory.ts`) — the SDK class is not on the CLI's runtime path. Any change to token-response handling (new fields, parsing) must be applied to **both**, or the CLI silently drops it.
+- `packages/cli/src/auth/auth-resource.ts` owns device authorization, token parsing, refresh, and revocation. `ResourceFactory` exposes the resulting access token to SDK resources through `getAccessToken`.
 
 ### auth upgrade
 
 - `auth upgrade` — takes the **same flags** as `auth login` (reuses `loginOptions`; `--client-name`, `--scope`, `--source-actions`, `--authorization-detail`, `--interval`/`--timeout`/`--max-attempts`) and starts a new device-authorization requesting a **superset** of the current access. Implemented alongside `login` in `createAuthCli` (`packages/cli/src/commands/auth/index.tsx`); `auth login` is unchanged. The device-auth tail (initiate → yield code → poll) is shared with `login` via the `startDeviceAuthAndPoll` helper.
 - Where `auth login` bails out with "already logged in" when a valid session exists, `auth upgrade` **never bails**: it refreshes the existing token, merges the requested `scope`/`authorization_details` with the currently granted access via `computeMergedAccess` (`packages/cli/src/auth/merge-access.ts`, returning `mergedScope` + `mergedAuthorizationDetails`), and initiates device auth for the union.
 - If the existing token is invalid or absent, it writes a warning to **stderr** and includes a `warning` field in the JSON yield, then continues with only the requested access (never hard-fails). `--source-actions` are folded into `authorization_details` before merging (via `buildAuthorizationDetails`), so `source` merges by `type` like any other detail.
-- **Deferred session replacement (key invariant).** Upgrade does **not** clear or revoke the current session up front — the existing grant stays valid throughout the pending approval, so a failed `initiateDeviceAuth` or an abandoned approval leaves it usable. The refreshed tokens are persisted; the pending device-auth record is flagged `replaces_existing_session` (field on `PendingDeviceAuth` in the SDK). `pollAuthStatus` completes a flagged pending **even while `isAuthenticated()` is true** (it doesn't report the old session as done), and on success swaps in the new tokens and **revokes the old grant**. The interactive path does the same via the `<Login>` `revokeRefreshTokenOnSuccess` prop. Abandon → the flagged pending expires (auto-cleared by `getPendingDeviceAuth`) and the old session remains.
+- **Deferred session replacement (key invariant).** Upgrade does **not** clear or revoke the current session up front — the existing grant stays valid throughout the pending approval, so a failed `initiateDeviceAuth` or an abandoned approval leaves it usable. The refreshed tokens are persisted; the pending device-auth record is flagged `replaces_existing_session` (field on the CLI-owned `PendingDeviceAuth` in `packages/cli/src/auth/storage.ts`). `pollAuthStatus` completes a flagged pending **even while `isAuthenticated()` is true** (it doesn't report the old session as done), and on success swaps in the new tokens and **revokes the old grant**. The interactive path does the same via the `<Login>` `revokeRefreshTokenOnSuccess` prop. Abandon → the flagged pending expires (auto-cleared by `getPendingDeviceAuth`) and the old session remains.
 - Scope-token comparison for the merge tolerates commas (the token endpoint echoes `scope` back comma-delimited) — but only inside `merge-access.ts`. `auth login`'s `--scope` parsing (`normalizeScopeInput` in `scopes.ts`) remains strictly space-separated, so `login` is genuinely unchanged.
 
 ### spend-request command
@@ -81,11 +90,20 @@ Key input field notes:
 - `--metadata` (create only) is a repeatable `key:value` flag (CLI) or a `{ key: value }` object (MCP/agent), merged into a single `metadata` string→string map. Max 50 keys, key ≤ 40 chars, value ≤ 500 chars. Reuses `parseKvString` from `line-item-parser.ts`.
 - `--test` flag creates testmode credentials (real testmode SPT from test card data) instead of livemode ones
 - `create --request-approval` and `request-approval` both show an approval URL in interactive mode and poll until approved/denied/expired/failed/canceled. In JSON mode (`--format json`), they return immediately with an `_next.command` for `spend-request retrieve`.
-- `retrieve --interval <seconds>` polls until approved/denied/expired/succeeded/failed/canceled. If `--timeout` is reached or `--max-attempts` is exhausted while the request is still non-terminal, it exits non-zero with `POLLING_TIMEOUT`.
+- `retrieve --interval <seconds>` polls until approved/denied/expired/succeeded/failed/canceled, or until `requires_action` with a non-`auto_resume` resolution (`auto_resume` is polled through transparently). If `--timeout` is reached or `--max-attempts` is exhausted while the request is still non-terminal, it exits non-zero with `POLLING_TIMEOUT`.
+- Both `create` and `retrieve` (including `--request-approval`/`request-approval` polling and `retrieve --interval` polling) can return `status: 'requires_action'` with `status_details.requires_action.next_action` (`type`, `display_message`, `action_url`, `resolution`). `resolution: 'auto_resume'` (currently only `next_action.type: 'three_d_secure'`) means polling continues transparently — the request resolves on its own. Any other resolution stops polling immediately; the caller must have the user complete the action, then create a new spend request.
 - `cancel <id>` cancels a spend request. Can cancel from `created`, `pending_approval`, or `approved` states. Returns the spend request with `status: "canceled"`.
 - `--approval-detail` — optional JSON object (MCP/agent) or JSON string (CLI) with approval details for delegated flows. Required fields: `approved_at` (unix timestamp int), `approval_method` (`click`|`programmatic`|`voice`), `app_name`, `external_user_id`. Optional: `ip_address`, `user_agent`, `device_type` (`mobile`|`web`), `agent_log_id`, `external_user_name`, `external_session_id`, `authentication_method` (`biometric_face`|`biometric_fingerprint`|`passkey`). Sent as `approval_details` in the API request body.
 - `card` credentials include `billing_address` (name, line1, line2, city, state, postal_code, country) and `valid_until` (ISO date string — when the card expires/stops working)
 - `--output-file <path>` on `retrieve` or `create` writes full card credentials to a local file (0600 permissions) and redacts card data in stdout. `--force` allows overwriting an existing file.
+- `create` also accepts an undocumented `--expires-at <unix_seconds>` to override the default 12-hour spend request expiration (3 hours to 7 days in the future). It's deliberately excluded from `--schema`/`--llms-full` output and from README/SKILL.md: it's gated to an allow-list of OAuth clients server-side, and most callers get a 400 (`"expires_at is not supported for this client"`) if they try it — don't document or suggest it to general agents.
+
+### user-info retrieve
+
+- `user-info retrieve` returns the existing identity fields and can include `agent_wallet_spend_limits` and `agent_wallet_verification_requirement` enrichment.
+- Spend limits contain per-transaction, daily, and 30-day values. Finite values are cents because `/userinfo` does not return currency. A `null` limit or remaining amount explicitly means unlimited; `used` remains numeric.
+- Either enrichment object can be omitted independently when enrichment is disabled or unavailable. Do not interpret omission as unlimited or as a default verification status.
+- Verification status is one of `not_required`, `ssn_verification`, `identity_verification`, `contact_support`, or `complete`. `action_url` is nullable and directs the user to the required action when present. This is informational and does not change spend-request or `requires_action` handling.
 
 ### mpp pay
 
@@ -93,6 +111,7 @@ Key input field notes:
 - `mpp pay <url> --spend-request-id <id> [--method <method>] [--data <body>] [--header <header>]...` — backward-compat mode: uses a pre-approved spend request directly, skipping creation/approval.
 - `--header` is repeatable and uses `"Name: Value"` format. `Content-Type: application/json` is auto-applied when `--data` is provided; user-provided headers take precedence.
 - The SPT is one-time-use — a failed payment requires running `mpp pay` again (creates a new spend request).
+- In agent mode the full flow yields `_next.pay_argv` (`{ command: 'mpp', args: [...] }`) alongside `_next.pay_command`. **`pay_argv` is authoritative** — it holds the raw values and is meant to be invoked without a shell. `pay_command` is the compatibility string and every dynamic part of it (url, method, body, each header, spend-request id) must go through `shellQuote` from `packages/cli/src/utils/shell-quote.ts`. See "Security: shell-quoting command strings".
 - Implemented in `packages/cli/src/commands/mpp/` — pay.tsx (logic), schema.ts (input/output schema), index.tsx (incur registration).
 
 ### demo command
@@ -103,6 +122,12 @@ Key input field notes:
 
 - `onboard` — Guided setup: authenticates (skips if already logged in), checks payment methods (prompts to add one if missing, shows picker if multiple), shows app download QR code, then runs the full demo. Requires a TTY.
 
+### report command
+
+- `report --domain <d> --outcome <success|blocked|abandoned> --spend-request-id <lsrq_...> [--tag <t>]... [--step <s>] [--freeform-context <s>] [--attempt-trace <s>]` — records the outcome of a purchase attempt. Options in `packages/cli/src/commands/report/schema.ts`, SDK params in `CreateReportParams`. API endpoint: `/agent_observations`. Output policy is `agent-only`.
+- `--step` is where the agent was when the outcome occurred (max 500). `--attempt-trace` is the whole path it took, one numbered line per step, intended to be replayable by another agent. Both are optional and independent.
+- `--attempt-trace` intentionally carries **no** zod `.max()`. The API truncates at `REPORT_ATTEMPT_TRACE_MAX_LENGTH` (8000, exported from the SDK) and still records the report, so client-side rejection would trade a long narrative for a lost outcome. `--step` and `--freeform-context` keep their `.max(500)` because the API rejects those outright.
+
 ### serve command
 
 - `serve [--port <n>] [--host <host>]` — HTTP server that exposes the CLI's MCP endpoint. Implemented in `packages/cli/src/commands/serve/index.ts`. The handler forwards to `rootCli.fetch()` (incur), but is a **privilege boundary**: `requireAuth` only proves the CLI *owner* is authenticated, not that the HTTP caller is authorized.
@@ -111,7 +136,7 @@ Key input field notes:
 
 - **ESM everywhere** — `"type": "module"` in all package.json files
 - **Biome** — 2-space indent, single quotes, organized imports
-- **tsup** — ESM output, Node 18 target
+- **tsup** — ESM output; Node 20 target for the SDK and Node 18 target for the CLI
 - **Vitest** — test files in `__tests__/` directories adjacent to source
 - **TypeScript strict mode** — `tsconfig.base.json` at root
 - **React 18 + Ink 5** for interactive rendering
@@ -127,10 +152,24 @@ Key input field notes:
 
 Server-returned strings can contain ANSI escape sequences or control characters that spoof the terminal approval UI. Sanitization is handled automatically via `sanitizeDeep()` from `packages/cli/src/utils/sanitize-text.ts`:
 
+- **SDK-resource data** — sanitized automatically at the `sanitizeResource()` proxy boundary in `packages/cli/src/utils/resource-factory.ts`. All server data flowing through SDK resources (spend-request, payment-methods, sources, etc.) is `sanitizeDeep()`'d before reaching components or the incur formatter, in every output format.
 - **Commands using `useAsyncAction` hook** — sanitized automatically. The hook calls `sanitizeDeep()` on all returned data before it reaches components.
 - **Commands with manual state management** (e.g. `create.tsx`, `retrieve.tsx`, `request-approval.tsx`, `mpp/pay.tsx`) — must call `sanitizeDeep()` on API responses before calling `setRequest()`/`setState()`.
+- **Attacker-controlled data that does NOT flow through an SDK resource** — must be sanitized at its own parse boundary. `mpp pay` sanitizes the HTTP response in `readPayResult()` (`pay.tsx`); `mpp decode` sanitizes the parsed `WWW-Authenticate` challenge in `decodeStripeChallenge()` (`decode.ts`). These bypass the resource factory, so the return value of the parse/fetch helper is the chokepoint — sanitizing there covers both the interactive Ink render and the agent (toon/yaml/md) output at once.
 
 JSON output mode (`--format json`) is **not** affected — `JSON.stringify` encodes escape sequences as Unicode literals.
+
+## Security: Shell-Quoting Command Strings
+
+Any string the CLI emits for an agent to *run* (`instruction`, `_next.command`, `_next.pay_command`) is a shell-injection sink. Agents commonly execute these through Bash, so interpolating an unquoted value there gives whoever controls that value command execution on the agent's host — even though the value was safe as an argv entry. Sanitization does not help: `$(...)`, backticks and `;` are ordinary printable characters.
+
+Rules:
+
+- Every dynamic value interpolated into a command string goes through `shellQuote()` from `packages/cli/src/utils/shell-quote.ts`, or the whole argv list through `shellCommand()`. This applies to server-issued IDs too — uniform treatment removes the "is this field trusted?" judgment call from future edits.
+- Prefer emitting a **structured** continuation next to the string (`_next.pay_argv` = `{ command, args }`) and point agents at it. A list of arguments has no seam to smuggle syntax through; a string always does.
+- Naive `'${value}'` wrapping is **not** quoting — a single `'` in the value closes it and escapes.
+- Regression coverage lives in `packages/cli/src/utils/__tests__/shell-quote.test.ts` (bash round-trip) and the `_next continuation quoting` block in `packages/cli/src/__tests__/cli.test.ts`.
+
 ## Environment Variables
 
 | Variable | Effect |

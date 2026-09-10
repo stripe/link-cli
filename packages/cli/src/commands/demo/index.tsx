@@ -1,10 +1,10 @@
 import type {
-  AuthStorage,
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import React from 'react';
+import type { CliAuthStorage } from '../../auth/storage';
 import type { IAuthResource } from '../../auth/types';
 import { renderInteractive } from '../../utils/render-interactive';
 import { DemoRunner } from './demo-runner';
@@ -24,7 +24,7 @@ export function createDemoCli(
   authRepo: IAuthResource,
   spendRequestRepo: ISpendRequestResource,
   createPaymentMethodsResource: () => IPaymentMethodsResource,
-  authStorage?: AuthStorage,
+  authStorage?: CliAuthStorage,
 ) {
   return Cli.create('demo', {
     description:

@@ -13,7 +13,7 @@ const CLEAN_TEXT = 'EvilText';
 
 function makeResource(page: TransactionsPage): ITransactionsResource {
   return sanitizeResource({
-    listTransactions: vi.fn(async () => page),
+    list: vi.fn(async () => page),
   } as unknown as ITransactionsResource);
 }
 

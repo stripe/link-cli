@@ -1,12 +1,6 @@
-import {
-  BalancesResource,
-  LinkAuthenticationError,
-  PaymentMethodsResource,
-  SpendRequestResource,
-  WebBotAuthResource,
-} from '@stripe/link-sdk';
 import { describe, expect, it, vi } from 'vitest';
 import { LinkAuthResource } from '../../auth/auth-resource';
+import { LinkAuthenticationError } from '../../auth/errors';
 import type { IAuthResource } from '../../auth/types';
 import { ResourceFactory } from '../resource-factory';
 
@@ -44,16 +38,10 @@ describe('ResourceFactory', () => {
       factory.createWebBotAuthResource(),
     );
     expect(factory.createAuthResource()).toBeInstanceOf(LinkAuthResource);
-    expect(factory.createSpendRequestResource()).toBeInstanceOf(
-      SpendRequestResource,
-    );
-    expect(factory.createPaymentMethodsResource()).toBeInstanceOf(
-      PaymentMethodsResource,
-    );
-    expect(factory.createBalancesResource()).toBeInstanceOf(BalancesResource);
-    expect(factory.createWebBotAuthResource()).toBeInstanceOf(
-      WebBotAuthResource,
-    );
+    expect(factory.createSpendRequestResource().create).toBeTypeOf('function');
+    expect(factory.createPaymentMethodsResource().list).toBeTypeOf('function');
+    expect(factory.createBalancesResource().list).toBeTypeOf('function');
+    expect(factory.createWebBotAuthResource().signUrl).toBeTypeOf('function');
   });
 
   describe('env-based token provider', () => {

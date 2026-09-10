@@ -50,7 +50,7 @@ describe('WebBotAuthResource', () => {
       await resource.signUrl(validUrl);
 
       expect(mockFetch).toHaveBeenCalledOnce();
-      const [url, opts] = mockFetch.mock.calls[0];
+      const [url, opts] = mockFetch.mock.calls[0]!;
       expect(url).toBe('https://api.link.com/web_bot_auth/sign');
       expect(opts.method).toBe('POST');
       expect(opts.headers['Content-Type']).toBe('application/json');
@@ -129,7 +129,7 @@ describe('WebBotAuthResource', () => {
       const result = await resource.signUrl(validUrl);
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
-      const [, secondOpts] = mockFetch.mock.calls[1];
+      const [, secondOpts] = mockFetch.mock.calls[1]!;
       expect(secondOpts.headers.Authorization).toBe('Bearer fresh_token');
       expect(result).toEqual(webBotAuthBlock);
     });
@@ -168,7 +168,7 @@ describe('WebBotAuthResource', () => {
 
       const err = await resource.signUrl(validUrl).catch((e) => e);
       expect(err).toBeInstanceOf(LinkSdkError);
-      expect(err.message).toMatch('Sign response missing web_bot_auth block');
+      expect(err.code).toBe('invalid_response');
     });
 
     it('throws when access token is unavailable', async () => {

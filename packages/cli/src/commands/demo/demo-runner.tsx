@@ -1,12 +1,14 @@
 import type {
-  AuthStorage,
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
-import { storage as defaultStorage } from '@stripe/link-sdk';
 import { Box, Text, useApp, useInput } from 'ink';
 import type React from 'react';
 import { useCallback, useState } from 'react';
+import {
+  type CliAuthStorage,
+  storage as defaultStorage,
+} from '../../auth/storage';
 import type { IAuthResource } from '../../auth/types';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { MarkdownText } from '../../utils/markdown-text';
@@ -29,7 +31,7 @@ interface DemoRunnerProps {
   authRepo: IAuthResource;
   spendRequestRepo: ISpendRequestResource;
   paymentMethodsResource: IPaymentMethodsResource;
-  authStorage?: AuthStorage;
+  authStorage?: CliAuthStorage;
   paymentMethodId?: string;
   onlyCard?: boolean;
   onlySpt?: boolean;

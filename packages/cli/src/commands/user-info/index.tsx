@@ -1,13 +1,14 @@
-import type { AuthStorage, IUserInfoResource } from '@stripe/link-sdk';
+import type { IUserInfoResource } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import React from 'react';
+import type { CliAuthStorage } from '../../auth/storage';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
 import { UserInfoRetrieve } from './retrieve';
 
 export function createUserInfoCli(
   createResource: () => IUserInfoResource,
-  authStorage?: AuthStorage,
+  authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ) {
   const cli = Cli.create('user-info', {
@@ -15,7 +16,8 @@ export function createUserInfoCli(
   });
 
   cli.command('retrieve', {
-    description: 'Retrieve user info (email, name, phone)',
+    description:
+      'Retrieve user info, including optional Agent Wallet spend limits and verification requirements',
     outputPolicy: 'agent-only' as const,
     middleware: [requireAuth(authStorage, envAccessToken)],
     async run(c) {

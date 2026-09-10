@@ -1,10 +1,7 @@
-import {
-  type AccessTokenProvider,
-  type AuthStorage,
-  LinkAuthenticationError,
-  storage,
-} from '@stripe/link-sdk';
-import type { IAuthResource } from './types';
+import type { AccessTokenProvider } from '@stripe/link-sdk';
+import { LinkAuthenticationError } from './errors';
+import { storage } from './storage';
+import type { AuthStorage, IAuthResource } from './types';
 
 const EXPIRY_BUFFER_MS = 60_000;
 
@@ -14,7 +11,7 @@ export function createAccessTokenProvider(
   options: { noRefresh?: boolean } = {},
 ): AccessTokenProvider {
   return async ({ forceRefresh } = {}) => {
-    const auth = authStorage.getAuth();
+    const auth = await authStorage.getTokens();
     if (!auth) {
       throw new LinkAuthenticationError(
         'Not authenticated. Run "link-cli auth login" first.',
@@ -36,7 +33,7 @@ export function createAccessTokenProvider(
     }
 
     const refreshed = await authResource.refreshToken(auth.refresh_token);
-    authStorage.setAuth(refreshed);
+    await authStorage.setTokens(refreshed);
     return refreshed.access_token;
   };
 }

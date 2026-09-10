@@ -47,10 +47,10 @@ describe('ShippingAddressResource', () => {
       ],
     });
 
-    const result = await repo.listShippingAddresses();
+    const result = await repo.list();
 
     expect(mockFetch).toHaveBeenCalledOnce();
-    const [url, opts] = mockFetch.mock.calls[0];
+    const [url, opts] = mockFetch.mock.calls[0]!;
     expect(url).toBe('https://api.link.com/shipping_addresses');
     expect(opts.method).toBe('GET');
     expect(opts.headers.Authorization).toBe('Bearer test_token');
@@ -86,7 +86,7 @@ describe('ShippingAddressResource', () => {
       ],
     });
 
-    await expect(repo.listShippingAddresses()).resolves.toEqual([
+    await expect(repo.list()).resolves.toEqual([
       {
         id: 'shad_456',
         is_default: false,
@@ -110,13 +110,13 @@ describe('ShippingAddressResource', () => {
       .mockResolvedValueOnce('test_token')
       .mockResolvedValueOnce('fresh_token');
 
-    const result = await repo.listShippingAddresses();
+    const result = await repo.list();
 
     expect(result).toEqual([]);
     expect(getAccessToken).toHaveBeenNthCalledWith(1);
     expect(getAccessToken).toHaveBeenNthCalledWith(2, { forceRefresh: true });
     expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect(mockFetch.mock.calls[1][1].headers.Authorization).toBe(
+    expect(mockFetch.mock.calls[1]![1].headers.Authorization).toBe(
       'Bearer fresh_token',
     );
   });
@@ -124,7 +124,7 @@ describe('ShippingAddressResource', () => {
   it('throws API errors with the response message', async () => {
     mockFetchResponse(403, { message: 'Forbidden' });
 
-    await expect(repo.listShippingAddresses()).rejects.toThrow(
+    await expect(repo.list()).rejects.toThrow(
       'Failed to list shipping addresses (403): Forbidden',
     );
   });
@@ -132,7 +132,7 @@ describe('ShippingAddressResource', () => {
   it('extracts message from nested error object instead of [object Object]', async () => {
     mockFetchResponse(400, { error: { message: 'address not supported' } });
 
-    await expect(repo.listShippingAddresses()).rejects.toThrow(
+    await expect(repo.list()).rejects.toThrow(
       'Failed to list shipping addresses (400): address not supported',
     );
   });
@@ -140,8 +140,6 @@ describe('ShippingAddressResource', () => {
   it('throws when no access token is available', async () => {
     getAccessToken.mockRejectedValueOnce(new Error('Missing access token'));
 
-    await expect(repo.listShippingAddresses()).rejects.toThrow(
-      'Missing access token',
-    );
+    await expect(repo.list()).rejects.toThrow('Missing access token');
   });
 });

@@ -144,7 +144,7 @@ export const CardFlow: React.FC<CardFlowProps> = ({
         let pmId = initialPaymentMethodId;
         if (!pmId) {
           setStep('fetch-pm');
-          const methods = await paymentMethodsResource.listPaymentMethods();
+          const methods = await paymentMethodsResource.list();
           if (methods.length === 0) {
             setError(
               'No payment methods found. Open the Link app (link.com) and add a card to your wallet, then run the demo again.',
@@ -174,7 +174,7 @@ export const CardFlow: React.FC<CardFlowProps> = ({
         }
 
         setStep('create-spend');
-        const result = await spendRequestRepo.createSpendRequest({
+        const result = await spendRequestRepo.create({
           payment_details: pmId,
           credential_type: 'card' as const,
           amount: DEMO_CARD_AMOUNT,
@@ -210,7 +210,7 @@ export const CardFlow: React.FC<CardFlowProps> = ({
             }
           }
         }
-        const approved = await spendRequestRepo.getSpendRequest(result.id, {
+        const approved = await spendRequestRepo.retrieve(result.id, {
           include: ['card'],
         });
         if (approved) setSpendRequest(approved);

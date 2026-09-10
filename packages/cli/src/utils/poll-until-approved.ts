@@ -21,7 +21,7 @@ export function pollUntilApproved(
       throw new Error('Approval polling timed out');
     }
 
-    const request = await repository.getSpendRequest(id);
+    const request = await repository.retrieve(id);
 
     if (!request) {
       throw new Error(`Spend request ${id} not found`);

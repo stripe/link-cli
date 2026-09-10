@@ -1,70 +1,36 @@
 import { LinkConfigurationError } from '@/errors';
 import type { AccessTokenProvider } from '@/resources/interfaces';
-import { type AuthStorage, storage } from '@/utils/storage';
 
 export interface LinkSdkLogger {
   debug(message: string): void;
 }
 
-export interface LinkOptions {
+interface LinkClientOptions {
   verbose?: boolean;
-  clientName?: string;
   defaultHeaders?: Record<string, string>;
-  accessToken?: string;
-  getAccessToken?: AccessTokenProvider;
-  authStorage?: AuthStorage;
   fetch?: typeof globalThis.fetch;
-  authBaseUrl?: string;
   apiBaseUrl?: string;
   spendRequestBaseUrl?: string;
   logger?: LinkSdkLogger;
 }
 
+export type LinkOptions = LinkClientOptions &
+  (
+    | { accessToken: string; getAccessToken?: never }
+    | { accessToken?: never; getAccessToken: AccessTokenProvider }
+  );
+
 export interface ResolvedLinkSdkConfig {
   verbose: boolean;
-  clientName: string;
   getAccessToken: AccessTokenProvider;
-  authStorage: AuthStorage;
+  canRefreshAccessToken: boolean;
   fetch?: typeof globalThis.fetch;
-  authBaseUrl: string;
   apiBaseUrl: string;
   spendRequestBaseUrl: string;
   logger: LinkSdkLogger;
 }
 
-const DEFAULT_AUTH_BASE_URL = 'https://login.link.com';
 const DEFAULT_API_BASE_URL = 'https://api.link.com';
-
-function createProxyFetch(
-  baseFetch: typeof globalThis.fetch,
-  proxyUrl: string,
-): typeof globalThis.fetch {
-  let dispatcherPromise: Promise<unknown> | null = null;
-
-  return ((input: RequestInfo | URL, init?: RequestInit) => {
-    if (!dispatcherPromise) {
-      // Dynamic import — undici is only needed when LINK_HTTP_PROXY is set.
-      // Node bundles undici but may not expose it publicly; install it
-      // explicitly if the import fails: npm install undici
-      const mod = 'undici';
-      dispatcherPromise = (
-        import(mod) as Promise<{
-          ProxyAgent: new (url: string) => unknown;
-        }>
-      )
-        .then((m) => new m.ProxyAgent(proxyUrl))
-        .catch(() => {
-          throw new LinkConfigurationError(
-            'LINK_HTTP_PROXY requires the "undici" package. Install it with: npm install undici',
-          );
-        });
-    }
-
-    return dispatcherPromise.then((dispatcher) =>
-      baseFetch(input, { ...init, dispatcher } as RequestInit),
-    );
-  }) as typeof globalThis.fetch;
-}
 
 function createDefaultHeadersFetch(
   baseFetch: typeof globalThis.fetch,
@@ -82,70 +48,65 @@ function createDefaultHeadersFetch(
 }
 
 export interface LinkSdkConfigDefaults {
-  authBaseUrl?: string;
   apiBaseUrl?: string;
   spendRequestBaseUrl?: string;
 }
 
-function createDefaultLogger(verbose: boolean): LinkSdkLogger {
+function createDefaultLogger(): LinkSdkLogger {
   return {
-    debug(message: string) {
-      if (!verbose) {
-        return;
-      }
-
-      process.stderr.write(message.endsWith('\n') ? message : `${message}\n`);
-    },
+    debug() {},
   };
 }
 
 export function resolveLinkSdkConfig(
-  options: LinkOptions = {},
+  options: LinkOptions,
   defaults: LinkSdkConfigDefaults = {},
 ): ResolvedLinkSdkConfig {
   const verbose = options.verbose ?? false;
-  const logger = options.logger ?? createDefaultLogger(verbose);
-  const getAccessToken =
-    typeof options.getAccessToken === 'function'
-      ? options.getAccessToken
-      : typeof options.accessToken === 'string'
-        ? async () => options.accessToken as string
-        : async () => {
-            throw new LinkConfigurationError(
-              'No access token configured. Pass `accessToken` or `getAccessToken` in Link SDK options.',
-            );
-          };
-  const authBaseUrl =
-    options.authBaseUrl ??
-    defaults.authBaseUrl ??
-    process.env.LINK_AUTH_BASE_URL ??
-    DEFAULT_AUTH_BASE_URL;
+  const logger = options.logger ?? createDefaultLogger();
+  if (
+    options.accessToken !== undefined &&
+    options.getAccessToken !== undefined
+  ) {
+    throw new LinkConfigurationError(
+      'Pass either `accessToken` or `getAccessToken`, not both.',
+    );
+  }
+
+  let getAccessToken: AccessTokenProvider;
+  let canRefreshAccessToken: boolean;
+  if (options.accessToken !== undefined) {
+    if (options.accessToken.trim().length === 0) {
+      throw new LinkConfigurationError('`accessToken` cannot be empty.');
+    }
+    const accessToken = options.accessToken;
+    getAccessToken = () => accessToken;
+    canRefreshAccessToken = false;
+  } else if (typeof options.getAccessToken === 'function') {
+    getAccessToken = options.getAccessToken;
+    canRefreshAccessToken = true;
+  } else {
+    throw new LinkConfigurationError(
+      'Pass `accessToken` or `getAccessToken` to the Link client.',
+    );
+  }
+
   const apiBaseUrl =
-    options.apiBaseUrl ??
-    defaults.apiBaseUrl ??
-    process.env.LINK_API_BASE_URL ??
-    DEFAULT_API_BASE_URL;
+    options.apiBaseUrl ?? defaults.apiBaseUrl ?? DEFAULT_API_BASE_URL;
   const spendRequestBaseUrl =
     options.spendRequestBaseUrl ?? defaults.spendRequestBaseUrl ?? apiBaseUrl;
 
-  const proxyUrl = process.env.LINK_HTTP_PROXY;
   const baseFetch = options.fetch ?? globalThis.fetch;
-  const proxyFetch =
-    proxyUrl && !options.fetch
-      ? createProxyFetch(baseFetch, proxyUrl)
-      : baseFetch;
   const effectiveFetch =
     options.defaultHeaders && Object.keys(options.defaultHeaders).length > 0
-      ? createDefaultHeadersFetch(proxyFetch, options.defaultHeaders)
-      : proxyFetch;
+      ? createDefaultHeadersFetch(baseFetch, options.defaultHeaders)
+      : baseFetch;
 
   return {
     verbose,
-    clientName: options.clientName ?? 'Link CLI',
     getAccessToken,
-    authStorage: options.authStorage ?? storage,
+    canRefreshAccessToken,
     fetch: effectiveFetch,
-    authBaseUrl,
     apiBaseUrl,
     spendRequestBaseUrl,
     logger,

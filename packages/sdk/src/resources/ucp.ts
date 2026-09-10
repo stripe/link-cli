@@ -79,7 +79,7 @@ export class UcpResource implements IUcpResource {
 
     const fetchOpts: RequestInit = {
       method: opts.method,
-      headers: opts.headers,
+      ...(opts.headers ? { headers: opts.headers } : {}),
     };
     if (opts.body) fetchOpts.body = opts.body;
 

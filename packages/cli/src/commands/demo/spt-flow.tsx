@@ -130,7 +130,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
         let pmId = initialPaymentMethodId;
         if (!pmId) {
           setStep('fetch-pm');
-          const methods = await paymentMethodsResource.listPaymentMethods();
+          const methods = await paymentMethodsResource.list();
           if (methods.length === 0) {
             throw new Error(
               'No payment methods found. Open the Link app (link.com) and add a card to your wallet, then run the demo again.',
@@ -169,7 +169,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
         await waitForEnter();
 
         setStep('create-spend');
-        const result = await spendRequestRepo.createSpendRequest({
+        const result = await spendRequestRepo.create({
           payment_details: pmId,
           credential_type: 'shared_payment_token' as const,
           network_id: decoded.network_id,

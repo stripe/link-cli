@@ -1,14 +1,17 @@
-import { type AuthStorage, storage as defaultStorage } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback } from 'react';
+import {
+  type CliAuthStorage,
+  storage as defaultStorage,
+} from '../../auth/storage';
 import type { IAuthResource } from '../../auth/types';
 import { useAsyncAction } from '../../hooks/use-async-action';
 
 interface LogoutProps {
   authResource: IAuthResource;
-  authStorage?: AuthStorage;
+  authStorage?: CliAuthStorage;
   onComplete: () => void;
 }
 
@@ -20,7 +23,7 @@ export const Logout: React.FC<LogoutProps> = ({
   const storage = authStorage;
 
   const action = useCallback(async () => {
-    const auth = storage.getAuth();
+    const auth = storage.getTokens();
     if (auth?.refresh_token) {
       try {
         await authResource.revokeToken(auth.refresh_token);
@@ -28,7 +31,7 @@ export const Logout: React.FC<LogoutProps> = ({
         // best-effort: clear local storage regardless
       }
     }
-    storage.clearAuth();
+    storage.clearTokens();
     storage.deleteConfig();
   }, [authResource, storage]);
 

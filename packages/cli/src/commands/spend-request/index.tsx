@@ -1,6 +1,5 @@
-import { LinkApiError } from '@stripe/link-sdk';
+import { LinkApiError, getDuplicateSpendRequest } from '@stripe/link-sdk';
 import type {
-  AuthStorage,
   CredentialType,
   ISpendRequestResource,
   LineItem,
@@ -9,6 +8,7 @@ import type {
 } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import React from 'react';
+import type { CliAuthStorage } from '../../auth/storage';
 import { writeCredentialFile } from '../../utils/credential-output';
 import {
   parseKvString,
@@ -18,6 +18,7 @@ import {
 import { pollUntil } from '../../utils/poll-until';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth, requireAuthGuard } from '../../utils/require-auth';
+import { shellQuote } from '../../utils/shell-quote';
 import { CancelSpendRequest } from './cancel';
 import { CreateSpendRequest } from './create';
 import { SpendRequestList } from './list';
@@ -30,6 +31,24 @@ import {
   updateOptions,
 } from './schema';
 import { UpdateSpendRequest } from './update';
+
+function buildRequiresActionResult(request: SpendRequest) {
+  const nextAction = request.status_details?.requires_action?.next_action;
+  const isAutoResume = nextAction?.resolution === 'auto_resume';
+
+  return {
+    ...request,
+    instruction: isAutoResume
+      ? `The spend request requires 3D Secure verification. Present action_url (${nextAction?.action_url}) to the user, then call \`spend-request retrieve ${shellQuote(request.id)} --interval 2 --max-attempts 300\` to poll until it resolves. Do not create a new spend request — this one resumes automatically once the challenge is completed.`
+      : `The spend request requires action (${nextAction?.type}): ${nextAction?.display_message}${nextAction?.action_url ? ` URL: ${nextAction.action_url}` : ''} Have the user complete this, then create a new spend request.`,
+    _next: isAutoResume
+      ? {
+          command: `spend-request retrieve ${shellQuote(request.id)} --interval 2 --max-attempts 300`,
+          until: 'status changes from requires_action',
+        }
+      : undefined,
+  };
+}
 
 async function applyOutputFile(
   request: SpendRequest,
@@ -56,7 +75,7 @@ async function applyOutputFile(
 
 export function createSpendRequestCli(
   repository: ISpendRequestResource,
-  authStorage?: AuthStorage,
+  authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ) {
   const cli = Cli.create('spend-request', {
@@ -79,11 +98,11 @@ export function createSpendRequestCli(
             includeHistory={opts.includeHistory}
             onComplete={() => {}}
           />,
-          () => repository.listSpendRequests(opts),
+          () => repository.list(opts),
         );
       }
 
-      return repository.listSpendRequests(opts);
+      return repository.list(opts);
     },
   });
 
@@ -140,11 +159,11 @@ export function createSpendRequestCli(
               'test cannot be used when execution-method is link_pay_token',
           });
         }
-        if (opts.approve) {
+        if (opts.approve && requestApproval) {
           return c.error({
             code: 'INVALID_INPUT',
             message:
-              'approve cannot be used when execution-method is link_pay_token; use request-approval instead',
+              '--approve with --execution-method link_pay_token requires --no-request-approval',
           });
         }
         if (opts.merchantName || opts.merchantUrl) {
@@ -252,6 +271,7 @@ export function createSpendRequestCli(
         approve: opts.approve ? true : undefined,
         approval_details: approvalDetails,
         metadata,
+        expires_at: opts.expiresAt,
       };
 
       const outputFile = opts.outputFile;
@@ -264,6 +284,7 @@ export function createSpendRequestCli(
             repository={repository}
             params={createParams}
             requestApproval={requestApproval}
+            approve={opts.approve ? true : undefined}
             outputFile={outputFile}
             force={forceOverwrite}
             onComplete={(result) => {
@@ -283,7 +304,7 @@ export function createSpendRequestCli(
       // The agent drives the polling loop via `spend-request retrieve`.
       let created: SpendRequest;
       try {
-        created = await repository.createSpendRequest(createParams);
+        created = await repository.create(createParams);
       } catch (err) {
         if (err instanceof LinkApiError) {
           const apiErr = err.details as {
@@ -305,8 +326,30 @@ export function createSpendRequestCli(
               message: `${err.message} Support URL: ${apiErr.error.support_url}`,
             });
           }
+          const duplicate = getDuplicateSpendRequest(err);
+          if (duplicate) {
+            return c.error({
+              code: apiErr?.error?.code ?? 'spend_request_rate_limited',
+              message: `${err.message} A matching spend request already exists: ${duplicate.id} (status: ${duplicate.status}). Retrieve it to resume instead of creating a new one.`,
+              cta: {
+                description:
+                  'Retrieve the conflicting spend request to inspect its status and resume it if valid.',
+                commands: [
+                  {
+                    command: `spend-request retrieve ${duplicate.id}`,
+                    description:
+                      'Retrieve the conflicting spend request to resume it',
+                  },
+                ],
+              },
+            });
+          }
         }
         throw err;
+      }
+      if (created.status === 'requires_action') {
+        yield buildRequiresActionResult(created);
+        return;
       }
       if (!requestApproval) {
         try {
@@ -322,9 +365,9 @@ export function createSpendRequestCli(
       }
       yield {
         ...created,
-        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${created.id} --interval 2 --max-attempts 300\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
+        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${shellQuote(created.id)} --interval 2 --max-attempts 300\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
         _next: {
-          command: `spend-request retrieve ${created.id} --interval 2 --max-attempts 300`,
+          command: `spend-request retrieve ${shellQuote(created.id)} --interval 2 --max-attempts 300`,
           until: 'status changes from pending_approval',
         },
       };
@@ -360,6 +403,9 @@ export function createSpendRequestCli(
         params.totals = opts.total.map((item: unknown) =>
           typeof item === 'string' ? parseTotalFlag(item) : item,
         );
+      if (opts.approve !== undefined) {
+        params.approve = opts.approve;
+      }
 
       if (!c.agent && !c.formatExplicit) {
         let capturedResult: SpendRequest | null = null;
@@ -380,7 +426,7 @@ export function createSpendRequestCli(
         );
       }
 
-      return repository.updateSpendRequest(id, params);
+      return repository.update(id, params);
     },
   });
 
@@ -445,9 +491,9 @@ export function createSpendRequestCli(
       }
       yield {
         ...approval,
-        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${id} --interval 2 --max-attempts 300\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
+        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${shellQuote(id)} --interval 2 --max-attempts 300\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
         _next: {
-          command: `spend-request retrieve ${id} --interval 2 --max-attempts 300`,
+          command: `spend-request retrieve ${shellQuote(id)} --interval 2 --max-attempts 300`,
           until: 'status changes from pending_approval',
         },
       };
@@ -505,9 +551,22 @@ export function createSpendRequestCli(
         'canceled',
       ]);
 
+      // `requires_action` stops polling unless resolution is `auto_resume`
+      // (e.g. 3D Secure), which resolves on its own — keep polling through it.
+      const isPollTerminal = (req: SpendRequest): boolean => {
+        if (terminalStatuses.has(req.status)) return true;
+        if (req.status === 'requires_action') {
+          return (
+            req.status_details?.requires_action?.next_action?.resolution !==
+            'auto_resume'
+          );
+        }
+        return false;
+      };
+
       for await (const result of pollUntil<SpendRequest | null>({
-        fn: () => repository.getSpendRequest(id, { include }),
-        isTerminal: (req) => req === null || terminalStatuses.has(req.status),
+        fn: () => repository.retrieve(id, { include }),
+        isTerminal: (req) => req === null || isPollTerminal(req),
         interval,
         maxAttempts,
         timeout,
@@ -520,6 +579,11 @@ export function createSpendRequestCli(
         }
 
         if (result.terminal) {
+          if (result.value.status === 'requires_action' && !result.reason) {
+            yield buildRequiresActionResult(result.value);
+            return;
+          }
+
           // Terminal due to isTerminal or interval <= 0 — apply output file
           if (terminalStatuses.has(result.value.status) || !result.reason) {
             try {
@@ -583,7 +647,7 @@ export function createSpendRequestCli(
         );
       }
 
-      return repository.cancelSpendRequest(id);
+      return repository.cancel(id);
     },
   });
 
