@@ -9,9 +9,15 @@ import type {
   CompleteUcpCheckoutParams,
   CreateUcpCheckoutParams,
   IUcpResource,
+  RetrieveUcpCheckoutParams,
   SearchUcpCatalogParams,
 } from '@/resources/interfaces';
-import type { UcpCheckout, UcpProduct, UcpSearchResult } from '@/types/index';
+import type {
+  UcpCheckout,
+  UcpCheckoutWithSpendRequest,
+  UcpProduct,
+  UcpSearchResult,
+} from '@/types/index';
 
 interface ApiFetchOptions {
   method: string;
@@ -239,5 +245,30 @@ export class UcpResource implements IUcpResource {
     }
 
     return normalizeCheckout(data);
+  }
+
+  async retrieveCheckout(
+    id: string,
+    params: RetrieveUcpCheckoutParams,
+  ): Promise<UcpCheckoutWithSpendRequest> {
+    const url = new URL(
+      `${this.ucpEndpoint}/checkout/${encodeURIComponent(id)}`,
+    );
+    url.searchParams.set('spend_request_id', params.spend_request_id);
+    if (params.test) url.searchParams.set('test', 'true');
+
+    const { status, data, rawBody } = await this.apiFetch({
+      method: 'GET',
+      url: url.toString(),
+    });
+
+    if (status < 200 || status >= 300) {
+      throw new LinkApiError(
+        `Failed to retrieve UCP checkout (${status}): ${extractApiError(data, rawBody)}`,
+        { status, rawBody, details: data },
+      );
+    }
+
+    return normalizeCheckout(data) as UcpCheckoutWithSpendRequest;
   }
 }

@@ -128,3 +128,32 @@ export const checkoutCompleteOptions = z.object({
     .default(false)
     .describe('Use demo mode — confirms the session without a live charge'),
 });
+
+export const checkoutRetrieveOptions = z.object({
+  spendRequestId: z
+    .string()
+    .nonempty()
+    .describe('Associated spend request ID (required)'),
+  test: z
+    .boolean()
+    .default(false)
+    .describe('Use demo mode when retrieving the checkout'),
+  poll: z
+    .boolean()
+    .default(false)
+    .describe('Poll until the composite checkout reaches an outcome'),
+  timeout: z.coerce
+    .number()
+    .nonnegative()
+    .optional()
+    .describe('Polling deadline in seconds; requires --poll (default 600)'),
+})
+.superRefine((options, context) => {
+  if (!options.poll && options.timeout !== undefined) {
+    context.addIssue({
+      code: 'custom',
+      path: ['timeout'],
+      message: '--timeout requires --poll',
+    });
+  }
+});
