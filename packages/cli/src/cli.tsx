@@ -14,6 +14,7 @@ import { createSpendRequestCli } from './commands/spend-request';
 import { createTransactionsCli } from './commands/transactions';
 import { createUserInfoCli } from './commands/user-info';
 import { createWebBotAuthCli } from './commands/web-bot-auth';
+import { buildMcpCommand } from './utils/package-runner';
 import { ResourceFactory } from './utils/resource-factory';
 import {
   createAgentUpdateInfoProvider,
@@ -67,6 +68,9 @@ const cli = Cli.create('link-cli', {
   description:
     'Create a secure, one-time payment credential from a Link wallet to let agents complete purchases on behalf of users.',
   version: cliVersion,
+  mcp: {
+    command: buildMcpCommand(cliName, cliVersion),
+  },
   sync: {
     include: ['skills/*'],
   },
