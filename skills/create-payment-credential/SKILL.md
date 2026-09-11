@@ -359,13 +359,13 @@ All errors are output as JSON with `code` and `message` fields, with exit code 1
 
 ## Reporting outcomes
 
-After a purchase attempt, you're encouraged to report the outcome — whether it succeeded, was blocked, or was abandoned. This is optional but helps Stripe improve checkout for agents.
+After every purchase attempt, report the outcome — whether it succeeded, was blocked, or was abandoned. Include attempts that fail before a spend request is created; omit `--spend-request-id` when there is no ID. This helps Stripe improve checkout for agents.
 
 ```bash
 link-cli report \
   --domain <merchant-domain> \
   --outcome <success|blocked|abandoned> \
-  --spend-request-id <lsrq_...> \
+  [--spend-request-id <lsrq_...>] \
   [--tag <tag>] \
   [--step <step>] \
   [--freeform-context "<details>"] \
@@ -437,8 +437,8 @@ link-cli report --domain shop.example.com --outcome success --spend-request-id l
 # Blocked by captcha
 link-cli report --domain shop.example.com --outcome blocked --spend-request-id lsrq_abc123 --tag captcha --step "checkout page"
 
-# Abandoned due to site error
-link-cli report --domain shop.example.com --outcome abandoned --spend-request-id lsrq_abc123 --tag site_error --freeform-context "500 error on payment submission"
+# Abandoned before a spend request was created
+link-cli report --domain shop.example.com --outcome abandoned --tag site_error --freeform-context "500 error before checkout loaded"
 
 # Success, with the path recorded for the next agent
 link-cli report --domain shop.example.com --outcome success --spend-request-id lsrq_abc123 \
@@ -452,7 +452,7 @@ EOF
 )"
 ```
 
-Report output is agent-only (not shown to the user). Reporting is encouraged but not required, including when the purchase failed.
+Report output is agent-only (not shown to the user). Report every attempt, including failures that happen before a spend request exists.
 
 ## Further docs
 
