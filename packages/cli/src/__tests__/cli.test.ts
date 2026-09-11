@@ -3139,4 +3139,340 @@ describe('production mode', () => {
       expect(output).toMatch(/networkId/i);
     });
   });
+
+  describe('ucp', () => {
+    describe('catalog search', () => {
+      it('GETs /ucp/catalog/search with the query and array filters', async () => {
+        setNextResponse(200, {
+          data: [{ sku_id: 'sku_1', name: 'Sneaker', price: 2500 }],
+          total_count: 1,
+          has_more: false,
+        });
+
+        const result = await runProdCli(
+          'ucp',
+          'catalog',
+          'search',
+          '--query',
+          'sneakers',
+          '--brand',
+          'Acme',
+          '--limit',
+          '5',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(lastRequest.method).toBe('GET');
+        expect(lastRequest.url).toContain('/ucp/catalog/search');
+        expect(lastRequest.url).toContain('query=sneakers');
+        expect(lastRequest.url).toContain('brand%5B%5D=Acme');
+        expect(lastRequest.headers.authorization).toBe(
+          'Bearer prod_test_access_token',
+        );
+
+        const output = parseJson(result.stdout) as Record<string, unknown>;
+        const data = output.data as Record<string, unknown>[];
+        expect(data[0].sku_id).toBe('sku_1');
+      });
+
+      it('maps --business to the profile_id search parameter', async () => {
+        setNextResponse(200, {
+          data: [],
+          total_count: 0,
+          has_more: false,
+        });
+
+        const result = await runProdCli(
+          'ucp',
+          'catalog',
+          'search',
+          '--query',
+          'sneakers',
+          '--business',
+          'np_1',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(lastRequest.url).toContain('profile_id=np_1');
+      });
+
+      it('maps --id to the sku search parameter', async () => {
+        setNextResponse(200, {
+          data: [],
+          total_count: 0,
+          has_more: false,
+        });
+
+        const result = await runProdCli(
+          'ucp',
+          'catalog',
+          'search',
+          '--query',
+          'sneakers',
+          '--id',
+          'sku_1',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(lastRequest.url).toContain('sku=sku_1');
+      });
+
+      it('rejects the removed --sku search option', async () => {
+        const result = await runProdCli(
+          'ucp',
+          'catalog',
+          'search',
+          '--query',
+          'sneakers',
+          '--sku',
+          'sku_1',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(1);
+        expect(requests).toHaveLength(0);
+      });
+
+      it('rejects the removed --network-id search option', async () => {
+        const result = await runProdCli(
+          'ucp',
+          'catalog',
+          'search',
+          '--query',
+          'sneakers',
+          '--network-id',
+          'np_1',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(1);
+        expect(requests).toHaveLength(0);
+      });
+
+      it('errors when no query is provided even when a filter is provided', async () => {
+        const result = await runProdCli(
+          'ucp',
+          'catalog',
+          'search',
+          '--brand',
+          'Acme',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(1);
+        expect(requests).toHaveLength(0);
+        const output = parseJson(result.stdout) as Record<string, unknown>;
+        expect(output.code).toBe('VALIDATION_ERROR');
+      });
+
+      it('errors when no query is provided', async () => {
+        const result = await runProdCli('ucp', 'catalog', 'search', '--json');
+
+        expect(result.exitCode).toBe(1);
+        expect(requests).toHaveLength(0);
+        const output = parseJson(result.stdout) as Record<string, unknown>;
+        expect(output.code).toBe('VALIDATION_ERROR');
+      });
+    });
+
+    describe('checkout create', () => {
+      it('POSTs profile_id and parsed line items to /ucp/checkout', async () => {
+        setNextResponse(200, {
+          id: 'dcs_1',
+          status: 'requires_payment',
+          currency: 'usd',
+          amount_total: 5500,
+        });
+
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'create',
+          '--business',
+          'np_1',
+          '--line-item',
+          'id:sku_1,quantity:2',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(lastRequest.method).toBe('POST');
+        expect(lastRequest.url).toBe('/ucp/checkout');
+        const body = JSON.parse(lastRequest.body);
+        // Flag is --business; the wire field stays profile_id (UCP API contract).
+        expect(body.profile_id).toBe('np_1');
+        expect(body.line_items).toEqual([{ sku_id: 'sku_1', quantity: 2 }]);
+        expect(body.currency).toBe('usd');
+
+        const output = parseJson(result.stdout) as Record<string, unknown>;
+        expect(output.id).toBe('dcs_1');
+        expect(output.instruction).toContain('--network-id np_1');
+        expect(output.instruction).toContain(
+          'Both `--spend-request-id` and `--business` are required',
+        );
+        // Agent mode includes a _next hint to complete the checkout.
+        expect((output._next as Record<string, unknown>).command).toBe(
+          'ucp checkout complete dcs_1 --spend-request-id <spend_request_id> --business np_1',
+        );
+      });
+
+      it('rejects a line item with a non-positive quantity', async () => {
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'create',
+          '--business',
+          'np_1',
+          '--line-item',
+          'id:sku_1,quantity:0',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(1);
+        expect(requests).toHaveLength(0);
+        const output = parseJson(result.stdout) as Record<string, unknown>;
+        expect(output.code).toBe('INVALID_INPUT');
+      });
+
+      it('rejects the removed sku_id line-item key', async () => {
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'create',
+          '--business',
+          'np_1',
+          '--line-item',
+          'sku_id:sku_1,quantity:1',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(1);
+        expect(requests).toHaveLength(0);
+        const output = parseJson(result.stdout) as Record<string, unknown>;
+        expect(output.code).toBe('INVALID_INPUT');
+        expect(output.message).toContain('requires an id');
+      });
+
+      it('rejects the removed --network-id checkout option', async () => {
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'create',
+          '--network-id',
+          'np_1',
+          '--line-item',
+          'id:sku_1,quantity:1',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(1);
+        expect(requests).toHaveLength(0);
+      });
+    });
+
+    describe('checkout complete', () => {
+      it('POSTs the spend request and profile IDs to the confirm path', async () => {
+        setNextResponse(200, {
+          id: 'dcs_1',
+          status: 'completed',
+          order_details: { status: 'confirmed' },
+        });
+
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'complete',
+          'dcs_1',
+          '--spend-request-id',
+          'lsrq_1',
+          '--business',
+          'np_1',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(lastRequest.method).toBe('POST');
+        expect(lastRequest.url).toBe('/ucp/checkout/dcs_1/complete');
+        expect(JSON.parse(lastRequest.body)).toEqual({
+          spend_request_id: 'lsrq_1',
+          profile_id: 'np_1',
+        });
+
+        const output = parseJson(result.stdout) as Record<string, unknown>;
+        expect(output.status).toBe('completed');
+      });
+
+      it('surfaces an upstream card error', async () => {
+        setNextResponse(402, {
+          error: { code: 'card_declined', message: 'Your card was declined.' },
+        });
+
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'complete',
+          'dcs_1',
+          '--spend-request-id',
+          'lsrq_1',
+          '--business',
+          'np_1',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(1);
+        const combined = result.stdout + result.stderr;
+        expect(combined).toContain('Your card was declined.');
+      });
+
+      it('requires a spend request ID', async () => {
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'complete',
+          'dcs_1',
+          '--business',
+          'np_1',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(1);
+        expect(requests).toHaveLength(0);
+      });
+
+      it('requires a business', async () => {
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'complete',
+          'dcs_1',
+          '--spend-request-id',
+          'lsrq_1',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(1);
+        expect(requests).toHaveLength(0);
+      });
+
+      it('rejects the removed shared payment token option', async () => {
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'complete',
+          'dcs_1',
+          '--shared-payment-token',
+          'spt_1',
+          '--business',
+          'np_1',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(1);
+        expect(requests).toHaveLength(0);
+      });
+    });
+  });
 });

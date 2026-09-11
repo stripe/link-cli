@@ -8,6 +8,7 @@ import type {
   ISourcesResource,
   ISpendRequestResource,
   ITransactionsResource,
+  IUcpResource,
   IUserInfoResource,
   IWebBotAuthResource,
 } from '@/resources/interfaces';
@@ -17,6 +18,7 @@ import { ShippingAddressResource } from '@/resources/shipping-address';
 import { SourcesResource } from '@/resources/sources';
 import { SpendRequestResource } from '@/resources/spend-request';
 import { TransactionsResource } from '@/resources/transactions';
+import { UcpResource } from '@/resources/ucp';
 import { UserInfoResource } from '@/resources/user-info';
 import { WebBotAuthResource } from '@/resources/web-bot-auth';
 
@@ -30,6 +32,7 @@ export class Link {
   readonly balances: IBalancesResource;
   readonly webBotAuth: IWebBotAuthResource;
   readonly reports: IReportResource;
+  readonly ucp: IUcpResource;
 
   constructor(options: LinkOptions) {
     this.spendRequests = new SpendRequestResource(options);
@@ -41,6 +44,7 @@ export class Link {
     this.balances = new BalancesResource(options);
     this.webBotAuth = new WebBotAuthResource(options);
     this.reports = new ReportResource(options);
+    this.ucp = new UcpResource(options);
   }
 }
 

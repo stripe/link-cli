@@ -12,6 +12,7 @@ import { createShippingAddressCli } from './commands/shipping-address';
 import { createSourcesCli } from './commands/sources';
 import { createSpendRequestCli } from './commands/spend-request';
 import { createTransactionsCli } from './commands/transactions';
+import { createUcpCli } from './commands/ucp';
 import { createUserInfoCli } from './commands/user-info';
 import { createWebBotAuthCli } from './commands/web-bot-auth';
 import { buildMcpCommand } from './utils/package-runner';
@@ -157,6 +158,9 @@ cli.command(
     authStorage,
     envAccessToken,
   ),
+);
+cli.command(
+  createUcpCli(() => factory.createUcpResource(), authStorage, envAccessToken),
 );
 cli.command(
   createDemoCli(
