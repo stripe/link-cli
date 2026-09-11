@@ -1,4 +1,5 @@
 import type {
+  ISpendRequestResource,
   IUcpResource,
   NextAction,
   SpendRequest,
@@ -6,6 +7,8 @@ import type {
   UcpCheckoutWithSpendRequest,
 } from '@stripe/link-sdk';
 import { pollUntil } from '../../utils/poll-until';
+
+type SpendRequestRetriever = Pick<ISpendRequestResource, 'retrieve'>;
 
 export type UcpCheckoutWaitReason =
   | 'checkout_completed_and_spend_request_succeeded'
@@ -66,18 +69,19 @@ export function classifyUcpCheckout(
     return { outcome: 'terminal_failure', reason: failureReason, ...state };
   }
 
-  if (spendRequest.status === 'requires_action') {
+  if (
+    composite.status === 'requires_action' &&
+    spendRequest.status === 'requires_action'
+  ) {
     const nextAction =
       spendRequest.status_details?.requires_action?.next_action;
-    if (nextAction?.resolution !== 'auto_resume') {
-      return {
-        outcome: 'action_required',
-        reason: 'spend_request_requires_action',
-        resolution: nextAction?.resolution ?? 'unknown',
-        ...(nextAction ? { next_action: nextAction } : {}),
-        ...state,
-      };
-    }
+    return {
+      outcome: 'action_required',
+      reason: 'spend_request_requires_action',
+      resolution: nextAction?.resolution ?? 'unknown',
+      ...(nextAction ? { next_action: nextAction } : {}),
+      ...state,
+    };
   }
 
   if (composite.status === 'completed' && spendRequest.status === 'succeeded') {
@@ -118,21 +122,40 @@ export interface RunUcpCheckoutRetrieveOptions
   timeout?: number;
 }
 
+async function retrieveUcpCheckoutState(
+  repository: IUcpResource,
+  spendRequests: SpendRequestRetriever,
+  id: string,
+  options: Pick<PollUcpCheckoutOptions, 'spendRequestId' | 'test'>,
+): Promise<UcpCheckoutWithSpendRequest> {
+  const checkout = await repository.retrieveCheckout(id, {
+    spend_request_id: options.spendRequestId,
+    test: options.test,
+  });
+
+  if (checkout.status !== 'requires_action') return checkout;
+
+  const spendRequest = await spendRequests.retrieve(options.spendRequestId);
+  if (!spendRequest) {
+    throw new Error(`Spend request ${options.spendRequestId} was not found`);
+  }
+
+  return { ...checkout, spend_request: spendRequest };
+}
+
 export function runUcpCheckoutRetrieve(
   repository: IUcpResource,
+  spendRequests: SpendRequestRetriever,
   id: string,
   options: RunUcpCheckoutRetrieveOptions,
 ):
   | Promise<UcpCheckoutWithSpendRequest>
   | AsyncGenerator<UcpCheckoutWaitResult> {
   if (!options.poll) {
-    return repository.retrieveCheckout(id, {
-      spend_request_id: options.spendRequestId,
-      test: options.test,
-    });
+    return retrieveUcpCheckoutState(repository, spendRequests, id, options);
   }
 
-  return pollUcpCheckout(repository, id, {
+  return pollUcpCheckout(repository, spendRequests, id, {
     spendRequestId: options.spendRequestId,
     test: options.test,
     timeout: options.timeout ?? DEFAULT_UCP_POLL_TIMEOUT_SECONDS,
@@ -141,15 +164,12 @@ export function runUcpCheckoutRetrieve(
 
 export async function* pollUcpCheckout(
   repository: IUcpResource,
+  spendRequests: SpendRequestRetriever,
   id: string,
   options: PollUcpCheckoutOptions,
 ): AsyncGenerator<UcpCheckoutWaitResult> {
   for await (const result of pollUntil({
-    fn: () =>
-      repository.retrieveCheckout(id, {
-        spend_request_id: options.spendRequestId,
-        test: options.test,
-      }),
+    fn: () => retrieveUcpCheckoutState(repository, spendRequests, id, options),
     isTerminal: (composite) =>
       classifyUcpCheckout(composite).outcome !== 'pending',
     interval: options.interval ?? UCP_POLL_INTERVAL_SECONDS,
