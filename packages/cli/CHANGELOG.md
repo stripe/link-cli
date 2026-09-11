@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.19.1
+
+### Patch Changes
+
+- ac17965: Add caller-supplied idempotency keys to SpendRequest creation.
+
 ## 0.19.0
 
 ### Minor Changes
