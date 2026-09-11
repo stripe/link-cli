@@ -241,6 +241,8 @@ describe('production mode', () => {
         'create',
         '--payment-method-id',
         'pd_prod_test',
+        '--idempotency-key',
+        '550e8400-e29b-41d4-a716-446655440000',
         '--merchant-name',
         'Test Merchant',
         '--merchant-url',
@@ -267,6 +269,9 @@ describe('production mode', () => {
 
       const sentBody = JSON.parse(lastRequest.body);
       expect(sentBody.payment_details).toBe('pd_prod_test');
+      expect(sentBody.idempotency_key).toBe(
+        '550e8400-e29b-41d4-a716-446655440000',
+      );
       expect(sentBody.amount).toBe(5000);
       expect(sentBody.merchant_name).toBe('Test Merchant');
       expect(sentBody.line_items).toEqual([
@@ -275,6 +280,55 @@ describe('production mode', () => {
       expect(sentBody.totals).toEqual([
         { type: 'total', display_text: 'Total', amount: 5000 },
       ]);
+      expect(result.stdout + result.stderr).not.toContain(
+        '550e8400-e29b-41d4-a716-446655440000',
+      );
+    });
+
+    it('omits idempotency_key when --idempotency-key is absent', async () => {
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--merchant-name',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--no-request-approval',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(lastRequest.body).idempotency_key).toBeUndefined();
+    });
+
+    it.each([
+      ['', 'must not be empty'],
+      ['a'.repeat(256), 'at most 255 UTF-8 bytes'],
+      ['é'.repeat(128), 'at most 255 UTF-8 bytes'],
+    ])('rejects invalid idempotency key %#', async (key, expectedMessage) => {
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--idempotency-key',
+        key,
+        '--merchant-name',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout + result.stderr).toContain(expectedMessage);
+      expect(requests).toHaveLength(0);
     });
 
     it('returns the API response as JSON output', async () => {
@@ -392,6 +446,8 @@ describe('production mode', () => {
         'create',
         '--payment-method-id',
         'pd_prod_test',
+        '--idempotency-key',
+        'delegated-key',
         '--execution-method',
         'link_pay_token',
         '--merchant-account-id',
@@ -411,6 +467,7 @@ describe('production mode', () => {
 
       const sentBody = JSON.parse(lastRequest.body);
       expect(sentBody).toMatchObject({
+        idempotency_key: 'delegated-key',
         payment_details: 'pd_prod_test',
         credential_type: 'card',
         execution_method: 'link_pay_token',
@@ -820,10 +877,13 @@ describe('production mode', () => {
 
     it('surfaces API error messages', async () => {
       setNextResponse(422, { error: { message: 'Invalid payment details' } });
+      const idempotencyKey = 'error-path-key-that-must-not-be-echoed';
 
       const result = await runProdCli(
         'spend-request',
         'create',
+        '--idempotency-key',
+        idempotencyKey,
         '--payment-method-id',
         'pd_bad',
         '-m',
@@ -844,6 +904,7 @@ describe('production mode', () => {
       expect(result.exitCode).toBe(1);
       const output = result.stdout + result.stderr;
       expect(output).toContain('Invalid payment details');
+      expect(output).not.toContain(idempotencyKey);
     });
 
     it('surfaces the duplicate spend request on spend_request_rate_limited error', async () => {

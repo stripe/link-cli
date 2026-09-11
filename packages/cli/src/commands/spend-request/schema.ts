@@ -1,6 +1,16 @@
 import { z } from 'incur';
 
 export const createOptions = z.object({
+  idempotencyKey: z
+    .string()
+    .min(1, 'Idempotency key must not be empty')
+    .refine((key) => new TextEncoder().encode(key).length <= 255, {
+      message: 'Idempotency key must be at most 255 UTF-8 bytes',
+    })
+    .optional()
+    .describe(
+      'Opaque, non-sensitive value to reuse only when retrying the same logical creation',
+    ),
   paymentMethodId: z.string().optional().describe('Payment method ID'),
   credentialType: z
     .enum(['shared_payment_token', 'card'])

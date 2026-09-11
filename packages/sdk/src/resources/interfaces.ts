@@ -24,6 +24,7 @@ export type AccessTokenProvider = (
 ) => Promise<string> | string;
 
 export interface CreateSpendRequestParams {
+  idempotency_key?: string;
   payment_details?: string;
   credential_type?: CredentialType;
   network_id?: string;

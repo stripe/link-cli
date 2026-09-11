@@ -254,6 +254,7 @@ export function createSpendRequestCli(
       }
 
       const createParams = {
+        idempotency_key: opts.idempotencyKey,
         payment_details: opts.paymentMethodId,
         credential_type: credentialType,
         network_id: networkId,
