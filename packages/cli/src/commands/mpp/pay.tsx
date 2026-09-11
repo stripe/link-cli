@@ -180,8 +180,8 @@ async function submitMppPayment(
   challenge: MppProbe,
   spt: string,
 ): Promise<PayResult> {
-  // MPPx clones its Response even though this transport reads only headers.
-  // A bodyless copy lets us cancel the real response without leaving a tee open.
+  // Credential creation needs only the challenge status and headers. Keep the
+  // untrusted response body out of signing and release its stream separately.
   const credentialResponse = new Response(null, {
     status: challenge.response.status,
     statusText: challenge.response.statusText,
