@@ -47,9 +47,7 @@ describe('payWithSpt', () => {
     ).rejects.toThrow(/redirected with status 307 after approval/);
 
     expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(fetcher.mock.calls[0][0]).toBe(
-      'https://merchant.example/challenge',
-    );
+    expect(fetcher.mock.calls[0][0]).toBe('https://merchant.example/challenge');
     expect(
       new Headers(fetcher.mock.calls[0][1]?.headers).has('authorization'),
     ).toBe(false);
