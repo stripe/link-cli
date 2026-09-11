@@ -3172,7 +3172,7 @@ describe('production mode', () => {
       it('POSTs profile_id and parsed line items to /ucp/checkout', async () => {
         setNextResponse(200, {
           id: 'dcs_1',
-          status: 'requires_payment',
+          status: 'open',
           currency: 'usd',
           amount_total: 5500,
         });
@@ -3359,6 +3359,122 @@ describe('production mode', () => {
           'np_1',
           '--json',
         );
+
+        expect(result.exitCode).toBe(1);
+        expect(requests).toHaveLength(0);
+      });
+    });
+
+    describe('checkout retrieve', () => {
+      it('retrieves the spend request when checkout requires action', async () => {
+        setNextResponse(200, {
+          id: 'dcs_1',
+          status: 'requires_action',
+          spend_request: {
+            id: 'lsrq_1',
+            status: 'approved',
+            created_at: '2026-03-10T00:00:00Z',
+            updated_at: '2026-03-10T00:00:01Z',
+          },
+        });
+        setResponseForUrl('/spend_requests/lsrq_1', 200, {
+          id: 'lsrq_1',
+          status: 'requires_action',
+          created_at: '2026-03-10T00:00:00Z',
+          updated_at: '2026-03-10T00:00:01Z',
+          status_details: {
+            requires_action: {
+              next_action: {
+                type: 'three_d_secure',
+                resolution: 'auto_resume',
+                display_message: 'Complete verification',
+                action_url: 'https://example.com/action',
+              },
+            },
+          },
+        });
+
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'retrieve',
+          'dcs_1',
+          '--spend-request-id',
+          'lsrq_1',
+          '--test',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(requests).toHaveLength(2);
+        const checkoutRequest = requests[0];
+        expect(checkoutRequest?.method).toBe('GET');
+        expect(checkoutRequest?.body).toBe('');
+        const requestUrl = new URL(
+          checkoutRequest?.url ?? '',
+          'http://localhost',
+        );
+        expect(requestUrl.pathname).toBe('/ucp/checkout/dcs_1');
+        expect(requestUrl.searchParams.get('spend_request_id')).toBe('lsrq_1');
+        expect(requestUrl.searchParams.get('test')).toBe('true');
+        expect(requests[1]).toMatchObject({
+          method: 'GET',
+          url: '/spend_requests/lsrq_1',
+          body: '',
+        });
+
+        const output = parseJson(result.stdout) as Record<string, unknown>;
+        expect(output).toMatchObject({
+          id: 'dcs_1',
+          status: 'requires_action',
+          spend_request: {
+            id: 'lsrq_1',
+            status_details: {
+              requires_action: {
+                next_action: {
+                  type: 'three_d_secure',
+                  resolution: 'auto_resume',
+                  display_message: 'Complete verification',
+                  action_url: 'https://example.com/action',
+                },
+              },
+            },
+          },
+        });
+      });
+
+      it.each([
+        [
+          'a missing checkout ID',
+          ['ucp', 'checkout', 'retrieve', '--spend-request-id', 'lsrq_1'],
+        ],
+        [
+          'an empty checkout ID',
+          ['ucp', 'checkout', 'retrieve', '', '--spend-request-id', 'lsrq_1'],
+        ],
+        [
+          'a missing spend request ID',
+          ['ucp', 'checkout', 'retrieve', 'dcs_1'],
+        ],
+        [
+          'an empty spend request ID',
+          ['ucp', 'checkout', 'retrieve', 'dcs_1', '--spend-request-id', ''],
+        ],
+        [
+          '--timeout without --poll',
+          [
+            'ucp',
+            'checkout',
+            'retrieve',
+            'dcs_1',
+            '--spend-request-id',
+            'lsrq_1',
+            '--timeout',
+            '10',
+          ],
+        ],
+      ])('rejects %s without making a request', async (_, args) => {
+        const result = await runProdCli(...args, '--json');
 
         expect(result.exitCode).toBe(1);
         expect(requests).toHaveLength(0);

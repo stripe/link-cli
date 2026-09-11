@@ -182,7 +182,7 @@ describe('ucp checkout create component', () => {
   it('renders the created session summary and next step', async () => {
     const checkout: UcpCheckout = {
       id: 'dcs_1',
-      status: 'requires_payment',
+      status: 'open',
       currency: 'usd',
       amount_total: 5500,
       amount_subtotal: 5000,
@@ -207,7 +207,7 @@ describe('ucp checkout create component', () => {
       const frame = lastFrame();
       expect(frame).toContain('Checkout created');
       expect(frame).toContain('dcs_1');
-      expect(frame).toContain('requires_payment');
+      expect(frame).toContain('open');
       expect(frame).toContain('$55.00 USD');
       expect(frame).toContain('$5.00 USD'); // shipping
       expect(frame).toContain('spend-request create');
