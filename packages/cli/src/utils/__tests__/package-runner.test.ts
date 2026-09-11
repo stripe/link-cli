@@ -13,7 +13,7 @@ it.each([
 it('uses the current executable for a standalone SEA', () => {
   expect(
     buildMcpCommand('@stripe/link-cli', '1.2.3', {
-      sea: true,
+      entry: '/Applications/Link CLI/link-cli',
       executable: '/Applications/Link CLI/link-cli',
     }),
   ).toBe('"/Applications/Link CLI/link-cli" --mcp');

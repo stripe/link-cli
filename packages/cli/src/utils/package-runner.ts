@@ -1,5 +1,4 @@
 import { realpathSync } from 'node:fs';
-import { isSea } from 'node:sea';
 
 function runnerFromHint(value: string) {
   if (value.includes('pnpm')) return 'pnpx';
@@ -36,13 +35,18 @@ export function buildMcpCommand(
   packageName: string,
   version: string,
   {
-    sea = isSea(),
+    entry = process.argv[1],
     executable = process.execPath,
   }: {
-    sea?: boolean;
+    entry?: string;
     executable?: string;
   } = {},
 ) {
-  if (sea) return `"${executable.replaceAll('"', '\\"')}" --mcp`;
+  let standalone = entry === executable;
+  try {
+    standalone = realpathSync(entry ?? '') === realpathSync(executable);
+  } catch {}
+
+  if (standalone) return `"${executable.replaceAll('"', '\\"')}" --mcp`;
   return `${detectPackageRunner()} ${packageName}@${version} --mcp`;
 }
