@@ -172,6 +172,6 @@ cli.command(
 );
 cli.command(createServeCli(cli));
 
+// Bun auto-starts an HTTP server for default exports with a fetch method.
+// This is a CLI entrypoint; HTTP serving must go through the explicit serve command.
 cli.serve();
-
-export default cli;
