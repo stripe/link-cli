@@ -170,7 +170,7 @@ export async function payWithSpt(
 ): Promise<PayResult> {
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
   const requestHeaders = buildHeaders(data, headers);
-  return refreshAndPayWithSpt(
+  return payPinnedChallengeWithSpt(
     createMppRequest(url, httpMethod, data, requestHeaders),
     spt,
   );
@@ -206,7 +206,7 @@ async function submitMppPayment(
   return readPayResult(response);
 }
 
-async function refreshAndPayWithSpt(
+async function payPinnedChallengeWithSpt(
   request: MppRequest,
   spt: string,
 ): Promise<PayResult> {
@@ -334,7 +334,7 @@ export async function runMppPayFullFlow(
 
   // 7. Pay
   onStep?.('submitting');
-  return refreshAndPayWithSpt(probe, withSpt.shared_payment_token.id);
+  return payPinnedChallengeWithSpt(probe, withSpt.shared_payment_token.id);
 }
 
 export type Step =

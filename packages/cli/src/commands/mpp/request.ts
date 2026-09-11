@@ -66,8 +66,8 @@ export async function fetchMppRequest(
   request: MppRequest,
   fetcher: typeof fetch = fetch,
 ): Promise<Response> {
-  // Redirects are handled by probeMppRequest so a later credential can be
-  // sent to the exact request that returned the challenge.
+  // Keep redirects visible so probing can follow them safely and approved
+  // payment flows can reject them.
   return fetcher(request.url, {
     method: request.method,
     headers: request.headers,
