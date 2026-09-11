@@ -75,7 +75,10 @@ let serverPort: number;
 let lastRequest: RequestLog;
 let requests: RequestLog[];
 let nextResponse: { status: number; body: unknown };
-let responsesByUrl: Record<string, { status: number; body: unknown }> = {};
+let responsesByUrl: Record<
+  string,
+  { status: number; body: unknown; headers?: Record<string, string> }
+> = {};
 
 // ─── Second mock server for merchant endpoints ─────────────────────────────
 let merchantServer: http.Server;
@@ -99,8 +102,13 @@ function setNextResponse(status: number, body: unknown) {
   nextResponse = { status, body };
 }
 
-function setResponseForUrl(url: string, status: number, body: unknown) {
-  responsesByUrl[url] = { status, body };
+function setResponseForUrl(
+  url: string,
+  status: number,
+  body: unknown,
+  headers?: Record<string, string>,
+) {
+  responsesByUrl[url] = { status, body, headers };
 }
 
 async function runProdCli(...args: string[]): Promise<CliResult> {
@@ -195,6 +203,7 @@ describe('production mode', () => {
         const response = urlOverride ?? nextResponse;
         res.writeHead(response.status, {
           'Content-Type': 'application/json',
+          ...response.headers,
         });
         res.end(JSON.stringify(response.body));
       });
@@ -2607,6 +2616,45 @@ describe('production mode', () => {
       expect(merchantRequests[1].headers.authorization).toMatch(/^Payment /);
     });
 
+    it('sends the credential only to a cross-origin challenge destination', async () => {
+      setNextResponse(200, APPROVED_SPT_REQUEST);
+      setResponseForUrl('/merchant-redirect', 302, null, {
+        Location: `http://127.0.0.1:${merchantPort}/api/charge`,
+      });
+      setMerchantResponse(402, '{"error":"payment required"}', {
+        'www-authenticate': WWW_AUTHENTICATE_STRIPE,
+      });
+      setMerchantResponse(200, '{"success":true}');
+
+      const result = await runProdCli(
+        'mpp',
+        'pay',
+        `http://127.0.0.1:${serverPort}/merchant-redirect`,
+        '--spend-request-id',
+        'lsrq_spt_001',
+        '--format',
+        'json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const redirectorRequests = requests.filter(
+        (request) => request.url === '/merchant-redirect',
+      );
+      expect(redirectorRequests).toHaveLength(1);
+      expect(
+        redirectorRequests.every(
+          (request) => !request.headers.authorization?.startsWith('Payment '),
+        ),
+      ).toBe(true);
+      expect(merchantRequests).toHaveLength(2);
+      expect(merchantRequests[0].headers.authorization).toBeUndefined();
+      expect(
+        merchantRequests.filter((request) =>
+          request.headers.authorization?.startsWith('Payment '),
+        ),
+      ).toHaveLength(1);
+    });
+
     it('returns structured response when the paid retry fails', async () => {
       setNextResponse(200, APPROVED_SPT_REQUEST);
       setMerchantResponse(402, '{"error":"payment required"}', {
@@ -2894,17 +2942,57 @@ describe('production mode', () => {
       it('carries the raw URL in pay_argv and a quoted URL in pay_command', async () => {
         const marker = `${os.tmpdir()}/link-cli-injection-argv-${process.pid}`;
         const url = payloadUrl(marker);
+        const effectiveUrl = new URL(url).href;
 
         const next = await runFullFlow(url);
 
         expect(next.pay_argv.command).toBe('mpp');
         expect(next.pay_argv.args[0]).toBe('pay');
-        expect(next.pay_argv.args[1]).toBe(url);
+        expect(next.pay_argv.args[1]).toBe(effectiveUrl);
         expect(next.pay_argv.args).toContain('--spend-request-id');
         expect(next.pay_argv.args).toContain('lsrq_spt_002');
 
         expect(next.pay_command).not.toContain('pay $(touch');
-        expect(next.pay_command).toContain(`'${url}'`);
+        expect(next.pay_command).toContain(`'${effectiveUrl}'`);
+      });
+
+      it('continues from the effective redirected request', async () => {
+        setNextResponse(200, PENDING_SPT_REQUEST);
+        setResponseForUrl('/merchant-redirect', 302, null, {
+          Location: `http://127.0.0.1:${merchantPort}/api/charge`,
+        });
+        setMerchantResponse(402, '{"error":"payment required"}', {
+          'www-authenticate': WWW_AUTHENTICATE_STRIPE,
+        });
+
+        const result = await runProdCli(
+          'mpp',
+          'pay',
+          `http://127.0.0.1:${serverPort}/merchant-redirect`,
+          '--context',
+          VALID_CONTEXT,
+          '--payment-method-id',
+          'pd_prod_test',
+          '--data',
+          '{"item":"book"}',
+          '--header',
+          'Authorization: Bearer caller-value',
+          '--format',
+          'json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        const output = parseJson(result.stdout) as Array<{
+          _next: { pay_argv: { command: string; args: string[] } };
+        }>;
+        const args = output[0]._next.pay_argv.args;
+        expect(args[1]).toBe(`http://127.0.0.1:${merchantPort}/api/charge`);
+        expect(args.slice(args.indexOf('-X'), args.indexOf('-X') + 2)).toEqual([
+          '-X',
+          'GET',
+        ]);
+        expect(args).not.toContain('-d');
+        expect(args.join(' ')).not.toMatch(/authorization|content-type/i);
       });
 
       it('does not execute the payload when pay_command is run through bash', async () => {
