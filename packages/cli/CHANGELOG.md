@@ -1,5 +1,18 @@
 # @stripe/link-cli
 
+## 0.19.2
+
+### Patch Changes
+
+- eb2bb0e: Register the MCP server with its standalone executable when applicable, or the
+  detected package runner and versioned `@stripe/link-cli` package. Existing MCP
+  registrations are not updated automatically; rerun `link-cli mcp add` after
+  upgrading to replace the generated `link-cli` entry.
+- 4aa62ba: Send MPP payment credentials only to the URL that returned the payment challenge.
+  Approved spend requests and paid retries now reject redirects instead of moving
+  credentials to a new destination. Remote MPP endpoints must use HTTPS; HTTP
+  remains supported for exact loopback addresses used in local development.
+
 ## 0.19.1
 
 ### Patch Changes
