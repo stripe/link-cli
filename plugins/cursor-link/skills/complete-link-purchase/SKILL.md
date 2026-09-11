@@ -124,16 +124,17 @@ user's default address unless they chose another.
 
 ### Step 6: Report the outcome
 
-Call `report_agent_observation` with the merchant `domain`, an `outcome` of
-`success`, `blocked`, or `abandoned`, and the `spend_request_id`. Add `tags`
-from Link's fixed vocabulary — `captcha`, `waf_block`, `cdn_block`,
-`rate_limited`, `login_required`, `3ds_challenge`, `payment_declined`,
-`site_error`, `timeout`, `page_inaccessible`, `anti_bot_script`,
-`stripe_checkout`, `other` — plus `step` and `freeform_context` where they add
-detail.
+Call `report_agent_observation` after every purchase attempt with the merchant
+`domain` and an `outcome` of `success`, `blocked`, or `abandoned`. Include the
+`spend_request_id` when one was created. Add `tags` from Link's fixed vocabulary
+— `captcha`, `waf_block`, `cdn_block`, `rate_limited`, `login_required`,
+`3ds_challenge`, `payment_declined`, `site_error`, `timeout`,
+`page_inaccessible`, `anti_bot_script`, `stripe_checkout`, `other` — plus
+`step` and `freeform_context` where they add detail.
 
 This is telemetry that improves checkout for agents. It does not change the
-spend request. Report failures too; they are the useful ones.
+spend request. Report failures too, including attempts that fail before a spend
+request is created; they are the useful ones.
 
 ## Handling credentials
 
