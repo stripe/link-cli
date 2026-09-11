@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
-// Refresh the create-payment-credential skill whenever the CLI is (re)installed
-// or upgraded via npm. Delegates to the openclaw `skills` CLI so the skill file
-// stays in sync with the installed CLI version. Must never fail the install.
+// Refresh Link CLI's authored skills whenever the CLI is installed or upgraded
+// via npm. Delegates to the `skills` CLI and must never fail the install.
 
 import { spawnSync } from 'node:child_process';
 import process from 'node:process';
@@ -22,7 +21,7 @@ function run() {
   }
 
   process.stdout.write(
-    'link-cli: refreshing the create-payment-credential skill…\n',
+    'link-cli: refreshing authored skills…\n',
   );
 
   const result = spawnSync(

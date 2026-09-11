@@ -71,9 +71,9 @@ const cli = Cli.create('link-cli', {
   mcp: {
     command: buildMcpCommand(cliName, cliVersion),
   },
-  sync: {
-    include: ['skills/*'],
-  },
+  // Link ships purpose-built skills from this repository instead of Incur's
+  // generated command skills. The postinstall script installs the authored set.
+  sync: false,
 });
 
 const isAgent =
