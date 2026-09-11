@@ -69,10 +69,7 @@ export function classifyUcpCheckout(
     return { outcome: 'terminal_failure', reason: failureReason, ...state };
   }
 
-  if (
-    composite.status === 'requires_action' &&
-    spendRequest.status === 'requires_action'
-  ) {
+  if (spendRequest.status === 'requires_action') {
     const nextAction =
       spendRequest.status_details?.requires_action?.next_action;
     return {
@@ -133,7 +130,12 @@ async function retrieveUcpCheckoutState(
     test: options.test,
   });
 
-  if (checkout.status !== 'requires_action') return checkout;
+  if (
+    checkout.status !== 'requires_action' &&
+    checkout.spend_request.status !== 'requires_action'
+  ) {
+    return checkout;
+  }
 
   const spendRequest = await spendRequests.retrieve(options.spendRequestId);
   if (!spendRequest) {

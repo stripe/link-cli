@@ -364,25 +364,29 @@ Steps:
      --format json
    ```
 
-5. **Retrieve the composite state exactly once** before polling. Then branch on
-   the returned checkout status, which is the source of truth for whether the
-   checkout needs action (the terminal value is `completed`):
+5. **Retrieve the composite state exactly once** before polling. Treat the
+   spend request as the source of truth for payment execution and required
+   action. Checkout `completed` is not monotonic during payment: the checkout
+   can temporarily be `completed` while the spend request is
+   `requires_action`, and the checkout can then move to `requires_action` until
+   the action resolves.
 
-   - If checkout `status` is `completed`, report success and stop **only if**
-     the embedded spend request `status` is also `succeeded`. Otherwise, the
-     operation is not yet successful; do not call `checkout complete` again,
-     and handle the spend request using the rules below.
-   - If checkout `status` is `requires_action`, the CLI automatically retrieves
-     the latest spend request as the step-up requirement. Surface the returned
+   Branch in this order:
+
+   - If checkout `status` is `expired`, stop and report the failure.
+   - If the spend request has a terminal failure status (`expired`, `denied`,
+     `failed`, or `canceled`), stop and report the failure.
+   - If the spend request `status` is `requires_action`, surface
      `spend_request.status_details.requires_action.next_action` accurately to
-     the user, including its message and URL, and follow its `resolution`. Do
-     not run a separate `spend-request retrieve` command.
-   - For any other nonterminal checkout status, do not report success and do
-     **not** call `checkout complete` again. Continue to Step 6 and poll.
-
-   For every state other than `completed` + `succeeded`, if the returned spend
-   request has a terminal failure status (`expired`, `denied`, `failed`, or
-   `canceled`), stop and report the failure.
+     the user, including its message and URL, and follow its `resolution`,
+     regardless of the checkout status. The CLI refreshes the spend request
+     when either side of the composite reports `requires_action`; do not run a
+     separate `spend-request retrieve` command.
+   - Report success only when checkout `status` is `completed` **and** spend
+     request `status` is `succeeded`.
+   - Otherwise the composite is still pending. Do not call `checkout complete`
+     again; continue to Step 6 and poll. A checkout in `completed` with any
+     spend-request status other than `succeeded` is not yet successful.
 
    ```bash
    link-cli ucp checkout retrieve <checkout_id> \

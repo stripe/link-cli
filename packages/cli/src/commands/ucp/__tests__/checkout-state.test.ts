@@ -135,12 +135,19 @@ describe('classifyUcpCheckout', () => {
     });
   });
 
-  it('uses checkout status as the source of truth for step-up', () => {
-    expect(
-      classifyUcpCheckout(composite('open', 'requires_action', 'auto_resume'))
-        .outcome,
-    ).toBe('pending');
-  });
+  it.each(['open', 'completed'] as const)(
+    'uses spend-request status as the source of truth for step-up when checkout is %s',
+    (checkoutStatus) => {
+      expect(
+        classifyUcpCheckout(
+          composite(checkoutStatus, 'requires_action', 'auto_resume'),
+        ),
+      ).toMatchObject({
+        outcome: 'action_required',
+        resolution: 'auto_resume',
+      });
+    },
+  );
 
   it.each([
     'create_new_spend_request',
@@ -311,8 +318,8 @@ describe('pollUcpCheckout', () => {
 });
 
 describe('consolidated checkout retrieve mode', () => {
-  it('retrieves the spend request action when checkout requires action', async () => {
-    const value = composite('requires_action', 'approved');
+  it('retrieves the authoritative spend request action when its embedded status requires action', async () => {
+    const value = composite('completed', 'requires_action', 'auto_resume');
     const authoritativeSpendRequest = composite(
       'requires_action',
       'requires_action',
@@ -345,9 +352,34 @@ describe('consolidated checkout retrieve mode', () => {
     expect(spendRequests.retrieve).toHaveBeenCalledWith('lsrq_1');
   });
 
+  it('retrieves the authoritative spend request when checkout reaches requires action first', async () => {
+    const value = composite('requires_action', 'approved');
+    const authoritativeSpendRequest = composite(
+      'requires_action',
+      'requires_action',
+      'auto_resume',
+    ).spend_request;
+    const repository = resource(vi.fn(async () => value));
+    const spendRequests = spendResource(
+      vi.fn(async () => authoritativeSpendRequest),
+    );
+
+    const result = runUcpCheckoutRetrieve(repository, spendRequests, 'dcs_1', {
+      spendRequestId: 'lsrq_1',
+      poll: false,
+    });
+
+    await expect(result).resolves.toMatchObject({
+      spend_request: { status: 'requires_action' },
+    });
+    expect(spendRequests.retrieve).toHaveBeenCalledWith('lsrq_1');
+  });
+
   it('fails clearly when a required step-up spend request is missing', async () => {
     const repository = resource(
-      vi.fn(async () => composite('requires_action', 'approved')),
+      vi.fn(async () =>
+        composite('completed', 'requires_action', 'auto_resume'),
+      ),
     );
 
     const result = runUcpCheckoutRetrieve(
