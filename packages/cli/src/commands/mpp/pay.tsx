@@ -14,6 +14,14 @@ import {
   decodeStripeChallenge,
   getStripeChargeChallengeFromResponse,
 } from './decode';
+import {
+  type MppProbe,
+  type MppRequest,
+  createMppRequest,
+  fetchMppRequest,
+  isRedirectResponse,
+  probeMppRequest,
+} from './request';
 
 export type PayResult = {
   status: number;
@@ -162,30 +170,58 @@ export async function payWithSpt(
 ): Promise<PayResult> {
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
   const requestHeaders = buildHeaders(data, headers);
+  return payPinnedChallengeWithSpt(
+    createMppRequest(url, httpMethod, data, requestHeaders),
+    spt,
+  );
+}
 
-  const initialResponse = await fetch(url, {
-    method: httpMethod,
-    body: data,
-    headers: requestHeaders,
+async function submitMppPayment(
+  challenge: MppProbe,
+  spt: string,
+): Promise<PayResult> {
+  // Credential creation needs only the challenge status and headers. Keep the
+  // untrusted response body out of signing and release its stream separately.
+  const credentialResponse = new Response(null, {
+    status: challenge.response.status,
+    statusText: challenge.response.statusText,
+    headers: challenge.response.headers,
   });
-
-  if (initialResponse.status !== 402) {
-    return readPayResult(initialResponse);
-  }
-
   const authHeader =
-    await createStripePaymentClient(spt).createCredential(initialResponse);
+    await createStripePaymentClient(spt).createCredential(credentialResponse);
+  await challenge.response.body?.cancel();
 
-  const retryResponse = await fetch(url, {
-    method: httpMethod,
-    body: data,
-    headers: {
-      ...requestHeaders,
-      Authorization: authHeader,
-    },
-  });
+  const paidRequest = {
+    ...challenge,
+    headers: new Headers(challenge.headers),
+  };
+  paidRequest.headers.set('Authorization', authHeader);
+  const response = await fetchMppRequest(paidRequest);
+  if (isRedirectResponse(response)) {
+    await response.body?.cancel();
+    throw new Error(
+      `Paid MPP request returned redirect ${response.status}; refusing to forward the payment credential`,
+    );
+  }
+  return readPayResult(response);
+}
 
-  return readPayResult(retryResponse);
+async function payPinnedChallengeWithSpt(
+  request: MppRequest,
+  spt: string,
+): Promise<PayResult> {
+  // Approved credentials may be used minutes later. Refresh the challenge at
+  // the pinned destination, but never let that destination move afterward.
+  const response = await fetchMppRequest(request);
+  if (isRedirectResponse(response)) {
+    await response.body?.cancel();
+    throw new Error(
+      `MPP challenge destination redirected with status ${response.status} after approval`,
+    );
+  }
+  const refreshed = { ...request, response };
+  if (response.status !== 402) return readPayResult(response);
+  return submitMppPayment(refreshed, spt);
 }
 
 export async function runMppPayFullFlow(
@@ -211,11 +247,10 @@ export async function runMppPayFullFlow(
 
   // 1. Probe URL
   onStep?.('probing');
-  const probeResponse = await fetch(url, {
-    method: httpMethod,
-    body: data,
-    headers: requestHeaders,
-  });
+  const probe = await probeMppRequest(
+    createMppRequest(url, httpMethod, data, requestHeaders),
+  );
+  const probeResponse = probe.response;
 
   if (probeResponse.status !== 402) {
     return readPayResult(probeResponse);
@@ -228,6 +263,7 @@ export async function runMppPayFullFlow(
   }
 
   const decoded = decodeStripeChallenge(wwwAuth);
+  await probeResponse.body?.cancel();
   const networkId = decoded.network_id;
   const challengeAmount = decoded.request_json.amount
     ? Number(decoded.request_json.amount)
@@ -298,13 +334,7 @@ export async function runMppPayFullFlow(
 
   // 7. Pay
   onStep?.('submitting');
-  return payWithSpt(
-    url,
-    withSpt.shared_payment_token.id,
-    method,
-    data,
-    headers,
-  );
+  return payPinnedChallengeWithSpt(probe, withSpt.shared_payment_token.id);
 }
 
 export type Step =
