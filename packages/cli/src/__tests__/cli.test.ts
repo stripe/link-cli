@@ -2616,45 +2616,6 @@ describe('production mode', () => {
       expect(merchantRequests[1].headers.authorization).toMatch(/^Payment /);
     });
 
-    it('sends the credential only to a cross-origin challenge destination', async () => {
-      setNextResponse(200, APPROVED_SPT_REQUEST);
-      setResponseForUrl('/merchant-redirect', 302, null, {
-        Location: `http://127.0.0.1:${merchantPort}/api/charge`,
-      });
-      setMerchantResponse(402, '{"error":"payment required"}', {
-        'www-authenticate': WWW_AUTHENTICATE_STRIPE,
-      });
-      setMerchantResponse(200, '{"success":true}');
-
-      const result = await runProdCli(
-        'mpp',
-        'pay',
-        `http://127.0.0.1:${serverPort}/merchant-redirect`,
-        '--spend-request-id',
-        'lsrq_spt_001',
-        '--format',
-        'json',
-      );
-
-      expect(result.exitCode).toBe(0);
-      const redirectorRequests = requests.filter(
-        (request) => request.url === '/merchant-redirect',
-      );
-      expect(redirectorRequests).toHaveLength(1);
-      expect(
-        redirectorRequests.every(
-          (request) => !request.headers.authorization?.startsWith('Payment '),
-        ),
-      ).toBe(true);
-      expect(merchantRequests).toHaveLength(2);
-      expect(merchantRequests[0].headers.authorization).toBeUndefined();
-      expect(
-        merchantRequests.filter((request) =>
-          request.headers.authorization?.startsWith('Payment '),
-        ),
-      ).toHaveLength(1);
-    });
-
     it('returns structured response when the paid retry fails', async () => {
       setNextResponse(200, APPROVED_SPT_REQUEST);
       setMerchantResponse(402, '{"error":"payment required"}', {

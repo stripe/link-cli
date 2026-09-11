@@ -27,6 +27,34 @@ afterEach(() => {
 });
 
 describe('payWithSpt', () => {
+  it('rejects a redirect before using an approved credential', async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(null, {
+        status: 307,
+        headers: { location: 'https://other.example/challenge' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetcher);
+
+    await expect(
+      payWithSpt(
+        'https://merchant.example/challenge',
+        'spt_test_123',
+        undefined,
+        undefined,
+        undefined,
+      ),
+    ).rejects.toThrow(/redirected with status 307 after approval/);
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher.mock.calls[0][0]).toBe(
+      'https://merchant.example/challenge',
+    );
+    expect(
+      new Headers(fetcher.mock.calls[0][1]?.headers).has('authorization'),
+    ).toBe(false);
+  });
+
   it('replaces caller authorization and refuses a redirect after payment', async () => {
     const fetcher = vi
       .fn()

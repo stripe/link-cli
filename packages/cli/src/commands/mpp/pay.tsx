@@ -16,6 +16,7 @@ import {
 } from './decode';
 import {
   type MppProbe,
+  type MppRequest,
   createMppRequest,
   fetchMppRequest,
   isRedirectResponse,
@@ -169,12 +170,10 @@ export async function payWithSpt(
 ): Promise<PayResult> {
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
   const requestHeaders = buildHeaders(data, headers);
-  const probe = await probeMppRequest(
+  return refreshAndPayWithSpt(
     createMppRequest(url, httpMethod, data, requestHeaders),
+    spt,
   );
-
-  if (probe.response.status !== 402) return readPayResult(probe.response);
-  return submitMppPayment(probe, spt);
 }
 
 async function submitMppPayment(
@@ -208,11 +207,11 @@ async function submitMppPayment(
 }
 
 async function refreshAndPayWithSpt(
-  request: MppProbe,
+  request: MppRequest,
   spt: string,
 ): Promise<PayResult> {
-  // Approval can take minutes. Refresh the challenge at the pinned destination,
-  // but do not let that destination move after the user has approved.
+  // Approved credentials may be used minutes later. Refresh the challenge at
+  // the pinned destination, but never let that destination move afterward.
   const response = await fetchMppRequest(request);
   if (isRedirectResponse(response)) {
     await response.body?.cancel();
