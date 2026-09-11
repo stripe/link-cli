@@ -8,14 +8,15 @@ function runnerFromHint(value: string) {
 
 // Mirrors Incur's unexported detector because `mcp.command` replaces its default command.
 export function detectPackageRunner(hints?: readonly string[]) {
-  if (!hints) {
+  let resolvedHints = hints;
+  if (!resolvedHints) {
     const userAgent = process.env.npm_config_user_agent ?? '';
     let entry = process.argv[1] ?? '';
     try {
       entry = realpathSync(entry);
     } catch {}
 
-    hints = [
+    resolvedHints = [
       /pnpm|bun/.test(userAgent) || userAgent.startsWith('npm/')
         ? userAgent
         : '',
@@ -27,5 +28,5 @@ export function detectPackageRunner(hints?: readonly string[]) {
           : '',
     ];
   }
-  return hints.map(runnerFromHint).find(Boolean) ?? 'npx';
+  return resolvedHints.map(runnerFromHint).find(Boolean) ?? 'npx';
 }
