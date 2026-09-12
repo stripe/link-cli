@@ -1,8 +1,8 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LinkApiError, LinkTransportError } from '@/errors';
 import type { CreateReportParams, ReportRecord } from '@/resources/interfaces';
 import { REPORT_ATTEMPT_TRACE_MAX_LENGTH } from '@/resources/interfaces';
 import { ReportResource } from '@/resources/report';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockFetch = vi.fn();
 const getAccessToken = vi.fn();

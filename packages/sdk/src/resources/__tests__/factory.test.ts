@@ -1,10 +1,10 @@
+import { describe, expect, it, vi } from 'vitest';
 import Link from '@/client';
 import { PaymentMethodsResource } from '@/resources/payment-methods';
 import { ReportResource } from '@/resources/report';
 import { SpendRequestResource } from '@/resources/spend-request';
 import { TransactionsResource } from '@/resources/transactions';
 import { WebBotAuthResource } from '@/resources/web-bot-auth';
-import { describe, expect, it, vi } from 'vitest';
 
 describe('Link', () => {
   it('exposes a top-level SDK surface backed by shared repositories', () => {

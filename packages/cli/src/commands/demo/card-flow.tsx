@@ -35,10 +35,7 @@ interface CardFlowProps {
   spendRequestRepo: ISpendRequestResource;
   paymentMethodsResource: IPaymentMethodsResource;
   paymentMethodId?: string;
-  onComplete: (result: {
-    paymentMethodId: string;
-    success: boolean;
-  }) => void;
+  onComplete: (result: { paymentMethodId: string; success: boolean }) => void;
 }
 
 function formatPmLabel(pm: PaymentMethod): string {

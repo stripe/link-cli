@@ -10,8 +10,8 @@ import { useCallback, useState } from 'react';
 import { useAsyncAction } from '../../hooks/use-async-action';
 import { openUrl } from '../../utils/open-url';
 import {
-  type SpendRequestUpdatePollResult,
   pollUntilSpendRequestUpdate,
+  type SpendRequestUpdatePollResult,
 } from '../../utils/poll-until-spend-request-update';
 import { ApprovalWaitingView } from './approval-waiting-view';
 

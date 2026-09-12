@@ -225,9 +225,7 @@ export class ResourceFactory {
       return this.spendRequestResource;
     }
 
-    const resource = sanitizeResource(
-      this.createSdkClient().spendRequests,
-    );
+    const resource = sanitizeResource(this.createSdkClient().spendRequests);
     this.spendRequestResource = resource;
     return resource;
   }
@@ -237,9 +235,7 @@ export class ResourceFactory {
       return this.paymentMethodsResource;
     }
 
-    const resource = sanitizeResource(
-      this.createSdkClient().paymentMethods,
-    );
+    const resource = sanitizeResource(this.createSdkClient().paymentMethods);
     this.paymentMethodsResource = resource;
     return resource;
   }
@@ -249,9 +245,7 @@ export class ResourceFactory {
       return this.shippingAddressResource;
     }
 
-    const resource = sanitizeResource(
-      this.createSdkClient().shippingAddresses,
-    );
+    const resource = sanitizeResource(this.createSdkClient().shippingAddresses);
     this.shippingAddressResource = resource;
     return resource;
   }
@@ -261,9 +255,7 @@ export class ResourceFactory {
       return this.userInfoResource;
     }
 
-    const resource = sanitizeResource(
-      this.createSdkClient().userInfo,
-    );
+    const resource = sanitizeResource(this.createSdkClient().userInfo);
     this.userInfoResource = resource;
     return resource;
   }
@@ -273,9 +265,7 @@ export class ResourceFactory {
       return this.transactionsResource;
     }
 
-    const resource = sanitizeResource(
-      this.createSdkClient().transactions,
-    );
+    const resource = sanitizeResource(this.createSdkClient().transactions);
     this.transactionsResource = resource;
     return resource;
   }
@@ -285,9 +275,7 @@ export class ResourceFactory {
       return this.sourcesResource;
     }
 
-    const resource = sanitizeResource(
-      this.createSdkClient().sources,
-    );
+    const resource = sanitizeResource(this.createSdkClient().sources);
     this.sourcesResource = resource;
     return resource;
   }
@@ -297,9 +285,7 @@ export class ResourceFactory {
       return this.balancesResource;
     }
 
-    const resource = sanitizeResource(
-      this.createSdkClient().balances,
-    );
+    const resource = sanitizeResource(this.createSdkClient().balances);
     this.balancesResource = resource;
     return resource;
   }
@@ -309,9 +295,7 @@ export class ResourceFactory {
       return this.webBotAuthResource;
     }
 
-    const resource = sanitizeResource(
-      this.createSdkClient().webBotAuth,
-    );
+    const resource = sanitizeResource(this.createSdkClient().webBotAuth);
     this.webBotAuthResource = resource;
     return resource;
   }
@@ -321,9 +305,7 @@ export class ResourceFactory {
       return this.reportResource;
     }
 
-    const resource = sanitizeResource(
-      this.createSdkClient().reports,
-    );
+    const resource = sanitizeResource(this.createSdkClient().reports);
     this.reportResource = resource;
     return resource;
   }

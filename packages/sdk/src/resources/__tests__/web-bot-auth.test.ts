@@ -1,7 +1,7 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LinkApiError, LinkSdkError } from '@/errors';
 import { WebBotAuthResource } from '@/resources/web-bot-auth';
 import type { WebBotAuthBlock } from '@/types/index';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockFetch = vi.fn();
 const getAccessToken = vi.fn();

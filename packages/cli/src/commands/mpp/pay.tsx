@@ -15,11 +15,11 @@ import {
   getStripeChargeChallengeFromResponse,
 } from './decode';
 import {
-  type MppProbe,
-  type MppRequest,
   createMppRequest,
   fetchMppRequest,
   isRedirectResponse,
+  type MppProbe,
+  type MppRequest,
   probeMppRequest,
 } from './request';
 

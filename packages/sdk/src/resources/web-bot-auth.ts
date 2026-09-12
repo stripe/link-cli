@@ -1,9 +1,9 @@
+import { z } from 'zod';
 import type { LinkOptions } from '@/config';
 import { LinkSdkError } from '@/errors';
 import { BaseResource } from '@/resources/base';
 import type { IWebBotAuthResource } from '@/resources/interfaces';
 import type { WebBotAuthBlock } from '@/types/index';
-import { z } from 'zod';
 
 interface CacheEntry {
   block: WebBotAuthBlock;

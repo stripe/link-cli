@@ -1,5 +1,5 @@
-import { TransactionsResource } from '@/resources/transactions';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { TransactionsResource } from '@/resources/transactions';
 
 const mockFetch = vi.fn();
 const getAccessToken = vi.fn();

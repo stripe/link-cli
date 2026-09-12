@@ -1,5 +1,5 @@
-import { BalancesResource } from '@/resources/balances';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { BalancesResource } from '@/resources/balances';
 
 const mockFetch = vi.fn();
 const getAccessToken = vi.fn();
