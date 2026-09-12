@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { LinkOptions } from '@/config';
 import { BaseResource } from '@/resources/base';
 import type {
@@ -5,7 +6,6 @@ import type {
   ListTransactionsParams,
 } from '@/resources/interfaces';
 import type { TransactionsPage } from '@/types/index';
-import { z } from 'zod';
 
 const transactionSchema = z.looseObject({
   id: z.string(),

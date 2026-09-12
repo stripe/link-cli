@@ -35,10 +35,7 @@ interface CardFlowProps {
   spendRequestRepo: ISpendRequestResource;
   paymentMethodsResource: IPaymentMethodsResource;
   paymentMethodId?: string;
-  onComplete: (result: {
-    paymentMethodId: string;
-    success: boolean;
-  }) => void;
+  onComplete: (result: { paymentMethodId: string; success: boolean }) => void;
 }
 
 function formatPmLabel(pm: PaymentMethod): string {
@@ -171,6 +168,10 @@ export const CardFlow: React.FC<CardFlowProps> = ({
 
           setStep('explain-pm');
           await waitForEnter();
+        }
+
+        if (!pmId) {
+          throw new Error('Payment method selection did not return an ID');
         }
 
         setStep('create-spend');

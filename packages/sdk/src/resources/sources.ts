@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { LinkOptions } from '@/config';
 import { BaseResource } from '@/resources/base';
 import type {
@@ -5,7 +6,6 @@ import type {
   ListSourcesParams,
 } from '@/resources/interfaces';
 import type { SourcesPage } from '@/types/index';
-import { z } from 'zod';
 
 const nullableRecordSchema = z
   .record(z.string(), z.unknown())

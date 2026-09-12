@@ -1,8 +1,8 @@
+import { z } from 'zod';
 import type { LinkOptions } from '@/config';
 import { BaseResource } from '@/resources/base';
 import type { IUserInfoResource } from '@/resources/interfaces';
 import type { UserInfo } from '@/types/index';
-import { z } from 'zod';
 
 const rollingSpendLimitSchema = z.object({
   limit: z.number().int().nullable(),

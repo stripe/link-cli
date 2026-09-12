@@ -39,19 +39,19 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && tsc --noEmit false --emitDeclarationOnly",
     "prepack": "pnpm run build",
     "typecheck": "tsc",
     "test": "vitest run"
   },
   "dependencies": {
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@stripe/link-typescript-config": "workspace:*",
-    "@types/node": "^22.19.19",
+    "@types/node": "^26.4.1",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.11"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
   }
 }

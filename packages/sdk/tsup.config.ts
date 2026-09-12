@@ -10,7 +10,6 @@ export default defineConfig({
   target: 'node20',
   outDir: 'dist',
   clean: true,
-  dts: true,
   sourcemap: true,
   esbuildOptions(options) {
     options.alias = {

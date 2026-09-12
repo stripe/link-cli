@@ -1,4 +1,3 @@
-import { LinkApiError, getDuplicateSpendRequest } from '@stripe/link-sdk';
 import type {
   CredentialType,
   ISpendRequestResource,
@@ -6,6 +5,7 @@ import type {
   SpendRequest,
   Total,
 } from '@stripe/link-sdk';
+import { getDuplicateSpendRequest, LinkApiError } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import React from 'react';
 import type { CliAuthStorage } from '../../auth/storage';
@@ -279,7 +279,7 @@ export function createSpendRequestCli(
       const forceOverwrite = opts.force;
 
       if (!c.agent && !c.formatExplicit) {
-        let capturedResult: SpendRequest | null | undefined = undefined;
+        let capturedResult: SpendRequest | null | undefined;
         return renderInteractive(
           <CreateSpendRequest
             repository={repository}
@@ -443,7 +443,7 @@ export function createSpendRequestCli(
       const id = c.args.id;
 
       if (!c.agent && !c.formatExplicit) {
-        let capturedResult: SpendRequest | null | undefined = undefined;
+        let capturedResult: SpendRequest | null | undefined;
         return renderInteractive(
           <RequestApproval
             repository={repository}

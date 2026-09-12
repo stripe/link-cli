@@ -11,9 +11,9 @@ import { shellCommand, shellQuote } from '../../utils/shell-quote';
 import { decodeStripeChallenge } from './decode';
 import { DecodeChallengeView } from './decode-view';
 import {
+  buildHeaders,
   MppPay,
   type PayResult,
-  buildHeaders,
   readPayResult,
   runMppPayFullFlow,
   runMppPayWithSpendRequest,

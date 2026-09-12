@@ -4,7 +4,7 @@ import type {
   NextAction,
   SpendRequest,
 } from '@stripe/link-sdk';
-import { LinkApiError, getDuplicateSpendRequest } from '@stripe/link-sdk';
+import { getDuplicateSpendRequest, LinkApiError } from '@stripe/link-sdk';
 import { Box, Text, useApp, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';

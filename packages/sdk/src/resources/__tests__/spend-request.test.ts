@@ -1,10 +1,10 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LinkApiError } from '@/errors';
 import type { CreateSpendRequestParams } from '@/resources/interfaces';
 import {
-  SpendRequestResource,
   getDuplicateSpendRequest,
+  SpendRequestResource,
 } from '@/resources/spend-request';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockFetch = vi.fn();
 const getAccessToken = vi.fn();

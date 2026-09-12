@@ -15,11 +15,11 @@ import {
   getStripeChargeChallengeFromResponse,
 } from './decode';
 import {
-  type MppProbe,
-  type MppRequest,
   createMppRequest,
   fetchMppRequest,
   isRedirectResponse,
+  type MppProbe,
+  type MppRequest,
   probeMppRequest,
 } from './request';
 
@@ -95,8 +95,8 @@ function createStripePaymentClient(spt: string) {
       isPaymentRequired(response) {
         return response.status === 402;
       },
-      getChallenge(response) {
-        return getStripeChargeChallengeFromResponse(response);
+      getChallenges(response) {
+        return [getStripeChargeChallengeFromResponse(response)];
       },
       setCredential(request, credential) {
         const nextHeaders = new Headers(request.headers);

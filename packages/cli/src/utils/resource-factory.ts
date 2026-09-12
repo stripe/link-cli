@@ -225,11 +225,9 @@ export class ResourceFactory {
       return this.spendRequestResource;
     }
 
-    this.spendRequestResource = sanitizeResource(
-      this.createSdkClient().spendRequests,
-    );
-
-    return this.spendRequestResource;
+    const resource = sanitizeResource(this.createSdkClient().spendRequests);
+    this.spendRequestResource = resource;
+    return resource;
   }
 
   createPaymentMethodsResource(): IPaymentMethodsResource {
@@ -237,11 +235,9 @@ export class ResourceFactory {
       return this.paymentMethodsResource;
     }
 
-    this.paymentMethodsResource = sanitizeResource(
-      this.createSdkClient().paymentMethods,
-    );
-
-    return this.paymentMethodsResource;
+    const resource = sanitizeResource(this.createSdkClient().paymentMethods);
+    this.paymentMethodsResource = resource;
+    return resource;
   }
 
   createShippingAddressResource(): IShippingAddressResource {
@@ -249,11 +245,9 @@ export class ResourceFactory {
       return this.shippingAddressResource;
     }
 
-    this.shippingAddressResource = sanitizeResource(
-      this.createSdkClient().shippingAddresses,
-    );
-
-    return this.shippingAddressResource;
+    const resource = sanitizeResource(this.createSdkClient().shippingAddresses);
+    this.shippingAddressResource = resource;
+    return resource;
   }
 
   createUserInfoResource(): IUserInfoResource {
@@ -261,9 +255,9 @@ export class ResourceFactory {
       return this.userInfoResource;
     }
 
-    this.userInfoResource = sanitizeResource(this.createSdkClient().userInfo);
-
-    return this.userInfoResource;
+    const resource = sanitizeResource(this.createSdkClient().userInfo);
+    this.userInfoResource = resource;
+    return resource;
   }
 
   createTransactionsResource(): ITransactionsResource {
@@ -271,11 +265,9 @@ export class ResourceFactory {
       return this.transactionsResource;
     }
 
-    this.transactionsResource = sanitizeResource(
-      this.createSdkClient().transactions,
-    );
-
-    return this.transactionsResource;
+    const resource = sanitizeResource(this.createSdkClient().transactions);
+    this.transactionsResource = resource;
+    return resource;
   }
 
   createSourcesResource(): ISourcesResource {
@@ -283,9 +275,9 @@ export class ResourceFactory {
       return this.sourcesResource;
     }
 
-    this.sourcesResource = sanitizeResource(this.createSdkClient().sources);
-
-    return this.sourcesResource;
+    const resource = sanitizeResource(this.createSdkClient().sources);
+    this.sourcesResource = resource;
+    return resource;
   }
 
   createBalancesResource(): IBalancesResource {
@@ -293,9 +285,9 @@ export class ResourceFactory {
       return this.balancesResource;
     }
 
-    this.balancesResource = sanitizeResource(this.createSdkClient().balances);
-
-    return this.balancesResource;
+    const resource = sanitizeResource(this.createSdkClient().balances);
+    this.balancesResource = resource;
+    return resource;
   }
 
   createWebBotAuthResource(): IWebBotAuthResource {
@@ -303,11 +295,9 @@ export class ResourceFactory {
       return this.webBotAuthResource;
     }
 
-    this.webBotAuthResource = sanitizeResource(
-      this.createSdkClient().webBotAuth,
-    );
-
-    return this.webBotAuthResource;
+    const resource = sanitizeResource(this.createSdkClient().webBotAuth);
+    this.webBotAuthResource = resource;
+    return resource;
   }
 
   createReportResource(): IReportResource {
@@ -315,8 +305,8 @@ export class ResourceFactory {
       return this.reportResource;
     }
 
-    this.reportResource = sanitizeResource(this.createSdkClient().reports);
-
-    return this.reportResource;
+    const resource = sanitizeResource(this.createSdkClient().reports);
+    this.reportResource = resource;
+    return resource;
   }
 }
