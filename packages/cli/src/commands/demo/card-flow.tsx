@@ -173,6 +173,10 @@ export const CardFlow: React.FC<CardFlowProps> = ({
           await waitForEnter();
         }
 
+        if (!pmId) {
+          throw new Error('Payment method selection did not return an ID');
+        }
+
         setStep('create-spend');
         const result = await spendRequestRepo.create({
           payment_details: pmId,

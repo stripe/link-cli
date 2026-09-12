@@ -37,7 +37,9 @@ async function sendWebResponse(
   webRes: Response,
   res: ServerResponse,
 ): Promise<void> {
-  webRes.headers.forEach((val, key) => res.setHeader(key, val));
+  webRes.headers.forEach((val, key) => {
+    res.setHeader(key, val);
+  });
   const buffer = await webRes.arrayBuffer();
   res.writeHead(webRes.status);
   res.end(Buffer.from(buffer));
