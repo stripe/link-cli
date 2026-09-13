@@ -5,15 +5,12 @@ import type {
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import { Credential, Method } from 'mppx';
-import { Mppx, Transport } from 'mppx/client';
+import { Mppx } from 'mppx/client';
 import { Methods as StripeMethods } from 'mppx/stripe';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
 import { sanitizeDeep } from '../../utils/sanitize-text';
-import {
-  decodeStripeChallenge,
-  getStripeChargeChallengeFromResponse,
-} from './decode';
+import { decodeStripeChallenge } from './decode';
 import {
   createMppRequest,
   fetchMppRequest,
@@ -90,20 +87,6 @@ function createStripePaymentClient(spt: string) {
   return Mppx.create({
     methods: [stripeCharge, stripeSession],
     polyfill: false,
-    transport: Transport.from<RequestInit, Response>({
-      name: 'stripe-http',
-      isPaymentRequired(response) {
-        return response.status === 402;
-      },
-      getChallenges(response) {
-        return [getStripeChargeChallengeFromResponse(response)];
-      },
-      setCredential(request, credential) {
-        const nextHeaders = new Headers(request.headers);
-        nextHeaders.set('Authorization', credential);
-        return { ...request, headers: nextHeaders };
-      },
-    }),
   });
 }
 
@@ -187,16 +170,22 @@ async function submitMppPayment(
     statusText: challenge.response.statusText,
     headers: challenge.response.headers,
   });
-  const authHeader =
-    await createStripePaymentClient(spt).createCredential(credentialResponse);
+  const payment =
+    await createStripePaymentClient(spt).preparePayment(credentialResponse);
+  const credential = await payment.createCredential();
   await challenge.response.body?.cancel();
 
-  const paidRequest = {
-    ...challenge,
-    headers: new Headers(challenge.headers),
-  };
-  paidRequest.headers.set('Authorization', authHeader);
-  const response = await fetchMppRequest(paidRequest);
+  const response = await fetch(challenge.url, {
+    ...payment.setCredential(
+      {
+        method: challenge.method,
+        headers: challenge.headers,
+        body: challenge.body,
+      },
+      credential,
+    ),
+    redirect: 'manual',
+  });
   if (isRedirectResponse(response)) {
     await response.body?.cancel();
     throw new Error(

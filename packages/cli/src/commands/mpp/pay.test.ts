@@ -11,10 +11,17 @@ const WWW_AUTHENTICATE_STRIPE = [
   'expires="2099-01-01T00:00:00Z"',
 ].join(' ');
 
-function challengeResponse(): Response {
+function challengeResponse(header?: string): Response {
   return new Response('{"error":"payment required"}', {
     status: 402,
-    headers: { 'www-authenticate': WWW_AUTHENTICATE_STRIPE },
+    headers: {
+      'www-authenticate': header
+        ? WWW_AUTHENTICATE_STRIPE.replace(
+            'intent="charge",',
+            `intent="charge", header="${header}",`,
+          )
+        : WWW_AUTHENTICATE_STRIPE,
+    },
   });
 }
 
@@ -82,6 +89,26 @@ describe('payWithSpt', () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
     expect(fetcher.mock.calls[1][1]?.redirect).toBe('manual');
     expect(fetcher.mock.calls[1][1]?.body).toBe('{"item":"book"}');
+  });
+
+  it('uses the credential header selected by the challenge', async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(challengeResponse('Payment-Credential'))
+      .mockResolvedValueOnce(new Response('paid'));
+    vi.stubGlobal('fetch', fetcher);
+
+    await payWithSpt(
+      'https://merchant.example/challenge',
+      'spt_test_123',
+      undefined,
+      undefined,
+      undefined,
+    );
+
+    const paidHeaders = new Headers(fetcher.mock.calls[1][1]?.headers);
+    expect(paidHeaders.get('payment-credential')).toMatch(/^Payment /);
+    expect(paidHeaders.has('authorization')).toBe(false);
   });
 
   it('refreshes an approved challenge at the pinned destination without following redirects', async () => {
