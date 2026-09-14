@@ -215,14 +215,17 @@ async function payPinnedChallengeWithSpt(
   const refreshed = { ...request, response };
   if (response.status !== 402) return readPayResult(response);
   if (approvedChallenge) {
-    const refreshedChallenge = getStripeChargeChallengeFromResponse(response);
-    const normalize = (challenge: Challenge.Challenge) =>
-      Challenge.serialize({
-        ...challenge,
-        id: 'approval-comparison',
-        expires: undefined,
-      });
-    if (normalize(refreshedChallenge) !== normalize(approvedChallenge)) {
+    let refreshedChallenge: Challenge.Challenge;
+    try {
+      refreshedChallenge = getStripeChargeChallengeFromResponse(response);
+    } catch (error) {
+      await response.body?.cancel();
+      throw error;
+    }
+    if (
+      comparableChallenge(refreshedChallenge) !==
+      comparableChallenge(approvedChallenge)
+    ) {
       await response.body?.cancel();
       throw new Error(
         'MPP challenge changed after approval; refusing to use the approved payment credential',
@@ -230,6 +233,26 @@ async function payPinnedChallengeWithSpt(
     }
   }
   return submitMppPayment(refreshed, spt);
+}
+
+function comparableChallenge(challenge: Challenge.Challenge): string {
+  return Challenge.serialize({
+    ...challenge,
+    id: 'approval-comparison',
+    expires: undefined,
+    request: sortKeys(challenge.request),
+    meta: sortKeys(challenge.meta),
+  });
+}
+
+function sortKeys<Value>(value: Value): Value {
+  if (Array.isArray(value)) return value.map(sortKeys) as Value;
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, child]) => [key, sortKeys(child)]),
+  ) as Value;
 }
 
 export async function runMppPayFullFlow(

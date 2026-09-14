@@ -1,42 +1,33 @@
 import type { ISpendRequestResource } from '@stripe/link-sdk';
+import { Challenge, Credential } from 'mppx';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { payWithSpt, runMppPayFullFlow } from './pay';
 
-const WWW_AUTHENTICATE_STRIPE = [
-  'Payment id="ch_001",',
-  'realm="merchant.example",',
-  'method="stripe",',
-  'intent="charge",',
-  `request="${Buffer.from(JSON.stringify({ networkId: 'net_001', amount: '1000', currency: 'usd', decimals: 2, paymentMethodTypes: ['card'] })).toString('base64')}",`,
-  'expires="2099-01-01T00:00:00Z"',
-].join(' ');
+const STRIPE_REQUEST = {
+  amount: '1000',
+  currency: 'usd',
+  decimals: 2,
+  paymentMethodTypes: ['card'],
+  networkId: 'net_001',
+};
 
-function challengeWith(overrides: {
-  amount?: string;
-  currency?: string;
-  expires?: string;
-  id?: string;
-  intent?: string;
-  networkId?: string;
-  realm?: string;
-}): string {
-  const request = Buffer.from(
-    JSON.stringify({
-      amount: overrides.amount ?? '1000',
-      currency: overrides.currency ?? 'usd',
-      decimals: 2,
-      paymentMethodTypes: ['card'],
-      networkId: overrides.networkId ?? 'net_001',
-    }),
-  ).toString('base64');
-  return [
-    `Payment id="${overrides.id ?? 'ch_001'}",`,
-    `realm="${overrides.realm ?? 'merchant.example'}",`,
-    'method="stripe",',
-    `intent="${overrides.intent ?? 'charge'}",`,
-    `request="${request}",`,
-    `expires="${overrides.expires ?? '2099-01-01T00:00:00Z'}"`,
-  ].join(' ');
+const STRIPE_CHALLENGE: Challenge.Challenge = {
+  id: 'ch_001',
+  realm: 'merchant.example',
+  method: 'stripe',
+  intent: 'charge',
+  request: STRIPE_REQUEST,
+  expires: '2099-01-01T00:00:00Z',
+};
+
+const WWW_AUTHENTICATE_STRIPE = Challenge.serialize(STRIPE_CHALLENGE);
+
+function challengeWith(overrides: Partial<Challenge.Challenge> = {}): string {
+  return Challenge.serialize({
+    ...STRIPE_CHALLENGE,
+    ...overrides,
+    request: overrides.request ?? STRIPE_REQUEST,
+  });
 }
 
 function challengeResponse(
@@ -199,7 +190,7 @@ describe('payWithSpt', () => {
     ]);
   });
 
-  it('accepts a refreshed challenge with a new id and expiration when its approved terms match', async () => {
+  it('accepts a refreshed challenge with a new id and no expiration when its approved terms match', async () => {
     const repository = approvedRepository();
     const fetcher = vi
       .fn()
@@ -208,7 +199,7 @@ describe('payWithSpt', () => {
         challengeResponse(
           challengeWith({
             id: 'ch_002',
-            expires: '2099-02-01T00:00:00Z',
+            expires: undefined,
           }),
         ),
       )
@@ -219,28 +210,172 @@ describe('payWithSpt', () => {
       status: 200,
     });
     expect(fetcher).toHaveBeenCalledTimes(3);
+    const credential = Credential.deserialize(
+      new Headers(fetcher.mock.calls[2][1]?.headers).get('authorization') ?? '',
+    );
+    expect(credential.challenge.id).toBe('ch_002');
+  });
+
+  it('accepts semantically identical request objects regardless of key order', async () => {
+    const approvedRequest = {
+      amount: '1000',
+      currency: 'usd',
+      methodDetails: { networkId: 'net_001', captureMethod: 'automatic' },
+      paymentMethodTypes: ['card'],
+      decimals: 2,
+    };
+    const refreshedRequest = {
+      decimals: 2,
+      paymentMethodTypes: ['card'],
+      methodDetails: { captureMethod: 'automatic', networkId: 'net_001' },
+      currency: 'usd',
+      amount: '1000',
+    };
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        challengeResponse(challengeWith({ request: approvedRequest })),
+      )
+      .mockResolvedValueOnce(
+        challengeResponse(
+          challengeWith({ id: 'ch_002', request: refreshedRequest }),
+        ),
+      )
+      .mockResolvedValueOnce(new Response('paid'));
+    vi.stubGlobal('fetch', fetcher);
+
+    await expect(runFullFlow(approvedRepository())).resolves.toMatchObject({
+      status: 200,
+      body: 'paid',
+    });
+  });
+
+  it('returns a refreshed non-payment response without submitting a credential', async () => {
+    const refreshedResponse = new Response('already complete');
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(challengeResponse())
+      .mockResolvedValueOnce(refreshedResponse);
+    vi.stubGlobal('fetch', fetcher);
+
+    await expect(runFullFlow(approvedRepository())).resolves.toEqual({
+      status: 200,
+      headers: { 'content-type': 'text/plain;charset=UTF-8' },
+      body: 'already complete',
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it.each([
-    ['amount', { amount: '2000' }],
-    ['currency', { currency: 'eur' }],
-    ['network', { networkId: 'net_002' }],
+    ['amount', { request: { ...STRIPE_REQUEST, amount: '2000' } }],
+    ['currency', { request: { ...STRIPE_REQUEST, currency: 'eur' } }],
+    ['decimals', { request: { ...STRIPE_REQUEST, decimals: 6 } }],
+    [
+      'payment method type',
+      { request: { ...STRIPE_REQUEST, paymentMethodTypes: ['bank_account'] } },
+    ],
+    [
+      'payment method order',
+      {
+        request: {
+          ...STRIPE_REQUEST,
+          paymentMethodTypes: ['bank_account', 'card'],
+        },
+      },
+    ],
+    ['network', { request: { ...STRIPE_REQUEST, networkId: 'net_002' } }],
+    [
+      'an added request field',
+      { request: { ...STRIPE_REQUEST, merchant: 'new' } },
+    ],
+    [
+      'a removed request field',
+      {
+        request: {
+          amount: '1000',
+          currency: 'usd',
+          paymentMethodTypes: ['card'],
+          networkId: 'net_001',
+        },
+      },
+    ],
     ['intent', { intent: 'session' }],
     ['realm', { realm: 'other.example' }],
+    ['description', { description: 'Different purchase' }],
+    ['request digest', { digest: 'sha-256=ZGlmZmVyZW50' }],
+    ['credential header', { header: 'Payment-Credential' }],
+    ['opaque metadata', { opaque: 'bWV0YWRhdGE' }],
   ])(
     'rejects a refreshed challenge with changed %s',
     async (_field, change) => {
       const repository = approvedRepository();
+      const refreshedResponse = challengeResponse(challengeWith(change));
       const fetcher = vi
         .fn()
         .mockResolvedValueOnce(challengeResponse())
-        .mockResolvedValueOnce(challengeResponse(challengeWith(change)));
+        .mockResolvedValueOnce(refreshedResponse);
       vi.stubGlobal('fetch', fetcher);
 
       await expect(runFullFlow(repository)).rejects.toThrow(
         /challenge changed after approval/,
       );
       expect(fetcher).toHaveBeenCalledTimes(2);
+      expect(refreshedResponse.bodyUsed).toBe(true);
+      for (const [, init] of fetcher.mock.calls) {
+        expect(new Headers(init?.headers).has('authorization')).toBe(false);
+      }
+    },
+  );
+
+  it('rejects a changed field nested inside the payment request', async () => {
+    const approvedRequest = {
+      ...STRIPE_REQUEST,
+      methodDetails: { captureMethod: 'automatic', networkId: 'net_001' },
+    };
+    const refreshedRequest = {
+      ...STRIPE_REQUEST,
+      methodDetails: { captureMethod: 'manual', networkId: 'net_001' },
+    };
+    const refreshedResponse = challengeResponse(
+      challengeWith({ request: refreshedRequest }),
+    );
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        challengeResponse(challengeWith({ request: approvedRequest })),
+      )
+      .mockResolvedValueOnce(refreshedResponse);
+    vi.stubGlobal('fetch', fetcher);
+
+    await expect(runFullFlow(approvedRepository())).rejects.toThrow(
+      /challenge changed after approval/,
+    );
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(refreshedResponse.bodyUsed).toBe(true);
+  });
+
+  it.each([
+    ['no authentication challenge', undefined],
+    ['a non-Payment challenge', 'Basic realm="merchant.example"'],
+    ['a malformed Payment challenge', 'Payment id="ch_002"'],
+  ])(
+    'rejects a refreshed 402 with %s without submitting a credential',
+    async (_case, authenticate) => {
+      const refreshedResponse = new Response('payment required', {
+        status: 402,
+        headers: authenticate
+          ? { 'www-authenticate': authenticate }
+          : undefined,
+      });
+      const fetcher = vi
+        .fn()
+        .mockResolvedValueOnce(challengeResponse())
+        .mockResolvedValueOnce(refreshedResponse);
+      vi.stubGlobal('fetch', fetcher);
+
+      await expect(runFullFlow(approvedRepository())).rejects.toThrow();
+      expect(fetcher).toHaveBeenCalledTimes(2);
+      expect(refreshedResponse.bodyUsed).toBe(true);
     },
   );
 });
