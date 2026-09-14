@@ -5,7 +5,7 @@ export const payOptions = z.object({
     .string()
     .optional()
     .describe(
-      'Approved spend request ID with credential_type "shared_payment_token". If omitted, the command handles the full flow: probe URL, parse challenge, create spend request, get approval, and pay.',
+      'Approved Link spend request ID with credential_type "shared_payment_token" or "signed_transaction". Omit to probe the endpoint and create the appropriate request.',
     ),
   method: z
     .string()
@@ -24,7 +24,7 @@ export const payOptions = z.object({
     .min(100)
     .optional()
     .describe(
-      'Min 100 chars — describe the purchase and rationale; the user reads this when approving. Required when --spend-request-id is not provided.',
+      'Min 100 chars — describe the purchase and rationale shown during Link approval. Required when --spend-request-id is omitted.',
     ),
   amount: z.coerce
     .number()
@@ -32,18 +32,16 @@ export const payOptions = z.object({
     .positive()
     .optional()
     .describe(
-      'Amount in cents (derived from 402 challenge if omitted; required if challenge has no amount)',
+      'Stripe only: amount in cents (derived from the challenge if omitted). Tempo always signs the exact challenged amount.',
     ),
   paymentMethodId: z
     .string()
     .optional()
-    .describe('Payment method ID (uses default if omitted)'),
+    .describe('Stripe only: Link payment method ID (uses default if omitted)'),
   test: z
     .boolean()
     .default(false)
-    .describe(
-      'Use test mode (creates testmode credentials from test card data)',
-    ),
+    .describe('Stripe only: create testmode credentials from test card data.'),
 });
 
 export const decodeOptions = z.object({

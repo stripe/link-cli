@@ -10,3 +10,4 @@ docs/
 packages/cli/README.md
 .claude/
 .codex/
+.env

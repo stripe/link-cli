@@ -27,6 +27,7 @@ export interface CreateSpendRequestParams {
   payment_details?: string;
   credential_type?: CredentialType;
   network_id?: string;
+  payment_challenge?: string;
   execution_method?: 'link_pay_token';
   merchant_account_id?: string;
   amount?: number;

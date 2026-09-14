@@ -13,12 +13,19 @@ import { DecodeChallengeView } from './decode-view';
 import {
   MppPay,
   type PayResult,
+  assertTempoCompatibleOptions,
   buildHeaders,
+  hasStripeChallenge,
   readPayResult,
+  resolveTempoChallenge,
   runMppPayFullFlow,
   runMppPayWithSpendRequest,
 } from './pay';
 import { decodeOptions, payOptions } from './schema';
+import {
+  LocalSignedTransactionResource,
+  isLocalPrivyMode,
+} from './local-signed-transaction';
 
 export function createMppCli(
   repository: ISpendRequestResource,
@@ -26,13 +33,17 @@ export function createMppCli(
   authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ) {
+  const localMode = isLocalPrivyMode();
+  const paymentRepository = localMode
+    ? new LocalSignedTransactionResource(repository)
+    : repository;
   const cli = Cli.create('mpp', {
     description: 'Machine payment protocol (MPP) commands',
   });
 
   cli.command('pay', {
     description:
-      'Pay a URL via the Machine Payment Protocol. Handles the full 402 flow: probes the URL, parses the challenge, creates a spend request, gets approval, and pays with the SPT. Pass --spend-request-id to skip creation and use a pre-approved spend request.',
+      'Pay a URL via MPP. Creates a Link spend request and fulfills Stripe challenges with an SPT or Tempo challenges with a signed transaction.',
     args: z.object({
       url: z.string().describe('URL to pay'),
     }),
@@ -60,7 +71,7 @@ export function createMppCli(
             amountOverride={opts.amount}
             paymentMethodId={opts.paymentMethodId}
             test={opts.test}
-            repository={repository}
+            repository={paymentRepository}
             paymentMethodsFactory={paymentMethodsFactory}
             onComplete={(result) => {
               capturedResult = result;
@@ -81,7 +92,7 @@ export function createMppCli(
           method,
           data,
           headers,
-          repository,
+          paymentRepository,
         );
         return;
       }
@@ -108,6 +119,63 @@ export function createMppCli(
           code: 'INVALID_RESPONSE',
           message: 'URL returned 402 but no WWW-Authenticate header',
         });
+      }
+
+      if (!hasStripeChallenge(wwwAuth)) {
+        if (!opts.context) {
+          return c.error({
+            code: 'INVALID_INPUT',
+            message:
+              '--context is required for Tempo payments (min 100 chars). Describe the purchase and rationale.',
+          });
+        }
+
+        assertTempoCompatibleOptions({
+          amountOverride: opts.amount,
+          paymentMethodId: opts.paymentMethodId,
+          test: opts.test,
+        });
+        resolveTempoChallenge(wwwAuth);
+
+        const spendRequest = await paymentRepository.create({
+          credential_type: 'signed_transaction',
+          payment_challenge: wwwAuth,
+          context: opts.context,
+          request_approval: true,
+        });
+
+        if (localMode) {
+          yield await runMppPayWithSpendRequest(
+            url,
+            spendRequest.id,
+            method,
+            data,
+            headers,
+            paymentRepository,
+          );
+          return;
+        }
+
+        const nextArgs = ['pay', url, '--spend-request-id', spendRequest.id];
+        if (method) nextArgs.push('-X', method);
+        if (data) nextArgs.push('-d', data);
+        if (headers) {
+          for (const h of headers) nextArgs.push('-H', h);
+        }
+        const nextCommand = `mpp ${shellCommand(nextArgs)}`;
+        const pollCommand = `spend-request retrieve ${shellQuote(spendRequest.id)} --interval 2 --max-attempts 300`;
+
+        yield {
+          ...spendRequest,
+          instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`${pollCommand}\` to poll until approved. Once approved, run _next.pay_argv (preferred — invoke it directly without a shell) or _next.pay_command to submit the signed transaction. Do not wait for the user to reply — start polling immediately.`,
+          _next: {
+            poll_command: pollCommand,
+            pay_command: nextCommand,
+            pay_argv: { command: 'mpp', args: nextArgs },
+            until: 'status changes from pending_approval, then run pay_argv',
+          },
+        };
+        return;
       }
 
       const decoded = decodeStripeChallenge(wwwAuth);
@@ -149,7 +217,7 @@ export function createMppCli(
         pmId = methods[0].id;
       }
 
-      const spendRequest = await repository.create({
+      const spendRequest = await paymentRepository.create({
         payment_details: pmId,
         credential_type: 'shared_payment_token',
         network_id: networkId,

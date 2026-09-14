@@ -1,13 +1,15 @@
 import type {
   IPaymentMethodsResource,
   ISpendRequestResource,
+  SpendRequest,
 } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
-import { Credential, Method } from 'mppx';
+import { Challenge, Credential, Expires, Method } from 'mppx';
 import { Mppx, Transport } from 'mppx/client';
 import { Methods as StripeMethods } from 'mppx/stripe';
 import React, { useEffect, useState } from 'react';
+import { isAddress } from 'viem';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
 import { sanitizeDeep } from '../../utils/sanitize-text';
 import {
@@ -20,6 +22,25 @@ export type PayResult = {
   headers: Record<string, string>;
   body: string;
 };
+
+export interface TempoChargeRequest {
+  amount: string;
+  currency: string;
+  decimals: number;
+  chainId?: number;
+  recipient?: string;
+  feePayer?: boolean;
+  splits?: Array<{ amount: string; recipient: string; memo?: string }>;
+  supportedModes?: Array<'push' | 'pull'>;
+}
+
+export interface ResolvedTempoChallenge {
+  challenge: Challenge.Challenge;
+  request: TempoChargeRequest & {
+    chainId: number;
+    recipient: string;
+  };
+}
 
 declare const __CLI_VERSION__: string;
 
@@ -55,6 +76,201 @@ export async function readPayResult(response: Response): Promise<PayResult> {
     headers: responseHeaders,
     body,
   });
+}
+
+const SUPPORTED_TEMPO_CHAIN_IDS = new Set([4217, 42431]);
+
+export function resolveTempoChallenge(
+  challengeHeader: string,
+): ResolvedTempoChallenge {
+  const challenges = Challenge.deserializeList(challengeHeader);
+  const challenge = challenges.find(
+    (candidate) =>
+      candidate.method === 'tempo' && candidate.intent === 'charge',
+  );
+
+  if (!challenge) {
+    const unsupportedTempo = challenges.find(
+      (candidate) => candidate.method === 'tempo',
+    );
+    if (unsupportedTempo) {
+      throw new Error(
+        `Unsupported Tempo intent '${unsupportedTempo.intent}'. This PoC supports charge only.`,
+      );
+    }
+    throw new Error(
+      'WWW-Authenticate header does not include a supported stripe or tempo charge challenge',
+    );
+  }
+
+  Expires.assert(challenge.expires, challenge.id);
+  const rawRequest = challenge.request;
+  const methodDetails =
+    rawRequest.methodDetails &&
+    typeof rawRequest.methodDetails === 'object' &&
+    !Array.isArray(rawRequest.methodDetails)
+      ? (rawRequest.methodDetails as Record<string, unknown>)
+      : {};
+  if (
+    typeof rawRequest.amount !== 'string' ||
+    !/^\d+$/.test(rawRequest.amount)
+  ) {
+    throw new Error('Tempo charge amount must be an atomic integer string.');
+  }
+  if (typeof rawRequest.currency !== 'string') {
+    throw new Error('Tempo charge currency must be a token address.');
+  }
+  if (
+    rawRequest.recipient !== undefined &&
+    typeof rawRequest.recipient !== 'string'
+  ) {
+    throw new Error('Tempo charge recipient must be an address.');
+  }
+  if (
+    methodDetails.chainId !== undefined &&
+    typeof methodDetails.chainId !== 'number'
+  ) {
+    throw new Error('Tempo charge chain ID must be a number.');
+  }
+  if (
+    methodDetails.supportedModes !== undefined &&
+    (!Array.isArray(methodDetails.supportedModes) ||
+      !methodDetails.supportedModes.every(
+        (mode) => mode === 'push' || mode === 'pull',
+      ))
+  ) {
+    throw new Error('Tempo charge supported modes are invalid.');
+  }
+  if (
+    methodDetails.splits !== undefined &&
+    !Array.isArray(methodDetails.splits)
+  ) {
+    throw new Error('Tempo charge splits are invalid.');
+  }
+
+  const request: TempoChargeRequest = {
+    amount: rawRequest.amount,
+    currency: rawRequest.currency,
+    // TIP-20 stablecoins use six decimals. MPP carries atomic amounts on wire.
+    decimals: 6,
+    chainId: methodDetails.chainId as number | undefined,
+    recipient: rawRequest.recipient as string | undefined,
+    feePayer: methodDetails.feePayer as boolean | undefined,
+    splits: methodDetails.splits as TempoChargeRequest['splits'],
+    supportedModes:
+      methodDetails.supportedModes as TempoChargeRequest['supportedModes'],
+  };
+
+  if (!request.chainId || !SUPPORTED_TEMPO_CHAIN_IDS.has(request.chainId)) {
+    throw new Error(
+      `Unsupported Tempo chain ID '${request.chainId ?? 'missing'}'. Expected 4217 or 42431.`,
+    );
+  }
+  if (BigInt(request.amount) <= 0n) {
+    throw new Error('Tempo charge amount must be greater than zero.');
+  }
+  if (!isAddress(request.currency)) {
+    throw new Error('Tempo charge currency must be a valid token address.');
+  }
+  if (!request.recipient || !isAddress(request.recipient)) {
+    throw new Error('Tempo charge recipient must be a valid address.');
+  }
+  if (request.splits?.length) {
+    throw new Error('Tempo split payments are not supported by this PoC.');
+  }
+  if (request.supportedModes && !request.supportedModes.includes('pull')) {
+    throw new Error('Tempo challenge does not support pull mode.');
+  }
+
+  return {
+    challenge,
+    request: request as ResolvedTempoChallenge['request'],
+  };
+}
+
+export function hasStripeChallenge(challengeHeader: string): boolean {
+  return Challenge.deserializeList(challengeHeader).some(
+    (challenge) =>
+      challenge.method === 'stripe' &&
+      (challenge.intent === 'charge' || challenge.intent === 'session'),
+  );
+}
+
+export function assertTempoCompatibleOptions(options: {
+  amountOverride?: number;
+  paymentMethodId?: string;
+  test?: boolean;
+}) {
+  if (options.amountOverride !== undefined) {
+    throw new Error(
+      '--amount cannot override a Tempo challenge; the exact challenged amount is signed.',
+    );
+  }
+  if (options.paymentMethodId !== undefined) {
+    throw new Error(
+      '--payment-method-id is only supported for Stripe payments.',
+    );
+  }
+  if (options.test) {
+    throw new Error(
+      '--test is only supported for Stripe payments; Tempo test mode is determined by the Link backend.',
+    );
+  }
+}
+
+export function buildSignedTransactionCredential(
+  spendRequest: SpendRequest,
+): string {
+  const transaction = spendRequest.signed_transaction;
+  if (!transaction) {
+    throw new Error('Spend request does not have a signed transaction');
+  }
+  if (!spendRequest.payment_challenge) {
+    throw new Error(
+      'Spend request does not have its original payment challenge',
+    );
+  }
+  const { challenge, request } = resolveTempoChallenge(
+    spendRequest.payment_challenge,
+  );
+  const expectedPrefix = request.feePayer ? '78' : '76';
+  if (
+    !new RegExp(`^0x${expectedPrefix}[0-9a-f]+$`, 'i').test(
+      transaction.tx_hash,
+    ) ||
+    transaction.tx_hash.length % 2 !== 0
+  ) {
+    throw new Error(
+      `Spend request signed_transaction.tx_hash must be a serialized ${
+        request.feePayer ? 'sponsored ' : ''
+      }Tempo transaction (0x${expectedPrefix}-prefixed hex).`,
+    );
+  }
+
+  return Credential.serialize({
+    challenge,
+    payload: { signature: transaction.tx_hash, type: 'transaction' },
+  });
+}
+
+export async function payWithSignedTransaction(
+  url: string,
+  spendRequest: SpendRequest,
+  method: string | undefined,
+  data: string | undefined,
+  headers: string[] | undefined,
+): Promise<PayResult> {
+  const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
+  const credential = buildSignedTransactionCredential(spendRequest);
+  const response = await fetch(url, {
+    method: httpMethod,
+    body: data,
+    headers: {
+      ...buildHeaders(data, headers),
+      Authorization: credential,
+    },
+  });
+  return readPayResult(response);
 }
 
 function createStripePaymentClient(spt: string) {
@@ -123,22 +339,28 @@ export async function runMppPayWithSpendRequest(
   repository: ISpendRequestResource,
 ): Promise<PayResult> {
   const spendRequest = await repository.retrieve(spendRequestId, {
-    include: ['shared_payment_token'],
+    include: ['shared_payment_token', 'signed_transaction'],
   });
 
   if (!spendRequest) {
     throw new Error(`Spend request ${spendRequestId} not found`);
   }
-  if (spendRequest.credential_type !== 'shared_payment_token') {
+  if (
+    spendRequest.credential_type !== 'shared_payment_token' &&
+    spendRequest.credential_type !== 'signed_transaction'
+  ) {
     const type = spendRequest.credential_type ?? 'card';
     throw new Error(
-      `Spend request ${spendRequestId} must have credential_type 'shared_payment_token' (current: '${type}')`,
+      `Spend request ${spendRequestId} must have credential_type 'shared_payment_token' or 'signed_transaction' (current: '${type}')`,
     );
   }
   if (spendRequest.status !== 'approved') {
     throw new Error(
       `Spend request must be approved (current status: ${spendRequest.status})`,
     );
+  }
+  if (spendRequest.credential_type === 'signed_transaction') {
+    return payWithSignedTransaction(url, spendRequest, method, data, headers);
   }
   if (!spendRequest.shared_payment_token) {
     throw new Error('Spend request does not have a shared payment token');
@@ -225,6 +447,57 @@ export async function runMppPayFullFlow(
   const wwwAuth = probeResponse.headers.get('www-authenticate');
   if (!wwwAuth) {
     throw new Error('URL returned 402 but no WWW-Authenticate header');
+  }
+
+  if (!hasStripeChallenge(wwwAuth)) {
+    assertTempoCompatibleOptions({ amountOverride, paymentMethodId, test });
+    resolveTempoChallenge(wwwAuth);
+
+    onStep?.('creating');
+    const spendRequest = await repository.create({
+      credential_type: 'signed_transaction',
+      payment_challenge: wwwAuth,
+      context,
+      request_approval: true,
+    });
+
+    onStep?.('approving');
+    if (spendRequest.approval_url) {
+      onApprovalUrl?.(spendRequest.approval_url);
+    }
+    const approved = await pollUntilApproved(repository, spendRequest.id);
+    if (approved.status !== 'approved') {
+      throw new Error(
+        `Spend request was not approved (status: ${approved.status})`,
+      );
+    }
+
+    onStep?.('signing');
+    let withTransaction = await repository.retrieve(spendRequest.id, {
+      include: ['signed_transaction'],
+    });
+    for (
+      let i = 0;
+      i < 3 && withTransaction && !withTransaction.signed_transaction;
+      i++
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      withTransaction = await repository.retrieve(spendRequest.id, {
+        include: ['signed_transaction'],
+      });
+    }
+    if (!withTransaction?.signed_transaction) {
+      throw new Error('Failed to retrieve signed transaction');
+    }
+
+    onStep?.('submitting');
+    return payWithSignedTransaction(
+      url,
+      withTransaction,
+      method,
+      data,
+      headers,
+    );
   }
 
   const decoded = decodeStripeChallenge(wwwAuth);

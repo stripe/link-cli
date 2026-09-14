@@ -154,6 +154,27 @@ describe('SpendRequestResource', () => {
       expect(result.network_id).toBe('net_abc');
     });
 
+    it('serializes a signed transaction payment challenge', async () => {
+      const params: CreateSpendRequestParams = {
+        ...validParams,
+        credential_type: 'signed_transaction',
+        payment_challenge: 'Payment id="tempo_123"',
+      };
+      mockFetchResponse(200, {
+        ...spendRequestResponse,
+        credential_type: 'signed_transaction',
+        payment_challenge: 'Payment id="tempo_123"',
+      });
+
+      const result = await repo.create(params);
+      const [, opts] = mockFetch.mock.calls[0]!;
+      const sentBody = JSON.parse(opts.body);
+
+      expect(sentBody.credential_type).toBe('signed_transaction');
+      expect(sentBody.payment_challenge).toBe('Payment id="tempo_123"');
+      expect(result.payment_challenge).toBe('Payment id="tempo_123"');
+    });
+
     it('serializes Link Pay Token execution fields in POST body', async () => {
       const paramsWithLptExecution: CreateSpendRequestParams = {
         ...validParams,
@@ -515,6 +536,26 @@ describe('SpendRequestResource', () => {
       const result = await repo.retrieve('si_123');
 
       expect(result?.shared_payment_token).toEqual(sptObj);
+    });
+
+    it('normalizes a signed transaction credential', async () => {
+      mockFetchResponse(200, {
+        ...spendRequestResponse,
+        status: 'approved',
+        credential_type: 'signed_transaction',
+        payment_challenge: 'Payment id="tempo_123"',
+        signed_transaction: '0x76aabbcc',
+      });
+
+      const result = await repo.retrieve('si_123', {
+        include: ['signed_transaction'],
+      });
+
+      expect(result?.signed_transaction).toEqual({ tx_hash: '0x76aabbcc' });
+      expect(result?.payment_challenge).toBe('Payment id="tempo_123"');
+      expect(mockFetch.mock.calls[0]?.[0].toString()).toContain(
+        'include=signed_transaction',
+      );
     });
 
     it('returns null on 404', async () => {

@@ -2529,6 +2529,22 @@ describe('production mode', () => {
       'expires="2099-01-01T00:00:00Z"',
     ].join(' ');
 
+    const WWW_AUTHENTICATE_TEMPO = [
+      'Payment id="tempo_charge_001",',
+      'realm="127.0.0.1",',
+      'method="tempo",',
+      'intent="charge",',
+      `request="${Buffer.from(
+        JSON.stringify({
+          amount: '10000',
+          currency: '0x20C000000000000000000000b9537d11c60E8b50',
+          recipient: '0x7b9cae3c6f339d864c7c4ceeec9703c864a68c9b',
+          methodDetails: { chainId: 4217, supportedModes: ['pull'] },
+        }),
+      ).toString('base64url')}",`,
+      'expires="2099-01-01T00:00:00Z"',
+    ].join(' ');
+
     function decodeCredential(authorizationHeader: string): {
       challenge: { intent: string };
       payload: Record<string, unknown>;
@@ -2565,6 +2581,81 @@ describe('production mode', () => {
       expect(merchantRequests[0].headers['user-agent']).toMatch(/^link-cli\//);
       expect(merchantRequests[1].headers['user-agent']).toMatch(/^link-cli\//);
       expect(merchantRequests[1].headers.authorization).toMatch(/^Payment /);
+    });
+
+    it('creates a signed_transaction spend request for a Tempo challenge', async () => {
+      setNextResponse(200, {
+        ...BASE_REQUEST,
+        id: 'lsrq_tempo_001',
+        status: 'pending_approval',
+        credential_type: 'signed_transaction',
+        payment_challenge: WWW_AUTHENTICATE_TEMPO,
+        approval_url: 'https://link.com/approve/lsrq_tempo_001',
+      });
+      setMerchantResponse(402, '{"error":"payment required"}', {
+        'www-authenticate': WWW_AUTHENTICATE_TEMPO,
+      });
+
+      const result = await runProdCli(
+        'mpp',
+        'pay',
+        `http://127.0.0.1:${merchantPort}/api/tempo`,
+        '--context',
+        VALID_CONTEXT,
+        '--format',
+        'json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.url).toBe('/spend_requests');
+      const sentBody = JSON.parse(lastRequest.body);
+      expect(sentBody).toMatchObject({
+        credential_type: 'signed_transaction',
+        payment_challenge: WWW_AUTHENTICATE_TEMPO,
+        context: VALID_CONTEXT,
+        request_approval: true,
+      });
+      expect(sentBody.payment_details).toBeUndefined();
+      const output = parseJson(result.stdout) as Array<{
+        _next: { pay_argv: { command: string; args: string[] } };
+      }>;
+      expect(output[0]._next.pay_argv.command).toBe('mpp');
+      expect(output[0]._next.pay_argv.args).toContain('lsrq_tempo_001');
+      expect(merchantRequests).toHaveLength(1);
+    });
+
+    it('submits an approved Link-signed Tempo transaction', async () => {
+      setNextResponse(200, {
+        ...BASE_REQUEST,
+        id: 'lsrq_tempo_001',
+        status: 'approved',
+        credential_type: 'signed_transaction',
+        payment_challenge: WWW_AUTHENTICATE_TEMPO,
+        signed_transaction: { tx_hash: '0x76aabbcc' },
+      });
+      setMerchantResponse(200, '{"success":true}');
+
+      const result = await runProdCli(
+        'mpp',
+        'pay',
+        `http://127.0.0.1:${merchantPort}/api/tempo`,
+        '--spend-request-id',
+        'lsrq_tempo_001',
+        '--format',
+        'json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.url).toContain(
+        'include=shared_payment_token%2Csigned_transaction',
+      );
+      expect(merchantRequests).toHaveLength(1);
+      const authorization = merchantRequests[0].headers.authorization as string;
+      expect(authorization).toMatch(/^Payment /);
+      expect(decodeCredential(authorization).payload).toEqual({
+        signature: '0x76aabbcc',
+        type: 'transaction',
+      });
     });
 
     it('returns structured response when the paid retry fails', async () => {

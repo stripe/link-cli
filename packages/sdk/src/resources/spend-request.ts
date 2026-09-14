@@ -14,6 +14,11 @@ const sharedPaymentTokenSchema = z.union([
   z.looseObject({ id: z.string() }),
 ]);
 
+const signedTransactionSchema = z.union([
+  z.string().transform((txHash) => ({ tx_hash: txHash })),
+  z.looseObject({ tx_hash: z.string() }),
+]);
+
 const spendRequestSchema = z.looseObject({
   id: z.string(),
   payment_details: z.string().optional(),
@@ -23,6 +28,8 @@ const spendRequestSchema = z.looseObject({
   created_at: z.string(),
   updated_at: z.string(),
   shared_payment_token: sharedPaymentTokenSchema.nullable().optional(),
+  signed_transaction: signedTransactionSchema.nullable().optional(),
+  payment_challenge: z.string().optional(),
 });
 
 const spendRequestsResponseSchema = z.looseObject({
