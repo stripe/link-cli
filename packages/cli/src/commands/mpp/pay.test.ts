@@ -11,18 +11,50 @@ const WWW_AUTHENTICATE_STRIPE = [
   'expires="2099-01-01T00:00:00Z"',
 ].join(' ');
 
-function challengeResponse(header?: string): Response {
+function challengeWith(overrides: {
+  amount?: string;
+  currency?: string;
+  expires?: string;
+  id?: string;
+  intent?: string;
+  networkId?: string;
+  realm?: string;
+}): string {
+  const request = Buffer.from(
+    JSON.stringify({
+      amount: overrides.amount ?? '1000',
+      currency: overrides.currency ?? 'usd',
+      decimals: 2,
+      paymentMethodTypes: ['card'],
+      networkId: overrides.networkId ?? 'net_001',
+    }),
+  ).toString('base64');
+  return [
+    `Payment id="${overrides.id ?? 'ch_001'}",`,
+    `realm="${overrides.realm ?? 'merchant.example'}",`,
+    'method="stripe",',
+    `intent="${overrides.intent ?? 'charge'}",`,
+    `request="${request}",`,
+    `expires="${overrides.expires ?? '2099-01-01T00:00:00Z'}"`,
+  ].join(' ');
+}
+
+function challengeResponse(
+  challengeHeader = WWW_AUTHENTICATE_STRIPE,
+): Response {
   return new Response('{"error":"payment required"}', {
     status: 402,
-    headers: {
-      'www-authenticate': header
-        ? WWW_AUTHENTICATE_STRIPE.replace(
-            'intent="charge",',
-            `intent="charge", header="${header}",`,
-          )
-        : WWW_AUTHENTICATE_STRIPE,
-    },
+    headers: { 'www-authenticate': challengeHeader },
   });
+}
+
+function challengeResponseWithCredentialHeader(header: string): Response {
+  return challengeResponse(
+    WWW_AUTHENTICATE_STRIPE.replace(
+      'intent="charge",',
+      `intent="charge", header="${header}",`,
+    ),
+  );
 }
 
 beforeEach(() => {
@@ -94,7 +126,9 @@ describe('payWithSpt', () => {
   it('uses the credential header selected by the challenge', async () => {
     const fetcher = vi
       .fn()
-      .mockResolvedValueOnce(challengeResponse('Payment-Credential'))
+      .mockResolvedValueOnce(
+        challengeResponseWithCredentialHeader('Payment-Credential'),
+      )
       .mockResolvedValueOnce(new Response('paid'));
     vi.stubGlobal('fetch', fetcher);
 
@@ -164,4 +198,82 @@ describe('payWithSpt', () => {
       'https://merchant.example/challenge',
     ]);
   });
+
+  it('accepts a refreshed challenge with a new id and expiration when its approved terms match', async () => {
+    const repository = approvedRepository();
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(challengeResponse())
+      .mockResolvedValueOnce(
+        challengeResponse(
+          challengeWith({
+            id: 'ch_002',
+            expires: '2099-02-01T00:00:00Z',
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(new Response('paid'));
+    vi.stubGlobal('fetch', fetcher);
+
+    await expect(runFullFlow(repository)).resolves.toMatchObject({
+      status: 200,
+    });
+    expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+
+  it.each([
+    ['amount', { amount: '2000' }],
+    ['currency', { currency: 'eur' }],
+    ['network', { networkId: 'net_002' }],
+    ['intent', { intent: 'session' }],
+    ['realm', { realm: 'other.example' }],
+  ])(
+    'rejects a refreshed challenge with changed %s',
+    async (_field, change) => {
+      const repository = approvedRepository();
+      const fetcher = vi
+        .fn()
+        .mockResolvedValueOnce(challengeResponse())
+        .mockResolvedValueOnce(challengeResponse(challengeWith(change)));
+      vi.stubGlobal('fetch', fetcher);
+
+      await expect(runFullFlow(repository)).rejects.toThrow(
+        /challenge changed after approval/,
+      );
+      expect(fetcher).toHaveBeenCalledTimes(2);
+    },
+  );
 });
+
+function approvedRepository() {
+  return {
+    create: vi.fn().mockResolvedValue({
+      id: 'lsrq_123',
+      status: 'pending_approval',
+    }),
+    retrieve: vi
+      .fn()
+      .mockResolvedValueOnce({ id: 'lsrq_123', status: 'approved' })
+      .mockResolvedValueOnce({
+        id: 'lsrq_123',
+        status: 'approved',
+        shared_payment_token: { id: 'spt_test_123' },
+      }),
+  } as unknown as ISpendRequestResource;
+}
+
+function runFullFlow(repository: ISpendRequestResource) {
+  return runMppPayFullFlow({
+    url: 'https://merchant.example/challenge',
+    method: 'GET',
+    data: undefined,
+    headers: undefined,
+    context:
+      'Buy a test item from the merchant after explicit Link approval for this machine payment request.',
+    amountOverride: 1000,
+    paymentMethodId: 'pd_test_123',
+    test: true,
+    repository,
+    paymentMethodsFactory: vi.fn(),
+  });
+}

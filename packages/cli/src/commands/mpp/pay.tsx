@@ -4,13 +4,16 @@ import type {
 } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
-import { Credential, Method } from 'mppx';
+import { Challenge, Credential, Method } from 'mppx';
 import { Mppx } from 'mppx/client';
 import { Methods as StripeMethods } from 'mppx/stripe';
 import { useEffect, useState } from 'react';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
 import { sanitizeDeep } from '../../utils/sanitize-text';
-import { decodeStripeChallenge } from './decode';
+import {
+  decodeStripeChallenge,
+  getStripeChargeChallengeFromResponse,
+} from './decode';
 import {
   createMppRequest,
   fetchMppRequest,
@@ -198,6 +201,7 @@ async function submitMppPayment(
 async function payPinnedChallengeWithSpt(
   request: MppRequest,
   spt: string,
+  approvedChallenge?: Challenge.Challenge,
 ): Promise<PayResult> {
   // Approved credentials may be used minutes later. Refresh the challenge at
   // the pinned destination, but never let that destination move afterward.
@@ -210,6 +214,21 @@ async function payPinnedChallengeWithSpt(
   }
   const refreshed = { ...request, response };
   if (response.status !== 402) return readPayResult(response);
+  if (approvedChallenge) {
+    const refreshedChallenge = getStripeChargeChallengeFromResponse(response);
+    const normalize = (challenge: Challenge.Challenge) =>
+      Challenge.serialize({
+        ...challenge,
+        id: 'approval-comparison',
+        expires: undefined,
+      });
+    if (normalize(refreshedChallenge) !== normalize(approvedChallenge)) {
+      await response.body?.cancel();
+      throw new Error(
+        'MPP challenge changed after approval; refusing to use the approved payment credential',
+      );
+    }
+  }
   return submitMppPayment(refreshed, spt);
 }
 
@@ -252,6 +271,7 @@ export async function runMppPayFullFlow(
   }
 
   const decoded = decodeStripeChallenge(wwwAuth);
+  const approvedChallenge = getStripeChargeChallengeFromResponse(probeResponse);
   await probeResponse.body?.cancel();
   const networkId = decoded.network_id;
   const challengeAmount = decoded.request_json.amount
@@ -323,7 +343,11 @@ export async function runMppPayFullFlow(
 
   // 7. Pay
   onStep?.('submitting');
-  return payPinnedChallengeWithSpt(probe, withSpt.shared_payment_token.id);
+  return payPinnedChallengeWithSpt(
+    probe,
+    withSpt.shared_payment_token.id,
+    approvedChallenge,
+  );
 }
 
 export type Step =
