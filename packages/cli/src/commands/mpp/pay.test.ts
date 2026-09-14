@@ -1,7 +1,11 @@
 import type { ISpendRequestResource } from '@stripe/link-sdk';
 import { Challenge, Credential } from 'mppx';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { payWithSpt, runMppPayFullFlow } from './pay';
+import {
+  payWithSpt,
+  runMppPayFullFlow,
+  runMppPayWithSpendRequest,
+} from './pay';
 
 const STRIPE_REQUEST = {
   amount: '1000',
@@ -275,7 +279,7 @@ describe('payWithSpt', () => {
       { request: { ...STRIPE_REQUEST, paymentMethodTypes: ['bank_account'] } },
     ],
     [
-      'payment method order',
+      'payment method list',
       {
         request: {
           ...STRIPE_REQUEST,
@@ -354,6 +358,51 @@ describe('payWithSpt', () => {
     expect(refreshedResponse.bodyUsed).toBe(true);
   });
 
+  it('rejects a changed challenge when continuing an approved spend request', async () => {
+    const repository = {
+      retrieve: vi.fn().mockResolvedValue({
+        id: 'lsrq_123',
+        status: 'approved',
+        credential_type: 'shared_payment_token',
+        shared_payment_token: { id: 'spt_test_123' },
+      }),
+    } as unknown as ISpendRequestResource;
+    const refreshedResponse = challengeResponse(
+      challengeWith({ request: { ...STRIPE_REQUEST, amount: '2000' } }),
+    );
+    const fetcher = vi.fn().mockResolvedValueOnce(refreshedResponse);
+    vi.stubGlobal('fetch', fetcher);
+
+    await expect(
+      runMppPayWithSpendRequest(
+        'https://merchant.example/challenge',
+        'lsrq_123',
+        'GET',
+        undefined,
+        undefined,
+        repository,
+        WWW_AUTHENTICATE_STRIPE,
+      ),
+    ).rejects.toThrow(/challenge changed after approval/);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(
+      new Headers(fetcher.mock.calls[0][1]?.headers).has('authorization'),
+    ).toBe(false);
+    expect(refreshedResponse.bodyUsed).toBe(true);
+  });
+
+  it('rejects an explicit amount that conflicts with the challenge', async () => {
+    const repository = approvedRepository();
+    const fetcher = vi.fn().mockResolvedValueOnce(challengeResponse());
+    vi.stubGlobal('fetch', fetcher);
+
+    await expect(runFullFlow(repository, 2000)).rejects.toThrow(
+      '--amount must match the MPP challenge amount (1000)',
+    );
+    expect(repository.create).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
     ['no authentication challenge', undefined],
     ['a non-Payment challenge', 'Basic realm="merchant.example"'],
@@ -397,7 +446,7 @@ function approvedRepository() {
   } as unknown as ISpendRequestResource;
 }
 
-function runFullFlow(repository: ISpendRequestResource) {
+function runFullFlow(repository: ISpendRequestResource, amountOverride = 1000) {
   return runMppPayFullFlow({
     url: 'https://merchant.example/challenge',
     method: 'GET',
@@ -405,7 +454,7 @@ function runFullFlow(repository: ISpendRequestResource) {
     headers: undefined,
     context:
       'Buy a test item from the merchant after explicit Link approval for this machine payment request.',
-    amountOverride: 1000,
+    amountOverride,
     paymentMethodId: 'pd_test_123',
     test: true,
     repository,

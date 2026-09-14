@@ -12,6 +12,7 @@ import { pollUntilApproved } from '../../utils/poll-until-approved';
 import { sanitizeDeep } from '../../utils/sanitize-text';
 import {
   decodeStripeChallenge,
+  getStripeChargeChallengeFromHeader,
   getStripeChargeChallengeFromResponse,
 } from './decode';
 import {
@@ -115,6 +116,7 @@ export async function runMppPayWithSpendRequest(
   data: string | undefined,
   headers: string[] | undefined,
   repository: ISpendRequestResource,
+  approvedChallengeHeader?: string,
 ): Promise<PayResult> {
   const spendRequest = await repository.retrieve(spendRequestId, {
     include: ['shared_payment_token'],
@@ -144,6 +146,7 @@ export async function runMppPayWithSpendRequest(
     method,
     data,
     headers,
+    approvedChallengeHeader,
   );
 }
 
@@ -153,12 +156,17 @@ export async function payWithSpt(
   method: string | undefined,
   data: string | undefined,
   headers: string[] | undefined,
+  approvedChallengeHeader?: string,
 ): Promise<PayResult> {
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
   const requestHeaders = buildHeaders(data, headers);
+  const approvedChallenge = approvedChallengeHeader
+    ? getStripeChargeChallengeFromHeader(approvedChallengeHeader)
+    : undefined;
   return payPinnedChallengeWithSpt(
     createMppRequest(url, httpMethod, data, requestHeaders),
     spt,
+    approvedChallenge,
   );
 }
 
@@ -240,19 +248,7 @@ function comparableChallenge(challenge: Challenge.Challenge): string {
     ...challenge,
     id: 'approval-comparison',
     expires: undefined,
-    request: sortKeys(challenge.request),
-    meta: sortKeys(challenge.meta),
   });
-}
-
-function sortKeys<Value>(value: Value): Value {
-  if (Array.isArray(value)) return value.map(sortKeys) as Value;
-  if (!value || typeof value !== 'object') return value;
-  return Object.fromEntries(
-    Object.entries(value)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, child]) => [key, sortKeys(child)]),
-  ) as Value;
 }
 
 export async function runMppPayFullFlow(
@@ -303,6 +299,15 @@ export async function runMppPayFullFlow(
   const challengeCurrency = (decoded.request_json.currency as string) ?? 'usd';
 
   const amount = amountOverride ?? challengeAmount;
+  if (
+    amountOverride !== undefined &&
+    challengeAmount !== undefined &&
+    amountOverride !== challengeAmount
+  ) {
+    throw new Error(
+      `--amount must match the MPP challenge amount (${challengeAmount})`,
+    );
+  }
   if (!amount) {
     throw new Error(
       'Could not determine amount from 402 challenge. Pass --amount explicitly.',

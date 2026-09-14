@@ -83,6 +83,7 @@ export function createMppCli(
           data,
           headers,
           repository,
+          opts.approvedChallenge,
         );
         return;
       }
@@ -119,6 +120,17 @@ export function createMppCli(
       const challengeCurrency =
         (decoded.request_json.currency as string) ?? 'usd';
       const amount = opts.amount ?? challengeAmount;
+
+      if (
+        opts.amount !== undefined &&
+        challengeAmount !== undefined &&
+        opts.amount !== challengeAmount
+      ) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message: `--amount must match the MPP challenge amount (${challengeAmount})`,
+        });
+      }
 
       if (!amount) {
         return c.error({
@@ -169,6 +181,8 @@ export function createMppCli(
         probe.url,
         '--spend-request-id',
         spendRequest.id,
+        '--approved-challenge',
+        wwwAuth,
         '-X',
         probe.method,
       ];

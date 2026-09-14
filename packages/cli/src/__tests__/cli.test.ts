@@ -2919,6 +2919,33 @@ describe('production mode', () => {
       );
     });
 
+    it('rejects an amount that conflicts with the MPP challenge', async () => {
+      setMerchantResponse(402, '{"error":"payment required"}', {
+        'www-authenticate': WWW_AUTHENTICATE_STRIPE,
+      });
+
+      const result = await runProdCli(
+        'mpp',
+        'pay',
+        `http://127.0.0.1:${merchantPort}/api/charge`,
+        '--context',
+        VALID_CONTEXT,
+        '--payment-method-id',
+        'pd_prod_test',
+        '--amount',
+        '2000',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout + result.stderr).toContain(
+        '--amount must match the MPP challenge amount (1000)',
+      );
+      expect(
+        requests.some((request) => request.url === '/spend_requests'),
+      ).toBe(false);
+    });
+
     describe('_next continuation quoting', () => {
       const PENDING_SPT_REQUEST = {
         ...BASE_REQUEST,
@@ -2973,6 +3000,12 @@ describe('production mode', () => {
         expect(next.pay_argv.args[1]).toBe(effectiveUrl);
         expect(next.pay_argv.args).toContain('--spend-request-id');
         expect(next.pay_argv.args).toContain('lsrq_spt_002');
+        const challengeIndex = next.pay_argv.args.indexOf(
+          '--approved-challenge',
+        );
+        expect(next.pay_argv.args[challengeIndex + 1]).toBe(
+          WWW_AUTHENTICATE_STRIPE,
+        );
 
         expect(next.pay_command).not.toContain('pay $(touch');
         expect(next.pay_command).toContain(`'${effectiveUrl}'`);
