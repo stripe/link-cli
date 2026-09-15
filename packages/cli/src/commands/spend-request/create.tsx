@@ -149,7 +149,11 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
         setRequest(latest);
         if (latest.status === 'requires_action') continue;
 
-        if (latest.status === 'approved' || latest.status === 'succeeded') {
+        if (
+          latest.status === 'approved' ||
+          latest.status === 'submitted' ||
+          latest.status === 'succeeded'
+        ) {
           setStatus('success');
         } else {
           setError(

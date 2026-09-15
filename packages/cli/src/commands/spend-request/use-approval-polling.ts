@@ -65,7 +65,11 @@ export function useApprovalPolling({
           setTimeout(() => onComplete(final), DISPLAY_DELAY_MS);
           return;
         }
-        if (final.status !== 'approved') {
+        if (
+          final.status !== 'approved' &&
+          final.status !== 'submitted' &&
+          final.status !== 'succeeded'
+        ) {
           onError(
             `Spend request did not reach approved (status: ${final.status})`,
           );

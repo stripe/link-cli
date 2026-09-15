@@ -73,6 +73,31 @@ function makeSequentialMockRepo(
 }
 
 describe('spend-request', () => {
+  describe('status change polling', () => {
+    it('RequestApproval accepts submitted after approval polling', async () => {
+      const repo = makeMockRepo(makeSpendRequest({ status: 'submitted' }));
+      const { lastFrame, unmount } = render(
+        <RequestApproval
+          repository={repo}
+          id="sr_test"
+          onComplete={() => {}}
+        />,
+      );
+      try {
+        await vi.waitFor(
+          () => {
+            expect(lastFrame()).toContain('Approval completed');
+            expect(lastFrame()).toContain('submitted');
+            expect(lastFrame()).not.toContain('Failed');
+          },
+          { timeout: 3000 },
+        );
+      } finally {
+        unmount();
+      }
+    });
+  });
+
   describe('UpdateSpendRequest', () => {
     it('shows the approval URL while polling a delegated amount update', async () => {
       const request = makeSpendRequest({
@@ -549,57 +574,61 @@ describe('spend-request', () => {
       });
     });
 
-    it('CreateSpendRequest resumes polling for auto_resume (three_d_secure) and resolves to success', async () => {
-      const requiresAction = makeSpendRequest({
-        status: 'requires_action',
-        status_details: {
-          requires_action: {
-            next_action: {
-              type: 'three_d_secure',
-              resolution: 'auto_resume',
-              display_message: 'Complete 3D Secure verification.',
-              action_url: 'https://app.link.com/finish_setup?verify=3ds',
+    it.each(['approved', 'submitted'])(
+      'CreateSpendRequest resumes polling for auto_resume (three_d_secure) and resolves to %s',
+      async (status) => {
+        const requiresAction = makeSpendRequest({
+          status: 'requires_action',
+          status_details: {
+            requires_action: {
+              next_action: {
+                type: 'three_d_secure',
+                resolution: 'auto_resume',
+                display_message: 'Complete 3D Secure verification.',
+                action_url: 'https://app.link.com/finish_setup?verify=3ds',
+              },
             },
           },
-        },
-      });
-      const approved = makeSpendRequest({ status: 'approved' });
-      const repo = makeSequentialMockRepo(requiresAction, [approved]);
+        });
+        const approved = makeSpendRequest({ status });
+        const repo = makeSequentialMockRepo(requiresAction, [approved]);
 
-      const { lastFrame } = render(
-        <CreateSpendRequest
-          repository={repo}
-          params={{
-            payment_details: 'pm_1',
-            amount: 1000,
-            currency: 'usd',
-            merchant_name: 'Acme',
-            merchant_url: 'https://example.com',
-            context: 'x'.repeat(100),
-          }}
-          onComplete={() => {}}
-        />,
-      );
+        const { lastFrame } = render(
+          <CreateSpendRequest
+            repository={repo}
+            params={{
+              payment_details: 'pm_1',
+              amount: 1000,
+              currency: 'usd',
+              merchant_name: 'Acme',
+              merchant_url: 'https://example.com',
+              context: 'x'.repeat(100),
+            }}
+            onComplete={() => {}}
+          />,
+        );
 
-      await vi.waitFor(
-        () => {
-          const frame = lastFrame();
-          expect(frame).toContain(
-            'Waiting for 3D Secure verification to complete',
-          );
-        },
-        { timeout: 3000 },
-      );
+        await vi.waitFor(
+          () => {
+            const frame = lastFrame();
+            expect(frame).toContain(
+              'Waiting for 3D Secure verification to complete',
+            );
+          },
+          { timeout: 3000 },
+        );
 
-      await vi.waitFor(
-        () => {
-          const frame = lastFrame();
-          expect(frame).toContain('Spend request created');
-          expect(frame).toContain('approved');
-        },
-        { timeout: 5000 },
-      );
-    }, 8000);
+        await vi.waitFor(
+          () => {
+            const frame = lastFrame();
+            expect(frame).toContain('Spend request created');
+            expect(frame).toContain(status);
+          },
+          { timeout: 5000 },
+        );
+      },
+      8000,
+    );
 
     it('CreateSpendRequest surfaces requires_action reached via --request-approval polling (not conflated with denied)', async () => {
       const created = makeSpendRequest({
