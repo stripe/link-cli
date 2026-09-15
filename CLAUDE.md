@@ -8,6 +8,7 @@ Link CLI — lets agents get secure, one-time-use payment credentials from a Lin
 
 - **`@stripe/link-sdk`** (`packages/sdk`): Typed Link API client and resource implementations. It accepts `accessToken` or `getAccessToken`; it does not own OAuth state. Entry: `src/index.ts`.
 - **Link Go SDK** (`packages/sdk-go`): Go equivalent of `@stripe/link-sdk`. It accepts `AccessToken` or `GetAccessToken`; it does not own OAuth state. Package name: `link`.
+- **`@stripe/link-integrations-better-auth`** (`packages/integrations/better-auth`): Better Auth plugin for connecting Link to existing app users. Exports `link(...)`, a small Generic OAuth wrapper. Uses native `linkSocial`, `listAccounts`, `getAccessToken`, and `unlinkAccount` APIs with Link email as the provider account ID. No custom schema or client plugin. Hooks block Link sign-in and revoke the grant before unlinking; wallet API calls remain in the SDK.
 - **`@stripe/link-cli`** (`packages/cli`): Commander.js + Ink/React CLI that consumes `@stripe/link-sdk`. Entry: `src/cli.tsx`.
 
 ## Commands

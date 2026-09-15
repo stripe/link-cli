@@ -1,0 +1,27 @@
+{
+  "name": "@stripe/link-integrations-better-auth-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "pnpm --filter @stripe/link-integrations-better-auth build",
+    "dev": "next dev --hostname localhost --port 3000",
+    "build": "next build",
+    "start": "next start --hostname localhost --port 3000",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": { "node": ">=22.13" },
+  "dependencies": {
+    "@stripe/link-integrations-better-auth": "workspace:*",
+    "better-auth": "1.7.5",
+    "next": "16.3.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "typescript": "^7.0.2"
+  }
+}

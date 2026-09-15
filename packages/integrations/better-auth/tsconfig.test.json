@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "types": ["node"],
+    "lib": ["es2024", "DOM", "DOM.Iterable"]
+  },
+  "include": ["src", "test"]
+}

@@ -472,6 +472,11 @@ SDKs expose the same resources, wire models, enum values, request behavior, and
 response normalization. Authentication flows and credential persistence remain
 the embedding application's responsibility.
 
+Applications using Better Auth can use the [Link plugin](packages/integrations/better-auth/README.md)
+to connect Link after sign-in. Configure `link({ clientId, clientSecret, publishableKey })`
+and call `authClient.linkSocial({ provider: "link", callbackURL: "/settings" })`.
+The plugin uses Better Auth’s existing OAuth, account storage, and token APIs.
+
 ## Onboarding and Demos
 
 Run the guided setup flow — authenticates, checks payment methods, shows the app download QR, and runs both demo flows:
@@ -551,7 +556,7 @@ To inspect the packages without publishing them:
 
 ```bash
 pnpm turbo run build
-pnpm --filter @stripe/link-cli --filter @stripe/link-sdk publish --dry-run --no-git-checks
+pnpm --filter @stripe/link-cli --filter @stripe/link-sdk --filter @stripe/link-integrations-better-auth publish --dry-run --no-git-checks
 ```
 
 CI runs the same publish dry-run for every pull request.
