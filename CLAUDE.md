@@ -127,7 +127,7 @@ Key input field notes:
 
 Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENTITY_COMMANDS=1` (or `true`). Even when enabled, the command sets `mcp: false` so MCP clients do not see it.
 
-`identity attestations request --count <n> [--access-token <t>]` — gets privacy-preserving tokens that show Link attests to your agent. Agent-only output. The SDK owns issuance in `packages/sdk/src/resources/attestations.ts` and `attestations-crypto.ts`; CLI schema and registration remain in `packages/cli/src/commands/attestations/`, mounted under `packages/cli/src/commands/identity/`.
+`identity attestations request --count <n>` — gets privacy-preserving tokens that show Link attests to your agent. Agent-only output. The SDK owns issuance in `packages/sdk/src/resources/attestations.ts` and `attestations-crypto.ts`; CLI schema and registration remain in `packages/cli/src/commands/attestations/`, mounted under `packages/cli/src/commands/identity/`.
 
 - Discovery: `GET https://api.link.com/.well-known/aap-issuer` → metadata, then `GET` its `token_keys` URL. The metadata issuer and every discovered endpoint must stay on the Link API's HTTPS DNS origin; redirects and IP-literal hosts are rejected before credentials are sent.
 - Tokens use a stable challenge: fixed `issuer_name`, empty `redemption_context`, and empty `origin_info`.
@@ -136,7 +136,7 @@ Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENT
 - Output is a versioned artifact: issuer, `token_key_id`, and each complete base64url token plus `authorization: PrivateToken token="<token>"`. Token bytes are preserved exactly.
 - Token artifacts are written with mode 0600 to uniquely named files in `~/.link-cli/attestations`; the directory uses mode 0700. Command output contains the artifact path and non-secret metadata, not raw tokens.
 - Server-side max batch is 100. Issuance does not require an additional OAuth scope.
-- Auth: `--access-token`, else stored CLI credentials.
+- Auth: standard CLI authentication (`LINK_ACCESS_TOKEN` or stored credentials).
 
 ### report command
 

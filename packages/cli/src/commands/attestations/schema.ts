@@ -7,10 +7,4 @@ export const requestOptions = z.object({
     .positive()
     .max(100)
     .describe('Number of tokens to request'),
-  accessToken: z
-    .string()
-    .optional()
-    .describe(
-      'Access token. Defaults to the stored credentials from "link-cli auth login".',
-    ),
 });

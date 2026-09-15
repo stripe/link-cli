@@ -100,8 +100,7 @@ const identityCommandsEnabled =
 if (identityCommandsEnabled) {
   cli.command(
     createIdentityCli({
-      createAttestationsResource: (accessToken) =>
-        factory.createAttestationsResource(accessToken),
+      createAttestationsResource: () => factory.createAttestationsResource(),
     }),
   );
 }

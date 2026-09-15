@@ -5,7 +5,7 @@ import { requestOptions } from './schema';
 import { writeAttestationArtifact } from './storage';
 
 export function createAttestationsCli(
-  createResource: (accessToken?: string) => IAttestationsResource,
+  createResource: () => IAttestationsResource,
 ) {
   const cli = Cli.create('attestations', {
     description:
@@ -19,10 +19,10 @@ export function createAttestationsCli(
     mcp: false,
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      const { count, accessToken } = c.options;
+      const { count } = c.options;
 
       const artifact = exportAttestationTokens(
-        await createResource(accessToken).request({
+        await createResource().request({
           count,
         }),
       );
