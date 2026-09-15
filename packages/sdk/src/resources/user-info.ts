@@ -31,6 +31,7 @@ const agentWalletVerificationRequirementSchema = z.object({
 
 const userInfoSchema = z
   .looseObject({
+    id: z.string().min(1).optional(),
     email: z.string().nullable().optional(),
     name: z.string().nullable().optional(),
     first_name: z.string().nullable().optional(),
@@ -41,6 +42,7 @@ const userInfoSchema = z
   })
   .transform(
     ({
+      id,
       email,
       name,
       first_name,
@@ -49,6 +51,7 @@ const userInfoSchema = z
       agent_wallet_spend_limits,
       agent_wallet_step_up,
     }) => ({
+      ...(id === undefined ? {} : { id }),
       email: email ?? null,
       name: name ?? null,
       first_name: first_name ?? null,
