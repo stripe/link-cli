@@ -247,7 +247,7 @@ Set `NO_UPDATE_NOTIFIER=1` to suppress update checks (for example, in CI).
 
 All commands accept `--auth <path>` to store auth credentials in a specific file instead of the default location. `auth login` writes to this file; all other commands read from it. Useful for running multiple sessions with separate identities.
 
-### Identity
+### Identity (experimental)
 
 Unlisted commands: set `LINK_IDENTITY_COMMANDS=1` to enable them. They are omitted from `--help`, `--llms`, and MCP tool lists otherwise.
 
@@ -258,7 +258,7 @@ LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10
 LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10 --output-file ./aats.json
 ```
 
-`identity attestations request` asks Link at `https://api.link.com` for tokens (`--count` 1–100) and returns each complete base64url token with its issuer and issuer token-key identifier. Send a token as `Authorization: PrivateToken token="<token>"` — the command includes that header value on each token. You can pass an `--access-token`; otherwise stored login credentials are used. Issuer discovery and issuance stay on the Link API's HTTPS DNS origin; redirects and IP-literal hosts are rejected. `--output-file` writes the artifact as JSON (0600; use `--force` to overwrite).
+Attestation tokens can be used to respond to attestation challenges presented by downstream services.
 
 ### Spend request lifecycle
 
