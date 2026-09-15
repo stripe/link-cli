@@ -50,6 +50,7 @@ export type SpendRequestStatus =
   | 'expired'
   | 'approved'
   | 'denied'
+  | 'submitted'
   | 'succeeded'
   | 'failed'
   | 'canceled'
