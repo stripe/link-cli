@@ -2,12 +2,13 @@ import type {
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
-import { Box, Text } from 'ink';
+import { Box, Text, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import { Challenge, Credential, Method } from 'mppx';
 import { Mppx } from 'mppx/client';
 import { Methods as StripeMethods } from 'mppx/stripe';
 import { useEffect, useState } from 'react';
+import { openUrl } from '../../utils/open-url';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
 import { sanitizeDeep } from '../../utils/sanitize-text';
 import {
@@ -386,6 +387,31 @@ export type Step =
   | 'submitting'
   | 'done';
 
+export function MppApprovalPrompt({ approvalUrl }: { approvalUrl: string }) {
+  useInput((_input, key) => {
+    if (key.return) openUrl(approvalUrl);
+  });
+
+  return (
+    <Box
+      flexDirection="column"
+      borderStyle="round"
+      borderColor="cyan"
+      paddingX={2}
+      paddingY={1}
+      marginTop={1}
+    >
+      <Text>
+        Approve in Link app:{' '}
+        <Text bold color="cyan">
+          {approvalUrl}
+        </Text>
+      </Text>
+      <Text dimColor>Press Enter to open in browser</Text>
+    </Box>
+  );
+}
+
 export function MppPay({
   url,
   spendRequestId,
@@ -503,14 +529,7 @@ export function MppPay({
             </Text>
           </Box>
           {step === 'approving' && approvalUrl && (
-            <Box marginTop={1} paddingX={2}>
-              <Text>
-                Approve in Link app:{' '}
-                <Text bold color="blue">
-                  {approvalUrl}
-                </Text>
-              </Text>
-            </Box>
+            <MppApprovalPrompt approvalUrl={approvalUrl} />
           )}
         </Box>
       )}
