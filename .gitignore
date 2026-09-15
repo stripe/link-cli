@@ -6,7 +6,8 @@ dist/
 .turbo
 .claude/skills/link-cli
 CLAUDE.local.md
-docs/
+docs/*
+!docs/link-cli-skill.md
 packages/cli/README.md
 .claude/
 .codex/
