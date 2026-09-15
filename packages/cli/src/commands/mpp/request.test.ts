@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createMppRequest, probeMppRequest } from './request';
+import { probeMppRequest } from './pay';
+import { createMppRequest, createSafeMppFetch } from './request';
 
 function response(status: number, location?: string): Response {
   return new Response('response body', {
@@ -13,7 +14,7 @@ describe('probeMppRequest', () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(response(307, 'https://merchant.example/pay'))
-      .mockResolvedValueOnce(response(402));
+      .mockResolvedValueOnce(response(200));
     const request = createMppRequest(
       'https://redirector.example/start',
       'PUT',
@@ -36,7 +37,7 @@ describe('probeMppRequest', () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(response(303, '/challenge'))
-      .mockResolvedValueOnce(response(402));
+      .mockResolvedValueOnce(response(200));
     const request = createMppRequest(
       'https://merchant.example/start',
       'PUT',
@@ -74,5 +75,34 @@ describe('probeMppRequest', () => {
       /HTTPS downgrade/,
     );
     expect(redirected.bodyUsed).toBe(true);
+  });
+
+  it('rejects an HTTP redirect from loopback to a remote host', async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(response(302, 'http://merchant.example/pay'));
+    const request = createMppRequest(
+      'http://localhost:8080/start',
+      'GET',
+      undefined,
+      {},
+    );
+
+    await expect(probeMppRequest(request, fetcher)).rejects.toThrow(
+      /require HTTPS/,
+    );
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+});
+
+describe('createSafeMppFetch', () => {
+  it('rejects remote HTTP before sending the request', async () => {
+    const fetcher = vi.fn();
+    const safeFetch = createSafeMppFetch(fetcher);
+
+    await expect(safeFetch('http://merchant.example/pay')).rejects.toThrow(
+      /require HTTPS/,
+    );
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });

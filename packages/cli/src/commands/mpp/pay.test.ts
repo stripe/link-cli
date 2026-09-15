@@ -187,7 +187,11 @@ describe('payWithSpt', () => {
         paymentMethodsFactory: vi.fn(),
       }),
     ).rejects.toThrow(/redirected with status 307 after approval/);
-    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
+    expect(
+      fetcher.mock.calls.map(([input]) =>
+        input instanceof Request ? input.url : input,
+      ),
+    ).toEqual([
       'https://redirector.example/start',
       'https://merchant.example/challenge',
       'https://merchant.example/challenge',

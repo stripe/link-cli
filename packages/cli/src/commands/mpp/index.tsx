@@ -14,11 +14,12 @@ import {
   buildHeaders,
   MppPay,
   type PayResult,
+  probeMppRequest,
   readPayResult,
   runMppPayFullFlow,
   runMppPayWithSpendRequest,
 } from './pay';
-import { createMppRequest, probeMppRequest } from './request';
+import { createMppRequest } from './request';
 import { decodeOptions, payOptions } from './schema';
 
 export function createMppCli(

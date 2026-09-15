@@ -1,29 +1,8 @@
-const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
-const BODY_HEADERS = [
-  'content-encoding',
-  'content-language',
-  'content-length',
-  'content-location',
-  'content-type',
-  'transfer-encoding',
-];
-const CROSS_ORIGIN_HEADERS = [
-  'authorization',
-  'cookie',
-  'cookie2',
-  'host',
-  'proxy-authorization',
-];
-
 export interface MppRequest {
   url: string;
   method: string;
   headers: Headers;
   body: string | undefined;
-}
-
-export interface MppProbe extends MppRequest {
-  response: Response;
 }
 
 function isHttpLoopback(url: URL): boolean {
@@ -62,6 +41,16 @@ export function isRedirectResponse(response: Response): boolean {
   return response.status >= 300 && response.status < 400;
 }
 
+export function createSafeMppFetch(
+  fetcher: typeof fetch = fetch,
+): typeof fetch {
+  return async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    assertSafeMppUrl(url);
+    return fetcher(input, init);
+  };
+}
+
 export async function fetchMppRequest(
   request: MppRequest,
   fetcher: typeof fetch = fetch,
@@ -74,63 +63,4 @@ export async function fetchMppRequest(
     body: request.body,
     redirect: 'manual',
   });
-}
-
-export async function probeMppRequest(
-  initial: MppRequest,
-  fetcher: typeof fetch = fetch,
-  maxRedirects = 10,
-): Promise<MppProbe> {
-  let request = initial;
-
-  for (let redirectCount = 0; ; redirectCount++) {
-    const response = await fetchMppRequest(request, fetcher);
-    if (!REDIRECT_STATUSES.has(response.status)) {
-      return { ...request, response };
-    }
-
-    const location = response.headers.get('location');
-    if (!location) return { ...request, response };
-    if (redirectCount >= maxRedirects) {
-      await response.body?.cancel();
-      throw new Error(`MPP request exceeded ${maxRedirects} redirects`);
-    }
-
-    // Release this connection before validating or following the next hop.
-    await response.body?.cancel();
-    const currentUrl = new URL(request.url);
-    const nextUrl = new URL(location, currentUrl);
-    assertSafeMppUrl(nextUrl);
-    if (currentUrl.protocol === 'https:' && nextUrl.protocol !== 'https:') {
-      throw new Error(
-        `MPP request refused HTTPS downgrade redirect to ${nextUrl.href}`,
-      );
-    }
-
-    const headers = new Headers(request.headers);
-    let method = request.method;
-    let body = request.body;
-    const switchesToGet =
-      ((response.status === 301 || response.status === 302) &&
-        method === 'POST') ||
-      (response.status === 303 && method !== 'GET' && method !== 'HEAD');
-    if (switchesToGet) {
-      // Match Fetch redirect behavior: GET has no body or body-specific headers.
-      method = 'GET';
-      body = undefined;
-      for (const header of BODY_HEADERS) headers.delete(header);
-    }
-
-    if (currentUrl.origin !== nextUrl.origin) {
-      // Fetch does not forward credentials or a caller-supplied Host to another origin.
-      for (const header of CROSS_ORIGIN_HEADERS) headers.delete(header);
-    }
-
-    request = {
-      url: nextUrl.href,
-      method,
-      headers,
-      body,
-    };
-  }
 }

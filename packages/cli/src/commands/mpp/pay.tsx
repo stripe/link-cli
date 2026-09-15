@@ -17,11 +17,10 @@ import {
 } from './decode';
 import {
   createMppRequest,
+  createSafeMppFetch,
   fetchMppRequest,
   isRedirectResponse,
-  type MppProbe,
   type MppRequest,
-  probeMppRequest,
 } from './request';
 
 export type PayResult = {
@@ -66,9 +65,13 @@ export async function readPayResult(response: Response): Promise<PayResult> {
   });
 }
 
-function createStripePaymentClient(spt: string) {
+function createStripePaymentClient(
+  spt?: string,
+  fetcher: typeof fetch = fetch,
+) {
   const stripeCharge = Method.toClient(StripeMethods.charge, {
     async createCredential({ challenge }) {
+      if (!spt) throw new Error('A shared payment token is required to pay');
       return Credential.serialize({
         challenge,
         payload: { spt },
@@ -80,6 +83,7 @@ function createStripePaymentClient(spt: string) {
     { ...StripeMethods.charge, intent: 'session' as const },
     {
       async createCredential({ challenge }) {
+        if (!spt) throw new Error('A shared payment token is required to pay');
         return Credential.serialize({
           challenge,
           payload: { action: 'open', grantedToken: spt },
@@ -89,9 +93,50 @@ function createStripePaymentClient(spt: string) {
   );
 
   return Mppx.create({
+    fetch: createSafeMppFetch(fetcher),
     methods: [stripeCharge, stripeSession],
     polyfill: false,
   });
+}
+
+export interface MppProbe extends MppRequest {
+  response: Response;
+}
+
+export async function probeMppRequest(
+  initial: MppRequest,
+  fetcher: typeof fetch = fetch,
+): Promise<MppProbe> {
+  const prepared = await createStripePaymentClient(
+    undefined,
+    fetcher,
+  ).prepareRequest(
+    initial.url,
+    {
+      body: initial.body,
+      headers: initial.headers,
+      method: initial.method,
+    },
+    { maxRedirects: 10 },
+  );
+  const response = prepared.payment
+    ? new Response(null, {
+        headers: prepared.response.headers,
+        status: prepared.response.status,
+        statusText: prepared.response.statusText,
+      })
+    : prepared.response;
+  if (prepared.payment) {
+    void prepared.response.body?.cancel().catch(() => undefined);
+  }
+  const method = prepared.request.method;
+  return {
+    body: method === 'GET' || method === 'HEAD' ? undefined : initial.body,
+    headers: new Headers(prepared.request.headers),
+    method,
+    response,
+    url: prepared.request.url,
+  };
 }
 
 export interface MppPayFullFlowOptions {
