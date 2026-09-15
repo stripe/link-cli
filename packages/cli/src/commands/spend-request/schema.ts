@@ -72,7 +72,7 @@ export const createOptions = z.object({
     .boolean()
     .default(true)
     .describe(
-      'Request approval and poll until approved/denied/expired, or until requires_action with a non-auto_resume resolution',
+      'Request approval and poll until the request leaves the approval waiting states',
     ),
   test: z
     .boolean()
@@ -128,7 +128,7 @@ export const retrieveOptions = z.object({
     .number()
     .default(0)
     .describe(
-      'Poll interval in seconds. When > 0, polls until status is terminal, timeout is reached, or max attempts are exhausted.',
+      'Poll interval in seconds. When > 0, waits for the initial waiting status to change, timeout to be reached, or max attempts to be exhausted. Returns immediately for statuses other than created, pending_approval, or requires_action with auto_resume.',
     ),
   maxAttempts: z.coerce
     .number()

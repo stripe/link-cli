@@ -19,6 +19,7 @@ import { pollUntil } from '../../utils/poll-until';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth, requireAuthGuard } from '../../utils/require-auth';
 import { shellQuote } from '../../utils/shell-quote';
+import { shouldPollSpendRequest } from '../../utils/should-poll-spend-request';
 import { CancelSpendRequest } from './cancel';
 import { CreateSpendRequest } from './create';
 import { SpendRequestList } from './list';
@@ -352,7 +353,7 @@ export function createSpendRequestCli(
         yield buildRequiresActionResult(created);
         return;
       }
-      if (!requestApproval) {
+      if (!requestApproval || !shouldPollSpendRequest(created)) {
         try {
           yield await applyOutputFile(created, outputFile, forceOverwrite);
         } catch (err) {
@@ -366,10 +367,10 @@ export function createSpendRequestCli(
       }
       yield {
         ...created,
-        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${shellQuote(created.id)} --interval 2 --max-attempts 300\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
+        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${shellQuote(created.id)} --interval 2 --max-attempts 300\` to wait for a status change and inspect the returned status. Do not wait for the user to reply — start polling immediately.`,
         _next: {
           command: `spend-request retrieve ${shellQuote(created.id)} --interval 2 --max-attempts 300`,
-          until: 'status changes from pending_approval',
+          until: `status changes from ${created.status}`,
         },
       };
     },
@@ -492,7 +493,7 @@ export function createSpendRequestCli(
       }
       yield {
         ...approval,
-        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${shellQuote(id)} --interval 2 --max-attempts 300\` to poll until approved. Do not wait for the user to reply — start polling immediately.`,
+        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${shellQuote(id)} --interval 2 --max-attempts 300\` to wait for a status change and inspect the returned status. Do not wait for the user to reply — start polling immediately.`,
         _next: {
           command: `spend-request retrieve ${shellQuote(id)} --interval 2 --max-attempts 300`,
           until: 'status changes from pending_approval',
@@ -543,31 +544,15 @@ export function createSpendRequestCli(
         );
       }
 
-      const terminalStatuses = new Set([
-        'approved',
-        'denied',
-        'expired',
-        'succeeded',
-        'failed',
-        'canceled',
-      ]);
-
-      // `requires_action` stops polling unless resolution is `auto_resume`
-      // (e.g. 3D Secure), which resolves on its own — keep polling through it.
-      const isPollTerminal = (req: SpendRequest): boolean => {
-        if (terminalStatuses.has(req.status)) return true;
-        if (req.status === 'requires_action') {
-          return (
-            req.status_details?.requires_action?.next_action?.resolution !==
-            'auto_resume'
-          );
-        }
-        return false;
-      };
+      let fromStatus: SpendRequest['status'] | undefined;
 
       for await (const result of pollUntil<SpendRequest | null>({
         fn: () => repository.retrieve(id, { include }),
-        isTerminal: (req) => req === null || isPollTerminal(req),
+        isTerminal: (req) => {
+          if (req === null) return true;
+          fromStatus ??= req.status;
+          return !shouldPollSpendRequest(req, fromStatus);
+        },
         interval,
         maxAttempts,
         timeout,
@@ -585,8 +570,8 @@ export function createSpendRequestCli(
             return;
           }
 
-          // Terminal due to isTerminal or interval <= 0 — apply output file
-          if (terminalStatuses.has(result.value.status) || !result.reason) {
+          // Polling completed or interval <= 0 — apply output file.
+          if (!result.reason) {
             try {
               yield await applyOutputFile(
                 result.value,
@@ -610,7 +595,7 @@ export function createSpendRequestCli(
               : `timeout (${timeout}s) reached`;
           return c.error({
             code: 'POLLING_TIMEOUT',
-            message: `Polling stopped before spend request ${id} reached a terminal status: ${reason}; current status is ${result.value.status}.`,
+            message: `Polling stopped before spend request ${id} changed status from ${fromStatus}: ${reason}; current status is ${result.value.status}.`,
             retryable: true,
           });
         }

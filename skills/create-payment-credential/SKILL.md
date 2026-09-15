@@ -182,6 +182,12 @@ Do not proceed to payment while the request is still `created` or `pending_appro
 link-cli spend-request cancel <id>
 ```
 
+`spend-request retrieve <id> --interval 2` waits for the initial status to
+change when it is `created`, `pending_approval`, or `requires_action` with
+`auto_resume`. All other statuses, including `submitted` and unfamiliar API
+values, return immediately. A status change does not necessarily mean approval:
+inspect the returned status and retrieve again if it is still waiting.
+
 Recommend the user approves with the [Link app](https://link.com/download). Show the download URL.
 
 **Test mode:** Add `--test` to create testmode credentials instead of real ones. Useful for development and integration testing. Link Pay Token does not support test mode.
@@ -191,7 +197,7 @@ Recommend the user approves with the [Link app](https://link.com/download). Show
 **Metadata:** Attach arbitrary string data with the repeatable `--metadata "key:value"` flag (CLI) or a `{ key: value }` object (MCP/agent). Max 50 keys, key ≤ 40 chars, value ≤ 500 chars. Example: `--metadata "order_id:ord_123" --metadata "team:growth"`.
 
 If the response has `status: "requires_action"`, read `status_details.requires_action.next_action` (`type`, `display_message`, `action_url`, `resolution`). Show `display_message` to the user; present `action_url` clearly if present.
-- If `resolution` is `auto_resume` (currently only `three_d_secure`), run the returned `_next.command` (poll `spend-request retrieve <id> --interval 2 --max-attempts 300`) yourself — do not create a new spend request. The same request resumes to `approved`/`succeeded` once the user completes the bank's challenge.
+- If `resolution` is `auto_resume` (currently only `three_d_secure`), run the returned `_next.command` (poll `spend-request retrieve <id> --interval 2 --max-attempts 300`) yourself — do not create a new spend request. Polling returns when the status changes; inspect the result, which may be `approved`, `submitted`, or `succeeded`, once the user completes the bank's challenge.
 - Otherwise (`resolution` is `create_new_spend_request` or `create_new_spend_request_after_completion` — covers `ssn_verification`, `identity_verification`, `contact_support`, `select_payment_method`, `add_payment_method`, `update_payment_method`, `re_authorize`, `three_d_secure_retry`), have the user complete the indicated action, then create a **new** spend request — the old one will expire on its own.
 
 This same `requires_action` status can also appear later from `spend-request retrieve` in Step 5 — `update_payment_method`, `re_authorize`, and `three_d_secure_retry` only ever surface this way, and they all use `create_new_spend_request`. Apply the same `resolution`-based branching there.

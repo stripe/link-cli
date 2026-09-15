@@ -75,6 +75,7 @@ let serverPort: number;
 let lastRequest: RequestLog;
 let requests: RequestLog[];
 let nextResponse: { status: number; body: unknown };
+let responseQueue: (typeof nextResponse)[] = [];
 let responsesByUrl: Record<
   string,
   { status: number; body: unknown; headers?: Record<string, string> }
@@ -200,7 +201,7 @@ describe('production mode', () => {
         requests.push(lastRequest);
 
         const urlOverride = responsesByUrl[req.url ?? ''];
-        const response = urlOverride ?? nextResponse;
+        const response = urlOverride ?? responseQueue.shift() ?? nextResponse;
         res.writeHead(response.status, {
           'Content-Type': 'application/json',
           ...response.headers,
@@ -237,6 +238,7 @@ describe('production mode', () => {
   beforeEach(() => {
     requests = [];
     responsesByUrl = {};
+    responseQueue = [];
     merchantRequests = [];
     merchantResponses = [];
     storage.setTokens(PROD_AUTH_TOKENS);
@@ -807,10 +809,10 @@ describe('production mode', () => {
       expect(sentBody.test).toBeUndefined();
     });
 
-    it('sends request_approval in create body, outputs approval URL immediately then polls', async () => {
+    it('sends request_approval in create body and returns a polling hint for pending approval', async () => {
       setNextResponse(200, {
         ...BASE_REQUEST,
-        status: 'approved',
+        status: 'pending_approval',
         approval_url: 'https://app.link.com/approve/lsrq_prod_001',
       });
 
@@ -851,7 +853,35 @@ describe('production mode', () => {
       const next = output[0]._next as Record<string, unknown>;
       expect(next.command).toContain('spend-request retrieve');
       expect(next.command).toContain('--interval');
+      expect(next.until).toBe('status changes from pending_approval');
     });
+
+    it.each(['submitted', 'future_status'])(
+      'returns a created request with status %s without an approval polling hint',
+      async (status) => {
+        setNextResponse(200, { ...BASE_REQUEST, status });
+        const result = await runProdCli(
+          'spend-request',
+          'create',
+          '--merchant-name',
+          'Test Merchant',
+          '--merchant-url',
+          'https://example.com',
+          '--context',
+          VALID_CONTEXT,
+          '--amount',
+          '5000',
+          '--request-approval',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        const output = parseJson(result.stdout) as Record<string, unknown>[];
+        expect(output[0].status).toBe(status);
+        expect(output[0]._next).toBeUndefined();
+        expect(requests).toHaveLength(1);
+      },
+    );
 
     it('surfaces support_url on identity_verification_failed error', async () => {
       setNextResponse(403, {
@@ -1359,7 +1389,7 @@ describe('production mode', () => {
       expect(output).toContain('not found');
     });
 
-    it('exits non-zero when polling attempts are exhausted before a terminal status', async () => {
+    it('exits non-zero when polling attempts are exhausted without a status change', async () => {
       setNextResponse(200, {
         ...BASE_REQUEST,
         status: 'pending_approval',
@@ -1384,7 +1414,7 @@ describe('production mode', () => {
       expect(output.message).toContain('max attempts');
     });
 
-    it('exits non-zero when polling times out before a terminal status', async () => {
+    it('exits non-zero when polling times out without a status change', async () => {
       setNextResponse(200, {
         ...BASE_REQUEST,
         status: 'pending_approval',
@@ -1409,26 +1439,88 @@ describe('production mode', () => {
       expect(output.message).toContain('timeout');
     });
 
-    it('exits successfully when polling observes a terminal status', async () => {
-      setNextResponse(200, {
+    it.each(['approved', 'submitted', 'future_status'])(
+      'returns immediately when the first retrieved status is %s',
+      async (status) => {
+        setNextResponse(200, {
+          ...BASE_REQUEST,
+          status,
+        });
+
+        const result = await runProdCli(
+          'spend-request',
+          'retrieve',
+          'lsrq_prod_001',
+          '--interval',
+          '1',
+          '--max-attempts',
+          '1',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        const output = parseJson(result.stdout) as Record<string, unknown>[];
+        expect(output[0].status).toBe(status);
+        expect(requests).toHaveLength(1);
+      },
+    );
+
+    it.each([
+      ['pending_approval', 'submitted'],
+      ['pending_approval', 'future_status'],
+      ['created', 'pending_approval'],
+      ['pending_approval', 'requires_action'],
+      ['requires_action', 'submitted'],
+    ])('returns when %s changes to %s', async (fromStatus, toStatus) => {
+      const waiting = {
         ...BASE_REQUEST,
-        status: 'approved',
-      });
+        status: fromStatus,
+        status_details: {
+          requires_action: {
+            next_action: {
+              type: 'three_d_secure',
+              resolution: 'auto_resume',
+              display_message: 'Complete 3D Secure verification.',
+              action_url: 'https://app.link.com/verify',
+            },
+          },
+        },
+      };
+      responseQueue = [
+        { status: 200, body: waiting },
+        {
+          status: 200,
+          body: { ...waiting, updated_at: '2026-09-15T00:00:00Z' },
+        },
+      ];
+      setNextResponse(200, { ...waiting, status: toStatus });
 
       const result = await runProdCli(
         'spend-request',
         'retrieve',
         'lsrq_prod_001',
         '--interval',
-        '1',
+        '0.01',
         '--max-attempts',
-        '1',
+        '3',
         '--json',
       );
 
       expect(result.exitCode).toBe(0);
       const output = parseJson(result.stdout) as Record<string, unknown>[];
-      expect(output[0].status).toBe('approved');
+      expect(output.map((request) => request.status)).toEqual([
+        fromStatus,
+        fromStatus,
+        toStatus,
+      ]);
+      expect(requests).toHaveLength(3);
+      if (toStatus === 'requires_action') {
+        expect(output[2]._next).toEqual({
+          command:
+            'spend-request retrieve lsrq_prod_001 --interval 2 --max-attempts 300',
+          until: 'status changes from requires_action',
+        });
+      }
     });
   });
 

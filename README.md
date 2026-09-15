@@ -171,7 +171,7 @@ link-cli spend-request create \
   --request-approval
 ```
 
-The `--request-approval` flag triggers a push notification to the user for approval, then polls until the request is approved or denied. Polling exits successfully only after the request reaches a terminal status such as `approved`, `denied`, `expired`, or `canceled`. 
+The `--request-approval` flag triggers a push notification to the user for approval. Interactive mode polls until the request leaves the approval waiting states. Agent mode returns a `spend-request retrieve` command to wait for a status change, including a transition to `submitted`.
 
 Easily approve requests with the [Link app](https://link.com/download).
 
@@ -276,6 +276,14 @@ link-cli spend-request retrieve lsrq_001
 # Cancel a spend request (from created, pending_approval, or approved state)
 link-cli spend-request cancel lsrq_001
 ```
+
+Use `spend-request retrieve <id> --interval 2` to wait for the initial status
+to change. Polling starts only for `created`, `pending_approval`, or
+`requires_action` with an `auto_resume` resolution. Other statuses, including
+`submitted` and unfamiliar API values, return immediately. A change to another
+waiting status also returns; inspect the result and retrieve again as needed.
+If `--timeout` or `--max-attempts` is reached without a change, the command exits
+non-zero with `POLLING_TIMEOUT`.
 
 ### Credential types
 
