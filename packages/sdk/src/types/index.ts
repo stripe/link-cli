@@ -319,3 +319,89 @@ export interface WebBotAuthBlock {
   authority: string;
   expires_at: string;
 }
+
+/**
+ * A single purchasable variant nested under a `UcpProduct`. Real catalog
+ * search responses group results by product and put the fields needed to
+ * check out (`profile_id`, `merchant_sku`, `price`) on each variant rather
+ * than on the parent product.
+ */
+export interface UcpProductVariant {
+  merchant_sku?: string;
+  profile_id?: string;
+  merchant_name?: string;
+  price?: { amount?: number; currency?: string };
+  availability?: { status?: string };
+  title?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * A product returned by UCP catalog search, mirroring the upstream
+ * `CatalogSearchProduct` (real fields are `sku` and `title`, and every product
+ * carries a `profile_id` used to create a checkout). The api.link.com contract
+ * keeps the resource loose, so fields beyond these are passed through verbatim
+ * via the index signature. `sku_id`/`name` are accepted as aliases.
+ *
+ * In practice, responses are grouped by product with the checkout-relevant
+ * fields (`profile_id`, sku, price) nested under `variants` instead of on the
+ * product itself — see `UcpProductVariant`.
+ */
+export interface UcpProduct {
+  sku?: string;
+  title?: string;
+  profile_id?: string;
+  merchant_name?: string;
+  brand?: string;
+  price?: number;
+  sale_price?: number;
+  currency?: string;
+  availability?: string;
+  product_category?: string;
+  condition?: string;
+  color?: string;
+  size?: string;
+  material?: string;
+  gender?: string;
+  review_count?: number;
+  review_rating?: number;
+  image_link?: string;
+  link?: string;
+  item_group_id?: string;
+  item_group_title?: string;
+  variants?: UcpProductVariant[];
+  first_variant_price?: { amount?: number; currency?: string };
+  /** Legacy/alias fields from the checkout PR's demo shape. */
+  sku_id?: string;
+  name?: string;
+  [key: string]: unknown;
+}
+
+export interface UcpSearchResult {
+  data: UcpProduct[];
+  total_count?: number | null;
+  has_more?: boolean | null;
+  took_ms?: number | null;
+  facets?: Record<string, unknown> | null;
+  suggestions?: unknown;
+  [key: string]: unknown;
+}
+
+/**
+ * A UCP checkout session (curated view of the Delegated Checkout requested
+ * session). `create` returns it in `requires_payment`; `complete` returns it in
+ * a terminal state with `order_details`.
+ */
+export interface UcpCheckout {
+  id: string;
+  status?: string | null;
+  currency?: string | null;
+  amount_total?: number | null;
+  amount_subtotal?: number | null;
+  total_details?: Record<string, unknown> | null;
+  line_item_details?: unknown;
+  fulfillment_details?: Record<string, unknown> | null;
+  order_details?: Record<string, unknown> | null;
+  expires_at?: number | null;
+  [key: string]: unknown;
+}

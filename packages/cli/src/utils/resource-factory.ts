@@ -7,6 +7,7 @@ import {
   type ISourcesResource,
   type ISpendRequestResource,
   type ITransactionsResource,
+  type IUcpResource,
   type IUserInfoResource,
   type IWebBotAuthResource,
   default as Link,
@@ -117,6 +118,7 @@ export class ResourceFactory {
   private balancesResource?: IBalancesResource;
   private webBotAuthResource?: IWebBotAuthResource;
   private reportResource?: IReportResource;
+  private ucpResource?: IUcpResource;
 
   constructor(options: ResourceFactoryOptions = {}) {
     this.verbose = options.verbose ?? false;
@@ -308,5 +310,15 @@ export class ResourceFactory {
     const resource = sanitizeResource(this.createSdkClient().reports);
     this.reportResource = resource;
     return resource;
+  }
+
+  createUcpResource(): IUcpResource {
+    if (this.ucpResource) {
+      return this.ucpResource;
+    }
+
+    this.ucpResource = sanitizeResource(this.createSdkClient().ucp);
+
+    return this.ucpResource;
   }
 }

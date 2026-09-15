@@ -11,6 +11,8 @@ import type {
   Total,
   TransactionOrigin,
   TransactionsPage,
+  UcpCheckout,
+  UcpSearchResult,
   UserInfo,
   WebBotAuthBlock,
 } from '@/types/index';
@@ -166,4 +168,55 @@ export interface ReportRecord {
 
 export interface IReportResource {
   create(params: CreateReportParams): Promise<ReportRecord>;
+}
+
+export interface SearchUcpCatalogParams {
+  query?: string;
+  profile_id?: string;
+  sku?: string;
+  brand?: string[];
+  category?: string[];
+  color?: string[];
+  size?: string[];
+  material?: string[];
+  gender?: string[];
+  condition?: string[];
+  price_min?: number;
+  price_max?: number;
+  currency?: string;
+  availability?: string;
+  sort?: string;
+  group_by?: string;
+  limit?: number;
+  offset?: number;
+  include_facets?: boolean;
+  test?: boolean;
+}
+
+export interface UcpLineItem {
+  sku_id: string;
+  quantity: number;
+}
+
+export interface CreateUcpCheckoutParams {
+  profile_id: string;
+  line_items: UcpLineItem[];
+  currency?: string;
+  fulfillment_details?: Record<string, unknown>;
+  test?: boolean;
+}
+
+export interface CompleteUcpCheckoutParams {
+  spend_request_id: string;
+  profile_id: string;
+  test?: boolean;
+}
+
+export interface IUcpResource {
+  searchCatalog(params: SearchUcpCatalogParams): Promise<UcpSearchResult>;
+  createCheckout(params: CreateUcpCheckoutParams): Promise<UcpCheckout>;
+  completeCheckout(
+    id: string,
+    params: CompleteUcpCheckoutParams,
+  ): Promise<UcpCheckout>;
 }
