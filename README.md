@@ -255,10 +255,9 @@ Privacy-preserving tokens that show Link attests to your agent:
 
 ```bash
 LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10
-LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10 --output-file ./aats.json
 ```
 
-Attestation tokens can be used to respond to attestation challenges presented by downstream services.
+Attestation tokens can be used to respond to attestation challenges presented by downstream services. Token artifacts are written to `~/.link-cli/attestations`.
 
 ### Spend request lifecycle
 

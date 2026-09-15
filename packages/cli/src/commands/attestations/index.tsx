@@ -1,8 +1,8 @@
 import type { IAttestationsResource } from '@stripe/link-sdk';
 import { Cli } from 'incur';
-import { writeCredentialFile } from '../../utils/credential-output';
 import { exportAttestationTokens } from './export';
 import { requestOptions } from './schema';
+import { writeAttestationArtifact } from './storage';
 
 export function createAttestationsCli(
   createResource: (accessToken?: string) => IAttestationsResource,
@@ -19,17 +19,20 @@ export function createAttestationsCli(
     mcp: false,
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      const { count, accessToken, outputFile, force } = c.options;
+      const { count, accessToken } = c.options;
 
-      const result = exportAttestationTokens(
+      const artifact = exportAttestationTokens(
         await createResource(accessToken).request({
           count,
         }),
       );
-      if (outputFile) {
-        await writeCredentialFile(outputFile, result, force);
-      }
-      return result;
+      const outputFile = await writeAttestationArtifact(artifact);
+      return {
+        issuer: artifact.issuer,
+        token_key_id: artifact.token_key_id,
+        count: artifact.count,
+        output_file: outputFile,
+      };
     },
   });
 

@@ -7,7 +7,7 @@ export {
   LinkSdkError,
   LinkTransportError,
 } from './errors';
-export * from './resources/interfaces';
 export * from './resources/attestations';
+export * from './resources/interfaces';
 export { getDuplicateSpendRequest } from './resources/spend-request';
 export * from './types/index';

@@ -3,9 +3,7 @@ import { Cli } from 'incur';
 import { createAttestationsCli } from '../attestations';
 
 export function createIdentityCli(options: {
-  createAttestationsResource: (
-    accessToken?: string,
-  ) => IAttestationsResource;
+  createAttestationsResource: (accessToken?: string) => IAttestationsResource;
 }) {
   const cli = Cli.create('identity', {
     description:
