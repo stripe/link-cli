@@ -93,7 +93,7 @@ link-cli serve --port 8080
 link-cli serve --host 0.0.0.0   # expose beyond localhost (see warning below)
 ```
 
-The server only handles the `/mcp` endpoint (and `/.well-known/skills/` discovery); any other path returns `404`. It binds to `127.0.0.1` by default so only the local host can reach it. Anyone who can reach the port can use this CLI's authenticated Link session, so only override `--host` on a trusted, isolated network — doing so prints a warning.
+The server handles `POST /mcp` and `GET` skill discovery at `/.well-known/skills/index.json` and `/.well-known/skills/{skill-name}/SKILL.md`, with `OPTIONS` preflight support. Other paths return `404`, unsupported methods return `405`, and malformed or ambiguous request paths return `400`. It binds to `127.0.0.1` by default so only the local host can reach it. Anyone who can reach the port can use this CLI's authenticated Link session, so only override `--host` on a trusted, isolated network — doing so prints a warning.
 
 ## Quickstart
 

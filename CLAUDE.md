@@ -131,6 +131,7 @@ Key input field notes:
 ### serve command
 
 - `serve [--port <n>] [--host <host>]` — HTTP server that exposes the CLI's MCP endpoint. Implemented in `packages/cli/src/commands/serve/index.ts`. The handler forwards to `rootCli.fetch()` (incur), but is a **privilege boundary**: `requireAuth` only proves the CLI *owner* is authenticated, not that the HTTP caller is authorized.
+- Parse each HTTP request target once and reuse that URL for routing and dispatch. Accept only unambiguous origin-form paths; return `400` for malformed targets. Only forward `POST /mcp` and the supported `GET` skill discovery routes (index and `SKILL.md`); handle `OPTIONS` locally. Missing `Origin` does not prove a caller is outside the browser. Security regressions in `packages/cli/src/__tests__/serve.test.ts` exercise raw request targets against the built CLI.
 
 ## Code Conventions
 
