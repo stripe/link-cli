@@ -1,5 +1,14 @@
 # @stripe/link-cli
 
+## 0.19.3
+
+### Patch Changes
+
+- 0db0e06: Harden HTTP serve routing by validating and dispatching the same parsed request
+  URL. Reject ambiguous request paths with a bad-request response, restrict MCP
+  to POST requests, and limit skill discovery to its supported GET endpoints.
+  Malformed request targets no longer terminate the server.
+
 ## 0.19.2
 
 ### Patch Changes
