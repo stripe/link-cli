@@ -1,5 +1,10 @@
+/**
+ * Fetches and issues Blind RSA attestations exclusively through api.link.com.
+ * This module handles discovery and batch wire formats; the cryptographic
+ * operations live in attestations-crypto.ts.
+ */
 import { createHash } from 'node:crypto';
-import { isIP } from 'node:net';
+import { z } from 'zod';
 import type { LinkOptions } from '@/config';
 import {
   LinkApiError,
@@ -8,9 +13,9 @@ import {
   LinkTransportError,
 } from '@/errors';
 import {
-  type FinalToken,
   base64urlEncode,
   computeChallengeDigest,
+  type FinalToken,
   generateBlindedMessages,
   unblindSignatures,
 } from '@/resources/attestations-crypto';
@@ -20,16 +25,18 @@ import type {
   AttestationRequestResult,
   IAttestationsResource,
 } from '@/resources/interfaces';
-import { z } from 'zod';
 
 const TOKEN_TYPE_BLIND_RSA = 0x0002;
 const CONTENT_TYPE_TOKEN_REQUEST =
   'application/private-token-generic-batch-request';
 const CONTENT_TYPE_TOKEN_RESPONSE =
   'application/private-token-generic-batch-response';
+const LINK_ISSUER = 'https://api.link.com';
+const LINK_ISSUER_HOSTNAME = 'api.link.com';
+const LINK_ISSUER_METADATA_URL = `${LINK_ISSUER}/.well-known/aap-issuer`;
 
 const issuerMetadataSchema = z.looseObject({
-  issuer: z.string(),
+  issuer: z.literal(LINK_ISSUER),
   token_issuance_endpoint: z.string(),
   token_keys: z.string(),
 });
@@ -43,11 +50,13 @@ const tokenKeyDirectorySchema = z.looseObject({
   ),
 });
 
+/** Decodes a standard or URL-safe base64 key value. */
 function base64ToBytes(value: string): Uint8Array {
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
   return new Uint8Array(Buffer.from(normalized, 'base64'));
 }
 
+/** Returns the shortest QUIC varint width that can hold a value. */
 function minQuicVarintLength(value: number): 1 | 2 | 4 | 8 {
   if (value < 2 ** 6) return 1;
   if (value < 2 ** 14) return 2;
@@ -55,6 +64,7 @@ function minQuicVarintLength(value: number): 1 | 2 | 4 | 8 {
   return 8;
 }
 
+/** Encodes a non-negative integer using the QUIC variable-length format. */
 function encodeQuicVarint(value: number): Buffer {
   if (!Number.isSafeInteger(value) || value < 0 || value >= 2 ** 62) {
     throw new Error(`Cannot encode ${value} as a QUIC variable-length integer`);
@@ -66,10 +76,11 @@ function encodeQuicVarint(value: number): Buffer {
     encoded[index] = Number(remaining & 0xffn);
     remaining >>= 8n;
   }
-  encoded[0] = encoded[0]! | (Math.log2(length) << 6);
+  encoded[0] = encoded.readUInt8(0) | (Math.log2(length) << 6);
   return encoded;
 }
 
+/** Reads one minimally encoded QUIC variable-length integer. */
 function readQuicVarint(
   body: Buffer,
   offset = 0,
@@ -77,11 +88,12 @@ function readQuicVarint(
   const first = body[offset];
   if (first === undefined) throw new Error('QUIC varint is absent');
   const length = 1 << (first >> 6);
-  if (body.length < offset + length) throw new Error('QUIC varint is truncated');
+  if (body.length < offset + length)
+    throw new Error('QUIC varint is truncated');
 
   let value = BigInt(first & 0x3f);
   for (let index = 1; index < length; index++) {
-    value = (value << 8n) | BigInt(body[offset + index]!);
+    value = (value << 8n) | BigInt(body.readUInt8(offset + index));
   }
   if (value > BigInt(Number.MAX_SAFE_INTEGER)) {
     throw new Error('QUIC varint exceeds the JavaScript safe integer range');
@@ -93,6 +105,7 @@ function readQuicVarint(
   return { value: numeric, length };
 }
 
+/** Encodes blinded messages as one generic batch token request. */
 function encodeBatchTokenRequest(
   blindedMessages: Uint8Array[],
   truncatedTokenKeyId: number,
@@ -109,6 +122,7 @@ function encodeBatchTokenRequest(
   return Buffer.concat([encodeQuicVarint(vector.length), vector]);
 }
 
+/** Extracts the Blind RSA signatures from a generic batch response. */
 function decodeBatchTokenResponse(
   body: Buffer,
   elementSize: number,
@@ -121,7 +135,8 @@ function decodeBatchTokenResponse(
       `BatchTokenResponse length prefix says ${prefix.value} bytes but ${vector.length} bytes follow`,
     );
   }
-  if (vector.length === 0) throw new Error('BatchTokenResponse vector is empty');
+  if (vector.length === 0)
+    throw new Error('BatchTokenResponse vector is empty');
 
   const signatures: string[] = [];
   let offset = 0;
@@ -160,52 +175,21 @@ function decodeBatchTokenResponse(
   return signatures;
 }
 
-function parseIssuerOrigin(issuer: string): URL {
-  let url: URL;
-  try {
-    url = new URL(issuer);
-  } catch (error) {
-    throw new LinkConfigurationError(`Invalid issuer URL: ${issuer}`, {
-      cause: error,
-    });
-  }
-  const hostname = url.hostname.replace(/^\[|\]$/g, '');
-  if (
-    url.protocol !== 'https:' ||
-    url.username ||
-    url.password ||
-    url.pathname !== '/' ||
-    url.search ||
-    url.hash ||
-    isIP(hostname) !== 0
-  ) {
-    throw new LinkConfigurationError(
-      'Issuer must be an HTTPS origin with a DNS hostname',
-    );
-  }
-  return url;
-}
-
-function requireIssuerEndpoint(
-  value: string,
-  issuerOrigin: string,
-  field: string,
-): string {
+/** Accepts a discovered endpoint only when it remains on api.link.com. */
+function requireLinkEndpoint(value: string, field: string): string {
   let url: URL;
   try {
     url = new URL(value);
   } catch (error) {
     throw new TypeError(`${field} is not a valid URL`, { cause: error });
   }
-  const hostname = url.hostname.replace(/^\[|\]$/g, '');
   if (
     url.protocol !== 'https:' ||
-    url.origin !== issuerOrigin ||
+    url.origin !== LINK_ISSUER ||
     url.username ||
-    url.password ||
-    isIP(hostname) !== 0
+    url.password
   ) {
-    throw new TypeError(`${field} must be an HTTPS URL on the issuer origin`);
+    throw new TypeError(`${field} must be an HTTPS URL on ${LINK_ISSUER}`);
   }
   return url.href;
 }
@@ -214,10 +198,12 @@ export class AttestationsResource
   extends BaseResource
   implements IAttestationsResource
 {
+  /** Creates an attestation resource using the SDK's authentication config. */
   constructor(options: LinkOptions) {
     super(options, '');
   }
 
+  /** Fetches JSON without following redirects and normalizes API errors. */
   private async fetchJson(
     url: string,
     operation: string,
@@ -265,6 +251,7 @@ export class AttestationsResource
     return { data, status: response.status };
   }
 
+  /** Sends a blinded batch with the current or refreshed access token. */
   private async issueTokens(
     url: string,
     body: Uint8Array,
@@ -293,19 +280,18 @@ export class AttestationsResource
     }
   }
 
+  /** Requests, verifies, and returns a batch of Link attestation tokens. */
   async request(
     params: AttestationRequestParams,
   ): Promise<AttestationRequestResult> {
-    const { issuer, count } = params;
+    const { count } = params;
     if (!Number.isInteger(count) || count < 1 || count > 100) {
       throw new LinkConfigurationError(
         'Attestation token count must be an integer from 1 to 100',
       );
     }
-    const issuerUrl = parseIssuerOrigin(issuer);
-    const metadataUrl = new URL('/.well-known/aap-issuer', issuerUrl).href;
     const metadataResponse = await this.fetchJson(
-      metadataUrl,
+      LINK_ISSUER_METADATA_URL,
       'fetch issuer metadata',
     );
     const metadata = this.parseResponse(
@@ -316,20 +302,9 @@ export class AttestationsResource
     let tokenKeysUrl: string;
     let issuanceUrl: string;
     try {
-      const metadataIssuerUrl = parseIssuerOrigin(metadata.issuer);
-      if (metadataIssuerUrl.origin !== issuerUrl.origin) {
-        throw new TypeError(
-          'issuer metadata identifier must match the discovery origin',
-        );
-      }
-      tokenKeysUrl = requireIssuerEndpoint(
-        metadata.token_keys,
-        issuerUrl.origin,
-        'token_keys',
-      );
-      issuanceUrl = requireIssuerEndpoint(
+      tokenKeysUrl = requireLinkEndpoint(metadata.token_keys, 'token_keys');
+      issuanceUrl = requireLinkEndpoint(
         metadata.token_issuance_endpoint,
-        issuerUrl.origin,
         'token_issuance_endpoint',
       );
     } catch (error) {
@@ -364,7 +339,7 @@ export class AttestationsResource
     const spkiDer = base64ToBytes(tokenKey['token-key']);
     const challengeDigest = computeChallengeDigest(
       TOKEN_TYPE_BLIND_RSA,
-      new URL(metadata.issuer).hostname,
+      LINK_ISSUER_HOSTNAME,
     );
     const blindingState = generateBlindedMessages(
       spkiDer,
@@ -427,7 +402,7 @@ export class AttestationsResource
 
     return {
       tokens: finalTokens.map((finalToken) => finalToken.base64url),
-      issuer: metadata.issuer,
+      issuer: LINK_ISSUER,
       token_key_id: base64urlEncode(blindingState.tokenKeyId),
       count: finalTokens.length,
     };

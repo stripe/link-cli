@@ -1,16 +1,32 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+/**
+ * Client-side Blind RSA for Privacy Pass token type 0x0002.
+ *
+ * The client builds the token input, PSS-encodes and blinds it, then sends
+ * only the blinded message to the issuer. After signing, the client unblinds
+ * and verifies the signature before assembling the final token. This module
+ * implements only the RFC 9578 profile: 2048-bit RSA, SHA-384, and a 48-byte
+ * PSS salt.
+ */
+import {
+  createHash,
+  createPublicKey,
+  randomBytes,
+  timingSafeEqual,
+} from 'node:crypto';
 
 const TOKEN_TYPE = 0x0002;
 const NONCE_SIZE = 32;
 const CHALLENGE_DIGEST_SIZE = 32;
 const TOKEN_KEY_ID_SIZE = 32;
 
+/** RSA public values needed by the blinding and verification operations. */
 interface RsaPublicKey {
   n: bigint;
   e: bigint;
   nLen: number;
 }
 
+/** Per-token secrets retained locally while the issuer signs the blind. */
 interface BlindedToken {
   nonce: Uint8Array;
   blindedMsg: Uint8Array;
@@ -18,6 +34,7 @@ interface BlindedToken {
   encodedMessage: Uint8Array;
 }
 
+/** Local state needed to finalize a batch of blinded token requests. */
 export interface BlindingState {
   tokens: BlindedToken[];
   publicKey: RsaPublicKey;
@@ -25,19 +42,23 @@ export interface BlindingState {
   tokenKeyId: Uint8Array;
 }
 
+/** A complete binary token and its base64url transport form. */
 export interface FinalToken {
   raw: Uint8Array;
   base64url: string;
 }
 
+/** Encodes bytes as unpadded base64url. */
 export function base64urlEncode(buf: Uint8Array): string {
   return Buffer.from(buf).toString('base64url');
 }
 
+/** Decodes an unpadded base64url value into bytes. */
 function base64urlDecode(str: string): Uint8Array {
   return new Uint8Array(Buffer.from(str, 'base64url'));
 }
 
+/** Interprets big-endian bytes as a non-negative integer. */
 function bytesToBigInt(bytes: Uint8Array): bigint {
   let hex = '';
   for (const b of bytes) {
@@ -46,7 +67,14 @@ function bytesToBigInt(bytes: Uint8Array): bigint {
   return hex.length === 0 ? 0n : BigInt(`0x${hex}`);
 }
 
+/** Serializes a non-negative integer to an exact-length big-endian buffer. */
 function bigIntToBytes(n: bigint, length: number): Uint8Array {
+  if (!Number.isInteger(length) || length < 0) {
+    throw new Error('Integer encoding length must be a non-negative integer');
+  }
+  if (n < 0n || n >= 1n << BigInt(length * 8)) {
+    throw new Error(`Integer does not fit in ${length} bytes`);
+  }
   const hex = n.toString(16).padStart(length * 2, '0');
   const bytes = new Uint8Array(length);
   for (let i = 0; i < length; i++) {
@@ -55,6 +83,13 @@ function bigIntToBytes(n: bigint, length: number): Uint8Array {
   return bytes;
 }
 
+/** Returns the number of significant bits in a positive integer. */
+function bitLength(value: bigint): number {
+  if (value <= 0n) throw new Error('Bit length requires a positive integer');
+  return value.toString(2).length;
+}
+
+/** Computes base^exp modulo mod with square-and-multiply. */
 function modPow(base: bigint, exp: bigint, mod: bigint): bigint {
   let result = 1n;
   let b = ((base % mod) + mod) % mod;
@@ -69,6 +104,7 @@ function modPow(base: bigint, exp: bigint, mod: bigint): bigint {
   return result;
 }
 
+/** Computes a modular inverse, failing when the values are not coprime. */
 function modInverse(a: bigint, m: bigint): bigint {
   let [oldR, r] = [a, m];
   let [oldS, s] = [1n, 0n];
@@ -77,10 +113,47 @@ function modInverse(a: bigint, m: bigint): bigint {
     [oldR, r] = [r, oldR - q * r];
     [oldS, s] = [s, oldS - q * s];
   }
+  if (oldR !== 1n) {
+    throw new Error('Value has no modular inverse');
+  }
   return ((oldS % m) + m) % m;
 }
 
+/** Computes the greatest common divisor with Euclid's algorithm. */
+function greatestCommonDivisor(a: bigint, b: bigint): bigint {
+  let x = a < 0n ? -a : a;
+  let y = b < 0n ? -b : b;
+  while (y !== 0n) {
+    [x, y] = [y, x % y];
+  }
+  return x;
+}
+
+/** Extracts the RSA modulus and exponent from a DER-encoded SPKI key. */
 function parseSpkiPublicKey(spkiDer: Uint8Array): RsaPublicKey {
+  let keyObject: ReturnType<typeof createPublicKey>;
+  try {
+    keyObject = createPublicKey({
+      key: Buffer.from(spkiDer),
+      format: 'der',
+      type: 'spki',
+    });
+  } catch (error) {
+    throw new Error('Invalid RSA issuer public key', { cause: error });
+  }
+  const details = keyObject.asymmetricKeyDetails;
+  if (
+    keyObject.asymmetricKeyType !== 'rsa-pss' ||
+    details?.modulusLength !== 2048 ||
+    details.hashAlgorithm !== 'sha384' ||
+    details.mgf1HashAlgorithm !== 'sha384' ||
+    details.saltLength !== 48
+  ) {
+    throw new Error(
+      'Issuer key must use 2048-bit RSA-PSS with SHA-384, MGF1-SHA-384, and a 48-byte salt',
+    );
+  }
+
   // SubjectPublicKeyInfo ::= SEQUENCE { algorithm AlgorithmIdentifier, subjectPublicKey BIT STRING }
   // RSAPublicKey ::= SEQUENCE { modulus INTEGER, publicExponent INTEGER }
   //
@@ -98,6 +171,12 @@ function parseSpkiPublicKey(spkiDer: Uint8Array): RsaPublicKey {
       `Expected BIT STRING in SPKI, got 0x${bitString.tag.toString(16)}`,
     );
   }
+  if (
+    bitString.contentStart >= bitString.end ||
+    spkiDer[bitString.contentStart] !== 0
+  ) {
+    throw new Error('RSA SPKI BIT STRING must have zero unused bits');
+  }
 
   // First content byte of a BIT STRING is the unused-bits count (0 here).
   const rsaPublicKeyDer = spkiDer.slice(
@@ -108,20 +187,31 @@ function parseSpkiPublicKey(spkiDer: Uint8Array): RsaPublicKey {
   const rsaPublicKey = readSequence(rsaPublicKeyDer, 0);
   const modulus = readInteger(rsaPublicKeyDer, rsaPublicKey.contentStart);
   const exponent = readInteger(rsaPublicKeyDer, modulus.end);
+  const n = bytesToBigInt(modulus.value);
+  const e = bytesToBigInt(exponent.value);
+
+  if (modulus.value.length !== 256 || bitLength(n) !== 2048) {
+    throw new Error('Token type 0x0002 requires a 2048-bit RSA modulus');
+  }
+  if (e < 3n || e % 2n === 0n) {
+    throw new Error('RSA public exponent must be an odd integer of at least 3');
+  }
 
   return {
-    n: bytesToBigInt(modulus.value),
-    e: bytesToBigInt(exponent.value),
+    n,
+    e,
     nLen: modulus.value.length,
   };
 }
 
+/** Bounds for a parsed DER tag-length-value element. */
 interface Tlv {
   tag: number;
   contentStart: number;
   end: number;
 }
 
+/** Reads one DER tag-length-value element and checks its bounds. */
 function readTlv(data: Uint8Array, offset: number): Tlv {
   if (offset >= data.length) {
     throw new Error(`Unexpected end of DER at offset ${offset}`);
@@ -139,6 +229,7 @@ function readTlv(data: Uint8Array, offset: number): Tlv {
   return { tag, contentStart, end };
 }
 
+/** Reads a DER SEQUENCE element. */
 function readSequence(data: Uint8Array, offset: number): Tlv {
   const tlv = readTlv(data, offset);
   if (tlv.tag !== 0x30) {
@@ -149,6 +240,7 @@ function readSequence(data: Uint8Array, offset: number): Tlv {
   return tlv;
 }
 
+/** Reads a positive DER INTEGER and removes its optional sign byte. */
 function readInteger(
   data: Uint8Array,
   offset: number,
@@ -167,6 +259,7 @@ function readInteger(
   return { value, end: tlv.end };
 }
 
+/** Decodes a DER short- or long-form length. */
 function parseDerLength(
   data: Uint8Array,
   offset: number,
@@ -193,7 +286,7 @@ function parseDerLength(
   return { value, bytesRead: 1 + numBytes };
 }
 
-// EMSA-PSS encoding for RSA-PSS (RFC 8017 §9.1.1) with SHA-384
+/** PSS-encodes a message with SHA-384 and a fresh 48-byte salt. */
 function emsaPssEncode(message: Uint8Array, emBits: number): Uint8Array {
   const hashAlg = 'sha384';
   const hLen = 48; // SHA-384 output
@@ -226,6 +319,7 @@ function emsaPssEncode(message: Uint8Array, emBits: number): Uint8Array {
   return new Uint8Array(Buffer.concat([maskedDb, h, Buffer.from([0xbc])]));
 }
 
+/** Expands a seed with MGF1 to the requested number of bytes. */
 function mgf1(seed: Buffer, length: number, hashAlg: string): Buffer {
   const hLen = hashAlg === 'sha384' ? 48 : 32;
   const result = Buffer.alloc(length);
@@ -245,33 +339,43 @@ function mgf1(seed: Buffer, length: number, hashAlg: string): Buffer {
   return result;
 }
 
+/** Samples a uniform invertible blinding factor from [1, n). */
 function generateBlindingFactor(
   n: bigint,
   nLen: number,
 ): { r: bigint; rInv: bigint } {
   while (true) {
     const rBytes = randomBytes(nLen);
-    rBytes[0] = 0;
     const r = bytesToBigInt(new Uint8Array(rBytes));
-    if (r <= 1n || r >= n) continue;
-    const rInv = modInverse(r, n);
-    if ((r * rInv) % n === 1n) {
+    if (r < 1n || r >= n) continue;
+    try {
+      const rInv = modInverse(r, n);
       return { r, rInv };
+    } catch {
+      // A non-invertible sample is negligible for an honest RSA modulus.
     }
   }
 }
 
+/** Creates blinded issuer requests and retains the state needed to finalize them. */
 export function generateBlindedMessages(
   spkiDer: Uint8Array,
   count: number,
   challengeDigest: Uint8Array,
 ): BlindingState {
+  if (!Number.isInteger(count) || count < 1 || count > 100) {
+    throw new Error('Token count must be an integer from 1 to 100');
+  }
+  if (challengeDigest.length !== CHALLENGE_DIGEST_SIZE) {
+    throw new Error('Challenge digest must be exactly 32 bytes');
+  }
+
   const publicKey = parseSpkiPublicKey(spkiDer);
   const tokenKeyId = new Uint8Array(
     createHash('sha256').update(spkiDer).digest(),
   );
 
-  const emBits = publicKey.nLen * 8 - 1;
+  const emBits = bitLength(publicKey.n) - 1;
   const tokens: BlindedToken[] = [];
 
   for (let i = 0; i < count; i++) {
@@ -287,6 +391,11 @@ export function generateBlindedMessages(
 
     const encoded = emsaPssEncode(tokenInput, emBits);
     const message = bytesToBigInt(encoded);
+    if (greatestCommonDivisor(message, publicKey.n) !== 1n) {
+      throw new Error(
+        'PSS-encoded token input is not coprime to the RSA modulus',
+      );
+    }
     const { r, rInv } = generateBlindingFactor(publicKey.n, publicKey.nLen);
     const blindedMessage =
       (message * modPow(r, publicKey.e, publicKey.n)) % publicKey.n;
@@ -302,6 +411,7 @@ export function generateBlindedMessages(
   return { tokens, publicKey, challengeDigest, tokenKeyId };
 }
 
+/** Unblinds issuer responses, verifies them, and assembles complete tokens. */
 export function unblindSignatures(
   state: BlindingState,
   blindSigs: string[],
@@ -323,6 +433,11 @@ export function unblindSignatures(
       throw new Error(`Missing blind signature state at index ${i}`);
     }
     const blindSigBytes = base64urlDecode(blindSignature);
+    if (blindSigBytes.length !== publicKey.nLen) {
+      throw new Error(
+        `Blind signature ${i} must be exactly ${publicKey.nLen} bytes`,
+      );
+    }
     const blindSigInt = bytesToBigInt(blindSigBytes);
     const sigInt = (blindSigInt * token.blindInverse) % publicKey.n;
     const authenticator = bigIntToBytes(sigInt, publicKey.nLen);
@@ -365,12 +480,20 @@ export function unblindSignatures(
   return results;
 }
 
+/** Hashes the canonical empty-context TokenChallenge used for issuance. */
 export function computeChallengeDigest(
   tokenType: number,
   issuerName: string,
 ): Uint8Array {
   const issuerBytes = Buffer.from(issuerName, 'utf-8');
   const originBytes = Buffer.alloc(0);
+
+  if (!Number.isInteger(tokenType) || tokenType < 0 || tokenType > 0xffff) {
+    throw new Error('Token type must fit in an unsigned 16-bit integer');
+  }
+  if (issuerBytes.length > 0xffff) {
+    throw new Error('Issuer name must fit in an unsigned 16-bit length');
+  }
 
   const challenge = Buffer.alloc(
     2 + 2 + issuerBytes.length + 1 + 2 + originBytes.length,

@@ -255,11 +255,10 @@ Privacy-preserving tokens that show Link attests to your agent:
 
 ```bash
 LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10
-LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10 --issuer https://api.link.com
 LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10 --output-file ./aats.json
 ```
 
-`identity attestations request` asks Link for tokens (`--count` 1–100) and returns each complete base64url token with its issuer and issuer token-key identifier. Send a token as `Authorization: PrivateToken token="<token>"` — the command includes that header value on each token. You can pass an HTTPS `--issuer` and an `--access-token`; otherwise stored login credentials are used. Issuer discovery and issuance stay on the issuer's HTTPS DNS origin; redirects and IP-literal hosts are rejected. `--output-file` writes the artifact as JSON (0600; use `--force` to overwrite).
+`identity attestations request` asks Link at `https://api.link.com` for tokens (`--count` 1–100) and returns each complete base64url token with its issuer and issuer token-key identifier. Send a token as `Authorization: PrivateToken token="<token>"` — the command includes that header value on each token. You can pass an `--access-token`; otherwise stored login credentials are used. Issuer discovery and issuance stay on the Link API's HTTPS DNS origin; redirects and IP-literal hosts are rejected. `--output-file` writes the artifact as JSON (0600; use `--force` to overwrite).
 
 ### Spend request lifecycle
 

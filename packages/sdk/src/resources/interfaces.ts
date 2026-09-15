@@ -24,7 +24,6 @@ export type AccessTokenProvider = (
 ) => Promise<string> | string;
 
 export interface AttestationRequestParams {
-  issuer: string;
   count: number;
 }
 

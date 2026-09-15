@@ -7,10 +7,6 @@ export const requestOptions = z.object({
     .positive()
     .max(100)
     .describe('Number of tokens to request'),
-  issuer: z
-    .string()
-    .default('https://api.link.com')
-    .describe('Link origin that attests to your agent'),
   accessToken: z
     .string()
     .optional()

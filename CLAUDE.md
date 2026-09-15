@@ -127,10 +127,11 @@ Key input field notes:
 
 Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENTITY_COMMANDS=1` (or `true`). Even when enabled, the command sets `mcp: false` so MCP clients do not see it.
 
-`identity attestations request --count <n> [--issuer <url>] [--access-token <t>] [--output-file <path>] [--force]` — gets privacy-preserving tokens that show Link attests to your agent. Agent-only output. The SDK owns issuance in `packages/sdk/src/resources/attestations.ts` and `attestations-crypto.ts`; CLI schema and registration remain in `packages/cli/src/commands/attestations/`, mounted under `packages/cli/src/commands/identity/`.
+`identity attestations request --count <n> [--access-token <t>] [--output-file <path>] [--force]` — gets privacy-preserving tokens that show Link attests to your agent. Agent-only output. The SDK owns issuance in `packages/sdk/src/resources/attestations.ts` and `attestations-crypto.ts`; CLI schema and registration remain in `packages/cli/src/commands/attestations/`, mounted under `packages/cli/src/commands/identity/`.
 
-- Discovery: `GET <issuer>/.well-known/aap-issuer` → metadata, then `GET` its `token_keys` URL. The issuer and every discovered endpoint must use HTTPS on the same DNS origin; redirects and IP-literal hosts are rejected before credentials are sent.
+- Discovery: `GET https://api.link.com/.well-known/aap-issuer` → metadata, then `GET` its `token_keys` URL. The metadata issuer and every discovered endpoint must stay on the Link API's HTTPS DNS origin; redirects and IP-literal hosts are rejected before credentials are sent.
 - Tokens use a stable challenge: fixed `issuer_name`, empty `redemption_context`, and empty `origin_info`.
+- `attestations-crypto.ts` implements the RFC 9578 type `0x0002` client flow: PSS-encode, blind, unblind, verify, then assemble the token. Issuer keys must be 2048-bit RSA-PSS with SHA-384, MGF1-SHA-384, and a 48-byte salt.
 - Blind signatures are verified after unblinding before final tokens are returned.
 - Output is a versioned artifact: issuer, `token_key_id`, and each complete base64url token plus `authorization: PrivateToken token="<token>"`. Token bytes are preserved exactly.
 - `--output-file` writes the artifact as JSON (0600; `--force` to overwrite). Do not write raw tokens to debug logs.
