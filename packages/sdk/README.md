@@ -176,7 +176,7 @@ try {
 - `spendRequests` — create, approve, retrieve, update, cancel, and list
 - `paymentMethods` — list Link payment methods
 - `shippingAddresses` — list shipping addresses
-- `userInfo` — retrieve Link user information
+- `userInfo` — retrieve Link user information, including the stable `id` when returned by the API
 - `transactions` — list transactions
 - `sources` — list connected sources
 - `balances` — list balances

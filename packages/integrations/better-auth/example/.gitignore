@@ -1,0 +1,6 @@
+.next/
+.env*
+!.env.example
+*.sqlite*
+*.tsbuildinfo
+next-env.d.ts

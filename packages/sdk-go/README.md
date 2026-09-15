@@ -243,7 +243,7 @@ if errors.As(err, &linkError) {
 - `SpendRequests` — create, approve, retrieve, update, cancel, and list
 - `PaymentMethods` — list Link payment methods
 - `ShippingAddresses` — list shipping addresses
-- `UserInfo` — retrieve Link user information
+- `UserInfo` — retrieve Link user information, including the stable `ID` when returned by the API
 - `Transactions` — list transactions
 - `Sources` — list connected sources
 - `Balances` — list balances

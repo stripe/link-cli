@@ -729,7 +729,7 @@ To inspect the packages without publishing them:
 
 ```bash
 pnpm turbo run build
-pnpm --filter @stripe/link-cli --filter @stripe/link-sdk publish --dry-run --no-git-checks
+pnpm --filter @stripe/link-cli --filter @stripe/link-sdk --filter @stripe/link-integrations-better-auth publish --dry-run --no-git-checks
 ```
 
 CI runs the same publish dry-run for every pull request.

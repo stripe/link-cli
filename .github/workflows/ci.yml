@@ -82,4 +82,4 @@ jobs:
         run: go test -race ./...
 
       - name: Verify publishable
-        run: pnpm --filter @stripe/link-cli --filter @stripe/link-sdk publish --dry-run --no-git-checks
+        run: pnpm --filter @stripe/link-cli --filter @stripe/link-sdk --filter @stripe/link-integrations-better-auth publish --dry-run --no-git-checks
