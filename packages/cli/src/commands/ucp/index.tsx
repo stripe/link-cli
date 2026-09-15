@@ -15,10 +15,12 @@ import { requireAuth } from '../../utils/require-auth';
 import { CatalogSearch } from './catalog-search';
 import { CheckoutComplete } from './checkout-complete';
 import { CheckoutCreate } from './checkout-create';
+import { runUcpCheckoutRetrieve } from './checkout-state';
 import {
   catalogSearchOptions,
   checkoutCompleteOptions,
   checkoutCreateOptions,
+  checkoutRetrieveOptions,
 } from './schema';
 
 function parseUcpLineItem(item: unknown): UcpLineItem {
@@ -238,9 +240,29 @@ export function createUcpCli(
     },
   });
 
+  checkout.command('retrieve', {
+    description:
+      'Retrieve a UCP checkout and its associated spend request once, or poll with --poll.',
+    args: z.object({
+      id: z.string().nonempty().describe('Checkout session ID'),
+    }),
+    options: checkoutRetrieveOptions,
+    outputPolicy: 'agent-only' as const,
+    middleware: [requireAuth(authStorage, envAccessToken)],
+    run(c) {
+      const repository = repositoryFactory();
+      return runUcpCheckoutRetrieve(repository, c.args.id, {
+        spendRequestId: c.options.spendRequestId,
+        test: c.options.test || undefined,
+        poll: c.options.poll,
+        timeout: c.options.timeout,
+      });
+    },
+  });
+
   const cli = Cli.create('ucp', {
     description:
-      'Universal Commerce Protocol (UCP) checkout: search a catalog, create a checkout, and complete it.',
+      'Universal Commerce Protocol (UCP) checkout: search a catalog, create, complete, and retrieve a checkout session.',
   });
   cli.command(catalog);
   cli.command(checkout);
