@@ -3,6 +3,7 @@ import { type CliAuthStorage, Storage, storage } from './auth/storage';
 import { createAuthCli } from './commands/auth';
 import { createBalancesCli } from './commands/balances';
 import { createDemoCli } from './commands/demo';
+import { createIdentityCli } from './commands/identity';
 import { createMppCli } from './commands/mpp';
 import { createOnboardCli } from './commands/onboard';
 import { createPaymentMethodsCli } from './commands/payment-methods';
@@ -92,6 +93,17 @@ if (!isAgent && process.stdout.isTTY) {
   }
 }
 
+const identityCommandsEnabled =
+  process.env.LINK_IDENTITY_COMMANDS === '1' ||
+  process.env.LINK_IDENTITY_COMMANDS === 'true';
+
+if (identityCommandsEnabled) {
+  cli.command(
+    createIdentityCli({
+      createAttestationsResource: () => factory.createAttestationsResource(),
+    }),
+  );
+}
 cli.command(
   createAuthCli(authRepo, getUpdateInfo, authStorage, envAccessToken),
 );

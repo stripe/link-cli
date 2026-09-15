@@ -25,6 +25,9 @@ describe('ResourceFactory', () => {
     const factory = new ResourceFactory();
 
     expect(factory.createAuthResource()).toBe(factory.createAuthResource());
+    expect(factory.createAttestationsResource()).toBe(
+      factory.createAttestationsResource(),
+    );
     expect(factory.createSpendRequestResource()).toBe(
       factory.createSpendRequestResource(),
     );
@@ -38,6 +41,7 @@ describe('ResourceFactory', () => {
       factory.createWebBotAuthResource(),
     );
     expect(factory.createAuthResource()).toBeInstanceOf(LinkAuthResource);
+    expect(factory.createAttestationsResource().request).toBeTypeOf('function');
     expect(factory.createSpendRequestResource().create).toBeTypeOf('function');
     expect(factory.createPaymentMethodsResource().list).toBeTypeOf('function');
     expect(factory.createBalancesResource().list).toBeTypeOf('function');

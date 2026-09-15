@@ -1,6 +1,8 @@
 import type { LinkOptions } from '@/config';
+import { AttestationsResource } from '@/resources/attestations';
 import { BalancesResource } from '@/resources/balances';
 import type {
+  IAttestationsResource,
   IBalancesResource,
   IPaymentMethodsResource,
   IReportResource,
@@ -21,6 +23,7 @@ import { UserInfoResource } from '@/resources/user-info';
 import { WebBotAuthResource } from '@/resources/web-bot-auth';
 
 export class Link {
+  readonly attestations: IAttestationsResource;
   readonly spendRequests: ISpendRequestResource;
   readonly paymentMethods: IPaymentMethodsResource;
   readonly shippingAddresses: IShippingAddressResource;
@@ -32,6 +35,7 @@ export class Link {
   readonly reports: IReportResource;
 
   constructor(options: LinkOptions) {
+    this.attestations = new AttestationsResource(options);
     this.spendRequests = new SpendRequestResource(options);
     this.paymentMethods = new PaymentMethodsResource(options);
     this.shippingAddresses = new ShippingAddressResource(options);

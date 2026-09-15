@@ -9,6 +9,7 @@
       "@/*": ["./src/*"]
     },
     "rootDir": "src",
+    "types": ["node"],
     "verbatimModuleSyntax": true
   },
   "include": ["src"],
