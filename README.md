@@ -24,7 +24,6 @@ Documentation:
   - [Reporting issues](#report-outcomes)
   - [Handling step ups](#handle-step-ups)
   - [Adding line items and totals](#line-items-and-totals)
-  - [Approval details](#approval-details)
   - [Metadata](#metadata)
   - [Environment variables](#environment-variables)
 - [Integrating into your agent](#integrating-into-agents)
@@ -428,19 +427,6 @@ Optionally pass additional data on the specific items being purchased, and any t
 --total "type:subtotal,display_text:Subtotal,amount:12000" \
 --total "type:total,display_text:Total,amount:12000"
 ```
-
-### Approval details
-
-For delegated/pre-approved flows, pass `--approval-detail` with a JSON object describing how the user approved the request. Required fields: `approved_at` (unix timestamp), `approval_method` (`click`, `programmatic`, or `voice`), `app_name`, `external_user_id`. Optional: `ip_address`, `user_agent`, `device_type` (`mobile` or `web`), `agent_log_id`, `external_user_name`, `external_session_id`, `authentication_method` (`biometric_face`, `biometric_fingerprint`, or `passkey`).
-
-In CLI mode, pass as a JSON string:
-
-```bash
-link-cli spend-request create ... \
-  --approval-detail '{"approved_at":1720000000,"approval_method":"click","app_name":"MyApp","external_user_id":"usr_123"}'
-```
-
-In MCP/agent mode, pass as a structured object.
 
 ### Metadata
 
