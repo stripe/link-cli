@@ -1,5 +1,17 @@
 # @stripe/link-sdk
 
+## 0.5.0
+
+### Minor Changes
+
+- 835e7bb: feat: Handle the new Submitted SpendRequest state
+
+### Patch Changes
+
+- 835e7bb: Support the `submitted` spend request status. Retrieve polling now waits for
+  the initial waiting status to change, returning immediately for submitted and
+  unknown statuses instead of relying on a list of terminal statuses.
+
 ## 0.4.2
 
 ### Patch Changes
