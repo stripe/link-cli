@@ -46,6 +46,7 @@ const tokenKeyDirectorySchema = z.looseObject({
     z.looseObject({
       'token-type': z.number(),
       'token-key': z.string(),
+      'not-before': z.number().int().nonnegative().optional(),
     }),
   ),
 });
@@ -323,15 +324,20 @@ export class AttestationsResource
       directoryResponse.status,
       () => tokenKeyDirectorySchema.parse(directoryResponse.data),
     );
+    const now = Math.floor(Date.now() / 1000);
     const tokenKey = directory['token-keys'].find(
-      (entry) => entry['token-type'] === TOKEN_TYPE_BLIND_RSA,
+      (entry) =>
+        entry['token-type'] === TOKEN_TYPE_BLIND_RSA &&
+        (entry['not-before'] === undefined || entry['not-before'] <= now),
     );
     if (!tokenKey) {
       throw new LinkResponseError(
         'select Blind RSA token key',
         directoryResponse.status,
         {
-          cause: new Error('No token key with type 0x0002 found in directory'),
+          cause: new Error(
+            'No active token key with type 0x0002 found in directory',
+          ),
         },
       );
     }
