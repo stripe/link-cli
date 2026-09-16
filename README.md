@@ -215,7 +215,7 @@ Link is already integrated with the following agents:
 ```bash
 link-cli auth login --client-name "Claude Code"   # identify the connecting agent
 link-cli auth login --client-name "Claude Code" --interval 5 --timeout 300  # login + poll in one call
-link-cli auth upgrade --scope "userinfo:read spend_requests:approve"        # widen access to a superset
+link-cli auth upgrade --scope "userinfo:read"        # widen access to a superset
 link-cli auth status                               # check auth status
 link-cli auth logout                               # disconnect
 ```
