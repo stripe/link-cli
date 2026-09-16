@@ -56,7 +56,7 @@ Commands in `packages/cli/src/cli.tsx` (incur framework). Each has two output mo
 - **Interactive** (default): Ink/React components from `packages/cli/src/commands/`
 - **JSON** (`--format json`): JSON to stdout, errors as JSON with `code` and `message` fields with exit code 1
 
-Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `report`, `serve`.
+Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `[beta] inspect <url>`, `report`, `serve`.
 
 The CLI also runs as an MCP server (`--mcp`) and serves skill files via `skills` subcommand, both provided by incur.
 
@@ -114,6 +114,19 @@ Key input field notes:
 - In agent mode the full flow yields `_next.pay_argv` (`{ command: 'mpp', args: [...] }`) alongside `_next.pay_command`. **`pay_argv` is authoritative** — it holds the raw values and is meant to be invoked without a shell. `pay_command` is the compatibility string and every dynamic part of it (url, method, body, each header, spend-request id) must go through `shellQuote` from `packages/cli/src/utils/shell-quote.ts`. See "Security: shell-quoting command strings".
 - Implemented in `packages/cli/src/commands/mpp/` — pay.tsx (logic), schema.ts (input/output schema), index.tsx (incur registration).
 
+### inspect command
+
+- `[beta] inspect <url> [--timeout <ms>]` — no auth required. Probes a merchant site and returns `url` plus any detected tools. Implemented in `packages/cli/src/commands/inspect/` — `inspect.ts` (probes + result shape), `inspect-view.tsx` (interactive Ink view), `index.tsx` (incur registration), `schema.ts`. The command description is prefixed with `[beta]` like `balances`, `sources`, and `transactions`.
+- Output always includes `url` (the origin of the inspected URL). Optional fields (`display_name`, `description`, `llms_txt`, and each `available_tools` section) are **omitted when absent** — never `null` or empty placeholders.
+- Discovery, concurrently plus follow-up fetches:
+  - **Identity / llms.txt:** `<origin>/llms.txt` and `/llms-full.txt`, plus `llms.txt` URLs found in page HTML. Title (`#`) and summary (`>`) populate `display_name` / `description` when present. Discovered file URLs go in `llms_txt`.
+  - **UCP:** `<origin>/.well-known/ucp`. Merchant/description fill `display_name` / `description`; `transport: mcp` services become `available_tools.mcp`.
+  - **MPP / x402:** `<origin>/api/openapi.json` then `/openapi.json` (offer-aware, per https://mpp.dev/advanced/discovery), `<origin>/.well-known/x402.json`, and a live 402 probe when the spec doesn't already declare a `"stripe"` offer. Payment operations become `available_tools.machine_payments`, one tool per known rail: `method: "stripe"` → `link-cli mpp pay '<endpoint>'` (plus `--method` when not GET); `method: "tempo"` → `tempo request '<endpoint>'` (plus `-X` when not GET). Other offer methods are ignored. `method` is omitted when the rail is unknown (x402 last-resort fallback).
+  - **MCP:** `/.well-known/mcp.json`, `/.well-known/mcp`, `/.well-known/mcp-server-card`, UCP MCP transports, and MCP links in llms.txt.
+  - **Browser checkout:** when the inspected URL returns HTML. `general_advice` describes the Link card flow; `merchant_advice` is added for UCP and/or a Link Pay Token steering block (`AiAgentPaymentSteering`, "I am an AI agent", `link_pay_token`).
+  - `available_tools.provisioning` exists on the result type but is not populated yet.
+- `inspect` fetches arbitrary third-party HTML/JSON directly (no SDK resource) — `toInspectResult()` runs `sanitizeDeep()` then omits empty optional fields before JSON or interactive output sees the result.
+
 ### demo command
 
 - `demo [--only-card] [--only-spt]` — Interactive demo of both payment flows. Always uses `--test` mode (no real charges). Shows a menu to choose: virtual card flow, SPT/machine payment flow, or both. `--only-card` and `--only-spt` skip the menu. Requires a TTY (no JSON output mode).
@@ -157,6 +170,7 @@ Server-returned strings can contain ANSI escape sequences or control characters 
 - **Commands using `useAsyncAction` hook** — sanitized automatically. The hook calls `sanitizeDeep()` on all returned data before it reaches components.
 - **Commands with manual state management** (e.g. `create.tsx`, `retrieve.tsx`, `request-approval.tsx`, `mpp/pay.tsx`) — must call `sanitizeDeep()` on API responses before calling `setRequest()`/`setState()`.
 - **Attacker-controlled data that does NOT flow through an SDK resource** — must be sanitized at its own parse boundary. `mpp pay` sanitizes the HTTP response in `readPayResult()` (`pay.tsx`); `mpp decode` sanitizes the parsed `WWW-Authenticate` challenge in `decodeStripeChallenge()` (`decode.ts`). These bypass the resource factory, so the return value of the parse/fetch helper is the chokepoint — sanitizing there covers both the interactive Ink render and the agent (toon/yaml/md) output at once.
+- `inspect` fetches arbitrary third-party HTML/JSON directly (no SDK resource in the loop) — `toInspectResult()` in `inspect.ts` calls `sanitizeDeep()` then omits empty optional fields before either JSON or interactive output sees it.
 
 JSON output mode (`--format json`) is **not** affected — `JSON.stringify` encodes escape sequences as Unicode literals.
 
