@@ -50,5 +50,5 @@ syncPluginJsonVersion(
 );
 syncPluginJsonVersion(
   '.codex-plugin/plugin.json',
-  resolve(root, 'plugins/link/.codex-plugin/plugin.json'),
+  resolve(root, '.codex-plugin/plugin.json'),
 );
