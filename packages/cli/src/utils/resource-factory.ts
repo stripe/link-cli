@@ -6,6 +6,7 @@ import {
   type IReportResource,
   type IShippingAddressResource,
   type ISourcesResource,
+  type ISpendingPolicyResource,
   type ISpendRequestResource,
   type ISummariesResource,
   type ITransactionsResource,
@@ -115,6 +116,7 @@ export class ResourceFactory {
   private paymentMethodsResource?: IPaymentMethodsResource;
   private shippingAddressResource?: IShippingAddressResource;
   private userInfoResource?: IUserInfoResource;
+  private spendingPolicyResource?: ISpendingPolicyResource;
   private transactionsResource?: ITransactionsResource;
   private sourcesResource?: ISourcesResource;
   private summariesResource?: ISummariesResource;
@@ -271,6 +273,16 @@ export class ResourceFactory {
 
     const resource = sanitizeResource(this.createSdkClient().userInfo);
     this.userInfoResource = resource;
+    return resource;
+  }
+
+  createSpendingPolicyResource(): ISpendingPolicyResource {
+    if (this.spendingPolicyResource) {
+      return this.spendingPolicyResource;
+    }
+
+    const resource = sanitizeResource(this.createSdkClient().spendingPolicy);
+    this.spendingPolicyResource = resource;
     return resource;
   }
 

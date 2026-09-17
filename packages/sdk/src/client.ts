@@ -8,6 +8,7 @@ import type {
   IReportResource,
   IShippingAddressResource,
   ISourcesResource,
+  ISpendingPolicyResource,
   ISpendRequestResource,
   ISummariesResource,
   ITransactionsResource,
@@ -20,6 +21,7 @@ import { ShippingAddressResource } from '@/resources/shipping-address';
 import { SourcesResource } from '@/resources/sources';
 import { SpendRequestResource } from '@/resources/spend-request';
 import { SummariesResource } from '@/resources/summaries';
+import { SpendingPolicyResource } from '@/resources/spending-policy';
 import { TransactionsResource } from '@/resources/transactions';
 import { UserInfoResource } from '@/resources/user-info';
 import { WebBotAuthResource } from '@/resources/web-bot-auth';
@@ -30,6 +32,7 @@ export class Link {
   readonly paymentMethods: IPaymentMethodsResource;
   readonly shippingAddresses: IShippingAddressResource;
   readonly userInfo: IUserInfoResource;
+  readonly spendingPolicy: ISpendingPolicyResource;
   readonly transactions: ITransactionsResource;
   readonly sources: ISourcesResource;
   readonly balances: IBalancesResource;
@@ -43,6 +46,7 @@ export class Link {
     this.paymentMethods = new PaymentMethodsResource(options);
     this.shippingAddresses = new ShippingAddressResource(options);
     this.userInfo = new UserInfoResource(options);
+    this.spendingPolicy = new SpendingPolicyResource(options);
     this.transactions = new TransactionsResource(options);
     this.sources = new SourcesResource(options);
     this.balances = new BalancesResource(options);

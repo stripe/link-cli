@@ -7,6 +7,7 @@ import type {
   RequestApprovalResponse,
   ShippingAddressRecord,
   SourcesPage,
+  SpendingPolicy,
   SpendRequest,
   SummariesPage,
   Total,
@@ -92,6 +93,10 @@ export interface IShippingAddressResource {
 
 export interface IUserInfoResource {
   retrieve(): Promise<UserInfo>;
+}
+
+export interface ISpendingPolicyResource {
+  retrieve(): Promise<SpendingPolicy>;
 }
 
 export interface IWebBotAuthResource {

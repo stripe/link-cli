@@ -1861,6 +1861,48 @@ describe('production mode', () => {
     });
   });
 
+  describe('spending-policy retrieve', () => {
+    it('GETs and returns the spending policy', async () => {
+      const policy = {
+        rules: [
+          {
+            action: 'allow',
+            approval_type: 'automatic',
+            limits: {
+              per_purchase: { amount: 5000, currency: 'usd' },
+            },
+            allowed_payment_methods: ['csmrpd_2', 'csmrpd_1'],
+          },
+          { action: 'allow' },
+        ],
+      };
+      setResponseForUrl('/spending-policy', 200, policy);
+
+      const result = await runProdCli('spending-policy', 'retrieve', '--json');
+
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.method).toBe('GET');
+      expect(lastRequest.url).toBe('/spending-policy');
+      expect(lastRequest.headers.authorization).toBe(
+        'Bearer prod_test_access_token',
+      );
+      expect(parseJson(result.stdout)).toEqual(policy);
+    });
+
+    it('rejects unauthenticated requests before hitting the API', async () => {
+      storage.clearTokens();
+
+      const result = await runProdCli('spending-policy', 'retrieve', '--json');
+
+      expect(result.exitCode).toBe(1);
+      const output = parseJson(result.stdout) as Record<string, unknown>;
+      expect(output.code).toBe('NOT_AUTHENTICATED');
+      expect(
+        requests.find((request) => request.url === '/spending-policy'),
+      ).toBeUndefined();
+    });
+  });
+
   const SAMPLE_BALANCE = {
     source_id: 'csmrpd_001',
     type: 'cash',

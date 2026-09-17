@@ -226,6 +226,35 @@ export interface UserInfo {
   agent_wallet_verification_requirement?: AgentWalletVerificationRequirement;
 }
 
+/** Known actions, while remaining forward-compatible with new API values. */
+export type SpendingPolicyAction = 'allow' | (string & Record<never, never>);
+
+/** Known approval types, while remaining forward-compatible with new API values. */
+export type SpendingPolicyApprovalType =
+  | 'manual'
+  | 'automatic'
+  | (string & Record<never, never>);
+
+export interface SpendingPolicyAmount {
+  amount: number;
+  currency: string;
+}
+
+export interface SpendingPolicyLimits {
+  per_purchase: SpendingPolicyAmount;
+}
+
+export interface SpendingPolicyRule {
+  action: SpendingPolicyAction;
+  approval_type?: SpendingPolicyApprovalType;
+  limits?: SpendingPolicyLimits;
+  allowed_payment_methods?: string[];
+}
+
+export interface SpendingPolicy {
+  rules: SpendingPolicyRule[];
+}
+
 export interface ProductCapability {
   eligible: boolean;
   ineligibility_reasons: string[];
