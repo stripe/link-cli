@@ -27,6 +27,12 @@ const link = new Link({ accessToken: process.env.LINK_ACCESS_TOKEN! });
 const paymentMethods = await link.paymentMethods.list();
 ```
 
+Retrieve the spending policy for the current app and user:
+
+```ts
+const spendingPolicy = await link.spendingPolicy.retrieve();
+```
+
 Use a fixed token for a short-lived job or when the caller replaces the entire
 client as credentials change.
 

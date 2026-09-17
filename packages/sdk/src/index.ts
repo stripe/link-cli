@@ -10,4 +10,5 @@ export {
 export * from './resources/attestations';
 export * from './resources/interfaces';
 export { getDuplicateSpendRequest } from './resources/spend-request';
+export { SpendingPolicyResource } from './resources/spending-policy';
 export * from './types/index';
