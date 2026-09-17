@@ -8,6 +8,7 @@ Link CLI — lets agents get secure, one-time-use payment credentials from a Lin
 
 - **`@stripe/link-sdk`** (`packages/sdk`): Typed Link API client and resource implementations. It accepts `accessToken` or `getAccessToken`; it does not own OAuth state. Entry: `src/index.ts`.
 - **Link Go SDK** (`packages/sdk-go`): Go equivalent of `@stripe/link-sdk`. It accepts `AccessToken` or `GetAccessToken`; it does not own OAuth state. Package name: `link`.
+- **Link Python SDK** (`packages/sdk-python`): Python 3.11+ library covering the Go SDK's API resources with Python conventions. Distribution name: `link-sdk`; import name: `link`. HTTPX `Client` and `AsyncClient` expose typed keyword arguments and Pydantic response models. Uses uv for Python, dependencies, environments, builds, and development commands.
 - **`@stripe/link-cli`** (`packages/cli`): Commander.js + Ink/React CLI that consumes `@stripe/link-sdk`. Entry: `src/cli.tsx`.
 
 ## Commands
@@ -18,6 +19,8 @@ pnpm run build                  # build all packages (turbo)
 pnpm run dev                    # watch mode
 pnpm run test                   # run all tests
 pnpm run test:go                # run the Go SDK tests
+pnpm run test:python            # run the Python SDK tests via uv
+pnpm run check:python           # Python Ruff lint/format checks and ty type checking
 pnpm run typecheck              # type-check all packages
 pnpm biome check .              # lint + format check (CI)
 pnpm run check                  # lint + format with auto-fix
@@ -49,6 +52,19 @@ persistence, login state, and auth-specific errors live under
 The Go SDK currently mirrors the Link API resources exposed by the TypeScript
 SDK. Until a server-owned OpenAPI schema is available, keep API changes aligned
 through implementation review and each package's unit tests.
+
+The Python SDK mirrors the current Go SDK resources and parameters. Shared
+request construction and decoding live in `packages/sdk-python/src/link/_operations.py`
+and `_transport.py`; explicit sync/async resource signatures must stay aligned.
+Python responses preserve unknown string enum values and the extra fields
+preserved by Go. Required response fields have no fabricated zero-value defaults;
+Pydantic error text hides input values. Request enums use narrow literal types.
+SDK-owned HTTP clients default to a 30-second timeout, configurable with
+`timeout=`; omitted timeouts respect an injected client's configuration.
+Use `uv run --directory packages/sdk-python --locked ...` from
+the repository root so tools load the Python project's configuration. Run
+`uv build --directory packages/sdk-python` to build locally; Python publishing
+is not configured.
 
 ### CLI Command Structure
 

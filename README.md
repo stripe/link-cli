@@ -474,11 +474,12 @@ for certain agents.
 
 ## SDKs
 
-Applications can use the credential-only Link client directly in either
-[TypeScript](packages/sdk/README.md) or [Go](packages/sdk-go/README.md). Both
-SDKs expose the same resources, wire models, enum values, request behavior, and
-response normalization. Authentication flows and credential persistence remain
-the embedding application's responsibility.
+Applications can use the credential-only Link client directly in
+[TypeScript](packages/sdk/README.md), [Go](packages/sdk-go/README.md), or
+[Python](packages/sdk-python/README.md). The Python SDK provides synchronous and
+asynchronous clients covering the Go SDK's API resources with Python conventions.
+Authentication flows and credential persistence remain the embedding
+application's responsibility.
 
 ## Onboarding and Demos
 
@@ -516,8 +517,16 @@ Run tests:
 pnpm run test
 ```
 
-This runs the TypeScript and Go suites. Go SDK development requires Go 1.23 or
-newer.
+This runs the TypeScript, Go, and Python suites. Go SDK development requires Go
+1.23 or newer. Python SDK development uses [uv](https://docs.astral.sh/uv/) and
+requires Python 3.11 or newer; uv can install the interpreter for you.
+
+```bash
+uv python install 3.11
+uv sync --directory packages/sdk-python --locked
+pnpm run test:python
+pnpm run check:python
+```
 
 Type-check and lint:
 

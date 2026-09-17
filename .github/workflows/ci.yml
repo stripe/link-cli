@@ -9,6 +9,37 @@ permissions:
   contents: read
 
 jobs:
+  python-sdk:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13', '3.14']
+    defaults:
+      run:
+        working-directory: packages/sdk-python
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: '0.9.22'
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+          cache-dependency-glob: packages/sdk-python/uv.lock
+
+      - run: uv python install
+      - run: uv sync --locked
+      - run: uv run --locked pytest
+      - run: uv run --locked ruff check .
+      - run: uv run --locked ruff format --check .
+      - run: uv run --locked ty check
+      - run: uv build
+      - name: Smoke test built wheel
+        run: uv run --isolated --no-project --with dist/*.whl tests/smoke_test.py
+
   ci:
     runs-on: ubuntu-latest
     steps:

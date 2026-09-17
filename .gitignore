@@ -10,3 +10,8 @@ docs/
 packages/cli/README.md
 .claude/
 .codex/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
