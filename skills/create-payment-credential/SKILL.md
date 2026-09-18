@@ -29,12 +29,6 @@ user-invocable: true
 
 Use [Link](https://link.com) to get secure, one-time-use payment credentials from a Link wallet to complete purchases.
 
-## Inspecting saved identity artifacts
-
-If a separate identity flow needs saved Link credentials, enable `LINK_IDENTITY_COMMANDS=1` and use `identity credentials list` or `identity credentials show --format json` to find the current credential path, expiry, and holder-key path. Use `identity attestations list --format json` and `identity attestations show --file <path-or-filename> --format json` for saved attestation batches. These commands read local metadata without login or issuing new material. They do not print secrets or claim values, and files are not filtered by the active account. Check any `errors` returned by `list`. AAT counts describe stored tokens, not remaining uses; usage outside the CLI is untracked. Identity checks are separate from payment approval. See the [identity command reference](https://github.com/stripe/link-cli#identity-experimental).
-
-## Payment credentials
-
 The CLI can produce one of two credential types:
 - A virtual card (PAN) for use with a standard web checkout form. The issued card works anywhere.
 - A Shared Payment Token (SPT) when the seller is in the Stripe Network and accepts payments programmatically (for example with Machine Payment Protocols).
