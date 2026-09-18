@@ -1,4 +1,4 @@
-import type { ISummariesResource } from '@stripe/link-sdk';
+import type { ISummariesResource, SummariesPage } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import type { CliAuthStorage } from '../../auth/storage';
 import { renderInteractive } from '../../utils/render-interactive';
@@ -24,13 +24,22 @@ export function createSummariesCli(
       const resource = createResource();
       const summaries = c.options.summary;
       if (!c.agent && !c.formatExplicit) {
+        let capturedResult: SummariesPage | null | undefined;
         return renderInteractive(
           <SummariesList
             resource={resource}
             summaries={summaries}
-            onComplete={() => {}}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
           />,
-          () => listAllSummaries(resource, summaries),
+          () => {
+            if (capturedResult === undefined)
+              throw new Error('Component exited without producing a result');
+            if (capturedResult === null)
+              throw new Error('Failed to load summaries');
+            return capturedResult;
+          },
         );
       }
       return listAllSummaries(resource, summaries);

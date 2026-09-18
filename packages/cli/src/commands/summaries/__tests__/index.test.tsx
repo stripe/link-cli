@@ -63,9 +63,10 @@ describe('summaries list output policy', () => {
       configurable: true,
       value: true,
     });
-    renderInteractive.mockImplementation(async (_element, getResult) =>
-      getResult?.(),
-    );
+    renderInteractive.mockImplementation(async (element, getResult) => {
+      element.props.onComplete(page);
+      return getResult?.();
+    });
     const resource = {
       list: vi.fn(async () => page),
     } as unknown as ISummariesResource;
@@ -75,6 +76,8 @@ describe('summaries list output policy', () => {
 
     expect(result.exitCode).toBeUndefined();
     expect(renderInteractive).toHaveBeenCalledOnce();
+    // ensure it re-uses the result captured by the child list component, rather than making a duplicate API call
+    expect(resource.list).not.toHaveBeenCalled();
     expect(result.output).toBe('');
   });
 
