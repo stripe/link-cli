@@ -31,7 +31,6 @@ async function inspectFile(file: string) {
     issuer: artifact.issuer,
     token_key_id: artifact.token_key_id,
     stored_token_count: artifact.tokens.length,
-    usage: 'untracked' as const,
   });
 }
 
@@ -50,7 +49,7 @@ export async function listAttestations() {
   }
   return {
     attestations,
-    stored_token_count: attestations.reduce(
+    total_token_count: attestations.reduce(
       (count, artifact) => count + artifact.stored_token_count,
       0,
     ),
