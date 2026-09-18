@@ -247,7 +247,6 @@ export function createUcpCli(
       id: z.string().nonempty().describe('Checkout session ID'),
     }),
     options: checkoutRetrieveOptions,
-    outputPolicy: 'agent-only' as const,
     middleware: [requireAuth(authStorage, envAccessToken)],
     run(c) {
       const repository = repositoryFactory();
