@@ -1,13 +1,29 @@
 import path from 'node:path';
+import { z } from 'incur';
 import { sanitizeDeep } from '../../utils/sanitize-text';
 import {
-  ArtifactReadError,
   inspectionError,
   listArtifactFiles,
   readArtifact,
 } from '../identity/artifact-reader';
-import { savedAttestationSchema } from './schema';
 import { getOutputDirectory } from './storage';
+
+const savedAttestationSchema = z
+  .object({
+    version: z.literal(1),
+    issuer: z.url(),
+    token_key_id: z.string().min(1),
+    count: z.number().int().min(0).max(100),
+    tokens: z
+      .array(
+        z.object({
+          token: z.string().min(1),
+          authorization: z.string().min(1),
+        }),
+      )
+      .max(100),
+  })
+  .refine((artifact) => artifact.count === artifact.tokens.length);
 
 const usageNote =
   'Counts describe stored tokens. Usage outside the CLI is not tracked.';
@@ -25,16 +41,12 @@ async function inspectFile(file: string) {
 
 export async function showAttestation(file: string) {
   const directory = getOutputDirectory();
-  const outputFile = path.isAbsolute(file)
-    ? path.resolve(file)
-    : path.resolve(directory, file);
+  const outputFile = path.resolve(directory, file);
   if (path.dirname(outputFile) !== directory || !outputFile.endsWith('.json')) {
-    throw new ArtifactReadError(
-      'ARTIFACT_PATH_INVALID',
+    throw new Error(
       'Use a JSON file path or filename from identity attestations list.',
     );
   }
-  await listArtifactFiles(directory);
   return { ...(await inspectFile(outputFile)), note: usageNote };
 }
 

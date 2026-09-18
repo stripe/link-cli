@@ -1,10 +1,11 @@
+import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { createAttestationsCli } from '../../attestations';
 import { listAttestations, showAttestation } from '../../attestations/inspect';
-import { createIdentityCredentialsCli } from '../../credentials';
 import {
   listIdentityCredentials,
   showIdentityCredential,
@@ -61,7 +62,7 @@ it('lists empty stores without creating files and reports a missing current cred
     errors: [],
   });
   await expect(showIdentityCredential()).rejects.toMatchObject({
-    code: 'ARTIFACT_NOT_FOUND',
+    code: 'ENOENT',
   });
   expect(await fs.readdir(directory)).toEqual([]);
 });
@@ -135,13 +136,11 @@ it('reports a corrupt batch without hiding valid batches or quoting token conten
   expect(result.errors).toEqual([
     {
       output_file: broken,
-      code: 'ARTIFACT_INVALID',
+      code: 'INVALID_INPUT',
       message: `Invalid JSON in ${broken}.`,
     },
   ]);
-  await expect(showAttestation(broken)).rejects.toMatchObject({
-    code: 'ARTIFACT_INVALID',
-  });
+  await expect(showAttestation(broken)).rejects.toThrow('Invalid JSON');
   expect(JSON.stringify(result)).not.toContain('secret-token');
 });
 
@@ -151,9 +150,7 @@ it.each([
   { ...attestation, tokens: ['secret-token'] },
 ])('rejects invalid or unsupported attestation artifacts', async (artifact) => {
   const file = await save('attestations', 'invalid.json', artifact);
-  await expect(showAttestation(file)).rejects.toMatchObject({
-    code: 'ARTIFACT_INVALID',
-  });
+  await expect(showAttestation(file)).rejects.toThrow('Invalid or unsupported');
 });
 
 it('reports invalid credential metadata without replacing it or exposing claim values', async () => {
@@ -163,11 +160,11 @@ it('reports invalid credential metadata without replacing it or exposing claim v
   });
   expect(await listIdentityCredentials()).toMatchObject({
     credentials: [],
-    errors: [{ output_file: file, code: 'ARTIFACT_INVALID' }],
+    errors: [{ output_file: file, code: 'INVALID_INPUT' }],
   });
-  await expect(showIdentityCredential()).rejects.toMatchObject({
-    code: 'ARTIFACT_INVALID',
-  });
+  await expect(showIdentityCredential()).rejects.toThrow(
+    'Invalid or unsupported',
+  );
   expect(JSON.parse(await fs.readFile(file, 'utf8')).expires_at).toBe(
     'yesterday',
   );
@@ -178,20 +175,18 @@ it('rejects symlink files, directories, and paths outside the attestation store'
   await fs.symlink(file, path.join(path.dirname(file), 'symlink.json'));
   await fs.mkdir(path.join(path.dirname(file), 'directory.json'));
   expect((await listAttestations()).errors).toHaveLength(2);
-  await expect(showAttestation('symlink.json')).rejects.toMatchObject({
-    code: 'ARTIFACT_READ_FAILED',
-  });
-  await expect(
-    showAttestation('../credentials/current.json'),
-  ).rejects.toMatchObject({ code: 'ARTIFACT_PATH_INVALID' });
-  await expect(showAttestation('/tmp/unrelated.json')).rejects.toMatchObject({
-    code: 'ARTIFACT_PATH_INVALID',
-  });
+  await expect(showAttestation('symlink.json')).rejects.toThrow(
+    'symbolic link',
+  );
+  await expect(showAttestation('../credentials/current.json')).rejects.toThrow(
+    'Use a JSON file path',
+  );
+  await expect(showAttestation('/tmp/unrelated.json')).rejects.toThrow(
+    'Use a JSON file path',
+  );
   await fs.rename(path.dirname(file), path.join(directory, 'moved'));
   await fs.symlink(path.join(directory, 'moved'), path.dirname(file));
-  await expect(listAttestations()).rejects.toMatchObject({
-    code: 'ARTIFACT_DIRECTORY_INVALID',
-  });
+  await expect(listAttestations()).rejects.toThrow('symbolic link');
 });
 
 it('sanitizes control sequences in displayed local metadata', async () => {
@@ -202,31 +197,71 @@ it('sanitizes control sequences in displayed local metadata', async () => {
   expect((await showIdentityCredential()).holder.thumbprint).toBe('red');
 });
 
-it('runs list/show without creating an API resource and preserves full-output envelopes', async () => {
-  const createResource = vi.fn(() => {
-    throw new Error('Inspection must not access Link');
-  });
-  const credentialCli = createIdentityCredentialsCli(createResource);
-  const attestationCli = createAttestationsCli(createResource);
+it('shows known files in execute-only directories without enumerating the stores', async () => {
+  const files = [
+    await save('credentials', 'current.json', credential),
+    await save('attestations', 'batch.json', attestation),
+  ];
+  const readdir = vi.spyOn(fs, 'readdir');
+  try {
+    for (const file of files) await fs.chmod(path.dirname(file), 0o100);
+    expect((await showIdentityCredential()).output_file).toBe(files[0]);
+    expect((await showAttestation('batch.json')).output_file).toBe(files[1]);
+    expect(readdir).not.toHaveBeenCalled();
+  } finally {
+    for (const file of files) await fs.chmod(path.dirname(file), 0o700);
+  }
+});
+
+it('runs the built commands without auth or network, preserves envelopes, and requires the identity flag', async () => {
   await save('credentials', 'current.json', credential);
   await save('attestations', 'batch.json', attestation);
-  for (const [cli, args] of [
-    [credentialCli, ['list']],
-    [credentialCli, ['show']],
-    [attestationCli, ['list']],
-    [attestationCli, ['show', '--file', 'batch.json']],
-  ] as const) {
-    let output = '';
-    await cli.serve([...args, '--format', 'json', '--full-output'], {
-      stdout: (text) => {
-        output += text;
-      },
-      exit: (code) => {
-        expect(code).toBe(0);
-      },
-    });
-    expect(JSON.parse(output).ok).toBe(true);
-    expect(output).not.toContain('secret');
+  const preload = `
+    import os from 'node:os';
+    import { syncBuiltinESMExports } from 'node:module';
+    os.homedir = () => ${JSON.stringify(directory)};
+    syncBuiltinESMExports();
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (input, init) => {
+      if (String(input).startsWith('data:')) return originalFetch(input, init);
+      throw new Error('Unexpected network');
+    };
+  `;
+  const env = {
+    ...process.env,
+    LINK_IDENTITY_COMMANDS: '1',
+    LINK_AUTH_FILE: path.join(directory, 'auth.json'),
+    LINK_ACCESS_TOKEN: undefined,
+    LINK_REFRESH_TOKEN: undefined,
+    NODE_OPTIONS: undefined,
+    NO_UPDATE_NOTIFIER: '1',
+  };
+  const nodeArgs = [
+    '--import',
+    `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../../../../dist/cli.js', import.meta.url)),
+  ];
+  for (const args of [
+    ['credentials', 'list'],
+    ['credentials', 'show'],
+    ['attestations', 'list'],
+    ['attestations', 'show', '--file', 'batch.json'],
+  ]) {
+    const { stdout } = await promisify(execFile)(
+      process.execPath,
+      [...nodeArgs, 'identity', ...args, '--format', 'json', '--full-output'],
+      { env },
+    );
+    expect(JSON.parse(stdout).ok).toBe(true);
+    expect(stdout).toContain('output_file');
+    expect(stdout).not.toContain('secret');
   }
-  expect(createResource).not.toHaveBeenCalled();
+  await expect(
+    promisify(execFile)(
+      process.execPath,
+      [...nodeArgs, 'identity', 'credentials', 'list', '--format', 'json'],
+      { env: { ...env, LINK_IDENTITY_COMMANDS: undefined } },
+    ),
+  ).rejects.toMatchObject({ code: 1 });
+  expect(await fs.readdir(directory)).toEqual(['.link-cli']);
 });
