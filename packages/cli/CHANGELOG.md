@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.21.0
+
+### Minor Changes
+
+- c1f35ec: Add support for listing financial insight summaries through the CLI and SDK.
+
 ## 0.20.0
 
 ### Minor Changes
