@@ -34,6 +34,7 @@ const summarySchema = z.looseObject({
   as_of: z.number().optional(),
   data: z
     .array(z.looseObject({ label: z.string(), value: summaryDataValueSchema }))
+    .nullable()
     .optional(),
 });
 const summariesPageSchema = z.looseObject({
