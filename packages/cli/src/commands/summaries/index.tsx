@@ -12,11 +12,11 @@ export function createSummariesCli(
   envAccessToken?: string,
 ) {
   const cli = Cli.create('summaries', {
-    description: 'Summaries and aggregations of financial data from Link',
+    description: 'Summaries and aggregations of financial data from Link and external accounts',
   });
   cli.command('list', {
     description:
-      'List summaries of financial data from Link to answer common financial questions or provide preferences based on past purchase history',
+      'List summaries of financial data from Link and external accounts to answer common financial questions or provide preferences based on past purchase history',
     options: listOptions,
     outputPolicy: 'agent-only' as const,
     middleware: [requireAuth(authStorage, envAccessToken)],

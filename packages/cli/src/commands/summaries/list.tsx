@@ -23,6 +23,9 @@ export async function listAllSummaries(
   const data: SummariesPage['data'] = [];
   let startingAfter: string | undefined;
 
+  // The API itself supports a limit param, but I didn't see value in exposing that to the caller
+  // while we still have such a small number of summaries and the CLI handles pagination, but that could
+  // be a change here later.
   while (true) {
     const page = await resource.list({
       ...(summaries && summaries.length > 0 ? { summaries } : {}),
