@@ -1,0 +1,5 @@
+.eve
+.output
+.nitro
+.eve-extension-build-*
+*.tsbuildinfo

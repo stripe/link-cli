@@ -1,0 +1,42 @@
+{
+  "name": "@stripe/link-integrations-eve",
+  "version": "0.1.0",
+  "description": "Link wallet tools for Eve agents",
+  "type": "module",
+  "eve": {
+    "extension": { "source": "./extension", "dist": "./dist/extension" }
+  },
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.mjs" },
+    "./tools": { "types": "./dist/tools/index.d.ts", "default": "./dist/tools/index.mjs" }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stripe/link-cli.git",
+    "directory": "packages/integrations/eve"
+  },
+  "homepage": "https://github.com/stripe/link-cli/tree/main/packages/integrations/eve#readme",
+  "bugs": "https://github.com/stripe/link-cli/issues",
+  "engines": { "node": ">=24" },
+  "publishConfig": { "access": "public" },
+  "scripts": {
+    "build": "eve extension build",
+    "prepack": "pnpm run build",
+    "typecheck": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@stripe/link-sdk": "workspace:^",
+    "zod": "^4.5.4"
+  },
+  "peerDependencies": { "eve": "*" },
+  "devDependencies": {
+    "@stripe/link-typescript-config": "workspace:*",
+    "@types/node": "^26.4.1",
+    "eve": "0.54.4",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
+  }
+}

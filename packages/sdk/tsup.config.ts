@@ -4,7 +4,7 @@ import { defineConfig } from 'tsup';
 const srcDir = fileURLToPath(new URL('./src', import.meta.url));
 
 export default defineConfig({
-  entry: ['src/index.ts'],
+  entry: ['src/index.ts', 'src/tools/index.ts'],
   format: ['esm'],
   platform: 'node',
   target: 'node20',
