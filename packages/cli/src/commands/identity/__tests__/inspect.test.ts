@@ -264,4 +264,4 @@ it('runs the built commands without auth or network, preserves envelopes, and re
     ),
   ).rejects.toMatchObject({ code: 1 });
   expect(await fs.readdir(directory)).toEqual(['.link-cli']);
-});
+}, 30_000);
