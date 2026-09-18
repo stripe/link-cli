@@ -18,7 +18,7 @@ export function createIdentityCredentialsCli(
 
   cli.command('list', {
     description:
-      'List metadata for the locally saved current credential, including expiry and key path. Does not contact Link or issue credentials.',
+      'List metadata for the locally saved current credential, including expiry and key path.',
     mcp: false,
     outputPolicy: 'all' as const,
     async run() {

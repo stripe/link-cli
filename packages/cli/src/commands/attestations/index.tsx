@@ -17,8 +17,7 @@ export function createAttestationsCli(
   });
 
   cli.command('list', {
-    description:
-      'List saved attestation files and stored token counts. Does not contact Link or consume tokens; external usage is not tracked.',
+    description: 'List saved attestation files and stored token counts.',
     mcp: false,
     outputPolicy: 'all' as const,
     async run(c) {
