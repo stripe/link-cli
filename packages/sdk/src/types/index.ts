@@ -392,9 +392,15 @@ export interface UcpSearchResult {
  * session). `create` returns it in `requires_payment`; `complete` returns it in
  * a terminal state with `order_details`.
  */
+export type UcpCheckoutStatus =
+  | 'open'
+  | 'requires_action'
+  | 'completed'
+  | 'expired';
+
 export interface UcpCheckout {
   id: string;
-  status?: string | null;
+  status?: UcpCheckoutStatus | null;
   currency?: string | null;
   amount_total?: number | null;
   amount_subtotal?: number | null;
@@ -404,4 +410,8 @@ export interface UcpCheckout {
   order_details?: Record<string, unknown> | null;
   expires_at?: number | null;
   [key: string]: unknown;
+}
+
+export interface UcpCheckoutWithSpendRequest extends UcpCheckout {
+  spend_request: SpendRequest;
 }
