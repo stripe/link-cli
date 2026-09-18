@@ -293,7 +293,7 @@ export interface CashBalance {
 }
 
 export interface CreditBalance {
-  used: Record<string, number>;
+  used: Record<string, number> | null;
 }
 
 export interface Balance {

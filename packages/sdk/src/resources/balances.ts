@@ -15,7 +15,10 @@ const balanceSchema = z.looseObject({
     .looseObject({ available: currencyAmountsSchema })
     .nullable()
     .optional(),
-  credit: z.looseObject({ used: currencyAmountsSchema }).nullable().optional(),
+  credit: z
+    .looseObject({ used: currencyAmountsSchema.nullable() })
+    .nullable()
+    .optional(),
   current: z.number(),
   currency: z.string(),
   as_of: z.string(),
