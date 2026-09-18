@@ -58,7 +58,7 @@ Commands in `packages/cli/src/cli.tsx` (incur framework). Each has two output mo
 - **Interactive** (default): Ink/React components from `packages/cli/src/commands/`
 - **JSON** (`--format json`): JSON to stdout, errors as JSON with `code` and `message` fields with exit code 1
 
-Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `identity attestations request`, `identity credentials request`, `report`, `serve`.
+Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `identity attestations request|list|take`, `identity credentials request|list`, `report`, `serve`.
 
 The CLI also runs as an MCP server (`--mcp`) and serves skill files via `skills` subcommand, both provided by incur.
 
@@ -136,10 +136,11 @@ Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENT
 - `attestations-crypto.ts` implements the RFC 9578 type `0x0002` client flow: PSS-encode, blind, unblind, verify, then assemble the token. Issuer keys must be 2048-bit RSA-PSS with SHA-384, MGF1-SHA-384, and a 48-byte salt.
 - Blind signatures are verified after unblinding before final tokens are returned.
 - Output is a versioned artifact: issuer, `token_key_id`, and each complete base64url token plus `authorization: PrivateToken token="<token>"`. Token bytes are preserved exactly.
-- Token artifacts are written with mode 0600 to uniquely named files in `~/.link-cli/attestations`; the directory uses mode 0700. Command output contains the artifact path and non-secret metadata, not raw tokens.
+- Default requests append batches to `~/.link-cli/attestations/pool.json` (version 2, mode 0600; directory mode 0700). `request --count <n> --output-file <path>` exports a version-1 batch outside that directory without adding it to the pool. Exports use exclusive creation; existing files are not overwritten. Request output contains the path and metadata.
+- Unlisted `identity attestations take` removes one pooled token and returns its bytes, generated `authorization` header, issuer, and key ID in both terminal and structured output. It uses no API resource and returns `ATTESTATION_POOL_EMPTY` when empty. `storage.ts` serializes append/take with an exclusive directory lock, fsyncs a private temporary file, atomically renames it, and fsyncs the directory on POSIX before returning. Windows uses file fsync and atomic rename because Node cannot fsync a directory there. Locks are never stolen based on age; after a crash, remove `pool.json.lock` only after ensuring no attestation commands are running. A crash after commit may lose a token; never reinsert it on output failure.
 - Server-side max batch is 100. Issuance does not require an additional OAuth scope.
 - Auth: standard CLI authentication (`LINK_ACCESS_TOKEN` or stored credentials).
-- Unlisted local inspection: `identity attestations list` reports saved batch paths, issuer/key identifiers, per-file `stored_token_count` and aggregate `total_token_count`, and per-file `errors`. It reads JSON batches in `~/.link-cli/attestations`. Counts describe stored tokens; external usage is untracked. The command works without auth or API calls, prints metadata in terminals and structured output (`outputPolicy: 'all'`), and preserves the feature gate and MCP exclusion. Read schemas live beside inspection logic in `list.ts`; shared file reading lives in `identity/artifact-reader.ts`.
+- Unlisted local inspection: `identity attestations list` reports saved batch paths, issuer/key identifiers, per-file `stored_token_count` and aggregate `total_token_count`, and per-file `errors`. It reads JSON batches in `~/.link-cli/attestations`, expanding the pool into batches marked `storage: pool`; legacy exports are marked `storage: export` and never imported automatically. Counts describe stored tokens; external usage is untracked. The command works without auth or API calls, prints metadata in terminals and structured output (`outputPolicy: 'all'`), and preserves the feature gate and MCP exclusion. The version-1 export schema lives in `export.ts`, the version-2 pool schema in `storage.ts`, and shared file reading in `identity/artifact-reader.ts`.
 
 ### report command
 

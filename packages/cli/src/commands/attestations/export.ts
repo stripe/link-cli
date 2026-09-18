@@ -1,3 +1,5 @@
+import { z } from 'incur';
+
 export const ATTESTATION_ARTIFACT_VERSION = 1 as const;
 
 export function base64urlPad(value: Uint8Array | string): string {
@@ -47,3 +49,20 @@ export function exportAttestationTokens(result: {
     })),
   };
 }
+
+export const savedAttestationSchema = z
+  .object({
+    version: z.literal(1),
+    issuer: z.url(),
+    token_key_id: z.string().min(1),
+    count: z.number().int().min(0).max(100),
+    tokens: z
+      .array(
+        z.object({
+          token: z.string().min(1),
+          authorization: z.string().min(1),
+        }),
+      )
+      .max(100),
+  })
+  .refine((artifact) => artifact.count === artifact.tokens.length);
