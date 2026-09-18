@@ -15,6 +15,7 @@ import { createSpendRequestCli } from './commands/spend-request';
 import { createTransactionsCli } from './commands/transactions';
 import { createUserInfoCli } from './commands/user-info';
 import { createWebBotAuthCli } from './commands/web-bot-auth';
+import { detectAIAgent } from './utils/ai-agent';
 import { buildMcpCommand } from './utils/package-runner';
 import { ResourceFactory } from './utils/resource-factory';
 import {
@@ -28,8 +29,9 @@ declare const __CLI_NAME__: string;
 
 const cliVersion = __CLI_VERSION__;
 const cliName = __CLI_NAME__;
+const agent = detectAIAgent(process.env);
 const defaultHeaders = {
-  'User-Agent': `link-cli/${cliVersion}`,
+  'User-Agent': `link-cli/${cliVersion}${agent ? ` AIAgent/${agent}` : ''}`,
 };
 
 const verboseIndex = process.argv.indexOf('--verbose');

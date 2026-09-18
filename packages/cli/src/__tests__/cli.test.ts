@@ -9,6 +9,60 @@ import { storage } from '../auth/storage';
 const execFileAsync = promisify(execFile);
 
 const CLI_PATH = new URL('../../dist/cli.js', import.meta.url).pathname;
+const CLI_VERSION = JSON.parse(
+  fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+).version;
+const CLI_USER_AGENT = `link-cli/${CLI_VERSION}`;
+
+// Do not inherit agent attribution from the developer's shell or CI runner.
+const EMPTY_AGENT_ENV = {
+  ANTIGRAVITY_CLI_ALIAS: '',
+  CLAUDECODE: '',
+  CLINE_ACTIVE: '',
+  CODEX_SANDBOX: '',
+  CODEX_THREAD_ID: '',
+  CODEX_SANDBOX_NETWORK_DISABLED: '',
+  CODEX_CI: '',
+  CURSOR_AGENT: '',
+  GEMINI_CLI: '',
+  OPENCODE: '',
+  OPENCLAW_SHELL: '',
+  CLAUDE_CODE_ENTRYPOINT: '',
+  CODEX_INTERNAL_ORIGINATOR_OVERRIDE: '',
+};
+
+const AGENT_CASES: {
+  name: string;
+  env: Record<string, string>;
+  userAgent: string;
+}[] = [
+  { name: 'unknown agent', env: {}, userAgent: CLI_USER_AGENT },
+  {
+    name: 'Claude Code',
+    env: { CLAUDECODE: '1' },
+    userAgent: `${CLI_USER_AGENT} AIAgent/claude_code`,
+  },
+  {
+    name: 'Cursor',
+    env: { CURSOR_AGENT: '1' },
+    userAgent: `${CLI_USER_AGENT} AIAgent/cursor`,
+  },
+  {
+    name: 'Codex CLI',
+    env: { CODEX_THREAD_ID: 'test-thread-id' },
+    userAgent: `${CLI_USER_AGENT} AIAgent/codex_cli`,
+  },
+  {
+    name: 'Claude host fallback',
+    env: { CLAUDE_CODE_ENTRYPOINT: 'sdk-ts' },
+    userAgent: `${CLI_USER_AGENT} AIAgent/claude_code`,
+  },
+  {
+    name: 'Codex host fallback',
+    env: { CODEX_INTERNAL_ORIGINATOR_OVERRIDE: 'codex-desktop' },
+    userAgent: `${CLI_USER_AGENT} AIAgent/codex_cli`,
+  },
+];
 
 const AUTH_TOKENS = {
   access_token: 'test_access_token_1234567890',
@@ -143,6 +197,7 @@ async function runProdCliWithEnv(
       {
         env: {
           ...process.env,
+          ...EMPTY_AGENT_ENV,
           LINK_API_BASE_URL: `http://127.0.0.1:${serverPort}`,
           LINK_AUTH_BASE_URL: `http://127.0.0.1:${serverPort}`,
           XDG_DATA_HOME: '/tmp/link-cli-test-empty',
@@ -243,6 +298,81 @@ describe('production mode', () => {
     merchantResponses = [];
     storage.setTokens(PROD_AUTH_TOKENS);
     setNextResponse(200, BASE_REQUEST);
+  });
+
+  describe('request agent attribution', () => {
+    it.each(AGENT_CASES)(
+      'uses the expected User-Agent for $name on Link API requests',
+      async ({ env, userAgent }) => {
+        setNextResponse(200, { data: [] });
+
+        const result = await runProdCliWithEnv(
+          env,
+          'spend-request',
+          'list',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        const request = requests.find((r) => r.url === '/spend_requests');
+        expect(request).toBeDefined();
+        expect(request?.headers['user-agent']).toBe(userAgent);
+      },
+    );
+
+    it.each(AGENT_CASES)(
+      'uses the expected User-Agent for $name on device authentication',
+      async ({ env, userAgent }) => {
+        storage.clearTokens();
+        setResponseForUrl('/device/code', 200, {
+          device_code: 'test_device_code',
+          user_code: 'apple-grape',
+          verification_uri: 'https://app.link.com/device/setup',
+          verification_uri_complete:
+            'https://app.link.com/device/setup?code=apple-grape',
+          expires_in: 300,
+          interval: 1,
+        });
+
+        const result = await runProdCliWithEnv(
+          env,
+          'auth',
+          'login',
+          '--client-name',
+          'Test Agent',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        const request = requests.find((r) => r.url === '/device/code');
+        expect(request).toBeDefined();
+        expect(request?.headers['user-agent']).toBe(userAgent);
+      },
+    );
+
+    it.each(AGENT_CASES)(
+      'uses the expected User-Agent for $name on token refresh',
+      async ({ env, userAgent }) => {
+        setResponseForUrl('/device/token', 200, PROD_AUTH_TOKENS);
+
+        const result = await runProdCliWithEnv(
+          env,
+          'auth',
+          'login',
+          '--client-name',
+          'Test Agent',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        const request = requests.find((r) => r.url === '/device/token');
+        expect(request).toBeDefined();
+        expect(new URLSearchParams(request?.body).get('grant_type')).toBe(
+          'refresh_token',
+        );
+        expect(request?.headers['user-agent']).toBe(userAgent);
+      },
+    );
   });
 
   describe('spend-request create', () => {
@@ -2746,7 +2876,8 @@ describe('production mode', () => {
       });
       setMerchantResponse(200, '{"success":true}');
 
-      const result = await runProdCli(
+      const result = await runProdCliWithEnv(
+        { CODEX_THREAD_ID: 'test-thread-id' },
         'mpp',
         'pay',
         `http://127.0.0.1:${merchantPort}/api/charge`,
@@ -2764,8 +2895,15 @@ describe('production mode', () => {
       expect(parsed.status).toBe(200);
       expect(parsed.body).toContain('success');
       expect(merchantRequests).toHaveLength(2);
-      expect(merchantRequests[0].headers['user-agent']).toMatch(/^link-cli\//);
-      expect(merchantRequests[1].headers['user-agent']).toMatch(/^link-cli\//);
+      const linkRequest = requests.find((r) =>
+        r.url.startsWith('/spend_requests/lsrq_spt_001'),
+      );
+      expect(linkRequest).toBeDefined();
+      expect(linkRequest?.headers['user-agent']).toBe(
+        `${CLI_USER_AGENT} AIAgent/codex_cli`,
+      );
+      expect(merchantRequests[0].headers['user-agent']).toBe(CLI_USER_AGENT);
+      expect(merchantRequests[1].headers['user-agent']).toBe(CLI_USER_AGENT);
       expect(merchantRequests[1].headers.authorization).toMatch(/^Payment /);
     });
 
@@ -2948,26 +3086,36 @@ describe('production mode', () => {
 
       expect(merchantRequests[0].headers['x-custom-header']).toBe('hello');
       expect(merchantRequests[0].headers['x-another']).toBe('world');
-      expect(merchantRequests[0].headers['user-agent']).toMatch(/^link-cli\//);
+      expect(merchantRequests[0].headers['user-agent']).toBe(CLI_USER_AGENT);
     });
 
-    it('lets --header override the default User-Agent', async () => {
-      setNextResponse(200, APPROVED_SPT_REQUEST);
-      setMerchantResponse(200, '{"ok":true}');
+    it.each(['User-Agent', 'user-agent'])(
+      'lets --header override the default %s under an agent environment',
+      async (headerName) => {
+        setNextResponse(200, APPROVED_SPT_REQUEST);
+        setMerchantResponse(402, '{"error":"payment required"}', {
+          'www-authenticate': WWW_AUTHENTICATE_STRIPE,
+        });
+        setMerchantResponse(200, '{"ok":true}');
 
-      await runProdCli(
-        'mpp',
-        'pay',
-        `http://127.0.0.1:${merchantPort}/api/endpoint`,
-        '--spend-request-id',
-        'lsrq_spt_001',
-        '--header',
-        'User-Agent: CustomBot/1.0',
-        '--json',
-      );
+        const result = await runProdCliWithEnv(
+          { CLAUDECODE: '1' },
+          'mpp',
+          'pay',
+          `http://127.0.0.1:${merchantPort}/api/endpoint`,
+          '--spend-request-id',
+          'lsrq_spt_001',
+          '--header',
+          `${headerName}: CustomBot/1.0`,
+          '--json',
+        );
 
-      expect(merchantRequests[0].headers['user-agent']).toBe('CustomBot/1.0');
-    });
+        expect(result.exitCode).toBe(0);
+        expect(merchantRequests).toHaveLength(2);
+        expect(merchantRequests[0].headers['user-agent']).toBe('CustomBot/1.0');
+        expect(merchantRequests[1].headers['user-agent']).toBe('CustomBot/1.0');
+      },
+    );
 
     it('auto-applies Content-Type application/json when --data is provided', async () => {
       setNextResponse(200, APPROVED_SPT_REQUEST);
