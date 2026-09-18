@@ -1,9 +1,11 @@
 import type { IAttestationsResource } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import { renderInteractive } from '../../utils/render-interactive';
+import { inspectionError } from '../identity/artifact-reader';
 import { SavedArtifact } from '../identity/saved-artifact';
 import { exportAttestationTokens } from './export';
-import { requestOptions } from './schema';
+import { listAttestations, showAttestation } from './inspect';
+import { requestOptions, showOptions } from './schema';
 import { writeAttestationArtifact } from './storage';
 
 export function createAttestationsCli(
@@ -12,6 +14,35 @@ export function createAttestationsCli(
   const cli = Cli.create('attestations', {
     description:
       'A privacy-preserving token that shows Link attests to your agent.',
+  });
+
+  cli.command('list', {
+    description:
+      'List saved attestation files and stored token counts. Does not contact Link or consume tokens; external usage is not tracked.',
+    mcp: false,
+    outputPolicy: 'all' as const,
+    async run(c) {
+      try {
+        return await listAttestations();
+      } catch (error) {
+        return c.error(inspectionError(error));
+      }
+    },
+  });
+
+  cli.command('show', {
+    description:
+      'Show metadata and stored token count for one saved attestation file. Does not print or consume tokens. AATs have no embedded expiry.',
+    options: showOptions,
+    mcp: false,
+    outputPolicy: 'all' as const,
+    async run(c) {
+      try {
+        return await showAttestation(c.options.file);
+      } catch (error) {
+        return c.error(inspectionError(error));
+      }
+    },
   });
 
   cli.command('request', {

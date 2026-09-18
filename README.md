@@ -338,7 +338,7 @@ All commands accept `--auth <path>` to store auth credentials in a specific file
 
 ### Identity (experimental)
 
-Unlisted commands: set `LINK_IDENTITY_COMMANDS=1` to enable them. They are omitted from `--help`, `--llms`, and MCP tool lists otherwise.
+Unlisted commands: set `LINK_IDENTITY_COMMANDS=1` to enable them in `--help` and `--llms`. Identity commands remain excluded from MCP even when enabled.
 
 **Privacy-preserving tokens** that show Link attests to your agent:
 
@@ -355,6 +355,28 @@ LINK_IDENTITY_COMMANDS=1 link-cli identity credentials request
 ```
 
 `identity credentials request` returns a signed credential bound to the CLI-managed holder key at `~/.link/holder-key.jwk`.
+
+Inspect saved identity artifacts before requesting more:
+
+```bash
+LINK_IDENTITY_COMMANDS=1 link-cli identity credentials list --format json
+LINK_IDENTITY_COMMANDS=1 link-cli identity credentials show --format json
+LINK_IDENTITY_COMMANDS=1 link-cli identity attestations list --format json
+LINK_IDENTITY_COMMANDS=1 link-cli identity attestations show --file /path/from/list.json --format json
+```
+
+| Command | Local output |
+| --- | --- |
+| `identity credentials list` | Zero or one saved current credential, plus any read errors |
+| `identity credentials show` | Current credential path, issuer, expiry, `expired` status, holder-key path and thumbprint, and stored claim names |
+| `identity attestations list` | Saved batch paths, issuer/key identifiers, per-file and total `stored_token_count`, plus any read errors |
+| `identity attestations show --file <path-or-filename>` | Metadata for one JSON file in `~/.link-cli/attestations`; accepts its absolute path or filename |
+
+These commands work without login and do not contact Link, read private keys, verify signatures, issue credentials, or modify files. They print metadata in both terminal and structured output; raw credentials, tokens, and claim values remain in the saved artifacts. Credential inspection reads only `~/.link-cli/credentials/current.json`, including when it has expired. The `expired` field is calculated from its saved `expires_at` value. Local artifacts are not filtered by the currently authenticated account or `--auth` file.
+
+Attestation counts describe the tokens stored in exported files. Their usage outside the CLI is untracked, so these counts do not mean the tokens are unused or accepted by a verifier. AATs have no embedded expiry. Inspection does not create a managed pool or consume tokens.
+
+An empty store returns an empty list. `list` reports malformed or unreadable artifacts in `errors` while retaining valid entries; the attestation total counts only successfully read files. `show` exits with an error for a missing, malformed, unsupported, or unreadable artifact. Symlink artifacts and directories are rejected.
 
 ### Spend request lifecycle
 
