@@ -138,7 +138,7 @@ Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENT
 - Token artifacts are written with mode 0600 to uniquely named files in `~/.link-cli/attestations`; the directory uses mode 0700. Command output contains the artifact path and non-secret metadata, not raw tokens.
 - Server-side max batch is 100. Issuance does not require an additional OAuth scope.
 - Auth: standard CLI authentication (`LINK_ACCESS_TOKEN` or stored credentials).
-- Unlisted local inspection: `identity attestations list` reports saved batch paths, issuer/key identifiers, per-file and total `stored_token_count`, and per-file `errors`. `identity attestations show --file <path-or-filename>` reads one JSON batch in `~/.link-cli/attestations`. Counts describe stored tokens; external usage is untracked. Both commands work without auth or API calls, print metadata in terminals and structured output (`outputPolicy: 'all'`), and preserve the feature gate and MCP exclusion. Read schemas live beside inspection logic in `inspect.ts`; shared file reading lives in `identity/artifact-reader.ts`.
+- Unlisted local inspection: `identity attestations list` reports saved batch paths, issuer/key identifiers, per-file and total `stored_token_count`, and per-file `errors`. It reads JSON batches in `~/.link-cli/attestations`. Counts describe stored tokens; external usage is untracked. The command works without auth or API calls, prints metadata in terminals and structured output (`outputPolicy: 'all'`), and preserves the feature gate and MCP exclusion. Read schemas live beside inspection logic in `inspect.ts`; shared file reading lives in `identity/artifact-reader.ts`.
 
 ### report command
 
@@ -156,7 +156,7 @@ Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENT
 - `POST <credential_endpoint>` sends `{"cnf":{"jwk":<public JWK>}}`.
 - Issuance uses the Ed25519 holder key at `~/.link/holder-key.jwk` (mode 0600).
 - The issued `cnf.jwk` is checked against the requested public key before returning the credential artifact.
-- Unlisted local inspection: `identity credentials list` and `identity credentials show` inspect `~/.link-cli/credentials/current.json` for its path, issuer, cached expiry/`expired` status, holder-key path/thumbprint, and claim names. They never open the private key or print credential bytes or claim values. Both commands work without auth or API calls, use `outputPolicy: 'all'`, and preserve the feature gate and MCP exclusion. Inspection validates saved metadata without verifying signatures or scoping files to the active account.
+- Unlisted local inspection: `identity credentials list` inspects `~/.link-cli/credentials/current.json` for its path, issuer, cached expiry/`expired` status, holder-key path/thumbprint, and claim names. It never opens the private key or prints credential bytes or claim values. The command works without auth or API calls, uses `outputPolicy: 'all'`, and preserves the feature gate and MCP exclusion. Inspection validates saved metadata without verifying signatures or scoping files to the active account.
 
 ### serve command
 
