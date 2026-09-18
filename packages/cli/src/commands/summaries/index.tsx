@@ -12,7 +12,8 @@ export function createSummariesCli(
   envAccessToken?: string,
 ) {
   const cli = Cli.create('summaries', {
-    description: 'Summaries and aggregations of financial data from Link and external accounts',
+    description:
+      'Summaries and aggregations of financial data from Link and external accounts',
   });
   cli.command('list', {
     description:
