@@ -156,7 +156,9 @@ Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENT
 - Issuance uses the Ed25519 holder key at `~/.link/holder-key.jwk` (mode 0600).
 - The issued `cnf.jwk` is checked against the requested public key before returning the credential artifact.
 
-### local identity inspection
+### local identity inspection (unlisted)
+
+Unlisted: all four `list` and `show` commands are omitted from `--help` and `--llms` unless `LINK_IDENTITY_COMMANDS=1` (or `true`). They set `mcp: false` and remain excluded from MCP even when enabled, matching the other identity commands.
 
 - `identity credentials list` and `identity credentials show` inspect the saved `~/.link-cli/credentials/current.json`. Output includes the artifact path, issuer, cached expiry and calculated `expired` status, holder-key path/thumbprint, and claim names. They never open the private-key file or print credential bytes or claim values.
 - `identity attestations list` reads JSON batches in `~/.link-cli/attestations`. `identity attestations show --file <path-or-filename>` inspects a single file in that directory. `stored_token_count` counts exported tokens in readable files, not unused tokens; external usage is untracked and AATs have no embedded expiry.

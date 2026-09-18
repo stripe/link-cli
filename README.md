@@ -266,7 +266,7 @@ LINK_IDENTITY_COMMANDS=1 link-cli identity credentials request
 
 `identity credentials request` returns a signed credential bound to the CLI-managed holder key at `~/.link/holder-key.jwk`.
 
-Inspect saved identity artifacts before requesting more:
+**Unlisted local inspection:** set `LINK_IDENTITY_COMMANDS=1` to use `list` and `show`. These commands are hidden from default `--help` and `--llms` output and remain excluded from MCP even when enabled. Use them to inspect saved identity artifacts before requesting more:
 
 ```bash
 LINK_IDENTITY_COMMANDS=1 link-cli identity credentials list --format json
