@@ -2,7 +2,7 @@
 version: 0.15.1
 name: financial-insights
 description: |
-  Reads a user's Link financial data — summaries, transactions, balances, and wallet sources — so agents can answer questions about spending, available source capabilities, and consumer preferences such as favorite brands, restaurants, and local stores. Use when the user says "check my balance", "how much did I spend", "show my transactions", "what accounts are connected", "summarize my spending", "recent purchases", "where do I usually shop", or asks about their financial activity, account balances, preferences, or linked sources. It can also be a source of data about shopping preferences when determining where to go to satisfy a request to make a purchase.
+  Reads Link financial data to answer questions about spending, balances, transactions, linked sources, and shopping preferences. Also use alongside a purchase skill when acting as a personal shopper and the user has not specified a merchant, or asks for their usual, favorite, or preferred store.
 allowed-tools:
  - Bash(link-cli:*)
  - Bash(npx --yes @stripe/link-cli:*)
@@ -64,9 +64,16 @@ Use the minimum required source actions:
 - Transactions processed through Link: `read_link_transactions`
 - Transactions imported from bank connections: `read_external_transactions`
 - Account balances: `read_balances`
-- Data source details and descriptions: `read_source_details`
+- Data source details and descriptions: `read_source_details`. This action is broadly useful, for example if you will ever need to tie a transaction or balance to a particular account name.
 
 If the user asks a question that requires multiple data types, request all relevant actions together.
+
+When this skill is used alongside a purchase workflow, determine all required
+Link capabilities before authenticating and request them in one login. For
+preference-based merchant selection with `summaries list`, request both
+`read_link_transactions` and `read_external_transactions`. If a payment session
+already exists, use `auth upgrade` for only the missing actions; do not start a
+second login.
 
 Example for a new login that needs all financial data types:
 
@@ -108,10 +115,17 @@ Use the smallest command set that answers the user’s question.
 | Current available balance, account balance, cash position | `link-cli balances list` |
 | Connected accounts, cards, banks, wallet sources, source metadata | `link-cli sources list` |
 
+| Operation | Required source actions |
+|---|---|
+| `summaries list` for merchant preferences | `read_link_transactions`, `read_external_transactions` |
+
 Examples:
 
 - “What brands and restaurants do I prefer?” → Use summaries only.
 - "Order flowers from my flower shop" → Use summaries only to identify most frequently used business rather than transactions.
+- "Order flour from Costco" → Respect the named merchant; do not use this skill.
+- "Order some bulk flour" from a personal shopper → Use summaries before choosing a merchant.
+- "Order from my usual baking supplier" → Use summaries to identify the observed preference.
 - “How much did I spend on restaurants last month?” → Use transactions only.
 - “What is my current checking account balance?” → Use balances only.
 - “Which accounts are connected?” → Use sources only.
