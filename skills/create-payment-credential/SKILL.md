@@ -105,6 +105,11 @@ Examples:
 - "Order from my usual baking supplier" -> use summaries to identify the
   observed preference.
 
+Note that Financial Insights may not be available in the user's country, the user may
+not have any accounts to share, or the user may choose not to share their accounts. 
+If this becomes evident post authentication, proceed without attempting to use Financial
+Insights commands.
+
 ### Step 1: Authenticate with Link for the whole task
 
 Before starting authentication, identify all Link capabilities needed for the
