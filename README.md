@@ -206,6 +206,81 @@ Link is already integrated with the following agents:
 - [Instinct](https://instinct.com)
 - [Browser Use](https://browser-use.com/)
 
+## Financial Insights
+
+Link CLI can also read a consumer's financial data -- transactions, balances, connected account details, and summarized/aggregated financial data. Agents can use these features to understand user preferences for making smarter purchasing decisions, answer personal finance questions, and track trends. Financial Insights are powered by [Financial Connections](https://stripe.com/financial-connections), covering 12,000+ US financial institutions.
+
+
+### Authentication
+Financial Insights requires additional authorization beyond the default; request access to each type of data you want to access on financial data sources:
+
+```bash
+link-cli auth login \
+  --client-name "My Agent" \
+  --scope "userinfo:read" \
+  --source-actions read_link_transactions \
+  --source-actions read_external_transactions \
+  --source-actions read_balances \
+  --source-actions read_source_details
+```
+If already authenticated for payments, use `auth upgrade` to add financial data access without dropping existing scopes.
+
+#### List sources
+
+```bash
+link-cli sources list
+```
+
+Returns connected financial accounts (bank accounts, credit cards, etc.) with metadata, capabilities, and connection status. Use the `id` field as `--source` in other commands.
+
+#### List transactions
+
+```bash
+link-cli transactions list
+```
+
+Supports server-side filtering:
+
+```bash
+link-cli transactions list --start-date 2026-01-01 --end-date 2026-01-31
+link-cli transactions list --category groceries
+link-cli transactions list --origin external_connection
+link-cli transactions list --source <source_id>
+```
+
+| Flag | Description |
+| ---- | ---- |
+| `--start-date` | Only transactions on or after this date (YYYY-MM-DD) |
+| `--end-date` | Only transactions on or before this date (YYYY-MM-DD) |
+| `--category` | Filter by transaction category |
+| `--origin` | `link` (Link-native) or `external_connection` (from linked bank/card) |
+| `--source` | Filter by source ID (repeatable for multiple accounts) |
+| `--limit` | Max results per page (1–100) |
+
+Amounts are integers in the currency's smallest unit. Negative = money leaving the account, positive = money entering. Transactions may be Link-native (processed directly through Link), or sourced through an external connection (e.g. imported from transactions that would appear on a bank statement).
+
+#### Agent integration
+
+The financial-insights skill teaches agents which command to run for each question type, how to handle pagination, interpret amounts, and summarize results. See skills/financial-insights/SKILL.md for the full agent guide.
+
+
+#### List balances
+
+```bash
+link-cli balances list
+link-cli balances list --source <source_id>
+```
+
+Returns current balances for connected accounts, including `cash.available` (bank/savings) or `credit.used` (credit cards).
+
+#### List summaries
+
+```bash
+link-cli summaries list
+link-cli summaries list --summary <summary_id_1> --summary <summary_id_2>
+```
+
+Returns a list of aggregated summaries based on available financial data, for example top brands over the last 6 months. Use this to quickly and token-efficiently extract insights and user preferences from financial data. Add the repeatable `--summary` flag to filter results to a specific set of summaries.
 
 ## Advanced
 
