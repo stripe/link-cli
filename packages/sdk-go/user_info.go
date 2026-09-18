@@ -20,6 +20,7 @@ func (r *UserInfoResource) Retrieve(ctx context.Context) (*UserInfo, error) {
 		return nil, newAPIError("retrieve user info", response.status, response.data, response.rawBody)
 	}
 	var wire struct {
+		ID                     *string                             `json:"id"`
 		Email                  *string                             `json:"email"`
 		Name                   *string                             `json:"name"`
 		FirstName              *string                             `json:"first_name"`
@@ -32,6 +33,7 @@ func (r *UserInfoResource) Retrieve(ctx context.Context) (*UserInfo, error) {
 		return nil, err
 	}
 	return &UserInfo{
+		ID:                                 wire.ID,
 		Email:                              wire.Email,
 		Name:                               wire.Name,
 		FirstName:                          wire.FirstName,
