@@ -55,7 +55,7 @@ it('lists empty stores without creating files', async () => {
   });
   expect(await listAttestations()).toMatchObject({
     attestations: [],
-    stored_token_count: 0,
+    total_token_count: 0,
     errors: [],
   });
   expect(await fs.readdir(directory)).toEqual([]);
@@ -103,7 +103,7 @@ it('lists all saved batches in filename order with per-file and total stored cou
     first,
     second,
   ]);
-  expect(result.stored_token_count).toBe(3);
+  expect(result.total_token_count).toBe(3);
   expect(result.errors).toEqual([]);
   expect(result.note).toContain('not tracked');
   expect(result.attestations[1]).toEqual({
@@ -111,7 +111,6 @@ it('lists all saved batches in filename order with per-file and total stored cou
     issuer: attestation.issuer,
     token_key_id: attestation.token_key_id,
     stored_token_count: 2,
-    usage: 'untracked',
   });
   expect(JSON.stringify(result)).not.toContain('secret');
   expect(JSON.parse(await fs.readFile(second, 'utf8'))).toEqual(attestation);
@@ -123,7 +122,7 @@ it('reports a corrupt batch without hiding valid batches or quoting token conten
   await fs.writeFile(broken, 'secret-token-invalid-json');
   const result = await listAttestations();
   expect(result.attestations).toHaveLength(1);
-  expect(result.stored_token_count).toBe(2);
+  expect(result.total_token_count).toBe(2);
   expect(result.errors).toEqual([
     {
       output_file: broken,
@@ -142,7 +141,7 @@ it.each([
   const file = await save('attestations', 'invalid.json', artifact);
   expect(await listAttestations()).toMatchObject({
     attestations: [],
-    stored_token_count: 0,
+    total_token_count: 0,
     errors: [{ output_file: file, code: 'INVALID_INPUT' }],
   });
 });
