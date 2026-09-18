@@ -294,6 +294,17 @@ type BankAccountDetails struct {
 	BankName *string `json:"bank_name,omitempty"`
 }
 
+// PaymentMethodBalanceAmount contains a balance in minor currency units.
+type PaymentMethodBalanceAmount struct {
+	Amount   int64  `json:"amount"`
+	Currency string `json:"currency"`
+}
+
+// PaymentMethodBalanceDetails contains the available Link balance.
+type PaymentMethodBalanceDetails struct {
+	AvailableBalance PaymentMethodBalanceAmount `json:"available_balance"`
+}
+
 // AgentWalletVerificationStatus identifies the user's verification state.
 type AgentWalletVerificationStatus string
 
@@ -356,6 +367,7 @@ type PaymentMethod struct {
 	Nickname           *string                      `json:"nickname,omitempty"`
 	CardDetails        *CardDetails                 `json:"card_details,omitempty"`
 	BankAccountDetails *BankAccountDetails          `json:"bank_account_details,omitempty"`
+	BalanceDetails     *PaymentMethodBalanceDetails `json:"balance_details,omitempty"`
 	Capabilities       map[string]ProductCapability `json:"capabilities,omitempty"`
 }
 

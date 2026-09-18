@@ -138,6 +138,17 @@ In addition to identity fields, the response can include spend limits and verifi
 
 Finite spend-limit values are cents because this response does not include a currency. A null limit or remaining amount means unlimited. The verification requirement's action_url is null when no action is available.
 
+### Retrieve spending policy
+
+Retrieve the rules that govern spend requests for the current app and user:
+
+```bash
+link-cli spending-policy retrieve --format json
+```
+
+Each rule includes an action and can include an approval type, a per-purchase
+limit, and an ordered list of allowed payment method IDs.
+
 ### List payment methods
 
 ```bash
@@ -145,6 +156,17 @@ link-cli payment-methods list
 ```
 
 Returns the cards and bank accounts saved to your Link account. Use the `id` field as `payment_method_id` in the next step. If you have no payment methods, [add new ones in Link](https://app.link.com/wallet).
+
+The list can also include a Link balance payment method with its available
+balance when that amount is available.
+
+Retrieve one payment method by ID:
+
+```bash
+link-cli payment-methods retrieve <payment-method-id>
+```
+
+The response has the same redacted fields as the matching list item, including capability eligibility and balance details when applicable.
 
 ### List shipping addresses
 

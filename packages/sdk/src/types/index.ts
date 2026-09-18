@@ -174,7 +174,14 @@ export interface CardDetails {
 
 export interface BankAccountDetails {
   last4: string;
-  bank_name?: string;
+  bank_name?: string | null;
+}
+
+export interface PaymentMethodBalanceDetails {
+  available_balance?: {
+    amount: number;
+    currency: string;
+  };
 }
 
 export type AgentWalletVerificationStatus =
@@ -215,6 +222,35 @@ export interface UserInfo {
   agent_wallet_verification_requirement?: AgentWalletVerificationRequirement;
 }
 
+/** Known actions, while remaining forward-compatible with new API values. */
+export type SpendingPolicyAction = 'allow' | (string & Record<never, never>);
+
+/** Known approval types, while remaining forward-compatible with new API values. */
+export type SpendingPolicyApprovalType =
+  | 'manual'
+  | 'automatic'
+  | (string & Record<never, never>);
+
+export interface SpendingPolicyAmount {
+  amount: number;
+  currency: string;
+}
+
+export interface SpendingPolicyLimits {
+  per_purchase: SpendingPolicyAmount;
+}
+
+export interface SpendingPolicyRule {
+  action: SpendingPolicyAction;
+  approval_type?: SpendingPolicyApprovalType;
+  limits?: SpendingPolicyLimits;
+  allowed_payment_methods?: string[];
+}
+
+export interface SpendingPolicy {
+  rules: SpendingPolicyRule[];
+}
+
 export interface ProductCapability {
   eligible: boolean;
   ineligibility_reasons: string[];
@@ -226,9 +262,10 @@ export interface PaymentMethod {
   is_default: boolean;
   name: string;
   nickname?: string;
-  card_details?: CardDetails;
-  bank_account_details?: BankAccountDetails;
-  capabilities?: Record<string, ProductCapability>;
+  card_details?: CardDetails | null;
+  bank_account_details?: BankAccountDetails | null;
+  balance_details?: PaymentMethodBalanceDetails | null;
+  capabilities?: Record<string, ProductCapability> | null;
 }
 
 export interface ShippingAddress {

@@ -149,6 +149,12 @@ Link will automatically use the default payment method on the account. If the us
 link-cli payment-methods list
 ```
 
+To refresh the details and eligibility of a selected payment method, retrieve it by ID:
+
+```bash
+link-cli payment-methods retrieve <payment-method-id>
+```
+
 If the merchant checkout requires a shipping or delivery address, fetch the user's saved shipping addresses. Use the default address unless the user specifies otherwise.
 
 ```bash

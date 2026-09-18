@@ -12,6 +12,7 @@ import { createServeCli } from './commands/serve';
 import { createShippingAddressCli } from './commands/shipping-address';
 import { createSourcesCli } from './commands/sources';
 import { createSpendRequestCli } from './commands/spend-request';
+import { createSpendingPolicyCli } from './commands/spending-policy';
 import { createTransactionsCli } from './commands/transactions';
 import { createUserInfoCli } from './commands/user-info';
 import { createWebBotAuthCli } from './commands/web-bot-auth';
@@ -127,6 +128,13 @@ cli.command(
 cli.command(
   createUserInfoCli(
     () => factory.createUserInfoResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+cli.command(
+  createSpendingPolicyCli(
+    () => factory.createSpendingPolicyResource(),
     authStorage,
     envAccessToken,
   ),

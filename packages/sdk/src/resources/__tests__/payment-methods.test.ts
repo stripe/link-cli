@@ -68,6 +68,106 @@ describe('PaymentMethodsResource', () => {
     ]);
   });
 
+  it('lists Link balance details when available', async () => {
+    mockFetchResponse(200, {
+      payment_details: [
+        {
+          id: 'csmrpd_balance',
+          type: 'BALANCE',
+          is_default: false,
+          name: 'Link balance',
+          card_details: null,
+          bank_account_details: null,
+          balance_details: {
+            available_balance: { amount: 1250, currency: 'usd' },
+          },
+        },
+      ],
+      unavailable_count: 0,
+    });
+
+    await expect(repo.list()).resolves.toEqual([
+      {
+        id: 'csmrpd_balance',
+        type: 'BALANCE',
+        is_default: false,
+        name: 'Link balance',
+        card_details: null,
+        bank_account_details: null,
+        balance_details: {
+          available_balance: { amount: 1250, currency: 'usd' },
+        },
+      },
+    ]);
+  });
+
+  it('preserves balance details when the available balance is unknown', async () => {
+    mockFetchResponse(200, {
+      payment_details: [
+        {
+          id: 'csmrpd_balance',
+          type: 'BALANCE',
+          is_default: false,
+          name: 'Link balance',
+          balance_details: {},
+        },
+      ],
+      unavailable_count: 0,
+    });
+
+    const result = await repo.list();
+
+    expect(result[0]?.balance_details).toEqual({});
+  });
+
+  it('retrieves a payment method from the expected endpoint', async () => {
+    mockFetchResponse(200, {
+      id: 'pd_123',
+      type: 'BALANCE',
+      is_default: true,
+      name: 'Link balance',
+      balance_details: {
+        available_balance: { amount: 1250, currency: 'usd' },
+      },
+    });
+
+    const result = await repo.retrieve('pd_123');
+
+    expect(mockFetch).toHaveBeenCalledOnce();
+    const [url, opts] = mockFetch.mock.calls[0]!;
+    expect(url).toBe('https://api.link.com/payment-details/pd_123');
+    expect(opts.method).toBe('GET');
+    expect(result).toEqual({
+      id: 'pd_123',
+      type: 'BALANCE',
+      is_default: true,
+      name: 'Link balance',
+      balance_details: {
+        available_balance: { amount: 1250, currency: 'usd' },
+      },
+    });
+  });
+
+  it('returns null when a payment method is not found', async () => {
+    mockFetchResponse(404, {
+      error: { message: 'Payment details not found' },
+    });
+
+    await expect(repo.retrieve('pd_missing')).resolves.toBeNull();
+  });
+
+  it('encodes the payment method ID in the retrieve path', async () => {
+    mockFetchResponse(404, {
+      error: { message: 'Payment details not found' },
+    });
+
+    await repo.retrieve('pd/../other');
+
+    expect(mockFetch.mock.calls[0]![0]).toBe(
+      'https://api.link.com/payment-details/pd%2F..%2Fother',
+    );
+  });
+
   it('refreshes the token and retries once on 401', async () => {
     mockFetch
       .mockResolvedValueOnce({
