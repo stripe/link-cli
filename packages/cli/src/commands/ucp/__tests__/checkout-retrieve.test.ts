@@ -47,7 +47,14 @@ async function retrieve(
     let output = '';
     const exit = vi.fn();
     await cli.serve(
-      ['checkout', 'retrieve', 'dcs_1', '--spend-request-id', 'lsrq_1', ...flags],
+      [
+        'checkout',
+        'retrieve',
+        'dcs_1',
+        '--spend-request-id',
+        'lsrq_1',
+        ...flags,
+      ],
       {
         stdout: (chunk) => {
           output += chunk;
@@ -94,10 +101,11 @@ describe('ucp checkout retrieve output', () => {
   it.each([true, false])(
     'preserves the full JSON response (TTY: %s)',
     async (tty) => {
-      const output = await retrieve(vi.fn(async () => checkout), tty, [
-        '--format',
-        'json',
-      ]);
+      const output = await retrieve(
+        vi.fn(async () => checkout),
+        tty,
+        ['--format', 'json'],
+      );
 
       expect(JSON.parse(output)).toEqual(checkout);
     },
