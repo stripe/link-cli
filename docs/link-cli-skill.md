@@ -12,7 +12,7 @@ Set up and authenticate Link CLI for the user's intended use case. After setup, 
 Infer the use case only when the user's intent is explicit:
 
 - **Agent payments**: buying, paying, checking out, or obtaining a payment credential.
-- **Financial insights**: reading transactions, balances, connected accounts, or spending patterns.
+- **Financial insights**: reading summaries, transactions, balances, connected accounts, spending patterns, or consumer preferences such as favorite brands, restaurants, and local stores.
 - **Both**: enabling payments and financial insights.
 
 If the intended use case is unclear, present **Both** first and explicitly recommend it as the default before installing, authenticating, or choosing permissions:
@@ -115,5 +115,5 @@ If approval is denied, expires, or times out, report that outcome. Do not repeat
 Authentication alone does not authorize an individual purchase and does not answer a financial-data question.
 
 - For purchases and payment credentials, use the `create-payment-credential` skill.
-- For transactions, balances, sources, and summaries, use the `financial-insights` skill.
+- For summaries, transactions, balances, and sources, use the `financial-insights` skill. Its `summaries list` guidance explains how agents can retrieve precomputed financial insights about consumer preferences.
 - For users who selected both, load the relevant downstream skill for each subsequent task.
