@@ -4,7 +4,7 @@ import path from 'node:path';
 import Conf from 'conf';
 import type { IdentityCredentialIssueResult } from './issue';
 
-function getOutputDirectory(): string {
+export function getOutputDirectory(): string {
   return path.join(os.homedir(), '.link-cli', 'credentials');
 }
 

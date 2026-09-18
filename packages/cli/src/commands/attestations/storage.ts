@@ -5,7 +5,7 @@ import path from 'node:path';
 import { writeCredentialFile } from '../../utils/credential-output';
 import type { AttestationExport } from './export';
 
-function getOutputDirectory(): string {
+export function getOutputDirectory(): string {
   return path.join(os.homedir(), '.link-cli', 'attestations');
 }
 

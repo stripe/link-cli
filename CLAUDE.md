@@ -156,6 +156,13 @@ Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENT
 - Issuance uses the Ed25519 holder key at `~/.link/holder-key.jwk` (mode 0600).
 - The issued `cnf.jwk` is checked against the requested public key before returning the credential artifact.
 
+### local identity inspection
+
+- `identity credentials list` and `identity credentials show` inspect the saved `~/.link-cli/credentials/current.json`. Output includes the artifact path, issuer, cached expiry and calculated `expired` status, holder-key path/thumbprint, and claim names. They never open the private-key file or print credential bytes or claim values.
+- `identity attestations list` reads JSON batches in `~/.link-cli/attestations`. `identity attestations show --file <path-or-filename>` inspects a single file in that directory. `stored_token_count` counts exported tokens in readable files, not unused tokens; external usage is untracked and AATs have no embedded expiry.
+- All four commands are local, read-only, and require no authentication or API resource. They retain the identity feature gate and `mcp: false`, and use `outputPolicy: 'all'` so default terminal invocations show metadata. They do not change issuance, storage layout, or token ownership.
+- Read schemas live in each resource's `schema.ts`; shared safe file reading and errors live in `commands/identity/artifact-reader.ts`. `list` returns per-file `errors` alongside valid entries; `show` returns a CLI error for unreadable or invalid input. Inspection validates the artifact shape, not cryptographic validity, and does not scope files to the active Link account.
+
 ### serve command
 
 - `serve [--port <n>] [--host <host>]` — HTTP server that exposes the CLI's MCP endpoint. Implemented in `packages/cli/src/commands/serve/index.ts`. The handler forwards to `rootCli.fetch()` (incur), but is a **privilege boundary**: `requireAuth` only proves the CLI *owner* is authenticated, not that the HTTP caller is authorized.
