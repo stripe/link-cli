@@ -5,11 +5,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { listAttestations, showAttestation } from '../../attestations/inspect';
-import {
-  listIdentityCredentials,
-  showIdentityCredential,
-} from '../../credentials/inspect';
+import { listAttestations } from '../../attestations/inspect';
+import { listIdentityCredentials } from '../../credentials/inspect';
 
 let directory: string;
 const credential = {
@@ -51,7 +48,7 @@ async function save(kind: string, name: string, value: unknown) {
   return file;
 }
 
-it('lists empty stores without creating files and reports a missing current credential', async () => {
+it('lists empty stores without creating files', async () => {
   expect(await listIdentityCredentials()).toEqual({
     credentials: [],
     errors: [],
@@ -61,29 +58,25 @@ it('lists empty stores without creating files and reports a missing current cred
     stored_token_count: 0,
     errors: [],
   });
-  await expect(showIdentityCredential()).rejects.toMatchObject({
-    code: 'ENOENT',
-  });
   expect(await fs.readdir(directory)).toEqual([]);
 });
 
-it('shows expired metadata without reading the holder key, printing secrets, or changing the cache', async () => {
+it('lists expired metadata without reading the holder key, printing secrets, or changing the cache', async () => {
   const file = await save('credentials', 'current.json', credential);
   const before = await fs.readFile(file);
   const stat = await fs.stat(file);
-  const result = await showIdentityCredential();
-  expect(result).toEqual({
-    output_file: file,
-    issuer: credential.issuer,
-    expires_at: credential.expires_at,
-    expired: true,
-    holder: credential.holder,
-    claim_names: ['email', 'given_name'],
-  });
-  expect(await listIdentityCredentials()).toEqual({
-    credentials: [result],
-    errors: [],
-  });
+  const result = await listIdentityCredentials();
+  expect(result.errors).toEqual([]);
+  expect(result.credentials).toEqual([
+    {
+      output_file: file,
+      issuer: credential.issuer,
+      expires_at: credential.expires_at,
+      expired: true,
+      holder: credential.holder,
+      claim_names: ['email', 'given_name'],
+    },
+  ]);
   expect(JSON.stringify(result)).not.toContain('secret');
   expect(await fs.readFile(file)).toEqual(before);
   expect((await fs.stat(file)).mtimeMs).toBe(stat.mtimeMs);
@@ -92,10 +85,12 @@ it('shows expired metadata without reading the holder key, printing secrets, or 
     ...credential,
     expires_at: '2026-09-19T00:00:00Z',
   });
-  expect(await showIdentityCredential()).toMatchObject({ expired: false });
+  expect((await listIdentityCredentials()).credentials[0]).toMatchObject({
+    expired: false,
+  });
 });
 
-it('lists all saved batches in filename order and shows either a filename or returned absolute path', async () => {
+it('lists all saved batches in filename order with per-file and total stored counts', async () => {
   const second = await save('attestations', 'b.json', attestation);
   const first = await save('attestations', 'a.json', {
     ...attestation,
@@ -111,17 +106,13 @@ it('lists all saved batches in filename order and shows either a filename or ret
   expect(result.stored_token_count).toBe(3);
   expect(result.errors).toEqual([]);
   expect(result.note).toContain('not tracked');
-  expect(await showAttestation(second)).toEqual(
-    await showAttestation('b.json'),
-  );
-  const shown = await showAttestation('b.json');
-  expect(shown).toMatchObject({
+  expect(result.attestations[1]).toEqual({
     output_file: second,
+    issuer: attestation.issuer,
+    token_key_id: attestation.token_key_id,
     stored_token_count: 2,
     usage: 'untracked',
   });
-  expect(shown).not.toHaveProperty('expires_at');
-  expect(JSON.stringify(shown)).not.toContain('secret');
   expect(JSON.stringify(result)).not.toContain('secret');
   expect(JSON.parse(await fs.readFile(second, 'utf8'))).toEqual(attestation);
 });
@@ -140,7 +131,6 @@ it('reports a corrupt batch without hiding valid batches or quoting token conten
       message: `Invalid JSON in ${broken}.`,
     },
   ]);
-  await expect(showAttestation(broken)).rejects.toThrow('Invalid JSON');
   expect(JSON.stringify(result)).not.toContain('secret-token');
 });
 
@@ -150,7 +140,11 @@ it.each([
   { ...attestation, tokens: ['secret-token'] },
 ])('rejects invalid or unsupported attestation artifacts', async (artifact) => {
   const file = await save('attestations', 'invalid.json', artifact);
-  await expect(showAttestation(file)).rejects.toThrow('Invalid or unsupported');
+  expect(await listAttestations()).toMatchObject({
+    attestations: [],
+    stored_token_count: 0,
+    errors: [{ output_file: file, code: 'INVALID_INPUT' }],
+  });
 });
 
 it('reports invalid credential metadata without replacing it or exposing claim values', async () => {
@@ -162,28 +156,16 @@ it('reports invalid credential metadata without replacing it or exposing claim v
     credentials: [],
     errors: [{ output_file: file, code: 'INVALID_INPUT' }],
   });
-  await expect(showIdentityCredential()).rejects.toThrow(
-    'Invalid or unsupported',
-  );
   expect(JSON.parse(await fs.readFile(file, 'utf8')).expires_at).toBe(
     'yesterday',
   );
 });
 
-it('rejects symlink files, directories, and paths outside the attestation store', async () => {
+it('rejects symlink files and directories in the attestation store', async () => {
   const file = await save('attestations', 'valid.json', attestation);
   await fs.symlink(file, path.join(path.dirname(file), 'symlink.json'));
   await fs.mkdir(path.join(path.dirname(file), 'directory.json'));
   expect((await listAttestations()).errors).toHaveLength(2);
-  await expect(showAttestation('symlink.json')).rejects.toThrow(
-    'symbolic link',
-  );
-  await expect(showAttestation('../credentials/current.json')).rejects.toThrow(
-    'Use a JSON file path',
-  );
-  await expect(showAttestation('/tmp/unrelated.json')).rejects.toThrow(
-    'Use a JSON file path',
-  );
   await fs.rename(path.dirname(file), path.join(directory, 'moved'));
   await fs.symlink(path.join(directory, 'moved'), path.dirname(file));
   await expect(listAttestations()).rejects.toThrow('symbolic link');
@@ -194,23 +176,9 @@ it('sanitizes control sequences in displayed local metadata', async () => {
     ...credential,
     holder: { ...credential.holder, thumbprint: '\u001b[31mred\u001b[0m' },
   });
-  expect((await showIdentityCredential()).holder.thumbprint).toBe('red');
-});
-
-it('shows known files in execute-only directories without enumerating the stores', async () => {
-  const files = [
-    await save('credentials', 'current.json', credential),
-    await save('attestations', 'batch.json', attestation),
-  ];
-  const readdir = vi.spyOn(fs, 'readdir');
-  try {
-    for (const file of files) await fs.chmod(path.dirname(file), 0o100);
-    expect((await showIdentityCredential()).output_file).toBe(files[0]);
-    expect((await showAttestation('batch.json')).output_file).toBe(files[1]);
-    expect(readdir).not.toHaveBeenCalled();
-  } finally {
-    for (const file of files) await fs.chmod(path.dirname(file), 0o700);
-  }
+  expect(
+    (await listIdentityCredentials()).credentials[0]?.holder.thumbprint,
+  ).toBe('red');
 });
 
 it('runs the built commands without auth or network, preserves envelopes, and requires the identity flag', async () => {
@@ -243,9 +211,7 @@ it('runs the built commands without auth or network, preserves envelopes, and re
   ];
   for (const args of [
     ['credentials', 'list'],
-    ['credentials', 'show'],
     ['attestations', 'list'],
-    ['attestations', 'show', '--file', 'batch.json'],
   ]) {
     const { stdout } = await promisify(execFile)(
       process.execPath,

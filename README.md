@@ -360,14 +360,12 @@ LINK_IDENTITY_COMMANDS=1 link-cli identity credentials request
 
 ```bash
 LINK_IDENTITY_COMMANDS=1 link-cli identity credentials list --format json
-LINK_IDENTITY_COMMANDS=1 link-cli identity credentials show --format json
 LINK_IDENTITY_COMMANDS=1 link-cli identity attestations list --format json
-LINK_IDENTITY_COMMANDS=1 link-cli identity attestations show --file /path/from/list.json --format json
 ```
 
 These commands inspect local files without login or Link API calls and display metadata in both terminal and structured output. Credential inspection reports the saved `~/.link-cli/credentials/current.json` path, issuer, cached expiry/`expired` status, holder-key path/thumbprint, and claim names. Private keys are never opened; credentials, tokens, and claim values are never printed. Inspection does not modify files, verify signatures, or filter artifacts by the active account.
 
-Attestation inspection reports paths, issuer/key identifiers, and `stored_token_count` for JSON batches in `~/.link-cli/attestations`. `show --file` accepts a returned absolute path or filename. Counts describe stored tokens; external usage is untracked and AATs have no embedded expiry. Empty stores return empty lists. Lists include per-file `errors` alongside valid entries; `show` fails for missing or invalid files.
+Attestation inspection reports paths, issuer/key identifiers, and `stored_token_count` for JSON batches in `~/.link-cli/attestations`. Counts describe stored tokens; external usage is untracked and AATs have no embedded expiry. Empty stores return empty lists. Lists include per-file `errors` alongside valid entries.
 
 ### Spend request lifecycle
 

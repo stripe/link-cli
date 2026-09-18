@@ -1,4 +1,3 @@
-import path from 'node:path';
 import { z } from 'incur';
 import { sanitizeDeep } from '../../utils/sanitize-text';
 import {
@@ -25,9 +24,6 @@ const savedAttestationSchema = z
   })
   .refine((artifact) => artifact.count === artifact.tokens.length);
 
-const usageNote =
-  'Counts describe stored tokens. Usage outside the CLI is not tracked.';
-
 async function inspectFile(file: string) {
   const artifact = await readArtifact(file, savedAttestationSchema);
   return sanitizeDeep({
@@ -37,17 +33,6 @@ async function inspectFile(file: string) {
     stored_token_count: artifact.tokens.length,
     usage: 'untracked' as const,
   });
-}
-
-export async function showAttestation(file: string) {
-  const directory = getOutputDirectory();
-  const outputFile = path.resolve(directory, file);
-  if (path.dirname(outputFile) !== directory || !outputFile.endsWith('.json')) {
-    throw new Error(
-      'Use a JSON file path or filename from identity attestations list.',
-    );
-  }
-  return { ...(await inspectFile(outputFile)), note: usageNote };
 }
 
 export async function listAttestations() {
@@ -70,6 +55,6 @@ export async function listAttestations() {
       0,
     ),
     errors,
-    note: usageNote,
+    note: 'Counts describe stored tokens. Usage outside the CLI is not tracked.',
   };
 }

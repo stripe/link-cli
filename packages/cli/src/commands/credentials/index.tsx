@@ -4,9 +4,8 @@ import {
 } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import { renderInteractive } from '../../utils/render-interactive';
-import { inspectionError } from '../identity/artifact-reader';
 import { SavedArtifact } from '../identity/saved-artifact';
-import { listIdentityCredentials, showIdentityCredential } from './inspect';
+import { listIdentityCredentials } from './inspect';
 import { issueIdentityCredential } from './issue';
 import { writeIdentityCredentialArtifact } from './storage';
 
@@ -24,20 +23,6 @@ export function createIdentityCredentialsCli(
     outputPolicy: 'all' as const,
     async run() {
       return listIdentityCredentials();
-    },
-  });
-
-  cli.command('show', {
-    description:
-      'Show the current saved credential path, expiry, holder-key path, and claim names. Does not print the credential, private key, or claim values.',
-    mcp: false,
-    outputPolicy: 'all' as const,
-    async run(c) {
-      try {
-        return await showIdentityCredential();
-      } catch (error) {
-        return c.error(inspectionError(error));
-      }
     },
   });
 

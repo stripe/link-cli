@@ -17,34 +17,30 @@ const savedCredentialSchema = z.object({
   claims: z.record(z.string(), z.unknown()).optional(),
 });
 
-export async function showIdentityCredential() {
-  const file = path.join(getOutputDirectory(), 'current.json');
-  const artifact = await readArtifact(file, savedCredentialSchema);
-  return sanitizeDeep({
-    output_file: file,
-    issuer: artifact.issuer,
-    expires_at: artifact.expires_at,
-    expired: Date.parse(artifact.expires_at) <= Date.now(),
-    holder: artifact.holder,
-    claim_names: Object.keys(artifact.claims ?? {}).sort(),
-  });
-}
-
 export async function listIdentityCredentials() {
+  const file = path.join(getOutputDirectory(), 'current.json');
   try {
-    return { credentials: [await showIdentityCredential()], errors: [] };
+    const artifact = await readArtifact(file, savedCredentialSchema);
+    return {
+      credentials: [
+        sanitizeDeep({
+          output_file: file,
+          issuer: artifact.issuer,
+          expires_at: artifact.expires_at,
+          expired: Date.parse(artifact.expires_at) <= Date.now(),
+          holder: artifact.holder,
+          claim_names: Object.keys(artifact.claims ?? {}).sort(),
+        }),
+      ],
+      errors: [],
+    };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return { credentials: [], errors: [] };
     }
     return {
       credentials: [],
-      errors: [
-        sanitizeDeep({
-          output_file: path.join(getOutputDirectory(), 'current.json'),
-          ...inspectionError(error),
-        }),
-      ],
+      errors: [sanitizeDeep({ output_file: file, ...inspectionError(error) })],
     };
   }
 }
