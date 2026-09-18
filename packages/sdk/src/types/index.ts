@@ -205,12 +205,23 @@ export interface AgentWalletVerificationRequirement {
   action_url: string | null;
 }
 
+export interface UserInfoAddress {
+  line1: string | null;
+  line2: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  country: string | null;
+}
+
 export interface UserInfo {
   email?: string | null;
   name?: string | null;
   first_name?: string | null;
   last_name?: string | null;
   phone?: string | null;
+  address?: UserInfoAddress | null;
+  eligible_for_balance?: boolean;
   agent_wallet_spend_limits?: AgentWalletSpendLimits;
   agent_wallet_verification_requirement?: AgentWalletVerificationRequirement;
 }

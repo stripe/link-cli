@@ -330,13 +330,25 @@ type AgentWalletVerificationRequirement struct {
 	ActionURL *string                       `json:"action_url"`
 }
 
-// UserInfo contains identity and optional Agent Wallet enrichment fields.
+// UserInfoAddress contains the authenticated Link user's postal address.
+type UserInfoAddress struct {
+	Line1      *string `json:"line1"`
+	Line2      *string `json:"line2"`
+	City       *string `json:"city"`
+	State      *string `json:"state"`
+	PostalCode *string `json:"postal_code"`
+	Country    *string `json:"country"`
+}
+
+// UserInfo contains identity and optional enrichment fields.
 type UserInfo struct {
 	Email                              *string                             `json:"email,omitempty"`
 	Name                               *string                             `json:"name,omitempty"`
 	FirstName                          *string                             `json:"first_name,omitempty"`
 	LastName                           *string                             `json:"last_name,omitempty"`
 	Phone                              *string                             `json:"phone,omitempty"`
+	Address                            *UserInfoAddress                    `json:"address,omitempty"`
+	EligibleForBalance                 *bool                               `json:"eligible_for_balance,omitempty"`
 	AgentWalletSpendLimits             *AgentWalletSpendLimits             `json:"agent_wallet_spend_limits,omitempty"`
 	AgentWalletVerificationRequirement *AgentWalletVerificationRequirement `json:"agent_wallet_verification_requirement,omitempty"`
 }

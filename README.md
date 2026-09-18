@@ -118,12 +118,22 @@ You receive a verification URL and a short phrase. Visit the URL, log in to your
 link-cli user-info retrieve --format json
 ```
 
-In addition to identity fields, the response can include spend limits and verification requirements:
+In addition to identity fields, the response can include the user's address,
+balance eligibility, spend limits, and verification requirements:
 
 ```json
 {
   "email": "jane@example.com",
   "name": "Jane Doe",
+  "address": {
+    "line1": "510 Townsend St",
+    "line2": null,
+    "city": "San Francisco",
+    "state": "CA",
+    "postal_code": "94103",
+    "country": "US"
+  },
+  "eligible_for_balance": true,
   "agent_wallet_spend_limits": {
     "per_transaction": { "limit": 50000 },
     "daily": { "limit": 500000, "used": 120000, "remaining": 380000 },
@@ -136,7 +146,12 @@ In addition to identity fields, the response can include spend limits and verifi
 }
 ```
 
-Finite spend-limit values are cents because this response does not include a currency. A null limit or remaining amount means unlimited. The verification requirement's action_url is null when no action is available.
+The address and `eligible_for_balance` fields are omitted when their enrichment
+is unavailable. `address` is null and `eligible_for_balance` is false when the
+user has no Person record. Finite spend-limit values are cents because this
+response does not include a currency. A null limit or remaining amount means
+unlimited. The verification requirement's action_url is null when no action is
+available.
 
 ### List payment methods
 

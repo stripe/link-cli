@@ -101,9 +101,10 @@ Key input field notes:
 
 ### user-info retrieve
 
-- `user-info retrieve` returns the existing identity fields and can include `agent_wallet_spend_limits` and `agent_wallet_verification_requirement` enrichment.
+- `user-info retrieve` returns the existing identity fields and can include `address`, `eligible_for_balance`, `agent_wallet_spend_limits`, and `agent_wallet_verification_requirement` enrichment.
+- `address` contains nullable `line1`, `line2`, `city`, `state`, `postal_code`, and `country` fields. It is itself `null` when the user has no Person record. `eligible_for_balance` indicates whether balance is available for Agent Wallet usage.
 - Spend limits contain per-transaction, daily, and 30-day values. Finite values are cents because `/userinfo` does not return currency. A `null` limit or remaining amount explicitly means unlimited; `used` remains numeric.
-- Either enrichment object can be omitted independently when enrichment is disabled or unavailable. Do not interpret omission as unlimited or as a default verification status.
+- Enrichment fields can be omitted when enrichment is disabled or unavailable. Do not interpret omission as an empty address, balance ineligibility, unlimited spend, or a default verification status.
 - Verification status is one of `not_required`, `ssn_verification`, `identity_verification`, `contact_support`, or `complete`. `action_url` is nullable and directs the user to the required action when present. This is informational and does not change spend-request or `requires_action` handling.
 
 ### mpp pay

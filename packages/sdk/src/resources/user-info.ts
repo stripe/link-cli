@@ -29,6 +29,15 @@ const agentWalletVerificationRequirementSchema = z.object({
   action_url: z.string().nullable(),
 });
 
+const userInfoAddressSchema = z.object({
+  line1: z.string().nullable(),
+  line2: z.string().nullable(),
+  city: z.string().nullable(),
+  state: z.string().nullable(),
+  postal_code: z.string().nullable(),
+  country: z.string().nullable(),
+});
+
 const userInfoSchema = z
   .looseObject({
     email: z.string().nullable().optional(),
@@ -36,6 +45,8 @@ const userInfoSchema = z
     first_name: z.string().nullable().optional(),
     last_name: z.string().nullable().optional(),
     phone: z.string().nullable().optional(),
+    address: userInfoAddressSchema.nullable().optional(),
+    eligible_for_balance: z.boolean().optional(),
     agent_wallet_spend_limits: agentWalletSpendLimitsSchema.optional(),
     agent_wallet_step_up: agentWalletVerificationRequirementSchema.optional(),
   })
@@ -46,6 +57,8 @@ const userInfoSchema = z
       first_name,
       last_name,
       phone,
+      address,
+      eligible_for_balance,
       agent_wallet_spend_limits,
       agent_wallet_step_up,
     }) => ({
@@ -54,6 +67,8 @@ const userInfoSchema = z
       first_name: first_name ?? null,
       last_name: last_name ?? null,
       phone: phone ?? null,
+      ...(address === undefined ? {} : { address }),
+      ...(eligible_for_balance === undefined ? {} : { eligible_for_balance }),
       ...(agent_wallet_spend_limits === undefined
         ? {}
         : { agent_wallet_spend_limits }),

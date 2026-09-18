@@ -68,7 +68,7 @@ describe('UserInfoResource', () => {
     });
   });
 
-  it('preserves Agent Wallet spend limits and maps the verification requirement', async () => {
+  it('preserves userinfo enrichment and maps the verification requirement', async () => {
     const agentWalletSpendLimits = {
       per_transaction: { limit: 50000 },
       daily: { limit: 500000, used: 120000, remaining: 380000 },
@@ -89,6 +89,15 @@ describe('UserInfoResource', () => {
       first_name: 'Test',
       last_name: 'User',
       phone: '+15551234567',
+      address: {
+        line1: '510 Townsend St',
+        line2: null,
+        city: 'San Francisco',
+        state: 'CA',
+        postal_code: '94103',
+        country: 'US',
+      },
+      eligible_for_balance: false,
       agent_wallet_spend_limits: agentWalletSpendLimits,
       agent_wallet_step_up: agentWalletStepUp,
     });
@@ -101,6 +110,15 @@ describe('UserInfoResource', () => {
       first_name: 'Test',
       last_name: 'User',
       phone: '+15551234567',
+      address: {
+        line1: '510 Townsend St',
+        line2: null,
+        city: 'San Francisco',
+        state: 'CA',
+        postal_code: '94103',
+        country: 'US',
+      },
+      eligible_for_balance: false,
       agent_wallet_spend_limits: agentWalletSpendLimits,
       agent_wallet_verification_requirement: agentWalletStepUp,
     });
@@ -124,6 +142,46 @@ describe('UserInfoResource', () => {
     });
   });
 
+  it('preserves a nullable address and true balance eligibility', async () => {
+    mockFetchResponse(200, {
+      address: {
+        line1: null,
+        line2: null,
+        city: null,
+        state: null,
+        postal_code: null,
+        country: null,
+      },
+      eligible_for_balance: true,
+    });
+
+    const result = await resource.retrieve();
+
+    expect(result.address).toEqual({
+      line1: null,
+      line2: null,
+      city: null,
+      state: null,
+      postal_code: null,
+      country: null,
+    });
+    expect(result.eligible_for_balance).toBe(true);
+  });
+
+  it('preserves a null address with false balance eligibility', async () => {
+    mockFetchResponse(200, {
+      address: null,
+      eligible_for_balance: false,
+    });
+
+    const result = await resource.retrieve();
+
+    expect(result.address).toBeNull();
+    expect(result.eligible_for_balance).toBe(false);
+    expect(result).toHaveProperty('address');
+    expect(result).toHaveProperty('eligible_for_balance');
+  });
+
   it('keeps independently omitted enrichment fields undefined', async () => {
     mockFetchResponse(200, {
       email: 'user@example.com',
@@ -133,11 +191,15 @@ describe('UserInfoResource', () => {
     const result = await resource.retrieve();
 
     expect(result.agent_wallet_spend_limits).toBeUndefined();
+    expect(result.address).toBeUndefined();
+    expect(result.eligible_for_balance).toBeUndefined();
     expect(result.agent_wallet_verification_requirement).toEqual({
       status: 'not_required',
       action_url: null,
     });
     expect(result).not.toHaveProperty('agent_wallet_spend_limits');
+    expect(result).not.toHaveProperty('address');
+    expect(result).not.toHaveProperty('eligible_for_balance');
   });
 
   it('handles null fields gracefully', async () => {
@@ -174,8 +236,12 @@ describe('UserInfoResource', () => {
     });
     expect(result.agent_wallet_spend_limits).toBeUndefined();
     expect(result.agent_wallet_verification_requirement).toBeUndefined();
+    expect(result.address).toBeUndefined();
+    expect(result.eligible_for_balance).toBeUndefined();
     expect(result).not.toHaveProperty('agent_wallet_spend_limits');
     expect(result).not.toHaveProperty('agent_wallet_verification_requirement');
+    expect(result).not.toHaveProperty('address');
+    expect(result).not.toHaveProperty('eligible_for_balance');
   });
 
   it('refreshes the token and retries once on 401', async () => {

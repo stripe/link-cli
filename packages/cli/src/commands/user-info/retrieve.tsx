@@ -56,6 +56,43 @@ export const UserInfoRetrieve: React.FC<UserInfoRetrieveProps> = ({
           <Text dimColor>Phone: </Text>
           {userInfo?.phone ?? <Text dimColor>Not set</Text>}
         </Text>
+        {userInfo?.address && (
+          <Box flexDirection="column" marginTop={1}>
+            <Text bold>Address</Text>
+            <Box flexDirection="column" paddingLeft={2}>
+              <Text>
+                <Text dimColor>Line 1: </Text>
+                {userInfo.address.line1 ?? <Text dimColor>Not set</Text>}
+              </Text>
+              <Text>
+                <Text dimColor>Line 2: </Text>
+                {userInfo.address.line2 ?? <Text dimColor>Not set</Text>}
+              </Text>
+              <Text>
+                <Text dimColor>City: </Text>
+                {userInfo.address.city ?? <Text dimColor>Not set</Text>}
+              </Text>
+              <Text>
+                <Text dimColor>State: </Text>
+                {userInfo.address.state ?? <Text dimColor>Not set</Text>}
+              </Text>
+              <Text>
+                <Text dimColor>Postal code: </Text>
+                {userInfo.address.postal_code ?? <Text dimColor>Not set</Text>}
+              </Text>
+              <Text>
+                <Text dimColor>Country: </Text>
+                {userInfo.address.country ?? <Text dimColor>Not set</Text>}
+              </Text>
+            </Box>
+          </Box>
+        )}
+        {userInfo?.eligible_for_balance !== undefined && (
+          <Text>
+            <Text dimColor>Eligible for balance: </Text>
+            {userInfo.eligible_for_balance ? 'Yes' : 'No'}
+          </Text>
+        )}
         {userInfo?.agent_wallet_spend_limits && (
           <Box flexDirection="column" marginTop={1}>
             <Text bold>Agent Wallet Spend Limits</Text>

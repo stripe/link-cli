@@ -2576,6 +2576,15 @@ describe('production mode', () => {
       setResponseForUrl('/userinfo', 200, {
         email: 'user@example.com',
         name: 'Test User',
+        address: {
+          line1: '510 Townsend St',
+          line2: null,
+          city: 'San Francisco',
+          state: 'CA',
+          postal_code: '94103',
+          country: 'US',
+        },
+        eligible_for_balance: false,
         agent_wallet_spend_limits: {
           per_transaction: { limit: null },
           daily: { limit: 500000, used: 120000, remaining: 380000 },
@@ -2594,6 +2603,15 @@ describe('production mode', () => {
       expect(result.exitCode).toBe(0);
       const output = parseJson(result.stdout) as Record<string, unknown>;
       expect(output.email).toBe('user@example.com');
+      expect(output.address).toEqual({
+        line1: '510 Townsend St',
+        line2: null,
+        city: 'San Francisco',
+        state: 'CA',
+        postal_code: '94103',
+        country: 'US',
+      });
+      expect(output.eligible_for_balance).toBe(false);
       expect(output.agent_wallet_spend_limits).toEqual({
         per_transaction: { limit: null },
         daily: { limit: 500000, used: 120000, remaining: 380000 },
