@@ -1,8 +1,10 @@
 import type { IAttestationsResource } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import { renderInteractive } from '../../utils/render-interactive';
+import { inspectionError } from '../identity/artifact-reader';
 import { SavedArtifact } from '../identity/saved-artifact';
 import { exportAttestationTokens } from './export';
+import { listAttestations } from './inspect';
 import { requestOptions } from './schema';
 import { writeAttestationArtifact } from './storage';
 
@@ -12,6 +14,19 @@ export function createAttestationsCli(
   const cli = Cli.create('attestations', {
     description:
       'A privacy-preserving token that shows Link attests to your agent.',
+  });
+
+  cli.command('list', {
+    description: 'List saved attestation files and stored token counts.',
+    mcp: false,
+    outputPolicy: 'all' as const,
+    async run(c) {
+      try {
+        return await listAttestations();
+      } catch (error) {
+        return c.error(inspectionError(error));
+      }
+    },
   });
 
   cli.command('request', {

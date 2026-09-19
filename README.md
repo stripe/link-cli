@@ -248,7 +248,7 @@ All commands accept `--auth <path>` to store auth credentials in a specific file
 
 ### Identity (experimental)
 
-Unlisted commands: set `LINK_IDENTITY_COMMANDS=1` to enable them. They are omitted from `--help`, `--llms`, and MCP tool lists otherwise.
+Unlisted commands: set `LINK_IDENTITY_COMMANDS=1` to enable them in `--help` and `--llms`. Identity commands remain excluded from MCP even when enabled.
 
 **Privacy-preserving tokens** that show Link attests to your agent:
 
@@ -265,6 +265,17 @@ LINK_IDENTITY_COMMANDS=1 link-cli identity credentials request
 ```
 
 `identity credentials request` returns a signed credential bound to the CLI-managed holder key at `~/.link/holder-key.jwk`.
+
+**Unlisted local inspection** uses the same feature flag and MCP exclusion:
+
+```bash
+LINK_IDENTITY_COMMANDS=1 link-cli identity credentials list --format json
+LINK_IDENTITY_COMMANDS=1 link-cli identity attestations list --format json
+```
+
+These commands inspect local files without login or Link API calls and display metadata in both terminal and structured output. Credential inspection reports the saved `~/.link-cli/credentials/current.json` path, issuer, cached expiry/`expired` status, holder-key path/thumbprint, and claim names. Private keys are never opened; credentials, tokens, and claim values are never printed. Inspection does not modify files, verify signatures, or filter artifacts by the active account.
+
+Attestation inspection reports paths, issuer/key identifiers, per-batch `stored_token_count`, and aggregate `total_token_count` for JSON batches in `~/.link-cli/attestations`. Counts describe stored tokens; external usage is untracked and AATs have no embedded expiry. Empty stores return empty lists. Lists include per-file `errors` alongside valid entries.
 
 ### Spend request lifecycle
 
