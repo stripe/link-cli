@@ -56,11 +56,18 @@ After the user signs in to your app:
 await authClient.link.connect({ callbackURL: '/settings' });
 ```
 
+For server-side usage:
+
+```ts
+await auth.api.connectLink({
+  body: { callbackURL: '/settings' },
+  headers: await headers(),
+});
+```
+
 This starts Better Auth's OAuth linking flow and returns the user to `/settings` after authorization.
 
-`connect` returns `{ data, error }` by default, even if the client uses global
-`throw: true`. Pass `{ throw: true }` as the second argument to receive data
-directly and throw on errors.
+`connect` follows Better Auth's configured client error handling.
 
 ## Disconnect a wallet
 
