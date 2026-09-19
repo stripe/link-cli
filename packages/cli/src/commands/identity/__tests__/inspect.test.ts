@@ -108,6 +108,7 @@ it('lists all saved batches in filename order with per-file and total stored cou
   expect(result.note).toContain('not tracked');
   expect(result.attestations[1]).toEqual({
     output_file: second,
+    storage: 'export',
     issuer: attestation.issuer,
     token_key_id: attestation.token_key_id,
     stored_token_count: 2,

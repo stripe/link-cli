@@ -256,7 +256,23 @@ Unlisted commands: set `LINK_IDENTITY_COMMANDS=1` to enable them in `--help` and
 LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10
 ```
 
-Attestation tokens can be used to respond to attestation challenges presented by downstream services. Token artifacts are written to `~/.link-cli/attestations`.
+Each request adds tokens to the CLI-managed pool at `~/.link-cli/attestations/pool.json`. Take one token when you need to answer an attestation challenge:
+
+```bash
+LINK_IDENTITY_COMMANDS=1 link-cli identity attestations take --format json
+```
+
+`take` removes one token before returning its `token`, ready-to-use `authorization` header, issuer, and issuer-key ID. Pass `authorization` as the `Authorization` header in your browser automation or HTTP client. An empty pool returns `ATTESTATION_POOL_EMPTY`; refill it with `request --count 10`.
+
+For agent-managed tokens, export a batch to a new file outside the CLI storage directory:
+
+```bash
+LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10 --output-file ./aats.json
+```
+
+Exported tokens never enter the CLI pool. The agent owns their consumption and cleanup. Existing exports remain separate and are never automatically imported. Wallet credentials keep their existing storage and behavior.
+
+Pool updates are serialized and saved atomically. A crash after removal can lose a token; `take` never returns it to the pool. If a crash leaves `pool.json.lock`, ensure no attestation commands are running before removing that lock directory.
 
 **User info that has been signed, proving it comes from Link**:
 
@@ -275,7 +291,7 @@ LINK_IDENTITY_COMMANDS=1 link-cli identity attestations list --format json
 
 These commands inspect local files without login or Link API calls and display metadata in both terminal and structured output. Credential inspection reports the saved `~/.link-cli/credentials/current.json` path, issuer, cached expiry/`expired` status, holder-key path/thumbprint, and claim names. Private keys are never opened; credentials, tokens, and claim values are never printed. Inspection does not modify files, verify signatures, or filter artifacts by the active account.
 
-Attestation inspection reports paths, issuer/key identifiers, per-batch `stored_token_count`, and aggregate `total_token_count` for JSON batches in `~/.link-cli/attestations`. Counts describe stored tokens; external usage is untracked and AATs have no embedded expiry. Empty stores return empty lists. Lists include per-file `errors` alongside valid entries.
+Attestation inspection reports paths, issuer/key identifiers, per-batch `stored_token_count`, aggregate `total_token_count`, and `storage` (`pool` or `export`) for JSON batches in `~/.link-cli/attestations`. Counts describe stored tokens; external usage is untracked and AATs have no embedded expiry. Empty stores return empty lists. Lists include per-file `errors` alongside valid entries.
 
 ### Spend request lifecycle
 
