@@ -3,6 +3,7 @@ import type {
   ISpendRequestResource,
 } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
+import { Challenge } from 'mppx';
 import type { CliAuthStorage } from '../../auth/storage';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
@@ -26,6 +27,7 @@ import {
   probeMppRequest,
   readPayResult,
   resolveTempoChallenge,
+  resolveTempoSessionChallenge,
   runMppPayWithSpendRequest,
   runMppProof,
   submitMppProof,
@@ -74,6 +76,14 @@ export function createMppCli(
       const data = opts.data;
       const headers = opts.header?.length ? opts.header : undefined;
 
+      if (opts.session && !localMode && !opts.spendRequestId) {
+        return c.error({
+          code: 'NOT_SUPPORTED',
+          message:
+            '--session is currently available only with LINK_MPP_LOCAL_PRIVY=1.',
+        });
+      }
+
       if (!c.agent && !c.formatExplicit) {
         let capturedResult: PayResult | null = null;
         return renderInteractive(
@@ -87,6 +97,7 @@ export function createMppCli(
             amountOverride={opts.amount}
             paymentMethodId={opts.paymentMethodId}
             test={opts.test}
+            preferSession={opts.session}
             repository={paymentRepository}
             paymentMethodsFactory={paymentMethodsFactory}
             proofSigner={proofSigner}
@@ -119,6 +130,9 @@ export function createMppCli(
       // can present it to the user while we poll for approval inline.
       const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
       const requestHeaders = buildHeaders(data, headers);
+      if (opts.session) {
+        requestHeaders['Accept-Payment'] = 'tempo/session';
+      }
 
       const probe = await probeMppRequest(
         createMppRequest(url, httpMethod, data, requestHeaders),
@@ -144,9 +158,16 @@ export function createMppCli(
           paymentMethodId: opts.paymentMethodId,
           test: opts.test,
         });
-        const tempoChallenge = resolveTempoChallenge(wwwAuth);
+        const sessionChallenge = opts.session
+          ? resolveTempoSessionChallenge(wwwAuth)
+          : undefined;
+        const chargeChallenge = opts.session
+          ? undefined
+          : resolveTempoChallenge(wwwAuth);
+        const selectedChallenge =
+          sessionChallenge?.challenge ?? chargeChallenge!.challenge;
 
-        if (isTempoProofChallenge(tempoChallenge)) {
+        if (chargeChallenge && isTempoProofChallenge(chargeChallenge)) {
           if (!proofSigner) {
             await probeResponse.body?.cancel();
             return c.error({
@@ -170,7 +191,7 @@ export function createMppCli(
 
         const spendRequest = await paymentRepository.create({
           credential_type: 'signed_transaction',
-          payment_challenge: wwwAuth,
+          payment_challenge: Challenge.serialize(selectedChallenge),
           context: opts.context,
           request_approval: true,
         });

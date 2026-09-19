@@ -48,6 +48,12 @@ export const payOptions = z.object({
     .boolean()
     .default(false)
     .describe('Stripe only: create testmode credentials from test card data.'),
+  session: z
+    .boolean()
+    .default(false)
+    .describe(
+      'Local Privy PoC only: prefer a Tempo session challenge and satisfy its initial open credential',
+    ),
 });
 
 export const decodeOptions = z.object({

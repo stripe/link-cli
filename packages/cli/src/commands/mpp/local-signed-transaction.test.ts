@@ -98,6 +98,7 @@ describe('LocalSignedTransactionResource', () => {
   it('auto-approves and stores a locally signed transaction', async () => {
     const link = linkResource();
     const sign = vi.fn(async () => ({
+      authorization: 'Payment session-open-credential',
       source: 'did:pkh:eip155:4217:0xa2128C4C18e47778AE9Fa98E10cf76304f228e7c',
       txHash: '0x76aabbcc',
     }));
@@ -120,6 +121,11 @@ describe('LocalSignedTransactionResource', () => {
         source:
           'did:pkh:eip155:4217:0xa2128C4C18e47778AE9Fa98E10cf76304f228e7c',
         tx_hash: '0x76aabbcc',
+      },
+      payment_authorization: {
+        protocol: 'mpp',
+        header_name: 'Authorization',
+        value: 'Payment session-open-credential',
       },
     });
     expect(created.id).toMatch(/^local_lsrq_/);

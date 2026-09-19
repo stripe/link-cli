@@ -50,6 +50,10 @@ export interface ResolvedTempoChallenge {
   };
 }
 
+export interface ResolvedTempoSessionChallenge {
+  challenge: Challenge.Challenge;
+}
+
 export interface MppProof {
   signature: string;
   source: string;
@@ -214,6 +218,22 @@ export function resolveTempoChallenge(
   };
 }
 
+export function resolveTempoSessionChallenge(
+  challengeHeader: string,
+): ResolvedTempoSessionChallenge {
+  const challenge = Challenge.deserializeList(challengeHeader).find(
+    (candidate) =>
+      candidate.method === 'tempo' && candidate.intent === 'session',
+  );
+  if (!challenge) {
+    throw new Error(
+      'WWW-Authenticate header does not include a Tempo session challenge',
+    );
+  }
+  Expires.assert(challenge.expires, challenge.id);
+  return { challenge };
+}
+
 export function isTempoProofChallenge(
   resolved: ResolvedTempoChallenge,
 ): boolean {
@@ -300,6 +320,50 @@ export function buildSignedTransactionCredential(
   });
 }
 
+type ExperimentalPaymentAuthorization = {
+  header_name: string;
+  protocol: 'mpp';
+  value: string;
+};
+
+/** Reads and verifies the local PoC's complete challenge-bound authorization. */
+export function getExperimentalPaymentAuthorization(
+  spendRequest: SpendRequest,
+): string | undefined {
+  const authorization = (
+    spendRequest as SpendRequest & {
+      payment_authorization?: ExperimentalPaymentAuthorization;
+    }
+  ).payment_authorization;
+  if (!authorization) return undefined;
+  if (
+    authorization.protocol !== 'mpp' ||
+    authorization.header_name.toLowerCase() !== 'authorization' ||
+    typeof authorization.value !== 'string'
+  ) {
+    throw new Error('Spend request payment authorization is invalid.');
+  }
+  if (!spendRequest.payment_challenge) {
+    throw new Error(
+      'Spend request does not have its original payment challenge',
+    );
+  }
+
+  const credential = Credential.deserialize(authorization.value);
+  const original = Challenge.deserializeList(
+    spendRequest.payment_challenge,
+  ).find((challenge) => challenge.id === credential.challenge.id);
+  if (
+    !original ||
+    Challenge.serialize(original) !== Challenge.serialize(credential.challenge)
+  ) {
+    throw new Error(
+      'Spend request payment authorization does not match its original challenge.',
+    );
+  }
+  return authorization.value;
+}
+
 export async function payWithSignedTransaction(
   url: string,
   spendRequest: SpendRequest,
@@ -308,7 +372,9 @@ export async function payWithSignedTransaction(
   headers: string[] | undefined,
 ): Promise<PayResult> {
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
-  const credential = buildSignedTransactionCredential(spendRequest);
+  const credential =
+    getExperimentalPaymentAuthorization(spendRequest) ??
+    buildSignedTransactionCredential(spendRequest);
   const response = await fetch(url, {
     method: httpMethod,
     body: data,
@@ -513,6 +579,7 @@ export interface MppPayFullFlowOptions {
   amountOverride: number | undefined;
   paymentMethodId: string | undefined;
   test: boolean;
+  preferSession?: boolean;
   repository: ISpendRequestResource;
   paymentMethodsFactory: () => IPaymentMethodsResource;
   proofSigner?: IMppProofSigner;
@@ -680,6 +747,7 @@ export async function runMppPayFullFlow(
     amountOverride,
     paymentMethodId,
     test,
+    preferSession,
     repository,
     paymentMethodsFactory,
     proofSigner,
@@ -689,6 +757,9 @@ export async function runMppPayFullFlow(
 
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
   const requestHeaders = buildHeaders(data, headers);
+  if (preferSession) {
+    requestHeaders['Accept-Payment'] = 'tempo/session';
+  }
 
   // 1. Probe URL
   onStep?.('probing');
@@ -709,9 +780,16 @@ export async function runMppPayFullFlow(
 
   if (!hasStripeChallenge(wwwAuth)) {
     assertTempoCompatibleOptions({ amountOverride, paymentMethodId, test });
-    const tempoChallenge = resolveTempoChallenge(wwwAuth);
+    const sessionChallenge = preferSession
+      ? resolveTempoSessionChallenge(wwwAuth)
+      : undefined;
+    const chargeChallenge = preferSession
+      ? undefined
+      : resolveTempoChallenge(wwwAuth);
+    const selectedChallenge =
+      sessionChallenge?.challenge ?? chargeChallenge!.challenge;
 
-    if (isTempoProofChallenge(tempoChallenge)) {
+    if (chargeChallenge && isTempoProofChallenge(chargeChallenge)) {
       if (!proofSigner) {
         await probeResponse.body?.cancel();
         throw new Error(
@@ -732,7 +810,7 @@ export async function runMppPayFullFlow(
     onStep?.('creating');
     const spendRequest = await repository.create({
       credential_type: 'signed_transaction',
-      payment_challenge: wwwAuth,
+      payment_challenge: Challenge.serialize(selectedChallenge),
       context,
       request_approval: true,
     });
@@ -888,6 +966,7 @@ export function MppPay({
   amountOverride,
   paymentMethodId,
   test,
+  preferSession,
   repository,
   paymentMethodsFactory,
   proofSigner,
@@ -902,6 +981,7 @@ export function MppPay({
   amountOverride?: number;
   paymentMethodId?: string;
   test?: boolean;
+  preferSession?: boolean;
   repository: ISpendRequestResource;
   paymentMethodsFactory: () => IPaymentMethodsResource;
   proofSigner?: IMppProofSigner;
@@ -939,6 +1019,7 @@ export function MppPay({
             amountOverride,
             paymentMethodId,
             test: test ?? false,
+            preferSession,
             repository,
             paymentMethodsFactory,
             proofSigner,

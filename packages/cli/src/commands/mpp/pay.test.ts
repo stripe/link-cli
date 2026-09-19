@@ -4,11 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   assertTempoCompatibleOptions,
   buildSignedTransactionCredential,
+  getExperimentalPaymentAuthorization,
   type IMppProofSigner,
   isTempoProofChallenge,
   payWithSignedTransaction,
   payWithSpt,
   resolveTempoChallenge,
+  resolveTempoSessionChallenge,
   runMppPayFullFlow,
   runMppPayWithSpendRequest,
   runMppProof,
@@ -582,6 +584,30 @@ describe('resolveTempoChallenge', () => {
     );
   });
 
+  it('selects a Tempo session challenge when explicitly requested', () => {
+    const charge = tempoChallenge();
+    const session = tempoChallenge(
+      {
+        unitType: 'request',
+        methodDetails: {
+          chainId: 4217,
+          escrowContract: '0x4d50500000000000000000000000000000000000',
+          feePayer: true,
+          sessionProtocol: 'v2',
+        },
+      },
+      'session',
+    ).replace('id="tempo_001"', 'id="session_001"');
+
+    expect(
+      resolveTempoSessionChallenge(`${charge}, ${session}`).challenge,
+    ).toMatchObject({
+      id: 'session_001',
+      intent: 'session',
+      method: 'tempo',
+    });
+  });
+
   it('rejects expired challenges', () => {
     expect(() =>
       resolveTempoChallenge(
@@ -854,6 +880,86 @@ describe('signed transaction payment', () => {
     expect(result.status).toBe(200);
   });
 
+  it('submits a complete session-open authorization returned by the PoC', async () => {
+    const challengeHeader = tempoChallenge(
+      {
+        unitType: 'request',
+        methodDetails: {
+          chainId: 4217,
+          escrowContract: '0x4d50500000000000000000000000000000000000',
+          sessionProtocol: 'v2',
+        },
+      },
+      'session',
+    );
+    const challenge = Challenge.deserialize(challengeHeader);
+    const authorization = Credential.serialize({
+      challenge,
+      payload: {
+        action: 'open',
+        channelId: `0x${'11'.repeat(32)}`,
+        cumulativeAmount: '10000',
+        signature: `0x${'22'.repeat(65)}`,
+        transaction: SIGNED_TRANSACTION,
+        type: 'transaction',
+      },
+      source: TEMPO_SOURCE,
+    });
+    const spendRequest = {
+      ...signedSpendRequest(),
+      payment_challenge: challengeHeader,
+      payment_authorization: {
+        protocol: 'mpp' as const,
+        header_name: 'Authorization',
+        value: authorization,
+      },
+    };
+    const fetchMock = vi.fn<typeof fetch>(async () =>
+      Response.json({ jsonrpc: '2.0', id: 1, result: '0x1079' }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    expect(getExperimentalPaymentAuthorization(spendRequest)).toBe(
+      authorization,
+    );
+    await payWithSignedTransaction(
+      'https://rpc.mpp.tempo.xyz/',
+      spendRequest,
+      'POST',
+      '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}',
+      undefined,
+    );
+
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({
+      Authorization: authorization,
+    });
+  });
+
+  it('rejects a complete authorization for a different challenge', () => {
+    const other = Challenge.deserialize(
+      tempoChallenge().replace('id="tempo_001"', 'id="tempo_002"'),
+    );
+    const authorization = Credential.serialize({
+      challenge: other,
+      payload: { signature: SIGNED_TRANSACTION, type: 'transaction' },
+    });
+
+    expect(() =>
+      getExperimentalPaymentAuthorization(
+        {
+          ...signedSpendRequest(),
+          payment_authorization: {
+            protocol: 'mpp',
+            header_name: 'Authorization',
+            value: authorization,
+          },
+        } as Parameters<typeof getExperimentalPaymentAuthorization>[0] & {
+          payment_authorization: unknown;
+        },
+      ),
+    ).toThrow(/does not match its original challenge/i);
+  });
+
   it('creates, approves, retrieves, and submits through Link', async () => {
     const probe = new Response('payment required', {
       status: 402,
@@ -898,7 +1004,9 @@ describe('signed transaction payment', () => {
     expect(result.status).toBe(200);
     expect(repository.create).toHaveBeenCalledWith({
       credential_type: 'signed_transaction',
-      payment_challenge: tempoChallenge(),
+      payment_challenge: Challenge.serialize(
+        Challenge.deserialize(tempoChallenge()),
+      ),
       context:
         'Pay for one API request using a Link-approved signed Tempo transaction for this stablecoin proof of concept.',
       request_approval: true,

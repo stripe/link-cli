@@ -26,6 +26,7 @@ export type SignedTransactionFactory = (
 ) => Promise<string | SignedTempoTransaction>;
 
 export interface SignedTempoTransaction {
+  authorization?: string;
   source: string;
   txHash: string;
 }
@@ -135,7 +136,15 @@ async function createTempoTransactionCredentialWithPrivy(
     }) as typeof privyAccount.signTransaction,
   };
   const client = Mppx.create({
-    methods: [tempo.charge({ account, clientId: 'link-cli', mode: 'pull' })],
+    methods: [
+      tempo.charge({ account, clientId: 'link-cli', mode: 'pull' }),
+      tempo.session({
+        account,
+        // Keep the local experiment tightly bounded. A production value must
+        // come from the approved SpendRequest rather than a CLI constant.
+        maxDeposit: '0.01',
+      }),
+    ],
     polyfill: false,
     transport: Transport.http(),
   });
@@ -146,22 +155,33 @@ async function createTempoTransactionCredentialWithPrivy(
     }),
   );
   const credential = Credential.deserialize<{
+    action?: unknown;
     signature?: unknown;
+    transaction?: unknown;
     type?: unknown;
   }>(authorization);
-  const signature = credential.payload.signature;
+  const transaction =
+    credential.challenge.intent === 'session'
+      ? credential.payload.transaction
+      : credential.payload.signature;
   if (
     credential.payload.type !== 'transaction' ||
-    typeof signature !== 'string' ||
-    !/^0x(?:76|78)[0-9a-f]+$/i.test(signature) ||
-    signature.length % 2 !== 0
+    (credential.challenge.intent === 'session' &&
+      credential.payload.action !== 'open') ||
+    typeof transaction !== 'string' ||
+    !/^0x(?:76|78)[0-9a-f]+$/i.test(transaction) ||
+    transaction.length % 2 !== 0
   ) {
     throw new Error('Privy did not return a serialized Tempo transaction.');
   }
   if (!credential.source) {
     throw new Error('Privy Tempo credential did not include a payer source.');
   }
-  return { source: credential.source, txHash: signature };
+  return {
+    authorization,
+    source: credential.source,
+    txHash: transaction,
+  };
 }
 
 export async function signTempoTransactionWithPrivy(
@@ -200,7 +220,12 @@ export class LocalSignedTransactionResource implements ISpendRequestResource {
     const signed = await this.signTransaction(params.payment_challenge);
     const txHash = typeof signed === 'string' ? signed : signed.txHash;
     const source = typeof signed === 'string' ? undefined : signed.source;
-    const request: SpendRequest = {
+    const authorization =
+      typeof signed === 'string' ? undefined : signed.authorization;
+    // `payment_authorization` is intentionally local-PoC-only for now. It
+    // lets us exercise the correct session boundary (the complete MPP
+    // Authorization value) without committing an SDK field name yet.
+    const request = {
       id,
       status: 'approved',
       credential_type: 'signed_transaction',
@@ -209,9 +234,24 @@ export class LocalSignedTransactionResource implements ISpendRequestResource {
         tx_hash: txHash,
         ...(source ? { source } : {}),
       },
+      ...(authorization
+        ? {
+            payment_authorization: {
+              protocol: 'mpp',
+              header_name: 'Authorization',
+              value: authorization,
+            },
+          }
+        : {}),
       context: params.context,
       created_at: now,
       updated_at: now,
+    } satisfies SpendRequest & {
+      payment_authorization?: {
+        protocol: 'mpp';
+        header_name: 'Authorization';
+        value: string;
+      };
     };
     this.requests.set(id, request);
     return request;
