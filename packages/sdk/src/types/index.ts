@@ -177,6 +177,13 @@ export interface BankAccountDetails {
   bank_name?: string;
 }
 
+export interface PaymentMethodBalanceDetails {
+  available_balance: {
+    amount: number;
+    currency: string;
+  };
+}
+
 export type AgentWalletVerificationStatus =
   | 'not_required'
   | 'ssn_verification'
@@ -228,6 +235,7 @@ export interface PaymentMethod {
   nickname?: string;
   card_details?: CardDetails;
   bank_account_details?: BankAccountDetails;
+  balance_details?: PaymentMethodBalanceDetails;
   capabilities?: Record<string, ProductCapability>;
 }
 

@@ -2719,6 +2719,30 @@ describe('production mode', () => {
       expect(pmRequest?.headers.authorization).toBe(`Bearer ${ENV_TOKEN}`);
     });
 
+    it('allows payment-methods retrieve with no stored auth', async () => {
+      setResponseForUrl('/payment-details/pd_123', 200, {
+        id: 'pd_123',
+        type: 'CARD',
+        is_default: true,
+        name: 'Visa',
+      });
+
+      const result = await runProdCliWithEnv(
+        { LINK_ACCESS_TOKEN: ENV_TOKEN },
+        'payment-methods',
+        'retrieve',
+        'pd_123',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(parseJson(result.stdout)).toMatchObject({ id: 'pd_123' });
+      const pmRequest = requests.find(
+        (r) => r.url === '/payment-details/pd_123',
+      );
+      expect(pmRequest?.headers.authorization).toBe(`Bearer ${ENV_TOKEN}`);
+    });
+
     it('allows shipping-address list with no stored auth', async () => {
       setResponseForUrl('/shipping_addresses', 200, { shipping_addresses: [] });
 

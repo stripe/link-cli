@@ -146,6 +146,14 @@ link-cli payment-methods list
 
 Returns the cards and bank accounts saved to your Link account. Use the `id` field as `payment_method_id` in the next step. If you have no payment methods, [add new ones in Link](https://app.link.com/wallet).
 
+Retrieve one payment method by ID:
+
+```bash
+link-cli payment-methods retrieve <payment-method-id>
+```
+
+The response has the same redacted fields as the matching list item, including capability eligibility and balance details when applicable.
+
 ### List shipping addresses
 
 ```bash

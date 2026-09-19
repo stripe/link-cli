@@ -3,6 +3,7 @@ import { render } from 'ink-testing-library';
 import { describe, expect, it, vi } from 'vitest';
 import { sanitizeResource } from '../../../utils/resource-factory';
 import { PaymentMethodsList } from '../list';
+import { PaymentMethodRetrieve } from '../retrieve';
 
 const ESCAPE_PAYLOAD = '\x1b[2JEvil\rHidden';
 const CLEAN_TEXT = 'EvilHidden';
@@ -24,6 +25,33 @@ describe('payment-methods', () => {
 
       const { lastFrame } = render(
         <PaymentMethodsList resource={resource} onComplete={() => {}} />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain(CLEAN_TEXT);
+        expect(frame).not.toContain('\x1b[2J');
+        expect(frame).not.toContain('\r');
+      });
+    });
+
+    it('sanitizes fields in a retrieved payment method', async () => {
+      const resource = sanitizeResource({
+        retrieve: vi.fn(async () => ({
+          id: 'pm_1',
+          type: 'CARD',
+          name: ESCAPE_PAYLOAD,
+          nickname: ESCAPE_PAYLOAD,
+          is_default: false,
+        })),
+      } as unknown as IPaymentMethodsResource);
+
+      const { lastFrame } = render(
+        <PaymentMethodRetrieve
+          resource={resource}
+          id="pm_1"
+          onComplete={() => {}}
+        />,
       );
 
       await vi.waitFor(() => {
