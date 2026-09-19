@@ -160,7 +160,7 @@ it('preserves the credential in a requested full-output envelope', async () => {
   );
 });
 
-it('prints the saved attestation path without exposing raw tokens', async () => {
+it('prints the attestation pool path without exposing raw tokens', async () => {
   const home = path.join(state.directory, 'attestation-home');
   vi.spyOn(os, 'homedir').mockReturnValue(home);
   const cli = createAttestationsCli(() => ({
@@ -182,16 +182,16 @@ it('prints the saved attestation path without exposing raw tokens', async () => 
     details: SavedArtifactDetail[];
   }>;
   expect(view.type).toBe(SavedArtifact);
-  expect(view.props.message).toBe('Attestation token saved');
-  expect(view.props.outputFile).toContain(
-    '.link-cli/attestations/attestations-',
+  expect(view.props.message).toBe('Attestation tokens added to pool');
+  expect(view.props.outputFile).toBe(
+    path.join(home, '.link-cli', 'attestations', 'pool.json'),
   );
   expect(view.props.details).toEqual([{ label: 'Count', value: 1 }]);
   const directory = path.join(home, '.link-cli', 'attestations');
   const files = await fs.readdir(directory);
-  expect(files).toHaveLength(1);
-  expect(
-    JSON.parse(await fs.readFile(path.join(directory, files[0]), 'utf8'))
-      .tokens,
-  ).toHaveLength(1);
+  expect(files).toEqual(['pool.json']);
+  const pool = JSON.parse(await fs.readFile(view.props.outputFile, 'utf8'));
+  expect(pool.version).toBe(2);
+  expect(pool.batches).toHaveLength(1);
+  expect(pool.batches[0].tokens).toHaveLength(1);
 });
