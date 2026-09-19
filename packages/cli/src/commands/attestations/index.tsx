@@ -1,5 +1,7 @@
 import type { IAttestationsResource } from '@stripe/link-sdk';
 import { Cli } from 'incur';
+import { renderInteractive } from '../../utils/render-interactive';
+import { SavedArtifact } from '../identity/saved-artifact';
 import { exportAttestationTokens } from './export';
 import { requestOptions } from './schema';
 import { writeAttestationArtifact } from './storage';
@@ -27,12 +29,29 @@ export function createAttestationsCli(
         }),
       );
       const outputFile = await writeAttestationArtifact(artifact);
-      return {
+      const result = {
         issuer: artifact.issuer,
         token_key_id: artifact.token_key_id,
         count: artifact.count,
         output_file: outputFile,
       };
+
+      if (
+        !c.agent &&
+        !c.formatExplicit &&
+        !process.argv.includes('--full-output')
+      ) {
+        return renderInteractive(
+          <SavedArtifact
+            message={`Attestation token${artifact.count === 1 ? '' : 's'} saved`}
+            outputFile={outputFile}
+            details={[{ label: 'Count', value: artifact.count }]}
+          />,
+          () => result,
+        );
+      }
+
+      return result;
     },
   });
 

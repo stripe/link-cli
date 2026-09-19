@@ -8,6 +8,11 @@ export {
   LinkTransportError,
 } from './errors';
 export * from './resources/attestations';
+export {
+  holderJwksEqual,
+  holderJwkThumbprint,
+  parseHolderPublicJwk,
+} from './resources/holder-jwk';
 export * from './resources/interfaces';
 export { getDuplicateSpendRequest } from './resources/spend-request';
 export * from './resources/summaries';

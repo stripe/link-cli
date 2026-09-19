@@ -2,6 +2,7 @@ import {
   type AccessTokenProvider,
   type IAttestationsResource,
   type IBalancesResource,
+  type IIdentityCredentialsResource,
   type IPaymentMethodsResource,
   type IReportResource,
   type IShippingAddressResource,
@@ -111,6 +112,7 @@ export class ResourceFactory {
   private accessTokenProvider?: ReturnType<typeof createAccessTokenProvider>;
   private sdkClient?: Link;
   private attestationsResource?: IAttestationsResource;
+  private identityCredentialsResource?: IIdentityCredentialsResource;
   private spendRequestResource?: ISpendRequestResource;
   private paymentMethodsResource?: IPaymentMethodsResource;
   private shippingAddressResource?: IShippingAddressResource;
@@ -231,6 +233,18 @@ export class ResourceFactory {
 
     const resource = sanitizeResource(this.createSdkClient().attestations);
     this.attestationsResource = resource;
+    return resource;
+  }
+
+  createIdentityCredentialsResource(): IIdentityCredentialsResource {
+    if (this.identityCredentialsResource) {
+      return this.identityCredentialsResource;
+    }
+
+    const resource = sanitizeResource(
+      this.createSdkClient().identityCredentials,
+    );
+    this.identityCredentialsResource = resource;
     return resource;
   }
 

@@ -1,15 +1,22 @@
-import type { IAttestationsResource } from '@stripe/link-sdk';
+import type {
+  IAttestationsResource,
+  IIdentityCredentialsResource,
+} from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import { createAttestationsCli } from '../attestations';
+import { createIdentityCredentialsCli } from '../credentials';
 
 export function createIdentityCli(options: {
   createAttestationsResource: () => IAttestationsResource;
+  createIdentityCredentialsResource: () => IIdentityCredentialsResource;
 }) {
   const cli = Cli.create('identity', {
-    description:
-      'Privacy-preserving tokens that show Link attests to your agent.',
+    description: 'Prove your agent and user identity with Link.',
   });
 
   cli.command(createAttestationsCli(options.createAttestationsResource));
+  cli.command(
+    createIdentityCredentialsCli(options.createIdentityCredentialsResource),
+  );
   return cli;
 }

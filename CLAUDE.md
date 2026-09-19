@@ -41,6 +41,7 @@ node packages/cli/dist/cli.js <command>
 
 Defined in `packages/sdk/src/resources/interfaces.ts`:
 - `IAttestationsResource` — Privacy Pass Blind RSA token issuance
+- `IIdentityCredentialsResource` — signed user info issuance
 - `ISpendRequestResource` — CRUD + request-approval for spend requests
 
 The SDK only accepts credentials. Device authorization, refresh-token
@@ -57,7 +58,7 @@ Commands in `packages/cli/src/cli.tsx` (incur framework). Each has two output mo
 - **Interactive** (default): Ink/React components from `packages/cli/src/commands/`
 - **JSON** (`--format json`): JSON to stdout, errors as JSON with `code` and `message` fields with exit code 1
 
-Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `identity attestations request`, `report`, `serve`.
+Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `identity attestations request`, `identity credentials request`, `report`, `serve`.
 
 The CLI also runs as an MCP server (`--mcp`) and serves skill files via `skills` subcommand, both provided by incur.
 
@@ -144,6 +145,17 @@ Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENT
 - `--step` is where the agent was when the outcome occurred (max 500). `--attempt-trace` is the whole path it took, one numbered line per step, intended to be replayable by another agent. Both are optional and independent.
 - `--attempt-trace` intentionally carries **no** zod `.max()`. The API truncates at `REPORT_ATTEMPT_TRACE_MAX_LENGTH` (8000, exported from the SDK) and still records the report, so client-side rejection would trade a long narrative for a lost outcome. `--step` and `--freeform-context` keep their `.max(500)` because the API rejects those outright.
 
+### identity credentials command
+
+Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENTITY_COMMANDS=1` (or `true`). Even when enabled, the command sets `mcp: false` so MCP clients do not see it.
+
+`identity credentials request` — requests signed user info proving it comes from Link (a wallet of claims such as name, email, and phone). Human TTY runs save the credential and show its path; structured output returns the credential and holder-key path. The SDK discovers and calls `credential_endpoint`; the CLI owns default holder-key persistence, claim decoding, and command registration under `packages/cli/src/commands/identity/`.
+
+- Discovery uses `GET https://api.link.com/.well-known/aap-issuer`. The metadata issuer must be exactly `https://api.link.com`, and `credential_endpoint` must remain on that HTTPS origin. `LINK_API_BASE_URL` does not change the credential issuer.
+- `POST <credential_endpoint>` sends `{"cnf":{"jwk":<public JWK>}}`.
+- Issuance uses the Ed25519 holder key at `~/.link/holder-key.jwk` (mode 0600).
+- The issued `cnf.jwk` is checked against the requested public key before returning the credential artifact.
+
 ### serve command
 
 - `serve [--port <n>] [--host <host>]` — HTTP server that exposes the CLI's MCP endpoint. Implemented in `packages/cli/src/commands/serve/index.ts`. The handler forwards to `rootCli.fetch()` (incur), but is a **privilege boundary**: `requireAuth` only proves the CLI *owner* is authenticated, not that the HTTP caller is authorized.
@@ -170,6 +182,7 @@ Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENT
 Server-returned strings can contain ANSI escape sequences or control characters that spoof the terminal approval UI. Sanitization is handled automatically via `sanitizeDeep()` from `packages/cli/src/utils/sanitize-text.ts`:
 
 - **SDK-resource data** — sanitized automatically at the `sanitizeResource()` proxy boundary in `packages/cli/src/utils/resource-factory.ts`. All server data flowing through SDK resources (spend-request, payment-methods, sources, etc.) is `sanitizeDeep()`'d before reaching components or the incur formatter, in every output format.
+- **Encoded server data decoded by the CLI** — must be sanitized after decoding. Credential issuance sanitizes claims recovered from SD-JWT disclosures in `commands/credentials/issue.ts`; sanitizing the compact credential string at the resource boundary does not sanitize its decoded values.
 - **Commands using `useAsyncAction` hook** — sanitized automatically. The hook calls `sanitizeDeep()` on all returned data before it reaches components.
 - **Commands with manual state management** (e.g. `create.tsx`, `retrieve.tsx`, `request-approval.tsx`, `mpp/pay.tsx`) — must call `sanitizeDeep()` on API responses before calling `setRequest()`/`setState()`.
 - **Attacker-controlled data that does NOT flow through an SDK resource** — must be sanitized at its own parse boundary. `mpp pay` sanitizes the HTTP response in `readPayResult()` (`pay.tsx`); `mpp decode` sanitizes the parsed `WWW-Authenticate` challenge in `decodeStripeChallenge()` (`decode.ts`). These bypass the resource factory, so the return value of the parse/fetch helper is the chokepoint — sanitizing there covers both the interactive Ink render and the agent (toon/yaml/md) output at once.

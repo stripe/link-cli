@@ -28,6 +28,9 @@ describe('ResourceFactory', () => {
     expect(factory.createAttestationsResource()).toBe(
       factory.createAttestationsResource(),
     );
+    expect(factory.createIdentityCredentialsResource()).toBe(
+      factory.createIdentityCredentialsResource(),
+    );
     expect(factory.createSpendRequestResource()).toBe(
       factory.createSpendRequestResource(),
     );
@@ -45,6 +48,9 @@ describe('ResourceFactory', () => {
     );
     expect(factory.createAuthResource()).toBeInstanceOf(LinkAuthResource);
     expect(factory.createAttestationsResource().request).toBeTypeOf('function');
+    expect(factory.createIdentityCredentialsResource().issue).toBeTypeOf(
+      'function',
+    );
     expect(factory.createSpendRequestResource().create).toBeTypeOf('function');
     expect(factory.createPaymentMethodsResource().list).toBeTypeOf('function');
     expect(factory.createBalancesResource().list).toBeTypeOf('function');

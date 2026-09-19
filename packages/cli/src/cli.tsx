@@ -102,6 +102,8 @@ if (identityCommandsEnabled) {
   cli.command(
     createIdentityCli({
       createAttestationsResource: () => factory.createAttestationsResource(),
+      createIdentityCredentialsResource: () =>
+        factory.createIdentityCredentialsResource(),
     }),
   );
 }

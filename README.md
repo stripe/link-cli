@@ -325,13 +325,21 @@ All commands accept `--auth <path>` to store auth credentials in a specific file
 
 Unlisted commands: set `LINK_IDENTITY_COMMANDS=1` to enable them. They are omitted from `--help`, `--llms`, and MCP tool lists otherwise.
 
-Privacy-preserving tokens that show Link attests to your agent:
+**Privacy-preserving tokens** that show Link attests to your agent:
 
 ```bash
 LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10
 ```
 
 Attestation tokens can be used to respond to attestation challenges presented by downstream services. Token artifacts are written to `~/.link-cli/attestations`.
+
+**User info that has been signed, proving it comes from Link**:
+
+```bash
+LINK_IDENTITY_COMMANDS=1 link-cli identity credentials request
+```
+
+`identity credentials request` returns a signed credential bound to the CLI-managed holder key at `~/.link/holder-key.jwk`.
 
 ### Spend request lifecycle
 
