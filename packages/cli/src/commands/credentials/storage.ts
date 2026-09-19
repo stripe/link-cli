@@ -30,6 +30,7 @@ export async function writeIdentityCredentialArtifact(
     cwd: directory,
     configName: 'current',
     configFileMode: 0o600,
+    clearInvalidConfig: true,
   });
   store.store = artifact;
   return store.path;
