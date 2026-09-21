@@ -13,6 +13,7 @@ import type {
   TransactionOrigin,
   TransactionsPage,
   UcpCheckout,
+  UcpCheckoutWithSpendRequest,
   UcpSearchResult,
   UserInfo,
   WebBotAuthBlock,
@@ -236,6 +237,11 @@ export interface CompleteUcpCheckoutParams {
   test?: boolean;
 }
 
+export interface RetrieveUcpCheckoutParams {
+  spend_request_id: string;
+  test?: boolean;
+}
+
 export interface IUcpResource {
   searchCatalog(params: SearchUcpCatalogParams): Promise<UcpSearchResult>;
   createCheckout(params: CreateUcpCheckoutParams): Promise<UcpCheckout>;
@@ -243,4 +249,8 @@ export interface IUcpResource {
     id: string,
     params: CompleteUcpCheckoutParams,
   ): Promise<UcpCheckout>;
+  retrieveCheckout(
+    id: string,
+    params: RetrieveUcpCheckoutParams,
+  ): Promise<UcpCheckoutWithSpendRequest>;
 }

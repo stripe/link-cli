@@ -90,7 +90,7 @@ describe('UcpResource', () => {
     it('POSTs profile_id and line_items and returns the session', async () => {
       mockFetchResponse(200, {
         id: 'dcs_1',
-        status: 'requires_payment',
+        status: 'open',
         amount_total: 5500,
       });
 
@@ -193,6 +193,76 @@ describe('UcpResource', () => {
         'Failed to complete UCP checkout (402): Your card was declined.',
       );
     });
+  });
+
+  describe('retrieveCheckout', () => {
+    it('GETs the encoded path with query parameters, no body, and parses the composite response', async () => {
+      mockFetchResponse(200, {
+        id: 'dcs/weird',
+        status: 'completed',
+        spend_request: {
+          id: 'lsrq_1',
+          status: 'succeeded',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:01Z',
+        },
+      });
+
+      const result = await repo.retrieveCheckout('dcs/weird', {
+        spend_request_id: 'lsrq_1',
+        test: true,
+      });
+
+      expect(mockFetch).toHaveBeenCalledOnce();
+      const [rawUrl, opts] = mockFetch.mock.calls[0]!;
+      const url = new URL(rawUrl);
+      expect(url.pathname).toBe('/ucp/checkout/dcs%2Fweird');
+      expect(url.searchParams.get('spend_request_id')).toBe('lsrq_1');
+      expect(url.searchParams.get('test')).toBe('true');
+      expect(opts.method).toBe('GET');
+      expect(opts.body).toBeUndefined();
+      expect(result.spend_request.status).toBe('succeeded');
+    });
+
+    it('omits test mode when it is not requested', async () => {
+      mockFetchResponse(200, {
+        id: 'dcs_1',
+        spend_request: {
+          id: 'lsrq_1',
+          status: 'approved',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:01Z',
+        },
+      });
+
+      await repo.retrieveCheckout('dcs_1', {
+        spend_request_id: 'lsrq_1',
+      });
+
+      const url = new URL(mockFetch.mock.calls[0]![0]);
+      expect(url.searchParams.has('test')).toBe(false);
+    });
+
+    it.each([400, 429, 502])(
+      'propagates a structured LinkApiError for %s',
+      async (status) => {
+        const details = {
+          error: { code: 'upstream_error', message: 'retrieval failed' },
+        };
+        mockFetchResponse(status, details);
+
+        let caught: unknown;
+        try {
+          await repo.retrieveCheckout('dcs_1', {
+            spend_request_id: 'lsrq_1',
+          });
+        } catch (error) {
+          caught = error;
+        }
+        expect(caught).toBeInstanceOf(LinkApiError);
+        expect(caught).toMatchObject({ status, details });
+      },
+    );
   });
 
   it('retries once on 401 after refreshing the token', async () => {
