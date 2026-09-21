@@ -16,7 +16,6 @@ import { createSummariesCli } from './commands/summaries';
 import { createTransactionsCli } from './commands/transactions';
 import { createUcpCli } from './commands/ucp';
 import { createUserInfoCli } from './commands/user-info';
-import { createWebBotAuthCli } from './commands/web-bot-auth';
 import { buildMcpCommand } from './utils/package-runner';
 import { ResourceFactory } from './utils/resource-factory';
 import {

@@ -1,6 +1,5 @@
 import { Cli } from 'incur';
 import { Text } from 'ink';
-import React from 'react';
 import {
   buildAuthorizationDetails,
   parseAuthorizationDetails,

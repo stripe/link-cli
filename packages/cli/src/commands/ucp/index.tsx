@@ -7,7 +7,6 @@ import type {
   UcpSearchResult,
 } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
-import React from 'react';
 import type { CliAuthStorage } from '../../auth/storage';
 import { parseKvString } from '../../utils/line-item-parser';
 import { renderInteractive } from '../../utils/render-interactive';

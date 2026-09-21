@@ -3,7 +3,6 @@ import type {
   ListTransactionsParams,
 } from '@stripe/link-sdk';
 import { Cli } from 'incur';
-import React from 'react';
 import type { CliAuthStorage } from '../../auth/storage';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';

@@ -6,12 +6,12 @@ import type {
 } from '@stripe/link-sdk';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  DEFAULT_UCP_POLL_TIMEOUT_SECONDS,
-  type UcpCheckoutWaitResult,
   classifyUcpCheckout,
+  DEFAULT_UCP_POLL_TIMEOUT_SECONDS,
   pollUcpCheckout,
   runUcpCheckoutRetrieve,
   timedOutUcpCheckout,
+  type UcpCheckoutWaitResult,
 } from '../checkout-state';
 import { checkoutRetrieveOptions } from '../schema';
 

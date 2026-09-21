@@ -11,9 +11,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import {
   DEFAULT_UCP_POLL_TIMEOUT_SECONDS,
+  pollUcpCheckout,
   UCP_POLL_INTERVAL_SECONDS,
   type UcpCheckoutWaitReason,
-  pollUcpCheckout,
 } from './checkout-state';
 import { CheckoutSummary } from './checkout-summary';
 

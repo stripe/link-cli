@@ -3126,7 +3126,7 @@ describe('production mode', () => {
       };
 
       function payloadUrl(marker: string): string {
-        return `http://127.0.0.1:${merchantPort}/api/charge$(touch${'${IFS}'}${marker})`;
+        return `http://127.0.0.1:${merchantPort}/api/charge$(touch\${IFS}${marker})`;
       }
 
       async function runFullFlow(url: string) {
@@ -3253,7 +3253,7 @@ describe('production mode', () => {
           '--data',
           dataPayload,
           '--header',
-          `X-Evil: $(touch${'${IFS}'}${marker})`,
+          `X-Evil: $(touch\${IFS}${marker})`,
           '--format',
           'json',
         );

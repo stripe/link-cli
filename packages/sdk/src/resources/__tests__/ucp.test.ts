@@ -1,6 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LinkApiError } from '@/errors';
 import { UcpResource } from '@/resources/ucp';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockFetch = vi.fn();
 const getAccessToken = vi.fn();

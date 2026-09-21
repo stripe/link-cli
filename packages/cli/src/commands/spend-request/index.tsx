@@ -7,7 +7,6 @@ import type {
 } from '@stripe/link-sdk';
 import { getDuplicateSpendRequest, LinkApiError } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
-import React from 'react';
 import type { CliAuthStorage } from '../../auth/storage';
 import { writeCredentialFile } from '../../utils/credential-output';
 import {

@@ -13,7 +13,6 @@ describe('resolveAuthResourceConfig', () => {
     if (hadEnv) {
       process.env.LINK_AUTH_BASE_URL = origEnv;
     } else {
-      // biome-ignore lint/performance/noDelete: must truly remove env var, not set to "undefined"
       delete process.env.LINK_AUTH_BASE_URL;
     }
   });

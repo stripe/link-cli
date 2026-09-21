@@ -5,6 +5,7 @@ import { shellCommand, shellQuote } from '../shell-quote';
 const PAYLOADS = [
   'https://merchant.example/pay$(touch /tmp/link-proof)',
   'https://merchant.example/pay`touch /tmp/link-proof`',
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: literal shell expansion tests quoting against injection
   'https://merchant.example/pay${IFS}x',
   "https://merchant.example/pay'; touch /tmp/link-proof; echo '",
   'https://merchant.example/pay; rm -rf /',
