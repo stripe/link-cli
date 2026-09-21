@@ -2,7 +2,15 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import type { ReactElement } from 'react';
-import { afterAll, afterEach, beforeEach, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import { createAttestationsCli } from '../../attestations';
 import {
   SavedArtifact,
@@ -37,7 +45,11 @@ vi.mock('../holder-key', async (importOriginal) => {
 
 const originalTTY = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY');
 
-beforeEach(() => {
+beforeEach(async () => {
+  await fs.rm(path.join(state.directory, '.link-cli'), {
+    recursive: true,
+    force: true,
+  });
   state.interactiveElements.length = 0;
   Object.defineProperty(process.stdout, 'isTTY', {
     configurable: true,
@@ -57,14 +69,31 @@ afterEach(() => {
 
 afterAll(() => fs.rm(state.directory, { recursive: true, force: true }));
 
+const secretEmail = 'private-identity@example.test';
+const disclosure = Buffer.from(
+  JSON.stringify(['salt', 'email', secretEmail]),
+).toString('base64url');
+const secretToken = 'c2VjcmV0LWF0dGVzdGF0aW9u';
+
 function credentialCli() {
   return createIdentityCredentialsCli(() => ({
     issue: async ({ cnf }) => ({
       credential: `header.${Buffer.from(JSON.stringify({ cnf })).toString(
         'base64url',
-      )}.sig~`,
+      )}.sig~${disclosure}~`,
       issuer: 'https://api.link.com',
       expires_at: '2026-09-18T00:00:00Z',
+    }),
+  }));
+}
+
+function attestationCli() {
+  return createAttestationsCli(() => ({
+    request: async () => ({
+      tokens: [secretToken],
+      issuer: 'https://api.link.com',
+      token_key_id: 'test-key',
+      count: 1,
     }),
   }));
 }
@@ -128,49 +157,109 @@ it('prints a non-secret TTY confirmation and saves the credential', async () => 
   ).toEqual(['private_jwk']);
 });
 
-it('returns the credential with an explicit format or non-TTY output', async () => {
-  expect(await run(credentialCli(), ['request', '--format', 'json'])).toContain(
-    '"credential"',
-  );
+describe.each([true, false])('request metadata with isTTY=%s', (isTTY) => {
+  it.each(
+    [
+      [],
+      ['--json'],
+      ['--format', 'json'],
+      ['--format', 'toon'],
+      ['--format', 'yaml'],
+      ['--format', 'md'],
+      ['--full-output'],
+      ['--full-output', '--format', 'json'],
+    ].map((flags) => ({ flags })),
+  )(
+    'keeps both request artifacts out of stdout with flags $flags',
+    async ({ flags }) => {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        configurable: true,
+        value: isTTY,
+      });
 
-  Object.defineProperty(process.stdout, 'isTTY', {
-    configurable: true,
-    value: false,
-  });
-  expect(await run(credentialCli(), ['request'])).toContain('.sig~');
-});
+      const credentialOutput = await run(credentialCli(), [
+        'request',
+        ...flags,
+      ]);
+      const attestationOutput = await run(attestationCli(), [
+        'request',
+        '--count',
+        '1',
+        ...flags,
+      ]);
+      const credentialFile = path.join(
+        state.directory,
+        '.link-cli/credentials/current.json',
+      );
+      const poolFile = path.join(
+        state.directory,
+        '.link-cli/attestations/pool.json',
+      );
+      const artifact = JSON.parse(await fs.readFile(credentialFile, 'utf8'));
+      const holderKey = JSON.parse(
+        await fs.readFile(artifact.holder.path, 'utf8'),
+      );
 
-it('preserves the credential in a requested full-output envelope', async () => {
-  const output = JSON.parse(
-    await run(credentialCli(), [
-      'request',
-      '--full-output',
-      '--format',
-      'json',
-    ]),
-  );
+      expect(artifact.credential).toContain(`.sig~${disclosure}~`);
+      expect(artifact.claims).toEqual({ email: secretEmail });
+      expect(holderKey.private_jwk.d).toEqual(expect.any(String));
+      expect(
+        JSON.parse(await fs.readFile(poolFile, 'utf8')).batches[0].tokens[0]
+          .token,
+      ).toBe(secretToken);
 
-  expect(output.ok).toBe(true);
-  expect(output.data.credential).toContain('.sig~');
-  expect(output.data.holder.path).toBe(
-    path.join(state.directory, 'holder-key.jwk'),
-  );
-  expect(await run(credentialCli(), ['request', '--full-output'])).toContain(
-    'credential:',
+      for (const output of [credentialOutput, attestationOutput]) {
+        for (const secret of [
+          artifact.credential,
+          disclosure,
+          secretEmail,
+          secretToken,
+          holderKey.private_jwk.d,
+        ]) {
+          expect(output).not.toContain(secret);
+        }
+      }
+      if (isTTY && flags.length === 0) {
+        expect(credentialOutput).toBe('');
+        expect(attestationOutput).toBe('');
+        return;
+      }
+      expect(credentialOutput).toContain(credentialFile);
+      expect(attestationOutput).toContain(poolFile);
+
+      if (flags.includes('json') || flags.includes('--json')) {
+        const credential = JSON.parse(credentialOutput);
+        const attestation = JSON.parse(attestationOutput);
+        const fullOutput = flags.includes('--full-output');
+        if (fullOutput) {
+          expect(credential.ok).toBe(true);
+          expect(attestation.ok).toBe(true);
+        }
+        expect(fullOutput ? credential.data : credential).toEqual({
+          issuer: artifact.issuer,
+          expires_at: artifact.expires_at,
+          holder: {
+            path: artifact.holder.path,
+            thumbprint: artifact.holder.thumbprint,
+          },
+          claim_names: ['email'],
+          output_file: credentialFile,
+        });
+        expect(fullOutput ? attestation.data : attestation).toEqual({
+          issuer: artifact.issuer,
+          token_key_id: 'test-key',
+          count: 1,
+          output_file: poolFile,
+        });
+      }
+    },
   );
 });
 
 it('prints the attestation pool path without exposing raw tokens', async () => {
   const home = path.join(state.directory, 'attestation-home');
   vi.spyOn(os, 'homedir').mockReturnValue(home);
-  const cli = createAttestationsCli(() => ({
-    request: async () => ({
-      tokens: ['dGVzdA'],
-      issuer: 'https://api.link.com',
-      token_key_id: 'test-key',
-      count: 1,
-    }),
-  }));
+  const cli = attestationCli();
 
   const output = await run(cli, ['request', '--count', '1']);
 

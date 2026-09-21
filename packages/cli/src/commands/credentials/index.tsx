@@ -4,6 +4,7 @@ import {
 } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import { renderInteractive } from '../../utils/render-interactive';
+import { sanitizeDeep } from '../../utils/sanitize-text';
 import { SavedArtifact } from '../identity/saved-artifact';
 import { issueIdentityCredential } from './issue';
 import { listIdentityCredentials } from './list';
@@ -28,17 +29,17 @@ export function createIdentityCredentialsCli(
 
   cli.command('request', {
     description:
-      'Request signed user info proving it comes from Link. Includes a wallet of claims such as name, email, and phone that you can present later.',
+      'Save signed user info proving it comes from Link and return its path and metadata. The saved credential includes claims such as name, email, and phone that you can present later.',
     mcp: false,
     outputPolicy: 'agent-only' as const,
     async run(c) {
-      let result: Awaited<ReturnType<typeof issueIdentityCredential>>;
+      let artifact: Awaited<ReturnType<typeof issueIdentityCredential>>;
       let outputFile: string;
       try {
-        result = await issueIdentityCredential({
+        artifact = await issueIdentityCredential({
           resource: createResource(),
         });
-        outputFile = await writeIdentityCredentialArtifact(result);
+        outputFile = await writeIdentityCredentialArtifact(artifact);
       } catch (error) {
         if (error instanceof LinkSdkError) {
           throw error;
@@ -49,27 +50,33 @@ export function createIdentityCredentialsCli(
         });
       }
 
+      const result = sanitizeDeep({
+        issuer: artifact.issuer,
+        expires_at: artifact.expires_at,
+        holder: {
+          path: artifact.holder.path,
+          thumbprint: artifact.holder.thumbprint,
+        },
+        claim_names: Object.keys(artifact.claims ?? {}).sort(),
+        output_file: outputFile,
+      });
+
       if (
-        c.agent ||
-        c.formatExplicit ||
-        process.argv.includes('--full-output')
+        !c.agent &&
+        !c.formatExplicit &&
+        !process.argv.includes('--full-output')
       ) {
-        return { ...result, output_file: outputFile };
+        return renderInteractive(
+          <SavedArtifact
+            message="Identity credential saved"
+            outputFile={outputFile}
+            details={[{ label: 'Expires', value: result.expires_at }]}
+          />,
+          () => result,
+        );
       }
 
-      const humanResult = {
-        message: 'Identity credential saved',
-        output_file: outputFile,
-        expires_at: result.expires_at,
-      };
-      return renderInteractive(
-        <SavedArtifact
-          message={humanResult.message}
-          outputFile={outputFile}
-          details={[{ label: 'Expires', value: result.expires_at }]}
-        />,
-        () => humanResult,
-      );
+      return result;
     },
   });
 

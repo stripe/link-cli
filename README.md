@@ -340,6 +340,8 @@ All commands accept `--auth <path>` to store auth credentials in a specific file
 
 Unlisted commands: set `LINK_IDENTITY_COMMANDS=1` to enable them in `--help` and `--llms`. Identity commands remain excluded from MCP even when enabled.
 
+Both identity `request` commands save their artifacts to disk and return only the file path and metadata. This applies to every output format, including JSON, piped output, and `--full-output`. Request output never includes credentials, tokens, or claim values.
+
 **Privacy-preserving tokens** that show Link attests to your agent:
 
 ```bash
@@ -370,7 +372,7 @@ Pool updates are serialized and saved atomically. A crash after removal can lose
 LINK_IDENTITY_COMMANDS=1 link-cli identity credentials request
 ```
 
-`identity credentials request` returns a signed credential bound to the CLI-managed holder key at `~/.link/holder-key.jwk`.
+`identity credentials request` saves a signed credential to `~/.link-cli/credentials/current.json`, bound to the CLI-managed holder key at `~/.link/holder-key.jwk`. Structured output includes `output_file`, issuer, expiry, holder-key path/thumbprint, and claim names. A script can read the saved credential and holder key to sign a presentation and send it through browser automation or an HTTP client without printing their contents into the agent transcript.
 
 **Unlisted local inspection** uses the same feature flag and MCP exclusion:
 
