@@ -1,5 +1,5 @@
-import { ShippingAddressResource } from '@/resources/shipping-address';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ShippingAddressResource } from '@/resources/shipping-address';
 
 const mockFetch = vi.fn();
 const getAccessToken = vi.fn();

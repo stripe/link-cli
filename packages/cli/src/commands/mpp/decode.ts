@@ -112,6 +112,12 @@ export function getStripeChargeChallengeFromResponse(
   return resolveStripeChallenge(Challenge.fromResponseList(response)).challenge;
 }
 
+export function getStripeChargeChallengeFromHeader(
+  header: string,
+): StripeChargeChallenge {
+  return resolveStripeChallenge(Challenge.deserializeList(header)).challenge;
+}
+
 export function decodeStripeChallenge(
   challengeHeader: string,
 ): DecodedStripeChallenge {

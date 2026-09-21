@@ -1,5 +1,5 @@
-import { UserInfoResource } from '@/resources/user-info';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { UserInfoResource } from '@/resources/user-info';
 
 const mockFetch = vi.fn();
 const getAccessToken = vi.fn();

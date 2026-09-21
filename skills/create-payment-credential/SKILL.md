@@ -78,13 +78,46 @@ _Recommended_: Run `link-cli --llms` to understand all the available commands. T
 
 Copy this checklist and track progress:
 
-- Step 1: Authenticate with Link
+- Step 0: Decide whether merchant selection needs personalization
+- Step 1: Authenticate with Link for the whole task
 - Step 2: Evaluate merchant site (determine credential type)
 - Step 3: Get payment methods
 - Step 4: Create spend request with correct credential type
 - Step 5: Complete payment
 
-### Step 1: Authenticate with Link
+### Step 0: Decide whether merchant selection needs personalization
+
+Respect a merchant the user explicitly names; do not retrieve financial insights
+to second-guess that choice.
+
+If the merchant is unspecified and the request involves personal shopping,
+repeat purchasing, "my usual," or choosing a preferred store, also use the
+`financial-insights` skill before selecting a merchant. Use
+`link-cli summaries list` for preference-based selection. Do not retrieve raw
+transactions unless summaries cannot answer the request and transaction-level
+data is genuinely needed.
+
+Examples:
+
+- "Order flour from Smith's Store" -> use Smith's Store without financial insights.
+- "Order some bulk flour" from a personal shopper -> use summaries to inform
+  merchant selection.
+- "Order from my usual baking supplier" -> use summaries to identify the
+  observed preference.
+
+Note that Financial Insights may not be available in the user's country, the user may
+not have any accounts to share, or the user may choose not to share their accounts. 
+If this becomes evident post authentication, proceed without attempting to use Financial
+Insights commands.
+
+### Step 1: Authenticate with Link for the whole task
+
+Before starting authentication, identify all Link capabilities needed for the
+whole task and request them together. When preference-based merchant selection
+is needed, include `read_link_transactions` and
+`read_external_transactions`. If already authenticated without either action,
+use `auth upgrade` for only the missing actions instead of starting another
+login.
 
 Check auth status:
 
@@ -98,6 +131,15 @@ If not authenticated:
 
 ```bash
 link-cli auth login --client-name "<your-agent-name>"
+```
+
+When preference-based merchant selection is also needed:
+
+```bash
+link-cli auth login \
+  --client-name "<your-agent-name>" \
+  --source-actions read_link_transactions \
+  --source-actions read_external_transactions
 ```
 
 Replace `<your-agent-name>` with the name of your agent or application (for example, `"Personal Assistant"`, `"Shopping Bot"`). This name appears in the user's Link app when they approve the connection. Use a clear, unique, identifiable name.
@@ -182,6 +224,12 @@ Do not proceed to payment while the request is still `created` or `pending_appro
 link-cli spend-request cancel <id>
 ```
 
+`spend-request retrieve <id> --interval 2` waits for the initial status to
+change when it is `created`, `pending_approval`, or `requires_action` with
+`auto_resume`. All other statuses, including `submitted` and unfamiliar API
+values, return immediately. A status change does not necessarily mean approval:
+inspect the returned status and retrieve again if it is still waiting.
+
 Recommend the user approves with the [Link app](https://link.com/download). Show the download URL.
 
 **Test mode:** Add `--test` to create testmode credentials instead of real ones. Useful for development and integration testing. Link Pay Token does not support test mode.
@@ -191,7 +239,7 @@ Recommend the user approves with the [Link app](https://link.com/download). Show
 **Metadata:** Attach arbitrary string data with the repeatable `--metadata "key:value"` flag (CLI) or a `{ key: value }` object (MCP/agent). Max 50 keys, key ≤ 40 chars, value ≤ 500 chars. Example: `--metadata "order_id:ord_123" --metadata "team:growth"`.
 
 If the response has `status: "requires_action"`, read `status_details.requires_action.next_action` (`type`, `display_message`, `action_url`, `resolution`). Show `display_message` to the user; present `action_url` clearly if present.
-- If `resolution` is `auto_resume` (currently only `three_d_secure`), run the returned `_next.command` (poll `spend-request retrieve <id> --interval 2 --max-attempts 300`) yourself — do not create a new spend request. The same request resumes to `approved`/`succeeded` once the user completes the bank's challenge.
+- If `resolution` is `auto_resume` (currently only `three_d_secure`), run the returned `_next.command` (poll `spend-request retrieve <id> --interval 2 --max-attempts 300`) yourself — do not create a new spend request. Polling returns when the status changes; inspect the result, which may be `approved`, `submitted`, or `succeeded`, once the user completes the bank's challenge.
 - Otherwise (`resolution` is `create_new_spend_request` or `create_new_spend_request_after_completion` — covers `ssn_verification`, `identity_verification`, `contact_support`, `select_payment_method`, `add_payment_method`, `update_payment_method`, `re_authorize`, `three_d_secure_retry`), have the user complete the indicated action, then create a **new** spend request — the old one will expire on its own.
 
 This same `requires_action` status can also appear later from `spend-request retrieve` in Step 5 — `update_payment_method`, `re_authorize`, and `three_d_secure_retry` only ever surface this way, and they all use `create_new_spend_request`. Apply the same `resolution`-based branching there.

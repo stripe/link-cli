@@ -1,5 +1,5 @@
-import { BalancesResource } from '@/resources/balances';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { BalancesResource } from '@/resources/balances';
 
 const mockFetch = vi.fn();
 const getAccessToken = vi.fn();
@@ -152,6 +152,25 @@ describe('BalancesResource', () => {
     getAccessToken.mockRejectedValueOnce(new Error('Missing access token'));
 
     await expect(repo.list()).rejects.toThrow('Missing access token');
+  });
+
+  it('accepts credit balances with a null used amount', async () => {
+    const response = {
+      data: [
+        {
+          source_id: 'csmrpd_credit_123',
+          type: 'credit',
+          credit: { used: null },
+          current: -178486,
+          currency: 'usd',
+          as_of: '2026-09-17T04:06:20Z',
+        },
+      ],
+      has_more: false,
+    };
+    mockFetchResponse(200, response);
+
+    await expect(repo.list()).resolves.toEqual(response);
   });
 
   it('throws when the response shape is invalid', async () => {

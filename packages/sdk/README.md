@@ -106,6 +106,7 @@ switch (result.status) {
   }
   case 'denied':
   case 'expired':
+  case 'submitted':
   case 'succeeded':
   case 'failed':
   case 'canceled':

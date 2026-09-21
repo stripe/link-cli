@@ -73,6 +73,7 @@ const (
 	SpendRequestStatusExpired         SpendRequestStatus = "expired"
 	SpendRequestStatusApproved        SpendRequestStatus = "approved"
 	SpendRequestStatusDenied          SpendRequestStatus = "denied"
+	SpendRequestStatusSubmitted       SpendRequestStatus = "submitted"
 	SpendRequestStatusSucceeded       SpendRequestStatus = "succeeded"
 	SpendRequestStatusFailed          SpendRequestStatus = "failed"
 	SpendRequestStatusCanceled        SpendRequestStatus = "canceled"

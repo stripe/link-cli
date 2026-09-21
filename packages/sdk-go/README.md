@@ -164,6 +164,7 @@ case link.SpendRequestStatusRequiresAction:
 	// Surface action.DisplayMessage and action.ActionURL to the user.
 case link.SpendRequestStatusDenied,
 	link.SpendRequestStatusExpired,
+	link.SpendRequestStatusSubmitted,
 	link.SpendRequestStatusSucceeded,
 	link.SpendRequestStatusFailed,
 	link.SpendRequestStatusCanceled:

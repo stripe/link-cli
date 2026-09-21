@@ -4,7 +4,7 @@ import type {
   NextAction,
   SpendRequest,
 } from '@stripe/link-sdk';
-import { LinkApiError, getDuplicateSpendRequest } from '@stripe/link-sdk';
+import { getDuplicateSpendRequest, LinkApiError } from '@stripe/link-sdk';
 import { Box, Text, useApp, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
@@ -18,6 +18,7 @@ import { writeCredentialFile } from '../../utils/credential-output';
 import { formatAmount } from '../../utils/format-amount';
 import { openUrl } from '../../utils/open-url';
 import { sanitizeDeep } from '../../utils/sanitize-text';
+import { shouldPollSpendRequest } from '../../utils/should-poll-spend-request';
 import { AppDownloadQrCodes } from './app-download-qr-codes';
 import { ApprovalWaitingView } from './approval-waiting-view';
 import { useApprovalPolling } from './use-approval-polling';
@@ -149,7 +150,11 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
         setRequest(latest);
         if (latest.status === 'requires_action') continue;
 
-        if (latest.status === 'approved' || latest.status === 'succeeded') {
+        if (
+          latest.status === 'approved' ||
+          latest.status === 'submitted' ||
+          latest.status === 'succeeded'
+        ) {
           setStatus('success');
         } else {
           setError(
@@ -212,7 +217,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
             result.status_details?.requires_action?.next_action ?? null,
           );
           setStatus('requires_action');
-        } else if (requestApproval && result.status !== 'approved') {
+        } else if (requestApproval && shouldPollSpendRequest(result)) {
           setStatus('waiting');
         } else {
           setStatus('success');

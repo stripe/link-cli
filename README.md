@@ -14,6 +14,7 @@ Documentation:
 
 - [Installation](#installation)
 - [Quickstart](#quickstart)
+- [Where to use Link Agent Wallet](#where-to-use-link-agent-wallet)
 - [Advanced usage](#advanced)
   - [Authentication](#authentication)
   - [The spend request lifecycle](#spend-request-lifecycle)
@@ -23,7 +24,6 @@ Documentation:
   - [Reporting issues](#report-outcomes)
   - [Handling step ups](#handle-step-ups)
   - [Adding line items and totals](#line-items-and-totals)
-  - [Approval details](#approval-details)
   - [Metadata](#metadata)
   - [Environment variables](#environment-variables)
 - [Integrating into your agent](#integrating-into-agents)
@@ -92,7 +92,7 @@ link-cli serve --port 8080
 link-cli serve --host 0.0.0.0   # expose beyond localhost (see warning below)
 ```
 
-The server only handles the `/mcp` endpoint (and `/.well-known/skills/` discovery); any other path returns `404`. It binds to `127.0.0.1` by default so only the local host can reach it. Anyone who can reach the port can use this CLI's authenticated Link session, so only override `--host` on a trusted, isolated network — doing so prints a warning.
+The server handles `POST /mcp` and `GET` skill discovery at `/.well-known/skills/index.json` and `/.well-known/skills/{skill-name}/SKILL.md`, with `OPTIONS` preflight support. Other paths return `404`, unsupported methods return `405`, and malformed or ambiguous request paths return `400`. It binds to `127.0.0.1` by default so only the local host can reach it. Anyone who can reach the port can use this CLI's authenticated Link session, so only override `--host` on a trusted, isolated network — doing so prints a warning.
 
 ## Quickstart
 
@@ -170,7 +170,7 @@ link-cli spend-request create \
   --request-approval
 ```
 
-The `--request-approval` flag triggers a push notification to the user for approval, then polls until the request is approved or denied. Polling exits successfully only after the request reaches a terminal status such as `approved`, `denied`, `expired`, or `canceled`. 
+The `--request-approval` flag triggers a push notification to the user for approval. Interactive mode polls until the request leaves the approval waiting states. Agent mode returns a `spend-request retrieve` command to wait for a status change, including a transition to `submitted`.
 
 Easily approve requests with the [Link app](https://link.com/download).
 
@@ -197,6 +197,91 @@ For agent polling, pass `--interval` and optionally `--max-attempts`:
 link-cli spend-request retrieve lsrq_001 --interval 2 --max-attempts 300
 ```
 
+## Where to use Link Agent Wallet
+
+Link is already integrated with the following agents:
+
+- [Muse by Meta](https://muse.ai)
+- [Grok Bot](https://x.ai/bot)
+- [Instinct](https://instinct.com)
+- [Browser Use](https://browser-use.com/)
+
+## Financial Insights
+
+Link CLI can also read a consumer's financial data -- transactions, balances, connected account details, and summarized/aggregated financial data. Agents can use these features to understand user preferences for making smarter purchasing decisions, answer personal finance questions, and track trends. Financial Insights are powered by [Financial Connections](https://stripe.com/financial-connections), covering 12,000+ US financial institutions.
+
+
+### Authentication
+Financial Insights requires additional authorization beyond the default; request access to each type of data you want to access on financial data sources:
+
+```bash
+link-cli auth login \
+  --client-name "My Agent" \
+  --scope "userinfo:read" \
+  --source-actions read_link_transactions \
+  --source-actions read_external_transactions \
+  --source-actions read_balances \
+  --source-actions read_source_details
+```
+If already authenticated for payments, use `auth upgrade` to add financial data access without dropping existing scopes.
+
+#### List sources
+
+```bash
+link-cli sources list
+```
+
+Returns connected financial accounts (bank accounts, credit cards, etc.) with metadata, capabilities, and connection status. Use the `id` field as `--source` in other commands.
+
+#### List transactions
+
+```bash
+link-cli transactions list
+```
+
+Supports server-side filtering:
+
+```bash
+link-cli transactions list --start-date 2026-01-01 --end-date 2026-01-31
+link-cli transactions list --category groceries
+link-cli transactions list --origin external_connection
+link-cli transactions list --source <source_id>
+```
+
+| Flag | Description |
+| ---- | ---- |
+| `--start-date` | Only transactions on or after this date (YYYY-MM-DD) |
+| `--end-date` | Only transactions on or before this date (YYYY-MM-DD) |
+| `--category` | Filter by transaction category |
+| `--origin` | `link` (Link-native) or `external_connection` (from linked bank/card) |
+| `--source` | Filter by source ID (repeatable for multiple accounts) |
+| `--limit` | Max results per page (1–100) |
+
+Amounts are integers in the currency's smallest unit. Negative = money leaving the account, positive = money entering. Transactions may be Link-native (processed directly through Link), or sourced through an external connection (e.g. imported from transactions that would appear on a bank statement).
+
+#### Agent integration
+
+The financial-insights skill teaches agents which command to run for each question type, how to handle pagination, interpret amounts, and summarize results. See skills/financial-insights/SKILL.md for the full agent guide.
+
+
+#### List balances
+
+```bash
+link-cli balances list
+link-cli balances list --source <source_id>
+```
+
+Returns current balances for connected accounts, including `cash.available` (bank/savings) or `credit.used` (credit cards).
+
+#### List summaries
+
+```bash
+link-cli summaries list
+link-cli summaries list --summary <summary_id_1> --summary <summary_id_2>
+```
+
+Returns a list of aggregated summaries based on available financial data, for example top brands over the last 6 months. Use this to quickly and token-efficiently extract insights and user preferences from financial data. Add the repeatable `--summary` flag to filter results to a specific set of summaries.
+
 ## Advanced
 
 ### Authentication
@@ -204,7 +289,7 @@ link-cli spend-request retrieve lsrq_001 --interval 2 --max-attempts 300
 ```bash
 link-cli auth login --client-name "Claude Code"   # identify the connecting agent
 link-cli auth login --client-name "Claude Code" --interval 5 --timeout 300  # login + poll in one call
-link-cli auth upgrade --scope "userinfo:read spend_requests:approve"        # widen access to a superset
+link-cli auth upgrade --scope "userinfo:read"        # widen access to a superset
 link-cli auth status                               # check auth status
 link-cli auth logout                               # disconnect
 ```
@@ -236,6 +321,18 @@ Set `NO_UPDATE_NOTIFIER=1` to suppress update checks (for example, in CI).
 
 All commands accept `--auth <path>` to store auth credentials in a specific file instead of the default location. `auth login` writes to this file; all other commands read from it. Useful for running multiple sessions with separate identities.
 
+### Identity (experimental)
+
+Unlisted commands: set `LINK_IDENTITY_COMMANDS=1` to enable them. They are omitted from `--help`, `--llms`, and MCP tool lists otherwise.
+
+Privacy-preserving tokens that show Link attests to your agent:
+
+```bash
+LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10
+```
+
+Attestation tokens can be used to respond to attestation challenges presented by downstream services. Token artifacts are written to `~/.link-cli/attestations`.
+
 ### Spend request lifecycle
 
 A spend request moves through: **create** → **request approval** → **approved** (with credentials).
@@ -265,6 +362,14 @@ link-cli spend-request retrieve lsrq_001
 # Cancel a spend request (from created, pending_approval, or approved state)
 link-cli spend-request cancel lsrq_001
 ```
+
+Use `spend-request retrieve <id> --interval 2` to wait for the initial status
+to change. Polling starts only for `created`, `pending_approval`, or
+`requires_action` with an `auto_resume` resolution. Other statuses, including
+`submitted` and unfamiliar API values, return immediately. A change to another
+waiting status also returns; inspect the result and retrieve again as needed.
+If `--timeout` or `--max-attempts` is reached without a change, the command exits
+non-zero with `POLLING_TIMEOUT`.
 
 ### Credential types
 
@@ -410,19 +515,6 @@ Optionally pass additional data on the specific items being purchased, and any t
 --total "type:total,display_text:Total,amount:12000"
 ```
 
-### Approval details
-
-For delegated/pre-approved flows, pass `--approval-detail` with a JSON object describing how the user approved the request. Required fields: `approved_at` (unix timestamp), `approval_method` (`click`, `programmatic`, or `voice`), `app_name`, `external_user_id`. Optional: `ip_address`, `user_agent`, `device_type` (`mobile` or `web`), `agent_log_id`, `external_user_name`, `external_session_id`, `authentication_method` (`biometric_face`, `biometric_fingerprint`, or `passkey`).
-
-In CLI mode, pass as a JSON string:
-
-```bash
-link-cli spend-request create ... \
-  --approval-detail '{"approved_at":1720000000,"approval_method":"click","app_name":"MyApp","external_user_id":"usr_123"}'
-```
-
-In MCP/agent mode, pass as a structured object.
-
 ### Metadata
 
 Attach arbitrary string data to a spend request with the repeatable `--metadata` flag (`key:value` format). Max 50 keys, key ≤ 40 chars, value ≤ 500 chars.
@@ -450,7 +542,8 @@ In MCP/agent mode, pass `metadata` as a structured `{ key: value }` object.
 ## Integrating into agents
 
 If you are building an agent and want to offer Link as a native experience to your consumers (as a connector, plugin, pre-installed capability etc.), 
-please reach out to `danhill at stripe.com`. We can support higher limits, more embedded approval flows, and additional advanced capabilities.
+please reach out to `agent-spend at stripe.com`. We can support higher limits, more embedded approval flows, and additional advanced capabilities 
+for certain agents.
 
 ## SDKs
 

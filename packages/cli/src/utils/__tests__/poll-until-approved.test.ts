@@ -46,7 +46,14 @@ describe('pollUntilApproved', () => {
     expect(calls).toBeGreaterThanOrEqual(4);
   });
 
-  it.each(['denied', 'expired', 'succeeded', 'failed'] as const)(
+  it.each([
+    'denied',
+    'expired',
+    'submitted',
+    'succeeded',
+    'failed',
+    'future_status',
+  ] as const)(
     'stops immediately on terminal status %s',
     async (terminalStatus) => {
       const repo = {

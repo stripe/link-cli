@@ -1,5 +1,55 @@
 # @stripe/link-cli
 
+## 0.21.0
+
+### Minor Changes
+
+- c1f35ec: Add support for listing financial insight summaries through the CLI and SDK.
+
+## 0.20.0
+
+### Minor Changes
+
+- 835e7bb: feat: Handle the new Submitted SpendRequest state
+
+### Patch Changes
+
+- 835e7bb: Support the `submitted` spend request status. Retrieve polling now waits for
+  the initial waiting status to change, returning immediately for submitted and
+  unknown statuses instead of relying on a list of terminal statuses.
+- bfb71db: Used mppx request preparation for safe MPP redirects and request pinning.
+
+## 0.19.3
+
+### Patch Changes
+
+- 0db0e06: Harden HTTP serve routing by validating and dispatching the same parsed request
+  URL. Reject ambiguous request paths with a bad-request response, restrict MCP
+  to POST requests, and limit skill discovery to its supported GET endpoints.
+  Malformed request targets no longer terminate the server.
+
+## 0.19.2
+
+### Patch Changes
+
+- 2258014: Attach MPP credentials using the response challenge's selected HTTP header.
+- 0991a1d: Dependency upgrades
+- eb2bb0e: Register the MCP server with its standalone executable when applicable, or the
+  detected package runner and versioned `@stripe/link-cli` package. Existing MCP
+  registrations are not updated automatically; rerun `link-cli mcp add` after
+  upgrading to replace the generated `link-cli` entry.
+- 4aa62ba: Send MPP payment credentials only to the URL that returned the payment challenge.
+  Approved spend requests and paid retries now reject redirects instead of moving
+  credentials to a new destination. Remote MPP endpoints must use HTTPS; HTTP
+  remains supported for exact loopback addresses used in local development.
+- 19f566c: Verify that a refreshed MPP challenge matches the terms approved by the user.
+
+## 0.19.1
+
+### Patch Changes
+
+- ac17965: Add caller-supplied idempotency keys to SpendRequest creation.
+
 ## 0.19.0
 
 ### Minor Changes

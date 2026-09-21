@@ -73,6 +73,116 @@ function makeSequentialMockRepo(
 }
 
 describe('spend-request', () => {
+  describe('status change polling', () => {
+    it.each(['submitted', 'future_status'])(
+      'RetrieveSpendRequest completes immediately for %s',
+      async (status) => {
+        const repo = makeMockRepo(makeSpendRequest({ status }));
+        const onComplete = vi.fn();
+        const { lastFrame, unmount } = render(
+          <RetrieveSpendRequest
+            repository={repo}
+            id="sr_test"
+            onComplete={onComplete}
+          />,
+        );
+        try {
+          await vi.waitFor(
+            () => {
+              expect(lastFrame()).toContain(`Spend request status: ${status}`);
+              expect(onComplete).toHaveBeenCalledWith(
+                expect.objectContaining({ status }),
+              );
+            },
+            { timeout: 2500 },
+          );
+        } finally {
+          unmount();
+        }
+      },
+    );
+
+    it.each([
+      ['pending_approval', 'submitted'],
+      ['pending_approval', 'future_status'],
+      ['created', 'pending_approval'],
+      ['pending_approval', 'requires_action'],
+      ['requires_action', 'submitted'],
+    ])(
+      'RetrieveSpendRequest returns when %s changes to %s',
+      async (fromStatus, toStatus) => {
+        const waiting = makeSpendRequest({
+          status: fromStatus,
+          status_details: {
+            requires_action: {
+              next_action: {
+                type: 'three_d_secure',
+                resolution: 'auto_resume',
+                display_message: 'Complete 3D Secure verification.',
+                action_url: 'https://app.link.com/verify',
+              },
+            },
+          },
+        });
+        const changed = { ...waiting, status: toStatus };
+        const repo = makeSequentialMockRepo(waiting, [waiting, changed]);
+        const onComplete = vi.fn();
+        const { lastFrame, unmount } = render(
+          <RetrieveSpendRequest
+            repository={repo}
+            id="sr_test"
+            onComplete={onComplete}
+          />,
+        );
+        try {
+          await vi.waitFor(
+            () => {
+              expect(onComplete).toHaveBeenCalledWith(
+                expect.objectContaining({ status: toStatus }),
+              );
+              if (toStatus === 'requires_action') {
+                expect(lastFrame()).toContain(
+                  'retrieve this spend request again',
+                );
+                expect(lastFrame()).not.toContain('create a new spend request');
+              } else {
+                expect(lastFrame()).toContain(
+                  `Spend request status: ${toStatus}`,
+                );
+              }
+            },
+            { timeout: 4500 },
+          );
+        } finally {
+          unmount();
+        }
+      },
+    );
+
+    it('RequestApproval accepts submitted after approval polling', async () => {
+      const repo = makeMockRepo(makeSpendRequest({ status: 'submitted' }));
+      const { lastFrame, unmount } = render(
+        <RequestApproval
+          repository={repo}
+          id="sr_test"
+          onComplete={() => {}}
+        />,
+      );
+      try {
+        await vi.waitFor(
+          () => {
+            expect(lastFrame()).toContain('Approval completed');
+            expect(lastFrame()).toContain('submitted');
+            expect(lastFrame()).not.toContain('Failed');
+          },
+          { timeout: 3000 },
+        );
+      } finally {
+        unmount();
+      }
+    });
+  });
+
   describe('UpdateSpendRequest', () => {
     it('shows the approval URL while polling a delegated amount update', async () => {
       const request = makeSpendRequest({
@@ -444,34 +554,37 @@ describe('spend-request', () => {
   });
 
   describe('approve', () => {
-    it('CreateSpendRequest skips the approval-waiting/QR view when the request is already approved', async () => {
-      const request = makeSpendRequest({ status: 'approved' });
-      const repo = makeMockRepo(request);
+    it.each(['approved', 'submitted', 'future_status'])(
+      'CreateSpendRequest skips the approval-waiting/QR view when the request is already %s',
+      async (status) => {
+        const request = makeSpendRequest({ status });
+        const repo = makeMockRepo(request);
 
-      const { lastFrame } = render(
-        <CreateSpendRequest
-          repository={repo}
-          params={{
-            payment_details: 'pm_1',
-            amount: 1000,
-            currency: 'usd',
-            merchant_name: 'Acme',
-            merchant_url: 'https://example.com',
-            context: 'x'.repeat(100),
-          }}
-          requestApproval
-          approve
-          onComplete={() => {}}
-        />,
-      );
+        const { lastFrame } = render(
+          <CreateSpendRequest
+            repository={repo}
+            params={{
+              payment_details: 'pm_1',
+              amount: 1000,
+              currency: 'usd',
+              merchant_name: 'Acme',
+              merchant_url: 'https://example.com',
+              context: 'x'.repeat(100),
+            }}
+            requestApproval
+            approve
+            onComplete={() => {}}
+          />,
+        );
 
-      await vi.waitFor(() => {
-        const frame = lastFrame();
-        expect(frame).toContain('Spend request created');
-        expect(frame).not.toContain('Approve at:');
-        expect(frame).not.toContain('Get the Link app');
-      });
-    });
+        await vi.waitFor(() => {
+          const frame = lastFrame();
+          expect(frame).toContain('Spend request created');
+          expect(frame).not.toContain('Approve at:');
+          expect(frame).not.toContain('Get the Link app');
+        });
+      },
+    );
 
     it('CreateSpendRequest still shows the approval-waiting/QR view when requestApproval is set and the request is not yet approved', async () => {
       const created = makeSpendRequest({
@@ -549,57 +662,61 @@ describe('spend-request', () => {
       });
     });
 
-    it('CreateSpendRequest resumes polling for auto_resume (three_d_secure) and resolves to success', async () => {
-      const requiresAction = makeSpendRequest({
-        status: 'requires_action',
-        status_details: {
-          requires_action: {
-            next_action: {
-              type: 'three_d_secure',
-              resolution: 'auto_resume',
-              display_message: 'Complete 3D Secure verification.',
-              action_url: 'https://app.link.com/finish_setup?verify=3ds',
+    it.each(['approved', 'submitted'])(
+      'CreateSpendRequest resumes polling for auto_resume (three_d_secure) and resolves to %s',
+      async (status) => {
+        const requiresAction = makeSpendRequest({
+          status: 'requires_action',
+          status_details: {
+            requires_action: {
+              next_action: {
+                type: 'three_d_secure',
+                resolution: 'auto_resume',
+                display_message: 'Complete 3D Secure verification.',
+                action_url: 'https://app.link.com/finish_setup?verify=3ds',
+              },
             },
           },
-        },
-      });
-      const approved = makeSpendRequest({ status: 'approved' });
-      const repo = makeSequentialMockRepo(requiresAction, [approved]);
+        });
+        const approved = makeSpendRequest({ status });
+        const repo = makeSequentialMockRepo(requiresAction, [approved]);
 
-      const { lastFrame } = render(
-        <CreateSpendRequest
-          repository={repo}
-          params={{
-            payment_details: 'pm_1',
-            amount: 1000,
-            currency: 'usd',
-            merchant_name: 'Acme',
-            merchant_url: 'https://example.com',
-            context: 'x'.repeat(100),
-          }}
-          onComplete={() => {}}
-        />,
-      );
+        const { lastFrame } = render(
+          <CreateSpendRequest
+            repository={repo}
+            params={{
+              payment_details: 'pm_1',
+              amount: 1000,
+              currency: 'usd',
+              merchant_name: 'Acme',
+              merchant_url: 'https://example.com',
+              context: 'x'.repeat(100),
+            }}
+            onComplete={() => {}}
+          />,
+        );
 
-      await vi.waitFor(
-        () => {
-          const frame = lastFrame();
-          expect(frame).toContain(
-            'Waiting for 3D Secure verification to complete',
-          );
-        },
-        { timeout: 3000 },
-      );
+        await vi.waitFor(
+          () => {
+            const frame = lastFrame();
+            expect(frame).toContain(
+              'Waiting for 3D Secure verification to complete',
+            );
+          },
+          { timeout: 3000 },
+        );
 
-      await vi.waitFor(
-        () => {
-          const frame = lastFrame();
-          expect(frame).toContain('Spend request created');
-          expect(frame).toContain('approved');
-        },
-        { timeout: 5000 },
-      );
-    }, 8000);
+        await vi.waitFor(
+          () => {
+            const frame = lastFrame();
+            expect(frame).toContain('Spend request created');
+            expect(frame).toContain(status);
+          },
+          { timeout: 5000 },
+        );
+      },
+      8000,
+    );
 
     it('CreateSpendRequest surfaces requires_action reached via --request-approval polling (not conflated with denied)', async () => {
       const created = makeSpendRequest({
@@ -828,7 +945,7 @@ describe('spend-request', () => {
 
       await vi.waitFor(() => {
         const frame = lastFrame();
-        expect(frame).toContain('terminal status');
+        expect(frame).toContain('Spend request status');
         expect(frame).not.toContain('Activity URL');
       });
     });
@@ -847,7 +964,7 @@ describe('spend-request', () => {
 
       await vi.waitFor(() => {
         const frame = lastFrame();
-        expect(frame).toContain('terminal status');
+        expect(frame).toContain('Spend request status');
         expect(frame).not.toContain('Activity URL');
       });
     });

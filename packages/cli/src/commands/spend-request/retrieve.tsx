@@ -5,6 +5,7 @@ import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { writeCredentialFile } from '../../utils/credential-output';
+import { shouldPollSpendRequest } from '../../utils/should-poll-spend-request';
 
 interface RetrieveSpendRequestProps {
   repository: ISpendRequestResource;
@@ -26,25 +27,11 @@ type Phase =
   | 'timeout'
   | 'error';
 
-// Statuses past which polling should stop. Mirrors the JSON path in
-// commands/spend-request/index.tsx so an `expired`/`canceled`/`failed` request
-// doesn't keep the TUI spinning until the local timeout fires.
-const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
-  'approved',
-  'denied',
-  'expired',
-  'succeeded',
-  'failed',
-  'canceled',
-]);
-
-// `requires_action` with an `auto_resume` resolution (e.g. 3D Secure) will
-// resolve on its own — keep polling through it rather than stopping.
-function isAutoResume(request: SpendRequest): boolean {
-  return (
-    request.status_details?.requires_action?.next_action?.resolution ===
-    'auto_resume'
-  );
+function completedPhase(request: SpendRequest): Phase {
+  if (request.status === 'approved') return 'success';
+  if (request.status === 'denied') return 'declined';
+  if (request.status === 'requires_action') return 'requires_action';
+  return 'finalized';
 }
 
 export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
@@ -66,6 +53,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const requestRef = useRef<SpendRequest | null>(null);
+  const fromStatusRef = useRef<SpendRequest['status'] | undefined>(undefined);
 
   useEffect(() => {
     return () => {
@@ -104,20 +92,9 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
         requestRef.current = result;
         setRequest(result);
 
-        if (result.status === 'approved') {
-          setPhase('success');
-          setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
-        } else if (result.status === 'denied') {
-          setPhase('declined');
-          setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
-        } else if (
-          result.status === 'requires_action' &&
-          !isAutoResume(result)
-        ) {
-          setPhase('requires_action');
-          setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
-        } else if (TERMINAL_STATUSES.has(result.status)) {
-          setPhase('finalized');
+        fromStatusRef.current = result.status;
+        if (!shouldPollSpendRequest(result, fromStatusRef.current)) {
+          setPhase(completedPhase(result));
           setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
         } else {
           startTimeRef.current = Date.now();
@@ -158,28 +135,10 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
         requestRef.current = result;
         setRequest(result);
 
-        if (result.status === 'approved') {
+        if (!shouldPollSpendRequest(result, fromStatusRef.current)) {
           if (pollRef.current) clearInterval(pollRef.current);
           if (timerRef.current) clearInterval(timerRef.current);
-          setPhase('success');
-          setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
-        } else if (result.status === 'denied') {
-          if (pollRef.current) clearInterval(pollRef.current);
-          if (timerRef.current) clearInterval(timerRef.current);
-          setPhase('declined');
-          setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
-        } else if (
-          result.status === 'requires_action' &&
-          !isAutoResume(result)
-        ) {
-          if (pollRef.current) clearInterval(pollRef.current);
-          if (timerRef.current) clearInterval(timerRef.current);
-          setPhase('requires_action');
-          setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
-        } else if (TERMINAL_STATUSES.has(result.status)) {
-          if (pollRef.current) clearInterval(pollRef.current);
-          if (timerRef.current) clearInterval(timerRef.current);
-          setPhase('finalized');
+          setPhase(completedPhase(result));
           setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
         }
       } catch {
@@ -215,7 +174,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
     return (
       <Box flexDirection="column">
         <Text color="yellow">
-          ✗ Timed out waiting for approval after {timeout}s
+          ✗ Timed out waiting for status to change after {timeout}s
         </Text>
         {request && (
           <Box flexDirection="column" marginTop={1} paddingX={2}>
@@ -273,9 +232,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
     const psd = request?.payment_status_details;
     return (
       <Box flexDirection="column">
-        <Text color="yellow">
-          Spend request reached terminal status: {request?.status}
-        </Text>
+        <Text color="yellow">Spend request status: {request?.status}</Text>
         <Box flexDirection="column" marginTop={1} paddingX={2}>
           <Text>
             ID: <Text bold>{request?.id}</Text>
@@ -373,7 +330,9 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
         </Box>
         <Box marginTop={1}>
           <Text dimColor>
-            Complete this step, then create a new spend request.
+            {nextAction?.resolution === 'auto_resume'
+              ? 'Complete this step, then retrieve this spend request again to wait for its status to change.'
+              : 'Complete this step, then create a new spend request.'}
           </Text>
         </Box>
       </Box>

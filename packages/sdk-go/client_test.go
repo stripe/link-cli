@@ -231,6 +231,55 @@ func TestExplicitEmptyCollectionsAreSent(t *testing.T) {
 	}
 }
 
+func TestCreateSpendRequestIdempotencyKeyEncoding(t *testing.T) {
+	key := "550e8400-e29b-41d4-a716-446655440000"
+	tests := []struct {
+		name    string
+		key     *string
+		present bool
+	}{
+		{name: "present", key: &key, present: true},
+		{name: "omitted", key: nil, present: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			data, err := json.Marshal(CreateSpendRequestParams{
+				Context:        "A sufficiently detailed context for testing idempotency key encoding.",
+				IdempotencyKey: test.key,
+			})
+			assertNoError(t, err)
+			var fields map[string]json.RawMessage
+			assertNoError(t, json.Unmarshal(data, &fields))
+			encoded, ok := fields["idempotency_key"]
+			if ok != test.present {
+				t.Fatalf("idempotency_key presence was %t, want %t: %s", ok, test.present, data)
+			}
+			if test.present && string(encoded) != `"550e8400-e29b-41d4-a716-446655440000"` {
+				t.Fatalf("got idempotency_key %s", encoded)
+			}
+		})
+	}
+}
+
+func TestCreateSpendRequestIncompleteIdempotentRequestReturnsAPIError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.WriteHeader(http.StatusConflict)
+		_, _ = response.Write([]byte(`{"error":{"message":"The keyed creation is still in progress"}}`))
+	}))
+	defer server.Close()
+	client, err := NewClient(Options{AccessToken: "token", SpendRequestBaseURL: server.URL})
+	assertNoError(t, err)
+	key := "incomplete-key"
+	_, err = client.SpendRequests.Create(context.Background(), CreateSpendRequestParams{
+		Context:        "A sufficiently detailed context for testing an incomplete keyed creation.",
+		IdempotencyKey: &key,
+	})
+	var apiError *LinkAPIError
+	if !errors.As(err, &apiError) || apiError.Status != http.StatusConflict {
+		t.Fatalf("got %#v, want LinkAPIError with status 409", err)
+	}
+}
+
 func TestExplicitEmptyCollectionsMarshalAcrossRequestTypes(t *testing.T) {
 	tests := []struct {
 		name  string

@@ -1,5 +1,5 @@
-import { resolveLinkSdkConfig } from '@/config';
 import { describe, expect, it, vi } from 'vitest';
+import { resolveLinkSdkConfig } from '@/config';
 
 function captureHeaders(
   fetchSpy: ReturnType<typeof vi.fn>,

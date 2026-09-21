@@ -2,7 +2,7 @@
 version: 0.15.1
 name: financial-insights
 description: |
-  Reads a user's Link financial data — transactions, balances, and wallet sources — so agents can answer questions about spending and available source capabilities. Use when the user says "check my balance", "how much did I spend", "show my transactions", "what accounts are connected", "summarize my spending", "recent purchases", or asks about their financial activity, account balances, or linked sources.
+  Reads Link financial data to answer questions about spending, balances, transactions, linked sources, and shopping preferences. Also use alongside a purchase skill when acting as a personal shopper and the user has not specified a merchant, or asks for their usual, favorite, or preferred store.
 allowed-tools:
  - Bash(link-cli:*)
  - Bash(npx --yes @stripe/link-cli:*)
@@ -33,7 +33,7 @@ Use this skill to answer questions about a user’s Link-connected financial dat
 - Spending patterns
 - Account balances
 - Linked wallet sources
-- Basic summaries derived from the user’s financial data
+- Precomputed summaries that help agents understand consumer preferences, such as favorite brands to shop at, favorite restaurants, and local stores
 
 All commands are read-only. They do not move money, initiate payments, modify accounts, or expose payment credentials.
 
@@ -64,9 +64,16 @@ Use the minimum required source actions:
 - Transactions processed through Link: `read_link_transactions`
 - Transactions imported from bank connections: `read_external_transactions`
 - Account balances: `read_balances`
-- Data source details and descriptions: `read_source_details`
+- Data source details and descriptions: `read_source_details`. This action is broadly useful, for example if you will ever need to tie a transaction or balance to a particular account name.
 
 If the user asks a question that requires multiple data types, request all relevant actions together.
+
+When this skill is used alongside a purchase workflow, determine all required
+Link capabilities before authenticating and request them in one login. For
+preference-based merchant selection with `summaries list`, request both
+`read_link_transactions` and `read_external_transactions`. If a payment session
+already exists, use `auth upgrade` for only the missing actions; do not start a
+second login.
 
 Example for a new login that needs all financial data types:
 
@@ -103,12 +110,22 @@ Use the smallest command set that answers the user’s question.
 
 | User asks about | Command |
 |---|---|
+| Favorite brands, restaurants, local stores, or other summarized preferences derived from purchase history | `link-cli summaries list` |
 | Recent purchases, merchants, spend, transaction history, income, deposits, subscriptions | `link-cli transactions list` |
 | Current available balance, account balance, cash position | `link-cli balances list` |
 | Connected accounts, cards, banks, wallet sources, source metadata | `link-cli sources list` |
 
+| Operation | Required source actions |
+|---|---|
+| `summaries list` for merchant preferences | `read_link_transactions`, `read_external_transactions` |
+
 Examples:
 
+- “What brands and restaurants do I prefer?” → Use summaries only.
+- "Order flowers from my flower shop" → Use summaries only to identify most frequently used business rather than transactions.
+- "Order flour from Costco" → Respect the named merchant; do not use this skill.
+- "Order some bulk flour" from a personal shopper → Use summaries before choosing a merchant.
+- "Order from my usual baking supplier" → Use summaries to identify the observed preference.
 - “How much did I spend on restaurants last month?” → Use transactions only.
 - “What is my current checking account balance?” → Use balances only.
 - “Which accounts are connected?” → Use sources only.
@@ -119,6 +136,7 @@ Examples:
 Use JSON for agent-readable structured output.
 
 ```bash
+link-cli summaries list --format json
 link-cli transactions list --format json
 link-cli balances list --format json
 link-cli sources list --format json
@@ -129,6 +147,35 @@ The default `toon` format is intended for humans. Prefer `--format json` wheneve
 All monetary amounts across all endpoints are integers in the currency's smallest unit (e.g. `152340` = $1,523.40 USD). Format amounts with a currency-aware formatter that uses the currency's ISO 4217 minor-unit exponent; do not assume every currency has two decimal places or always divide by 100.
 
 Keep sign interpretation field-specific. Only `transactions.amount` uses negative for money leaving the account and positive for money entering it. Do not apply transaction sign semantics to balance fields; interpret `current`, `cash.available`, and `credit.used` according to the balance type.
+
+## Summaries
+
+Use summaries when an agent needs ready-made, summarized financial data rather than calculating an insight from raw transactions. Available summaries can help the agent understand the consumer's preferences, including favorite brands to shop at, favorite restaurants, and local stores. The available summary types depend on the consumer's financial data.
+
+First list all summaries to discover their IDs and descriptions:
+
+```bash
+link-cli summaries list --format json
+```
+
+To retrieve only selected summaries in the future, repeat `--summary` with IDs returned by that command:
+
+```bash
+link-cli summaries list \
+  --summary <summary_id> \
+  --summary <another_summary_id> \
+  --format json
+```
+
+Do not guess summary IDs. Omit `--summary` to include every available summary.
+
+When using summaries:
+
+- Match each summary's description and entries to the user's request; do not assume every consumer has every type of preference summary.
+- Use only results whose status is `ready`. If a result is `pending`, explain that it is not ready and can be checked again later. If it is `no_data`, explain that no data is available for that summary.
+- Mention the `as_of` date when presenting an insight, because preferences can change and summaries may not reflect the latest transaction.
+- Describe the result as an observed preference based on the summarized financial data, not a definitive statement about the consumer.
+- Prefer summaries for common preference questions. Use `transactions list` only when the user needs transaction-level detail, a custom time range, or an aggregation that the available summaries do not provide.
 
 ## Sources (concept)
 

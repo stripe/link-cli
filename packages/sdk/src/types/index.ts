@@ -50,6 +50,7 @@ export type SpendRequestStatus =
   | 'expired'
   | 'approved'
   | 'denied'
+  | 'submitted'
   | 'succeeded'
   | 'failed'
   | 'canceled'
@@ -292,7 +293,7 @@ export interface CashBalance {
 }
 
 export interface CreditBalance {
-  used: Record<string, number>;
+  used: Record<string, number> | null;
 }
 
 export interface Balance {
@@ -308,6 +309,49 @@ export interface Balance {
 
 export interface BalancesPage {
   data: Balance[];
+  has_more?: boolean;
+  [key: string]: unknown;
+}
+
+export type SummaryStatus = 'ready' | 'pending' | 'no_data';
+export type SummaryValue =
+  | { unit: 'count'; count: number; [key: string]: unknown }
+  | {
+      unit: 'payment_volume';
+      amount: number;
+      currency: string;
+      [key: string]: unknown;
+    };
+export interface SummaryEntry {
+  label: string;
+  value: SummaryValue;
+  [key: string]: unknown;
+}
+export type SummaryDataValue =
+  | { unit: 'count'; amount: number; [key: string]: unknown }
+  | {
+      unit: 'payment_volume';
+      amount: number;
+      currency: string;
+      [key: string]: unknown;
+    };
+export interface SummaryDataRow {
+  label: string;
+  value: SummaryDataValue;
+  [key: string]: unknown;
+}
+export interface Summary {
+  id: string;
+  description: string;
+  created_at?: string | null;
+  status: SummaryStatus;
+  entries: SummaryEntry[];
+  as_of?: number;
+  data?: SummaryDataRow[];
+  [key: string]: unknown;
+}
+export interface SummariesPage {
+  data: Summary[];
   has_more?: boolean;
   [key: string]: unknown;
 }

@@ -1,4 +1,4 @@
-import { ZodError, prettifyError } from 'zod';
+import { prettifyError, ZodError } from 'zod';
 
 export class LinkSdkError extends Error {
   readonly code: string;

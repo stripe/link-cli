@@ -1,5 +1,5 @@
-import { PaymentMethodsResource } from '@/resources/payment-methods';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PaymentMethodsResource } from '@/resources/payment-methods';
 
 const mockFetch = vi.fn();
 const getAccessToken = vi.fn();

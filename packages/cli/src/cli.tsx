@@ -3,6 +3,7 @@ import { type CliAuthStorage, Storage, storage } from './auth/storage';
 import { createAuthCli } from './commands/auth';
 import { createBalancesCli } from './commands/balances';
 import { createDemoCli } from './commands/demo';
+import { createIdentityCli } from './commands/identity';
 import { createMppCli } from './commands/mpp';
 import { createOnboardCli } from './commands/onboard';
 import { createPaymentMethodsCli } from './commands/payment-methods';
@@ -11,10 +12,12 @@ import { createServeCli } from './commands/serve';
 import { createShippingAddressCli } from './commands/shipping-address';
 import { createSourcesCli } from './commands/sources';
 import { createSpendRequestCli } from './commands/spend-request';
+import { createSummariesCli } from './commands/summaries';
 import { createTransactionsCli } from './commands/transactions';
 import { createUcpCli } from './commands/ucp';
 import { createUserInfoCli } from './commands/user-info';
 import { createWebBotAuthCli } from './commands/web-bot-auth';
+import { buildMcpCommand } from './utils/package-runner';
 import { ResourceFactory } from './utils/resource-factory';
 import {
   createAgentUpdateInfoProvider,
@@ -68,6 +71,9 @@ const cli = Cli.create('link-cli', {
   description:
     'Create a secure, one-time payment credential from a Link wallet to let agents complete purchases on behalf of users.',
   version: cliVersion,
+  mcp: {
+    command: buildMcpCommand(cliName, cliVersion),
+  },
   sync: {
     include: ['skills/*'],
   },
@@ -89,6 +95,17 @@ if (!isAgent && process.stdout.isTTY) {
   }
 }
 
+const identityCommandsEnabled =
+  process.env.LINK_IDENTITY_COMMANDS === '1' ||
+  process.env.LINK_IDENTITY_COMMANDS === 'true';
+
+if (identityCommandsEnabled) {
+  cli.command(
+    createIdentityCli({
+      createAttestationsResource: () => factory.createAttestationsResource(),
+    }),
+  );
+}
 cli.command(
   createAuthCli(authRepo, getUpdateInfo, authStorage, envAccessToken),
 );
@@ -157,6 +174,13 @@ cli.command(
 );
 cli.command(
   createUcpCli(() => factory.createUcpResource(), authStorage, envAccessToken),
+);
+cli.command(
+  createSummariesCli(
+    () => factory.createSummariesResource(),
+    authStorage,
+    envAccessToken,
+  ),
 );
 cli.command(
   createDemoCli(

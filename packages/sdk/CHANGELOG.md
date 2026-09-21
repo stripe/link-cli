@@ -1,5 +1,35 @@
 # @stripe/link-sdk
 
+## 0.6.0
+
+### Minor Changes
+
+- c1f35ec: Add support for listing financial insight summaries through the CLI and SDK.
+
+## 0.5.0
+
+### Minor Changes
+
+- 835e7bb: feat: Handle the new Submitted SpendRequest state
+
+### Patch Changes
+
+- 835e7bb: Support the `submitted` spend request status. Retrieve polling now waits for
+  the initial waiting status to change, returning immediately for submitted and
+  unknown statuses instead of relying on a list of terminal statuses.
+
+## 0.4.2
+
+### Patch Changes
+
+- 0991a1d: Dependency upgrades
+
+## 0.4.1
+
+### Patch Changes
+
+- ac17965: Add caller-supplied idempotency keys to SpendRequest creation.
+
 ## 0.4.0
 
 ### Minor Changes

@@ -75,7 +75,11 @@ let serverPort: number;
 let lastRequest: RequestLog;
 let requests: RequestLog[];
 let nextResponse: { status: number; body: unknown };
-let responsesByUrl: Record<string, { status: number; body: unknown }> = {};
+let responseQueue: (typeof nextResponse)[] = [];
+let responsesByUrl: Record<
+  string,
+  { status: number; body: unknown; headers?: Record<string, string> }
+> = {};
 
 // ─── Second mock server for merchant endpoints ─────────────────────────────
 let merchantServer: http.Server;
@@ -99,8 +103,13 @@ function setNextResponse(status: number, body: unknown) {
   nextResponse = { status, body };
 }
 
-function setResponseForUrl(url: string, status: number, body: unknown) {
-  responsesByUrl[url] = { status, body };
+function setResponseForUrl(
+  url: string,
+  status: number,
+  body: unknown,
+  headers?: Record<string, string>,
+) {
+  responsesByUrl[url] = { status, body, headers };
 }
 
 async function runProdCli(...args: string[]): Promise<CliResult> {
@@ -192,9 +201,10 @@ describe('production mode', () => {
         requests.push(lastRequest);
 
         const urlOverride = responsesByUrl[req.url ?? ''];
-        const response = urlOverride ?? nextResponse;
+        const response = urlOverride ?? responseQueue.shift() ?? nextResponse;
         res.writeHead(response.status, {
           'Content-Type': 'application/json',
+          ...response.headers,
         });
         res.end(JSON.stringify(response.body));
       });
@@ -228,6 +238,7 @@ describe('production mode', () => {
   beforeEach(() => {
     requests = [];
     responsesByUrl = {};
+    responseQueue = [];
     merchantRequests = [];
     merchantResponses = [];
     storage.setTokens(PROD_AUTH_TOKENS);
@@ -241,6 +252,8 @@ describe('production mode', () => {
         'create',
         '--payment-method-id',
         'pd_prod_test',
+        '--idempotency-key',
+        '550e8400-e29b-41d4-a716-446655440000',
         '--merchant-name',
         'Test Merchant',
         '--merchant-url',
@@ -267,6 +280,9 @@ describe('production mode', () => {
 
       const sentBody = JSON.parse(lastRequest.body);
       expect(sentBody.payment_details).toBe('pd_prod_test');
+      expect(sentBody.idempotency_key).toBe(
+        '550e8400-e29b-41d4-a716-446655440000',
+      );
       expect(sentBody.amount).toBe(5000);
       expect(sentBody.merchant_name).toBe('Test Merchant');
       expect(sentBody.line_items).toEqual([
@@ -275,6 +291,55 @@ describe('production mode', () => {
       expect(sentBody.totals).toEqual([
         { type: 'total', display_text: 'Total', amount: 5000 },
       ]);
+      expect(result.stdout + result.stderr).not.toContain(
+        '550e8400-e29b-41d4-a716-446655440000',
+      );
+    });
+
+    it('omits idempotency_key when --idempotency-key is absent', async () => {
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--merchant-name',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--no-request-approval',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(lastRequest.body).idempotency_key).toBeUndefined();
+    });
+
+    it.each([
+      ['', 'must not be empty'],
+      ['a'.repeat(256), 'at most 255 UTF-8 bytes'],
+      ['é'.repeat(128), 'at most 255 UTF-8 bytes'],
+    ])('rejects invalid idempotency key %#', async (key, expectedMessage) => {
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--idempotency-key',
+        key,
+        '--merchant-name',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout + result.stderr).toContain(expectedMessage);
+      expect(requests).toHaveLength(0);
     });
 
     it('returns the API response as JSON output', async () => {
@@ -392,6 +457,8 @@ describe('production mode', () => {
         'create',
         '--payment-method-id',
         'pd_prod_test',
+        '--idempotency-key',
+        'delegated-key',
         '--execution-method',
         'link_pay_token',
         '--merchant-account-id',
@@ -411,6 +478,7 @@ describe('production mode', () => {
 
       const sentBody = JSON.parse(lastRequest.body);
       expect(sentBody).toMatchObject({
+        idempotency_key: 'delegated-key',
         payment_details: 'pd_prod_test',
         credential_type: 'card',
         execution_method: 'link_pay_token',
@@ -741,10 +809,10 @@ describe('production mode', () => {
       expect(sentBody.test).toBeUndefined();
     });
 
-    it('sends request_approval in create body, outputs approval URL immediately then polls', async () => {
+    it('sends request_approval in create body and returns a polling hint for pending approval', async () => {
       setNextResponse(200, {
         ...BASE_REQUEST,
-        status: 'approved',
+        status: 'pending_approval',
         approval_url: 'https://app.link.com/approve/lsrq_prod_001',
       });
 
@@ -785,7 +853,35 @@ describe('production mode', () => {
       const next = output[0]._next as Record<string, unknown>;
       expect(next.command).toContain('spend-request retrieve');
       expect(next.command).toContain('--interval');
+      expect(next.until).toBe('status changes from pending_approval');
     });
+
+    it.each(['submitted', 'future_status'])(
+      'returns a created request with status %s without an approval polling hint',
+      async (status) => {
+        setNextResponse(200, { ...BASE_REQUEST, status });
+        const result = await runProdCli(
+          'spend-request',
+          'create',
+          '--merchant-name',
+          'Test Merchant',
+          '--merchant-url',
+          'https://example.com',
+          '--context',
+          VALID_CONTEXT,
+          '--amount',
+          '5000',
+          '--request-approval',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        const output = parseJson(result.stdout) as Record<string, unknown>[];
+        expect(output[0].status).toBe(status);
+        expect(output[0]._next).toBeUndefined();
+        expect(requests).toHaveLength(1);
+      },
+    );
 
     it('surfaces support_url on identity_verification_failed error', async () => {
       setNextResponse(403, {
@@ -820,10 +916,13 @@ describe('production mode', () => {
 
     it('surfaces API error messages', async () => {
       setNextResponse(422, { error: { message: 'Invalid payment details' } });
+      const idempotencyKey = 'error-path-key-that-must-not-be-echoed';
 
       const result = await runProdCli(
         'spend-request',
         'create',
+        '--idempotency-key',
+        idempotencyKey,
         '--payment-method-id',
         'pd_bad',
         '-m',
@@ -844,6 +943,7 @@ describe('production mode', () => {
       expect(result.exitCode).toBe(1);
       const output = result.stdout + result.stderr;
       expect(output).toContain('Invalid payment details');
+      expect(output).not.toContain(idempotencyKey);
     });
 
     it('surfaces the duplicate spend request on spend_request_rate_limited error', async () => {
@@ -1289,7 +1389,7 @@ describe('production mode', () => {
       expect(output).toContain('not found');
     });
 
-    it('exits non-zero when polling attempts are exhausted before a terminal status', async () => {
+    it('exits non-zero when polling attempts are exhausted without a status change', async () => {
       setNextResponse(200, {
         ...BASE_REQUEST,
         status: 'pending_approval',
@@ -1314,7 +1414,7 @@ describe('production mode', () => {
       expect(output.message).toContain('max attempts');
     });
 
-    it('exits non-zero when polling times out before a terminal status', async () => {
+    it('exits non-zero when polling times out without a status change', async () => {
       setNextResponse(200, {
         ...BASE_REQUEST,
         status: 'pending_approval',
@@ -1339,26 +1439,88 @@ describe('production mode', () => {
       expect(output.message).toContain('timeout');
     });
 
-    it('exits successfully when polling observes a terminal status', async () => {
-      setNextResponse(200, {
+    it.each(['approved', 'submitted', 'future_status'])(
+      'returns immediately when the first retrieved status is %s',
+      async (status) => {
+        setNextResponse(200, {
+          ...BASE_REQUEST,
+          status,
+        });
+
+        const result = await runProdCli(
+          'spend-request',
+          'retrieve',
+          'lsrq_prod_001',
+          '--interval',
+          '1',
+          '--max-attempts',
+          '1',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        const output = parseJson(result.stdout) as Record<string, unknown>[];
+        expect(output[0].status).toBe(status);
+        expect(requests).toHaveLength(1);
+      },
+    );
+
+    it.each([
+      ['pending_approval', 'submitted'],
+      ['pending_approval', 'future_status'],
+      ['created', 'pending_approval'],
+      ['pending_approval', 'requires_action'],
+      ['requires_action', 'submitted'],
+    ])('returns when %s changes to %s', async (fromStatus, toStatus) => {
+      const waiting = {
         ...BASE_REQUEST,
-        status: 'approved',
-      });
+        status: fromStatus,
+        status_details: {
+          requires_action: {
+            next_action: {
+              type: 'three_d_secure',
+              resolution: 'auto_resume',
+              display_message: 'Complete 3D Secure verification.',
+              action_url: 'https://app.link.com/verify',
+            },
+          },
+        },
+      };
+      responseQueue = [
+        { status: 200, body: waiting },
+        {
+          status: 200,
+          body: { ...waiting, updated_at: '2026-09-15T00:00:00Z' },
+        },
+      ];
+      setNextResponse(200, { ...waiting, status: toStatus });
 
       const result = await runProdCli(
         'spend-request',
         'retrieve',
         'lsrq_prod_001',
         '--interval',
-        '1',
+        '0.01',
         '--max-attempts',
-        '1',
+        '3',
         '--json',
       );
 
       expect(result.exitCode).toBe(0);
       const output = parseJson(result.stdout) as Record<string, unknown>[];
-      expect(output[0].status).toBe('approved');
+      expect(output.map((request) => request.status)).toEqual([
+        fromStatus,
+        fromStatus,
+        toStatus,
+      ]);
+      expect(requests).toHaveLength(3);
+      if (toStatus === 'requires_action') {
+        expect(output[2]._next).toEqual({
+          command:
+            'spend-request retrieve lsrq_prod_001 --interval 2 --max-attempts 300',
+          until: 'status changes from requires_action',
+        });
+      }
     });
   });
 
@@ -1538,6 +1700,83 @@ describe('production mode', () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout + result.stderr).toContain('[beta]');
       expect(result.stdout + result.stderr).toContain('transactions');
+    });
+  });
+
+  const SAMPLE_SUMMARY = {
+    id: 'sum_001',
+    description: 'Your recent activity',
+    created_at: '2026-09-15T18:30:00Z',
+    status: 'ready',
+    entries: [{ label: 'Payments', value: { unit: 'count', count: 7 } }],
+  };
+
+  describe('summaries list', () => {
+    it('aggregates every page in API order while preserving repeated summary filters', async () => {
+      responseQueue.push(
+        {
+          status: 200,
+          body: { data: [SAMPLE_SUMMARY], has_more: true },
+        },
+        {
+          status: 200,
+          body: {
+            data: [{ ...SAMPLE_SUMMARY, id: 'sum_002' }],
+            has_more: false,
+          },
+        },
+      );
+
+      const result = await runProdCli(
+        'summaries',
+        'list',
+        '--summary',
+        'spending',
+        '--summary',
+        'income',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(requests).toHaveLength(2);
+      expect(requests[0]).toMatchObject({
+        method: 'GET',
+        url: '/summaries?summaries%5B%5D=spending&summaries%5B%5D=income',
+      });
+      expect(requests[0]?.headers.authorization).toBe(
+        'Bearer prod_test_access_token',
+      );
+      expect(requests[0]?.url).not.toContain('limit=');
+      expect(requests[1]?.url).toContain('starting_after=sum_001');
+      expect(requests[1]?.url).toContain('summaries%5B%5D=spending');
+      expect(requests[1]?.url).toContain('summaries%5B%5D=income');
+
+      expect(parseJson(result.stdout)).toEqual({
+        data: [SAMPLE_SUMMARY, { ...SAMPLE_SUMMARY, id: 'sum_002' }],
+        has_more: false,
+      });
+    });
+
+    it('fails instead of looping when a page with more results has no cursor', async () => {
+      setNextResponse(200, { data: [], has_more: true });
+
+      const result = await runProdCliWithEnv(
+        { LINK_ACCESS_TOKEN: PROD_AUTH_TOKENS.access_token },
+        'summaries',
+        'list',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout + result.stderr).toMatch(/cannot advance.*cursor/i);
+      expect(requests).toHaveLength(1);
+    });
+
+    it('shows summaries in root help', async () => {
+      const result = await runProdCli('--help');
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout + result.stderr).toContain('summaries');
     });
   });
 
@@ -2849,6 +3088,33 @@ describe('production mode', () => {
       );
     });
 
+    it('rejects an amount that conflicts with the MPP challenge', async () => {
+      setMerchantResponse(402, '{"error":"payment required"}', {
+        'www-authenticate': WWW_AUTHENTICATE_STRIPE,
+      });
+
+      const result = await runProdCli(
+        'mpp',
+        'pay',
+        `http://127.0.0.1:${merchantPort}/api/charge`,
+        '--context',
+        VALID_CONTEXT,
+        '--payment-method-id',
+        'pd_prod_test',
+        '--amount',
+        '2000',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout + result.stderr).toContain(
+        '--amount must match the MPP challenge amount (1000)',
+      );
+      expect(
+        requests.some((request) => request.url === '/spend_requests'),
+      ).toBe(false);
+    });
+
     describe('_next continuation quoting', () => {
       const PENDING_SPT_REQUEST = {
         ...BASE_REQUEST,
@@ -2894,17 +3160,63 @@ describe('production mode', () => {
       it('carries the raw URL in pay_argv and a quoted URL in pay_command', async () => {
         const marker = `${os.tmpdir()}/link-cli-injection-argv-${process.pid}`;
         const url = payloadUrl(marker);
+        const effectiveUrl = new URL(url).href;
 
         const next = await runFullFlow(url);
 
         expect(next.pay_argv.command).toBe('mpp');
         expect(next.pay_argv.args[0]).toBe('pay');
-        expect(next.pay_argv.args[1]).toBe(url);
+        expect(next.pay_argv.args[1]).toBe(effectiveUrl);
         expect(next.pay_argv.args).toContain('--spend-request-id');
         expect(next.pay_argv.args).toContain('lsrq_spt_002');
+        const challengeIndex = next.pay_argv.args.indexOf(
+          '--approved-challenge',
+        );
+        expect(next.pay_argv.args[challengeIndex + 1]).toBe(
+          WWW_AUTHENTICATE_STRIPE,
+        );
 
         expect(next.pay_command).not.toContain('pay $(touch');
-        expect(next.pay_command).toContain(`'${url}'`);
+        expect(next.pay_command).toContain(`'${effectiveUrl}'`);
+      });
+
+      it('continues from the effective redirected request', async () => {
+        setNextResponse(200, PENDING_SPT_REQUEST);
+        setResponseForUrl('/merchant-redirect', 302, null, {
+          Location: `http://127.0.0.1:${merchantPort}/api/charge`,
+        });
+        setMerchantResponse(402, '{"error":"payment required"}', {
+          'www-authenticate': WWW_AUTHENTICATE_STRIPE,
+        });
+
+        const result = await runProdCli(
+          'mpp',
+          'pay',
+          `http://127.0.0.1:${serverPort}/merchant-redirect`,
+          '--context',
+          VALID_CONTEXT,
+          '--payment-method-id',
+          'pd_prod_test',
+          '--data',
+          '{"item":"book"}',
+          '--header',
+          'Authorization: Bearer caller-value',
+          '--format',
+          'json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        const output = parseJson(result.stdout) as Array<{
+          _next: { pay_argv: { command: string; args: string[] } };
+        }>;
+        const args = output[0]._next.pay_argv.args;
+        expect(args[1]).toBe(`http://127.0.0.1:${merchantPort}/api/charge`);
+        expect(args.slice(args.indexOf('-X'), args.indexOf('-X') + 2)).toEqual([
+          '-X',
+          'GET',
+        ]);
+        expect(args).not.toContain('-d');
+        expect(args.join(' ')).not.toMatch(/authorization|content-type/i);
       });
 
       it('does not execute the payload when pay_command is run through bash', async () => {

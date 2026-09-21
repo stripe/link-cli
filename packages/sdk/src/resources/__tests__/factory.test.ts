@@ -1,10 +1,11 @@
+import { describe, expect, it, vi } from 'vitest';
 import Link from '@/client';
+import { AttestationsResource } from '@/resources/attestations';
 import { PaymentMethodsResource } from '@/resources/payment-methods';
 import { ReportResource } from '@/resources/report';
 import { SpendRequestResource } from '@/resources/spend-request';
 import { TransactionsResource } from '@/resources/transactions';
 import { WebBotAuthResource } from '@/resources/web-bot-auth';
-import { describe, expect, it, vi } from 'vitest';
 
 describe('Link', () => {
   it('exposes a top-level SDK surface backed by shared repositories', () => {
@@ -14,6 +15,7 @@ describe('Link', () => {
       apiBaseUrl: 'https://api.example.com',
     });
 
+    expect(client.attestations).toBeInstanceOf(AttestationsResource);
     expect(client.spendRequests).toBeInstanceOf(SpendRequestResource);
     expect(client.paymentMethods).toBeInstanceOf(PaymentMethodsResource);
     expect(client.transactions).toBeInstanceOf(TransactionsResource);
@@ -22,6 +24,7 @@ describe('Link', () => {
     expect(client.spendRequests.create).toBeTypeOf('function');
     expect(client.spendRequests.update).toBeTypeOf('function');
     expect(client.spendRequests.retrieve).toBeTypeOf('function');
+    expect(client.attestations.request).toBeTypeOf('function');
     expect(client.paymentMethods.list).toBeTypeOf('function');
     expect(client.transactions.list).toBeTypeOf('function');
   });

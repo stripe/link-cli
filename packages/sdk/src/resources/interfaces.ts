@@ -8,6 +8,7 @@ import type {
   ShippingAddressRecord,
   SourcesPage,
   SpendRequest,
+  SummariesPage,
   Total,
   TransactionOrigin,
   TransactionsPage,
@@ -25,7 +26,23 @@ export type AccessTokenProvider = (
   options?: GetAccessTokenOptions,
 ) => Promise<string> | string;
 
+export interface AttestationRequestParams {
+  count: number;
+}
+
+export interface AttestationRequestResult {
+  tokens: string[];
+  issuer: string;
+  token_key_id: string;
+  count: number;
+}
+
+export interface IAttestationsResource {
+  request(params: AttestationRequestParams): Promise<AttestationRequestResult>;
+}
+
 export interface CreateSpendRequestParams {
+  idempotency_key?: string;
   payment_details?: string;
   credential_type?: CredentialType;
   network_id?: string;
@@ -117,6 +134,14 @@ export interface ListBalancesParams {
 
 export interface IBalancesResource {
   list(params?: ListBalancesParams): Promise<BalancesPage>;
+}
+
+export interface ListSummariesParams {
+  starting_after?: string;
+  summaries?: string[];
+}
+export interface ISummariesResource {
+  list(params?: ListSummariesParams): Promise<SummariesPage>;
 }
 
 export const REPORT_OUTCOMES = ['success', 'blocked', 'abandoned'] as const;

@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { LinkOptions } from '@/config';
 import { BaseResource } from '@/resources/base';
 import type {
@@ -5,7 +6,6 @@ import type {
   IReportResource,
   ReportRecord,
 } from '@/resources/interfaces';
-import { z } from 'zod';
 
 const reportRecordSchema = z.looseObject({
   object: z.string(),

@@ -11,13 +11,15 @@ import { shellCommand, shellQuote } from '../../utils/shell-quote';
 import { decodeStripeChallenge } from './decode';
 import { DecodeChallengeView } from './decode-view';
 import {
+  buildHeaders,
   MppPay,
   type PayResult,
-  buildHeaders,
+  probeMppRequest,
   readPayResult,
   runMppPayFullFlow,
   runMppPayWithSpendRequest,
 } from './pay';
+import { createMppRequest } from './request';
 import { decodeOptions, payOptions } from './schema';
 
 export function createMppCli(
@@ -82,6 +84,7 @@ export function createMppCli(
           data,
           headers,
           repository,
+          opts.approvedChallenge,
         );
         return;
       }
@@ -91,11 +94,10 @@ export function createMppCli(
       const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
       const requestHeaders = buildHeaders(data, headers);
 
-      const probeResponse = await fetch(url, {
-        method: httpMethod,
-        body: data,
-        headers: requestHeaders,
-      });
+      const probe = await probeMppRequest(
+        createMppRequest(url, httpMethod, data, requestHeaders),
+      );
+      const probeResponse = probe.response;
 
       if (probeResponse.status !== 402) {
         yield await readPayResult(probeResponse);
@@ -111,6 +113,7 @@ export function createMppCli(
       }
 
       const decoded = decodeStripeChallenge(wwwAuth);
+      await probeResponse.body?.cancel();
       const networkId = decoded.network_id;
       const challengeAmount = decoded.request_json.amount
         ? Number(decoded.request_json.amount)
@@ -118,6 +121,17 @@ export function createMppCli(
       const challengeCurrency =
         (decoded.request_json.currency as string) ?? 'usd';
       const amount = opts.amount ?? challengeAmount;
+
+      if (
+        opts.amount !== undefined &&
+        challengeAmount !== undefined &&
+        opts.amount !== challengeAmount
+      ) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message: `--amount must match the MPP challenge amount (${challengeAmount})`,
+        });
+      }
 
       if (!amount) {
         return c.error({
@@ -160,14 +174,22 @@ export function createMppCli(
         test: opts.test || undefined,
       });
 
-      // Build the mpp pay continuation for _next with the spend request ID.
-      // `url`, `data` and `header` carry merchant-controlled text, so the
-      // argv form is authoritative and `pay_command` must stay shell-quoted.
-      const nextArgs = ['pay', url, '--spend-request-id', spendRequest.id];
-      if (method) nextArgs.push('-X', method);
-      if (data) nextArgs.push('-d', data);
-      if (headers) {
-        for (const h of headers) nextArgs.push('-H', h);
+      // Continue from the request that actually returned the challenge. Redirects
+      // may have changed its URL, method, body, or safe-to-forward headers.
+      // Merchant-controlled values stay shell-quoted in the display command.
+      const nextArgs = [
+        'pay',
+        probe.url,
+        '--spend-request-id',
+        spendRequest.id,
+        '--approved-challenge',
+        wwwAuth,
+        '-X',
+        probe.method,
+      ];
+      if (probe.body !== undefined) nextArgs.push('-d', probe.body);
+      for (const [name, value] of probe.headers) {
+        nextArgs.push('-H', `${name}: ${value}`);
       }
       const nextCommand = `mpp ${shellCommand(nextArgs)}`;
       const pollCommand = `spend-request retrieve ${shellQuote(spendRequest.id)} --interval 2 --max-attempts 300`;

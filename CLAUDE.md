@@ -40,6 +40,7 @@ node packages/cli/dist/cli.js <command>
 ### SDK Resources
 
 Defined in `packages/sdk/src/resources/interfaces.ts`:
+- `IAttestationsResource` — Privacy Pass Blind RSA token issuance
 - `ISpendRequestResource` — CRUD + request-approval for spend requests
 
 The SDK only accepts credentials. Device authorization, refresh-token
@@ -56,7 +57,7 @@ Commands in `packages/cli/src/cli.tsx` (incur framework). Each has two output mo
 - **Interactive** (default): Ink/React components from `packages/cli/src/commands/`
 - **JSON** (`--format json`): JSON to stdout, errors as JSON with `code` and `message` fields with exit code 1
 
-Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `report`, `serve`.
+Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `identity attestations request`, `report`, `serve`.
 
 The CLI also runs as an MCP server (`--mcp`) and serves skill files via `skills` subcommand, both provided by incur.
 
@@ -89,9 +90,9 @@ Key input field notes:
 - `context` requires min 100 characters; `amount` is in cents with max 500000
 - `--metadata` (create only) is a repeatable `key:value` flag (CLI) or a `{ key: value }` object (MCP/agent), merged into a single `metadata` string→string map. Max 50 keys, key ≤ 40 chars, value ≤ 500 chars. Reuses `parseKvString` from `line-item-parser.ts`.
 - `--test` flag creates testmode credentials (real testmode SPT from test card data) instead of livemode ones
-- `create --request-approval` and `request-approval` both show an approval URL in interactive mode and poll until approved/denied/expired/failed/canceled. In JSON mode (`--format json`), they return immediately with an `_next.command` for `spend-request retrieve`.
-- `retrieve --interval <seconds>` polls until approved/denied/expired/succeeded/failed/canceled, or until `requires_action` with a non-`auto_resume` resolution (`auto_resume` is polled through transparently). If `--timeout` is reached or `--max-attempts` is exhausted while the request is still non-terminal, it exits non-zero with `POLLING_TIMEOUT`.
-- Both `create` and `retrieve` (including `--request-approval`/`request-approval` polling and `retrieve --interval` polling) can return `status: 'requires_action'` with `status_details.requires_action.next_action` (`type`, `display_message`, `action_url`, `resolution`). `resolution: 'auto_resume'` (currently only `next_action.type: 'three_d_secure'`) means polling continues transparently — the request resolves on its own. Any other resolution stops polling immediately; the caller must have the user complete the action, then create a new spend request.
+- `create --request-approval` and `request-approval` both show an approval URL in interactive mode and poll until the request leaves `created`/`pending_approval`. `submitted` is a supported terminal status. In JSON mode (`--format json`), waiting requests return immediately with an `_next.command` for `spend-request retrieve`.
+- `retrieve --interval <seconds>` waits for the initial status to change. Polling starts only for `created`, `pending_approval`, or `requires_action` with `auto_resume`; all other statuses (including `submitted` and unknown future values) return immediately. Any status change returns, even to another waiting state. JSON and interactive retrieve share `shouldPollSpendRequest`. If `--timeout` or `--max-attempts` is reached without a change, JSON polling exits non-zero with `POLLING_TIMEOUT`.
+- Both `create` and `retrieve` (including approval polling) can return `status: 'requires_action'` with `status_details.requires_action.next_action` (`type`, `display_message`, `action_url`, `resolution`). With `resolution: 'auto_resume'` (currently only `next_action.type: 'three_d_secure'`), retrieve the same request again to wait for its status to change; interactive create resumes automatically. Any other resolution stops polling immediately; the caller must have the user complete the action, then create a new spend request.
 - `cancel <id>` cancels a spend request. Can cancel from `created`, `pending_approval`, or `approved` states. Returns the spend request with `status: "canceled"`.
 - `--approval-detail` — optional JSON object (MCP/agent) or JSON string (CLI) with approval details for delegated flows. Required fields: `approved_at` (unix timestamp int), `approval_method` (`click`|`programmatic`|`voice`), `app_name`, `external_user_id`. Optional: `ip_address`, `user_agent`, `device_type` (`mobile`|`web`), `agent_log_id`, `external_user_name`, `external_session_id`, `authentication_method` (`biometric_face`|`biometric_fingerprint`|`passkey`). Sent as `approval_details` in the API request body.
 - `card` credentials include `billing_address` (name, line1, line2, city, state, postal_code, country) and `valid_until` (ISO date string — when the card expires/stops working)
@@ -122,6 +123,21 @@ Key input field notes:
 
 - `onboard` — Guided setup: authenticates (skips if already logged in), checks payment methods (prompts to add one if missing, shows picker if multiple), shows app download QR code, then runs the full demo. Requires a TTY.
 
+### identity attestations command
+
+Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENTITY_COMMANDS=1` (or `true`). Even when enabled, the command sets `mcp: false` so MCP clients do not see it.
+
+`identity attestations request --count <n>` — gets privacy-preserving tokens that show Link attests to your agent. Agent-only output. The SDK owns issuance in `packages/sdk/src/resources/attestations.ts` and `attestations-crypto.ts`; CLI schema and registration remain in `packages/cli/src/commands/attestations/`, mounted under `packages/cli/src/commands/identity/`.
+
+- Discovery: `GET https://api.link.com/.well-known/aap-issuer` → metadata, then `GET` its `token_keys` URL. The metadata issuer and every discovered endpoint must stay on the Link API's HTTPS DNS origin; redirects and IP-literal hosts are rejected before credentials are sent.
+- Tokens use a stable challenge: fixed `issuer_name`, empty `redemption_context`, and empty `origin_info`.
+- `attestations-crypto.ts` implements the RFC 9578 type `0x0002` client flow: PSS-encode, blind, unblind, verify, then assemble the token. Issuer keys must be 2048-bit RSA-PSS with SHA-384, MGF1-SHA-384, and a 48-byte salt.
+- Blind signatures are verified after unblinding before final tokens are returned.
+- Output is a versioned artifact: issuer, `token_key_id`, and each complete base64url token plus `authorization: PrivateToken token="<token>"`. Token bytes are preserved exactly.
+- Token artifacts are written with mode 0600 to uniquely named files in `~/.link-cli/attestations`; the directory uses mode 0700. Command output contains the artifact path and non-secret metadata, not raw tokens.
+- Server-side max batch is 100. Issuance does not require an additional OAuth scope.
+- Auth: standard CLI authentication (`LINK_ACCESS_TOKEN` or stored credentials).
+
 ### report command
 
 - `report --domain <d> --outcome <success|blocked|abandoned> --spend-request-id <lsrq_...> [--tag <t>]... [--step <s>] [--freeform-context <s>] [--attempt-trace <s>]` — records the outcome of a purchase attempt. Options in `packages/cli/src/commands/report/schema.ts`, SDK params in `CreateReportParams`. API endpoint: `/agent_observations`. Output policy is `agent-only`.
@@ -131,6 +147,7 @@ Key input field notes:
 ### serve command
 
 - `serve [--port <n>] [--host <host>]` — HTTP server that exposes the CLI's MCP endpoint. Implemented in `packages/cli/src/commands/serve/index.ts`. The handler forwards to `rootCli.fetch()` (incur), but is a **privilege boundary**: `requireAuth` only proves the CLI *owner* is authenticated, not that the HTTP caller is authorized.
+- Parse each HTTP request target once and reuse that URL for routing and dispatch. Accept only unambiguous origin-form paths; return `400` for malformed targets. Only forward `POST /mcp` and the supported `GET` skill discovery routes (index and `SKILL.md`); handle `OPTIONS` locally. Missing `Origin` does not prove a caller is outside the browser. Security regressions in `packages/cli/src/__tests__/serve.test.ts` exercise raw request targets against the built CLI.
 
 ## Code Conventions
 
@@ -181,3 +198,4 @@ Rules:
 | `LINK_API_BASE_URL` | Override API base URL |
 | `LINK_AUTH_BASE_URL` | Override auth base URL |
 | `LINK_HTTP_PROXY` | Route all SDK requests through an HTTP proxy (requires `undici` installed) |
+| `LINK_IDENTITY_COMMANDS` | When `1` or `true`, register the unlisted `identity` command group. Omitted from `--help`, `--llms`, and MCP otherwise. |
