@@ -5,8 +5,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { listAttestations } from '../../attestations/inspect';
-import { listIdentityCredentials } from '../../credentials/inspect';
+import { listAttestations } from '../../attestations/list';
+import { listIdentityCredentials } from '../../credentials/list';
 
 let directory: string;
 const credential = {

@@ -139,7 +139,7 @@ Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENT
 - Token artifacts are written with mode 0600 to uniquely named files in `~/.link-cli/attestations`; the directory uses mode 0700. Command output contains the artifact path and non-secret metadata, not raw tokens.
 - Server-side max batch is 100. Issuance does not require an additional OAuth scope.
 - Auth: standard CLI authentication (`LINK_ACCESS_TOKEN` or stored credentials).
-- Unlisted local inspection: `identity attestations list` reports saved batch paths, issuer/key identifiers, per-file `stored_token_count` and aggregate `total_token_count`, and per-file `errors`. It reads JSON batches in `~/.link-cli/attestations`. Counts describe stored tokens; external usage is untracked. The command works without auth or API calls, prints metadata in terminals and structured output (`outputPolicy: 'all'`), and preserves the feature gate and MCP exclusion. Read schemas live beside inspection logic in `inspect.ts`; shared file reading lives in `identity/artifact-reader.ts`.
+- Unlisted local inspection: `identity attestations list` reports saved batch paths, issuer/key identifiers, per-file `stored_token_count` and aggregate `total_token_count`, and per-file `errors`. It reads JSON batches in `~/.link-cli/attestations`. Counts describe stored tokens; external usage is untracked. The command works without auth or API calls, prints metadata in terminals and structured output (`outputPolicy: 'all'`), and preserves the feature gate and MCP exclusion. Read schemas live beside inspection logic in `list.ts`; shared file reading lives in `identity/artifact-reader.ts`.
 
 ### report command
 

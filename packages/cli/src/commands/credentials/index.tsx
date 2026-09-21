@@ -5,8 +5,8 @@ import {
 import { Cli } from 'incur';
 import { renderInteractive } from '../../utils/render-interactive';
 import { SavedArtifact } from '../identity/saved-artifact';
-import { listIdentityCredentials } from './inspect';
 import { issueIdentityCredential } from './issue';
+import { listIdentityCredentials } from './list';
 import { writeIdentityCredentialArtifact } from './storage';
 
 export function createIdentityCredentialsCli(

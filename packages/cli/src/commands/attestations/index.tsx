@@ -4,7 +4,7 @@ import { renderInteractive } from '../../utils/render-interactive';
 import { inspectionError } from '../identity/artifact-reader';
 import { SavedArtifact } from '../identity/saved-artifact';
 import { exportAttestationTokens } from './export';
-import { listAttestations } from './inspect';
+import { listAttestations } from './list';
 import { requestOptions } from './schema';
 import { writeAttestationArtifact } from './storage';
 
