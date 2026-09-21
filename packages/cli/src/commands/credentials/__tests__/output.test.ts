@@ -166,8 +166,14 @@ describe.each([true, false])('request metadata with isTTY=%s', (isTTY) => {
       ['--format', 'toon'],
       ['--format', 'yaml'],
       ['--format', 'md'],
+      ['--format', 'jsonl'],
       ['--full-output'],
+      ['--full-output', '--json'],
       ['--full-output', '--format', 'json'],
+      ['--full-output', '--format', 'toon'],
+      ['--full-output', '--format', 'yaml'],
+      ['--full-output', '--format', 'md'],
+      ['--full-output', '--format', 'jsonl'],
     ].map((flags) => ({ flags })),
   )(
     'keeps both request artifacts out of stdout with flags $flags',
@@ -227,7 +233,11 @@ describe.each([true, false])('request metadata with isTTY=%s', (isTTY) => {
       expect(credentialOutput).toContain(credentialFile);
       expect(attestationOutput).toContain(poolFile);
 
-      if (flags.includes('json') || flags.includes('--json')) {
+      if (
+        flags.includes('json') ||
+        flags.includes('--json') ||
+        flags.includes('jsonl')
+      ) {
         const credential = JSON.parse(credentialOutput);
         const attestation = JSON.parse(attestationOutput);
         const fullOutput = flags.includes('--full-output');
