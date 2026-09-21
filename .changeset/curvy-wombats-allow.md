@@ -3,4 +3,4 @@
 '@stripe/link-sdk': minor
 ---
 
-Add the `spending-policy retrieve` CLI command and the SDK spending policy resource.
+Add the `approval-policy retrieve` CLI command and the SDK approval policy resource.

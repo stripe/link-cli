@@ -1,14 +1,15 @@
 import type { LinkOptions } from '@/config';
+import { ApprovalPolicyResource } from '@/resources/approval-policy';
 import { AttestationsResource } from '@/resources/attestations';
 import { BalancesResource } from '@/resources/balances';
 import type {
+  IApprovalPolicyResource,
   IAttestationsResource,
   IBalancesResource,
   IPaymentMethodsResource,
   IReportResource,
   IShippingAddressResource,
   ISourcesResource,
-  ISpendingPolicyResource,
   ISpendRequestResource,
   ISummariesResource,
   ITransactionsResource,
@@ -20,7 +21,6 @@ import { ReportResource } from '@/resources/report';
 import { ShippingAddressResource } from '@/resources/shipping-address';
 import { SourcesResource } from '@/resources/sources';
 import { SpendRequestResource } from '@/resources/spend-request';
-import { SpendingPolicyResource } from '@/resources/spending-policy';
 import { SummariesResource } from '@/resources/summaries';
 import { TransactionsResource } from '@/resources/transactions';
 import { UserInfoResource } from '@/resources/user-info';
@@ -32,7 +32,7 @@ export class Link {
   readonly paymentMethods: IPaymentMethodsResource;
   readonly shippingAddresses: IShippingAddressResource;
   readonly userInfo: IUserInfoResource;
-  readonly spendingPolicy: ISpendingPolicyResource;
+  readonly approvalPolicy: IApprovalPolicyResource;
   readonly transactions: ITransactionsResource;
   readonly sources: ISourcesResource;
   readonly balances: IBalancesResource;
@@ -46,7 +46,7 @@ export class Link {
     this.paymentMethods = new PaymentMethodsResource(options);
     this.shippingAddresses = new ShippingAddressResource(options);
     this.userInfo = new UserInfoResource(options);
-    this.spendingPolicy = new SpendingPolicyResource(options);
+    this.approvalPolicy = new ApprovalPolicyResource(options);
     this.transactions = new TransactionsResource(options);
     this.sources = new SourcesResource(options);
     this.balances = new BalancesResource(options);

@@ -7,9 +7,9 @@ export {
   LinkSdkError,
   LinkTransportError,
 } from './errors';
+export { ApprovalPolicyResource } from './resources/approval-policy';
 export * from './resources/attestations';
 export * from './resources/interfaces';
 export { getDuplicateSpendRequest } from './resources/spend-request';
-export { SpendingPolicyResource } from './resources/spending-policy';
 export * from './resources/summaries';
 export * from './types/index';

@@ -227,32 +227,27 @@ export interface UserInfo {
 }
 
 /** Known actions, while remaining forward-compatible with new API values. */
-export type SpendingPolicyAction = 'allow' | (string & Record<never, never>);
-
-/** Known approval types, while remaining forward-compatible with new API values. */
-export type SpendingPolicyApprovalType =
-  | 'manual'
-  | 'automatic'
+export type ApprovalPolicyAction =
+  | 'spend_request_create'
   | (string & Record<never, never>);
 
-export interface SpendingPolicyAmount {
+export interface ApprovalPolicyAmount {
   amount: number;
   currency: string;
 }
 
-export interface SpendingPolicyLimits {
-  per_purchase: SpendingPolicyAmount;
+export interface ApprovalPolicyLimits {
+  per_purchase: ApprovalPolicyAmount;
 }
 
-export interface SpendingPolicyRule {
-  action: SpendingPolicyAction;
-  approval_type?: SpendingPolicyApprovalType;
-  limits?: SpendingPolicyLimits;
+export interface ApprovalPolicyRule {
+  action: ApprovalPolicyAction;
+  limits: ApprovalPolicyLimits;
   allowed_payment_methods?: string[];
 }
 
-export interface SpendingPolicy {
-  rules: SpendingPolicyRule[];
+export interface ApprovalPolicy {
+  rules: ApprovalPolicyRule[];
 }
 
 export interface ProductCapability {

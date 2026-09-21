@@ -1,5 +1,5 @@
 ---
-version: 0.15.1
+version: 0.21.0
 name: financial-insights
 description: |
   Reads Link financial data to answer questions about spending, balances, transactions, linked sources, and shopping preferences. Also use alongside a purchase skill when acting as a personal shopper and the user has not specified a merchant, or asks for their usual, favorite, or preferred store.

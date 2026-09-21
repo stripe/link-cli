@@ -153,16 +153,18 @@ response does not include a currency. A null limit or remaining amount means
 unlimited. The verification requirement's action_url is null when no action is
 available.
 
-### Retrieve spending policy
+### Retrieve approval policy
 
-Retrieve the rules that govern spend requests for the current app and user:
+Retrieve the rules that grant the current app authority to create spend requests
+without manual approval:
 
 ```bash
-link-cli spending-policy retrieve --format json
+link-cli approval-policy retrieve --format json
 ```
 
-Each rule includes an action and can include an approval type, a per-purchase
-limit, and an ordered list of allowed payment method IDs.
+Each rule includes an action, a per-purchase limit, and optionally an ordered
+list of allowed payment method IDs. The API returns an error when no approval
+policy has been configured.
 
 ### List payment methods
 

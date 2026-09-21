@@ -1,5 +1,5 @@
 // biome-ignore-all lint/suspicious/noArrayIndexKey: Policy rules are ordered and have no identifiers.
-import type { ISpendingPolicyResource, SpendingPolicy } from '@stripe/link-sdk';
+import type { ApprovalPolicy, IApprovalPolicyResource } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
@@ -7,12 +7,12 @@ import { useCallback } from 'react';
 import { useAsyncAction } from '../../hooks/use-async-action';
 import { formatAmount } from '../../utils/format-amount';
 
-interface SpendingPolicyRetrieveProps {
-  resource: ISpendingPolicyResource;
-  onComplete: (result: SpendingPolicy | null) => void;
+interface ApprovalPolicyRetrieveProps {
+  resource: IApprovalPolicyResource;
+  onComplete: (result: ApprovalPolicy | null) => void;
 }
 
-export const SpendingPolicyRetrieve: React.FC<SpendingPolicyRetrieveProps> = ({
+export const ApprovalPolicyRetrieve: React.FC<ApprovalPolicyRetrieveProps> = ({
   resource,
   onComplete,
 }) => {
@@ -23,7 +23,7 @@ export const SpendingPolicyRetrieve: React.FC<SpendingPolicyRetrieveProps> = ({
     return (
       <Box>
         <Text color="cyan">
-          <Spinner type="dots" /> Loading spending policy...
+          <Spinner type="dots" /> Loading approval policy...
         </Text>
       </Box>
     );
@@ -32,7 +32,7 @@ export const SpendingPolicyRetrieve: React.FC<SpendingPolicyRetrieveProps> = ({
   if (status === 'error') {
     return (
       <Box flexDirection="column">
-        <Text color="red">✗ Failed to load spending policy</Text>
+        <Text color="red">✗ Failed to load approval policy</Text>
         <Text color="red">{error}</Text>
       </Box>
     );
@@ -40,7 +40,7 @@ export const SpendingPolicyRetrieve: React.FC<SpendingPolicyRetrieveProps> = ({
 
   return (
     <Box flexDirection="column">
-      <Text bold>Spending Policy</Text>
+      <Text bold>Approval Policy</Text>
       {policy?.rules.map((rule, index) => (
         <Box
           key={`rule-${index}`}
@@ -53,21 +53,13 @@ export const SpendingPolicyRetrieve: React.FC<SpendingPolicyRetrieveProps> = ({
             <Text dimColor>Action: </Text>
             {rule.action}
           </Text>
-          {rule.approval_type ? (
-            <Text>
-              <Text dimColor>Approval: </Text>
-              {rule.approval_type}
-            </Text>
-          ) : null}
-          {rule.limits ? (
-            <Text>
-              <Text dimColor>Per-purchase limit: </Text>
-              {formatAmount(
-                rule.limits.per_purchase.amount,
-                rule.limits.per_purchase.currency,
-              )}
-            </Text>
-          ) : null}
+          <Text>
+            <Text dimColor>Per-purchase limit: </Text>
+            {formatAmount(
+              rule.limits.per_purchase.amount,
+              rule.limits.per_purchase.currency,
+            )}
+          </Text>
           {rule.allowed_payment_methods ? (
             <Text>
               <Text dimColor>Allowed payment methods: </Text>

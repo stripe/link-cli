@@ -1,5 +1,6 @@
 import { Cli } from 'incur';
 import { type CliAuthStorage, Storage, storage } from './auth/storage';
+import { createApprovalPolicyCli } from './commands/approval-policy';
 import { createAuthCli } from './commands/auth';
 import { createBalancesCli } from './commands/balances';
 import { createDemoCli } from './commands/demo';
@@ -12,7 +13,6 @@ import { createServeCli } from './commands/serve';
 import { createShippingAddressCli } from './commands/shipping-address';
 import { createSourcesCli } from './commands/sources';
 import { createSpendRequestCli } from './commands/spend-request';
-import { createSpendingPolicyCli } from './commands/spending-policy';
 import { createSummariesCli } from './commands/summaries';
 import { createTransactionsCli } from './commands/transactions';
 import { createUserInfoCli } from './commands/user-info';
@@ -134,8 +134,8 @@ cli.command(
   ),
 );
 cli.command(
-  createSpendingPolicyCli(
-    () => factory.createSpendingPolicyResource(),
+  createApprovalPolicyCli(
+    () => factory.createApprovalPolicyResource(),
     authStorage,
     envAccessToken,
   ),
