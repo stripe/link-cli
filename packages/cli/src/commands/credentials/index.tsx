@@ -5,9 +5,12 @@ import {
 import { Cli } from 'incur';
 import { renderInteractive } from '../../utils/render-interactive';
 import { sanitizeDeep } from '../../utils/sanitize-text';
+import { inspectionError } from '../identity/artifact-reader';
 import { SavedArtifact } from '../identity/saved-artifact';
 import { issueIdentityCredential } from './issue';
 import { listIdentityCredentials } from './list';
+import { presentIdentityCredential } from './present';
+import { presentOptions } from './schema';
 import { writeIdentityCredentialArtifact } from './storage';
 
 export function createIdentityCredentialsCli(
@@ -24,6 +27,21 @@ export function createIdentityCredentialsCli(
     outputPolicy: 'all' as const,
     async run() {
       return listIdentityCredentials();
+    },
+  });
+
+  cli.command('present', {
+    description:
+      'Sign a presentation of selected claims from the saved credential for an audience and nonce. Returns the sensitive Identity-Presentation header value.',
+    options: presentOptions,
+    mcp: false,
+    outputPolicy: 'all' as const,
+    async run(c) {
+      try {
+        return await presentIdentityCredential(c.options);
+      } catch (error) {
+        return c.error(inspectionError(error));
+      }
     },
   });
 

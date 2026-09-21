@@ -374,6 +374,41 @@ LINK_IDENTITY_COMMANDS=1 link-cli identity credentials request
 
 `identity credentials request` saves a signed credential to `~/.link-cli/credentials/current.json`, bound to the CLI-managed holder key at `~/.link/holder-key.jwk`. Structured output includes `output_file`, issuer, expiry, holder-key path/thumbprint, and claim names. A script can read the saved credential and holder key to sign a presentation and send it through browser automation or an HTTP client without printing their contents into the agent transcript.
 
+**Unlisted presentations** disclose selected claims to a verifier using the saved credential and holder key:
+
+```bash
+LINK_IDENTITY_COMMANDS=1 link-cli identity credentials present \
+  --aud https://directory.example \
+  --nonce '<nonce-from-challenge>' \
+  --claim email \
+  --format json
+```
+
+```json
+{"presentation":"<issuer-jwt>~<email-disclosure>~<key-binding-jwt>"}
+```
+
+Use the verifier challenge's exact audience and nonce. Repeat `--claim` to disclose additional claims, such as `--claim email --claim email_verified`; at least one claim is required. The command reads `~/.link-cli/credentials/current.json`, signs with its saved holder key, and returns only the presentation. It works without login or network access and does not modify the saved credential or key. Missing claims, expired credentials, mismatched keys, and unsupported disclosure formats fail instead of producing a presentation. It supports Link's flat SHA-256 disclosures; credentials with plaintext user claims or nested selective disclosures are rejected.
+
+Pass `presentation` as the `Identity-Presentation` HTTP header. It contains the selected personal information, so capture the command output in your client instead of logging it. For example, after receiving a challenge from the intended service:
+
+```js
+import { execFileSync } from 'node:child_process';
+
+const { presentation } = JSON.parse(execFileSync('link-cli', [
+  'identity', 'credentials', 'present',
+  '--aud', challenge.aud, '--nonce', challenge.nonce,
+  '--claim', 'email', '--format', 'json',
+], {
+  encoding: 'utf8',
+  env: { ...process.env, LINK_IDENTITY_COMMANDS: '1' },
+}));
+// Use this header in your HTTP client or Playwright request.
+const headers = { 'Identity-Presentation': presentation };
+```
+
+The verifier still validates the issuer signature, holder signature, audience, nonce, expiry, and required claims. Presentations include a fresh signing time and should be sent promptly; a verifier that has consumed the nonce requires a new challenge.
+
 **Unlisted local inspection** uses the same feature flag and MCP exclusion:
 
 ```bash

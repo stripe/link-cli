@@ -58,7 +58,7 @@ Commands in `packages/cli/src/cli.tsx` (incur framework). Each has two output mo
 - **Interactive** (default): Ink/React components from `packages/cli/src/commands/`
 - **JSON** (`--format json`): JSON to stdout, errors as JSON with `code` and `message` fields with exit code 1
 
-Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `identity attestations request|list|take`, `identity credentials request|list`, `report`, `serve`.
+Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `identity attestations request|list|take`, `identity credentials request|list|present`, `report`, `serve`.
 
 The CLI also runs as an MCP server (`--mcp`) and serves skill files via `skills` subcommand, both provided by incur.
 
@@ -159,6 +159,8 @@ Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENT
 - Issuance uses the Ed25519 holder key at `~/.link/holder-key.jwk` (mode 0600).
 - The issued `cnf.jwk` is checked against the requested public key before returning the credential artifact.
 - Unlisted local inspection: `identity credentials list` inspects `~/.link-cli/credentials/current.json` for its path, issuer, cached expiry/`expired` status, holder-key path/thumbprint, and claim names. It never opens the private key or prints credential bytes or claim values. The command works without auth or API calls, uses `outputPolicy: 'all'`, and preserves the feature gate and MCP exclusion. Inspection validates saved metadata without verifying signatures or scoping files to the active account.
+
+- Unlisted presentation: `identity credentials present --aud <audience> --nonce <nonce> --claim email [--claim email_verified]` reads the current saved credential and existing holder key without auth or API calls. It returns `{ presentation }` with `outputPolicy: 'all'`, including terminal output, and remains excluded from MCP. `present.ts` selects original encoded disclosures, preserves the issuer JWT, and signs an Ed25519 `kb+jwt` containing the exact audience, nonce, current `iat`, and SHA-256 `sd_hash` over the selected SD-JWT including its trailing tilde. It requires explicit claims, checks validity and the holder key against the issuer JWT, and rejects unsupported nested disclosures or plaintext user claims. It does not regenerate keys, modify artifacts, or verify the issuer signature locally; the recipient verifier owns signature verification and nonce consumption. Clients should capture the sensitive presentation and send it as `Identity-Presentation`, without logging it.
 
 ### serve command
 
