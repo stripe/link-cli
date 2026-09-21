@@ -532,6 +532,23 @@ it('uses native refresh and background token access, retaining rotated refresh t
 });
 
 describe('Link actions', () => {
+  it('registers the plugin and error codes with Better Auth', async () => {
+    const f = await fixture();
+    const ctx = await f.auth.$context;
+    const plugin = ctx.getPlugin('link');
+
+    expectTypeOf(plugin).toEqualTypeOf<ReturnType<typeof link> | null>();
+    expect(plugin?.id).toBe('link');
+    expect(f.auth.$ERROR_CODES.LINK_REVOCATION_FAILED).toMatchObject({
+      code: 'LINK_REVOCATION_FAILED',
+      message:
+        'Unable to revoke Link access. The account remains connected; try again.',
+    });
+    expectTypeOf(
+      f.client.$ERROR_CODES.LINK_REVOCATION_FAILED.code,
+    ).toEqualTypeOf<'LINK_REVOCATION_FAILED'>();
+  });
+
   it('starts the same Link connection through the server API', async () => {
     const f = await fixture();
     const result = await f.auth.api.connectLink({
@@ -711,18 +728,19 @@ describe('Link actions', () => {
     );
     if (!ownPasswordAccount) throw new Error('Expected a password account');
     const callCount = f.fetchMock.mock.calls.length;
-    expect(
-      (await f.client.link.disconnect({ accountId: ownPasswordAccount.id }))
-        .error?.code,
-    ).toBe('ACCOUNT_NOT_FOUND');
-    expect(
-      (await f.client.link.disconnect({ accountId: account.accountId })).error
-        ?.code,
-    ).toBe('ACCOUNT_NOT_FOUND');
+    const passwordAccountResult = await f.client.link.disconnect({
+      accountId: ownPasswordAccount.id,
+    });
+    expect(passwordAccountResult.error?.code).toBe('ACCOUNT_NOT_FOUND');
+    const providerAccountResult = await f.client.link.disconnect({
+      accountId: account.accountId,
+    });
+    expect(providerAccountResult.error?.code).toBe('ACCOUNT_NOT_FOUND');
     await f.signUp('another@example.com');
-    expect(
-      (await f.client.link.disconnect({ accountId: account.id })).error?.code,
-    ).toBe('ACCOUNT_NOT_FOUND');
+    const anotherUserResult = await f.client.link.disconnect({
+      accountId: account.id,
+    });
+    expect(anotherUserResult.error?.code).toBe('ACCOUNT_NOT_FOUND');
     expect(f.fetchMock).toHaveBeenCalledTimes(callCount);
     expect(
       f.database
@@ -823,9 +841,8 @@ describe('Link actions', () => {
     const ctx = await f.auth.$context;
     await ctx.internalAdapter.updateAccount(account.id, { refreshToken: null });
     const callCount = f.fetchMock.mock.calls.length;
-    expect(
-      (await f.client.link.disconnect({ accountId: account.id })).error?.code,
-    ).toBe('LINK_REFRESH_TOKEN_NOT_FOUND');
+    const result = await f.client.link.disconnect({ accountId: account.id });
+    expect(result.error?.code).toBe('LINK_REFRESH_TOKEN_NOT_FOUND');
     expect(f.fetchMock).toHaveBeenCalledTimes(callCount);
     expect(
       f.database.prepare('select id from account where id = ?').get(account.id),

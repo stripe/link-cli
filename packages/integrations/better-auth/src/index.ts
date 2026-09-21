@@ -2,7 +2,16 @@ import type { UserInfo } from '@stripe/link-sdk';
 import type { BetterAuthPlugin } from 'better-auth';
 import { genericOAuth } from 'better-auth/plugins/generic-oauth';
 import { z } from 'zod';
+import { LINK_ERROR_CODES } from './error-codes';
 import { connectLink, disconnectLink } from './routes';
+
+declare module '@better-auth/core' {
+  interface BetterAuthPluginRegistry<AuthOptions, Options> {
+    link: {
+      creator: typeof link;
+    };
+  }
+}
 
 const linkProfileSchema = z.object({
   id: z.string().min(1),
@@ -66,5 +75,8 @@ export function link(options: LinkOptions) {
       connectLink: connectLink(),
       disconnectLink: disconnectLink(options),
     },
+    $ERROR_CODES: LINK_ERROR_CODES,
   } satisfies BetterAuthPlugin;
 }
+
+export { LINK_ERROR_CODES } from './error-codes';

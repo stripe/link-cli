@@ -100,6 +100,9 @@ importers:
         specifier: ^4.5.4
         version: 4.5.4
     devDependencies:
+      '@better-auth/core':
+        specifier: 1.7.5
+        version: 1.7.5(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.2)(better-call@1.4.0(zod@4.5.4))(jose@6.2.11)(kysely@0.29.5)(nanostores@1.5.3)
       '@stripe/link-sdk':
         specifier: workspace:*
         version: link:../../sdk
