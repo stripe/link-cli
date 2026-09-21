@@ -10,13 +10,7 @@
   "repository": "https://github.com/stripe/link-cli",
   "license": "MIT",
   "logo": "./assets/link.svg",
-  "keywords": [
-    "payment",
-    "link",
-    "stripe",
-    "agentic-commerce",
-    "mcp"
-  ],
+  "keywords": ["payment", "link", "stripe", "agentic-commerce", "mcp"],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json"
 }
