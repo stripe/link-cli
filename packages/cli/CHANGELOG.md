@@ -1,5 +1,15 @@
 # @stripe/link-cli
 
+## 0.22.0
+
+### Minor Changes
+
+- c31bfd2: Add UCP catalog search and checkout creation, completion, and retrieval to the CLI and SDK, including checkout status polling in the CLI.
+
+### Patch Changes
+
+- 09b8b1f: Expose the user address and balance eligibility returned by `user-info retrieve`.
+
 ## 0.21.0
 
 ### Minor Changes
