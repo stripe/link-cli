@@ -248,7 +248,7 @@ Link is already integrated with the following agents:
 
 ## Financial Insights
 
-Link CLI can also read a consumer's financial data -- transactions, balances, connected account details, and summarized/aggregated financial data. Agents can use these features to understand user preferences for making smarter purchasing decisions, answer personal finance questions, and track trends. Financial Insights are powered by [Financial Connections](https://stripe.com/financial-connections), covering 12,000+ US financial institutions.
+Link CLI can also read a consumer's financial data -- transactions, balances, and connected account details. Agents can use these features to answer personal finance questions and track trends. Financial Insights are powered by [Financial Connections](https://stripe.com/financial-connections), covering 12,000+ US financial institutions.
 
 
 ### Authentication
@@ -312,15 +312,6 @@ link-cli balances list --source <source_id>
 ```
 
 Returns current balances for connected accounts, including `cash.available` (bank/savings) or `credit.used` (credit cards).
-
-#### List summaries
-
-```bash
-link-cli summaries list
-link-cli summaries list --summary <summary_id_1> --summary <summary_id_2>
-```
-
-Returns a list of aggregated summaries based on available financial data, for example top brands over the last 6 months. Use this to quickly and token-efficiently extract insights and user preferences from financial data. Add the repeatable `--summary` flag to filter results to a specific set of summaries.
 
 ## Advanced
 

@@ -13,7 +13,6 @@ import { createServeCli } from './commands/serve';
 import { createShippingAddressCli } from './commands/shipping-address';
 import { createSourcesCli } from './commands/sources';
 import { createSpendRequestCli } from './commands/spend-request';
-import { createSummariesCli } from './commands/summaries';
 import { createTransactionsCli } from './commands/transactions';
 import { createUcpCli } from './commands/ucp';
 import { createUserInfoCli } from './commands/user-info';
@@ -184,13 +183,7 @@ cli.command(
 cli.command(
   createUcpCli(() => factory.createUcpResource(), authStorage, envAccessToken),
 );
-cli.command(
-  createSummariesCli(
-    () => factory.createSummariesResource(),
-    authStorage,
-    envAccessToken,
-  ),
-);
+
 cli.command(
   createDemoCli(
     authRepo,

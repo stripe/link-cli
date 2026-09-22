@@ -16,5 +16,4 @@ export {
 } from './resources/holder-jwk';
 export * from './resources/interfaces';
 export { getDuplicateSpendRequest } from './resources/spend-request';
-export * from './resources/summaries';
 export * from './types/index';

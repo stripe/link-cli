@@ -9,7 +9,6 @@ import type {
   ShippingAddressRecord,
   SourcesPage,
   SpendRequest,
-  SummariesPage,
   Total,
   TransactionOrigin,
   TransactionsPage,
@@ -159,14 +158,6 @@ export interface ListBalancesParams {
 
 export interface IBalancesResource {
   list(params?: ListBalancesParams): Promise<BalancesPage>;
-}
-
-export interface ListSummariesParams {
-  starting_after?: string;
-  summaries?: string[];
-}
-export interface ISummariesResource {
-  list(params?: ListSummariesParams): Promise<SummariesPage>;
 }
 
 export const REPORT_OUTCOMES = ['success', 'blocked', 'abandoned'] as const;
