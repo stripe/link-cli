@@ -9,6 +9,58 @@ const ESCAPE_PAYLOAD = '\x1b[2JEvil\rHidden';
 const CLEAN_TEXT = 'EvilHidden';
 
 describe('payment-methods', () => {
+  describe('list', () => {
+    it('renders Link balance details without a last-four placeholder', async () => {
+      const resource = {
+        list: vi.fn(async () => [
+          {
+            id: 'csmrpd_balance',
+            type: 'BALANCE',
+            name: 'Link balance',
+            is_default: false,
+            balance_details: {
+              available_balance: { amount: 1250, currency: 'usd' },
+            },
+          },
+        ]),
+      } as unknown as IPaymentMethodsResource;
+
+      const { lastFrame } = render(
+        <PaymentMethodsList resource={resource} onComplete={() => {}} />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Link balance $12.50 available');
+        expect(frame).not.toContain('undefined');
+      });
+    });
+
+    it('renders a balance with an unknown available amount', async () => {
+      const resource = {
+        list: vi.fn(async () => [
+          {
+            id: 'csmrpd_balance',
+            type: 'BALANCE',
+            name: 'Link balance',
+            is_default: false,
+            balance_details: {},
+          },
+        ]),
+      } as unknown as IPaymentMethodsResource;
+
+      const { lastFrame } = render(
+        <PaymentMethodsList resource={resource} onComplete={() => {}} />,
+      );
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Link balance');
+        expect(frame).not.toContain('undefined');
+      });
+    });
+  });
+
   describe('retrieve', () => {
     it('renders payment-method details and eligibility', async () => {
       const resource = {

@@ -68,6 +68,58 @@ describe('PaymentMethodsResource', () => {
     ]);
   });
 
+  it('lists Link balance details when available', async () => {
+    mockFetchResponse(200, {
+      payment_details: [
+        {
+          id: 'csmrpd_balance',
+          type: 'BALANCE',
+          is_default: false,
+          name: 'Link balance',
+          card_details: null,
+          bank_account_details: null,
+          balance_details: {
+            available_balance: { amount: 1250, currency: 'usd' },
+          },
+        },
+      ],
+      unavailable_count: 0,
+    });
+
+    await expect(repo.list()).resolves.toEqual([
+      {
+        id: 'csmrpd_balance',
+        type: 'BALANCE',
+        is_default: false,
+        name: 'Link balance',
+        card_details: null,
+        bank_account_details: null,
+        balance_details: {
+          available_balance: { amount: 1250, currency: 'usd' },
+        },
+      },
+    ]);
+  });
+
+  it('preserves balance details when the available balance is unknown', async () => {
+    mockFetchResponse(200, {
+      payment_details: [
+        {
+          id: 'csmrpd_balance',
+          type: 'BALANCE',
+          is_default: false,
+          name: 'Link balance',
+          balance_details: {},
+        },
+      ],
+      unavailable_count: 0,
+    });
+
+    const result = await repo.list();
+
+    expect(result[0]?.balance_details).toEqual({});
+  });
+
   it('retrieves a payment method from the expected endpoint', async () => {
     mockFetchResponse(200, {
       id: 'pd_123',
