@@ -12,7 +12,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createIdentityCredentialsCli } from '..';
 import { loadOrCreateHolderKey } from '../holder-key';
 import type { IdentityCredentialIssueResult } from '../issue';
+import { presentOpenId4VpChallenge } from '../openid4vp';
 import { presentIdentityCredential } from '../present';
+import { presentX401Resource } from '../x401';
 
 const now = 1_800_000_000;
 const options = {
@@ -83,8 +85,90 @@ beforeEach(async () => {
 
 afterEach(async () => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   await fs.rm(directory, { recursive: true, force: true });
 });
+
+function openId4VpChallenge(
+  changes: Record<string, unknown> = {},
+): Record<string, unknown> {
+  const responseUri =
+    'https://verifier.example/openid4vp/response?request_id=request-secret';
+  return {
+    client_id: `redirect_uri:${responseUri}`,
+    response_uri: responseUri,
+    response_type: 'vp_token',
+    response_mode: 'direct_post',
+    nonce: 'openid4vp-nonce',
+    state: 'openid4vp-state',
+    dcql_query: {
+      credentials: [
+        {
+          id: 'link_identity',
+          format: 'dc+sd-jwt',
+          meta: {
+            vct_values: ['https://api.link.com/credentials/aap/v1'],
+          },
+          claims: [{ path: ['email'] }],
+        },
+      ],
+    },
+    client_metadata: { vp_formats_supported: { 'dc+sd-jwt': {} } },
+    ...changes,
+  };
+}
+
+function jsonResponse(value: unknown, status = 200): Response {
+  return new Response(JSON.stringify(value), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+function x401Payload() {
+  return {
+    scheme: 'x401',
+    version: '0.2.0',
+    credential_requirements: {
+      digital: {
+        requests: [
+          {
+            protocol: 'openid4vp-v1-unsigned',
+            data: {
+              response_type: 'vp_token',
+              response_mode: 'dc_api',
+              nonce: 'x401-nonce',
+              dcql_query: {
+                credentials: [
+                  {
+                    id: 'link_identity',
+                    format: 'dc+sd-jwt',
+                    meta: {
+                      vct_values: ['https://api.link.com/credentials/aap/v1'],
+                    },
+                    claims: [{ path: ['email'] }],
+                  },
+                ],
+              },
+              client_metadata: {
+                vp_formats_supported: { 'dc+sd-jwt': {} },
+              },
+            },
+          },
+        ],
+      },
+    },
+    request_id: 'link-email-proof-v1',
+    satisfied_requirements: ['urn:link:identity:email'],
+  };
+}
+
+function x401ChallengeResponse(): Response {
+  return new Response(JSON.stringify({ error: 'proof_required' }), {
+    status: 401,
+    headers: { 'PROOF-REQUEST': encode(x401Payload()) },
+  });
+}
 
 it('discloses only email and binds the exact SD-JWT bytes, audience, nonce, and time', async () => {
   const before = await fs.readFile(file);
@@ -148,6 +232,142 @@ it('preserves the exact audience and nonce and supports the default SHA-256 algo
   });
   const kb = presentation.split('~').at(-1) as string;
   expect(decode(kb.split('.')[1])).toMatchObject({ aud, nonce });
+});
+
+it('adapts an OpenID4VP DCQL challenge without changing the signer', async () => {
+  const challenge = openId4VpChallenge();
+  const fetchImpl = vi.fn(async () => jsonResponse(challenge));
+  const result = await presentOpenId4VpChallenge(
+    { challengeUrl: 'https://verifier.example/openid4vp/challenge' },
+    fetchImpl,
+  );
+
+  expect(result).toMatchObject({
+    protocol: 'openid4vp',
+    response_uri: challenge.response_uri,
+    content_type: 'application/x-www-form-urlencoded',
+  });
+  expect(fetchImpl).toHaveBeenCalledOnce();
+  const authorizationResponse = result.authorization_response;
+  expect(authorizationResponse).toBeDefined();
+  if (!authorizationResponse) return;
+  expect(authorizationResponse.state).toBe(challenge.state);
+  const vpToken = JSON.parse(authorizationResponse.vp_token);
+  expect(Object.keys(vpToken)).toEqual(['link_identity']);
+  const presentation = vpToken.link_identity[0] as string;
+  expect(presentation.split('~').slice(1, -1)).toEqual([disclosures[0]]);
+  const kb = presentation.split('~').at(-1) as string;
+  expect(decode(kb.split('.')[1])).toMatchObject({
+    aud: challenge.client_id,
+    nonce: challenge.nonce,
+  });
+});
+
+it('submits the OpenID4VP authorization response as direct_post form data', async () => {
+  const challenge = openId4VpChallenge();
+  const fetchImpl = vi.fn(
+    async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method !== 'POST') return jsonResponse(challenge);
+      const body = new URLSearchParams(init.body as string);
+      expect(init.headers).toMatchObject({
+        'Content-Type': 'application/x-www-form-urlencoded',
+      });
+      expect(body.get('state')).toBe(challenge.state);
+      expect(JSON.parse(body.get('vp_token') as string)).toEqual({
+        link_identity: [expect.any(String)],
+      });
+      return jsonResponse({
+        ok: true,
+        disclosed_claim_names: ['email'],
+      });
+    },
+  );
+
+  const result = await presentOpenId4VpChallenge(
+    {
+      challengeUrl: 'https://verifier.example/openid4vp/challenge',
+      submit: true,
+    },
+    fetchImpl,
+  );
+  expect(fetchImpl).toHaveBeenCalledTimes(2);
+  expect(result).toEqual({
+    protocol: 'openid4vp',
+    submitted: true,
+    response_uri: challenge.response_uri,
+    status: 200,
+    response: { ok: true, disclosed_claim_names: ['email'] },
+  });
+  expect(JSON.stringify(result)).not.toContain('private@example.test');
+});
+
+it('rejects OpenID4VP features outside the initial adapter profile', async () => {
+  const challenge = openId4VpChallenge({
+    dcql_query: {
+      credentials: [
+        {
+          id: 'link_identity',
+          format: 'dc+sd-jwt',
+          meta: {
+            vct_values: ['https://api.link.com/credentials/aap/v1'],
+          },
+          claims: [{ path: ['address', 'locality'] }],
+        },
+      ],
+    },
+  });
+  await expect(
+    presentOpenId4VpChallenge(
+      { challengeUrl: 'https://verifier.example/openid4vp/challenge' },
+      async () => jsonResponse(challenge),
+    ),
+  ).rejects.toThrow('top-level DCQL');
+});
+
+it('answers an x401 proof request with an inline Result Artifact', async () => {
+  const fetchImpl = vi.fn(
+    async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (!init?.headers || !('PROOF-RESPONSE' in init.headers)) {
+        return x401ChallengeResponse();
+      }
+      const proofResponse = (init.headers as Record<string, string>)[
+        'PROOF-RESPONSE'
+      ];
+      const artifact = decode(proofResponse);
+      expect(artifact.request_id).toBe('link-email-proof-v1');
+      expect(artifact.credential_result.protocol).toBe('openid4vp-v1-unsigned');
+      const presentation =
+        artifact.credential_result.data.vp_token.link_identity[0];
+      expect(presentation.split('~').slice(1, -1)).toEqual([disclosures[0]]);
+      const kb = presentation.split('~').at(-1) as string;
+      expect(decode(kb.split('.')[1])).toMatchObject({
+        aud: 'origin:https://verifier.example/',
+        nonce: 'x401-nonce',
+      });
+      return jsonResponse({
+        ok: true,
+        proof: { disclosed_claim_names: ['email'] },
+      });
+    },
+  );
+
+  const result = await presentX401Resource(
+    { resourceUrl: 'https://verifier.example/protected', submit: true },
+    fetchImpl,
+  );
+  expect(fetchImpl).toHaveBeenCalledTimes(2);
+  expect(result).toEqual({
+    protocol: 'x401',
+    version: '0.2.0',
+    submitted: true,
+    resource_url: 'https://verifier.example/protected',
+    status: 200,
+    response: {
+      ok: true,
+      proof: { disclosed_claim_names: ['email'] },
+    },
+  });
+  expect(JSON.stringify(result)).not.toContain('private@example.test');
 });
 
 it.each([
@@ -328,6 +548,53 @@ describe('command output', () => {
     expect(JSON.parse(output)).toMatchObject({
       ok: true,
       data: { presentation: expect.any(String) },
+    });
+  });
+
+  it('accepts --openid4vp-challenge and derives the presentation inputs', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse(openId4VpChallenge())),
+    );
+    const { output, code } = await run([
+      'present',
+      '--openid4vp-challenge',
+      'https://verifier.example/openid4vp/challenge',
+      '--format',
+      'json',
+    ]);
+    expect(code).toBe(0);
+    const result = JSON.parse(output);
+    expect(result).toMatchObject({
+      protocol: 'openid4vp',
+      content_type: 'application/x-www-form-urlencoded',
+      authorization_response: {
+        state: 'openid4vp-state',
+        vp_token: expect.any(String),
+      },
+    });
+  });
+
+  it('accepts --x401-resource and prepares a PROOF-RESPONSE', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => x401ChallengeResponse()),
+    );
+    const { output, code } = await run([
+      'present',
+      '--x401-resource',
+      'https://verifier.example/protected',
+      '--format',
+      'json',
+    ]);
+    expect(code).toBe(0);
+    const result = JSON.parse(output);
+    expect(result).toMatchObject({
+      protocol: 'x401',
+      version: '0.2.0',
+      resource_url: 'https://verifier.example/protected',
+      request_id: 'link-email-proof-v1',
+      proof_response: expect.any(String),
     });
   });
 

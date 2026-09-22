@@ -9,9 +9,11 @@ import { inspectionError } from '../identity/artifact-reader';
 import { SavedArtifact } from '../identity/saved-artifact';
 import { issueIdentityCredential } from './issue';
 import { listIdentityCredentials } from './list';
+import { presentOpenId4VpChallenge } from './openid4vp';
 import { presentIdentityCredential } from './present';
 import { presentOptions } from './schema';
 import { writeIdentityCredentialArtifact } from './storage';
+import { presentX401Resource } from './x401';
 
 export function createIdentityCredentialsCli(
   createResource: () => IIdentityCredentialsResource,
@@ -32,13 +34,29 @@ export function createIdentityCredentialsCli(
 
   cli.command('present', {
     description:
-      'Sign a presentation of selected claims from the saved credential for an audience and nonce. Returns the sensitive Identity-Presentation header value.',
+      'Present selected claims manually or answer a supported OpenID4VP or x401 challenge with the saved credential.',
     options: presentOptions,
     mcp: false,
     outputPolicy: 'all' as const,
     async run(c) {
       try {
-        return await presentIdentityCredential(c.options);
+        if (c.options.openid4vpChallenge) {
+          return await presentOpenId4VpChallenge({
+            challengeUrl: c.options.openid4vpChallenge,
+            submit: c.options.submit,
+          });
+        }
+        if (c.options.x401Resource) {
+          return await presentX401Resource({
+            resourceUrl: c.options.x401Resource,
+            submit: c.options.submit,
+          });
+        }
+        return await presentIdentityCredential({
+          aud: c.options.aud as string,
+          nonce: c.options.nonce as string,
+          claim: c.options.claim,
+        });
       } catch (error) {
         return c.error(inspectionError(error));
       }

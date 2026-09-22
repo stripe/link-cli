@@ -392,6 +392,39 @@ Use the verifier challenge's exact audience and nonce. Repeat `--claim` to discl
 
 Send the returned `presentation` as the `Identity-Presentation` HTTP header.
 
+For an OpenID4VP 1.0 `direct_post` challenge with one `dc+sd-jwt` DCQL
+credential query, the CLI can derive the audience, nonce, and top-level claims,
+construct the DCQL-keyed `vp_token`, and submit it:
+
+```bash
+LINK_IDENTITY_COMMANDS=1 link-cli identity credentials present \
+  --openid4vp-challenge https://verifier.example/openid4vp/challenge \
+  --submit \
+  --format json
+```
+
+Omit `--submit` to return the `response_uri`, content type, and prepared
+authorization response without sending it. The initial adapter deliberately
+rejects multiple credential queries, nested claim paths, non-SD-JWT formats,
+and client identifier prefixes other than `redirect_uri`.
+
+The same command can answer the x401 HTTP Proof Requirement Protocol draft
+0.2.0 when a GET resource carries one supported unsigned OpenID4VP request:
+
+```bash
+LINK_IDENTITY_COMMANDS=1 link-cli identity credentials present \
+  --x401-resource https://verifier.example/protected-resource \
+  --submit \
+  --format json
+```
+
+The CLI decodes `PROOF-REQUEST`, satisfies its DCQL query with the same signer,
+packages the result as an inline Result Artifact, and retries the resource with
+`PROOF-RESPONSE`. Omit `--submit` to return the encoded proof header without
+retrying. This initial adapter supports GET, x401 0.2.0, one
+`openid4vp-v1-unsigned` request, and the same single-credential/top-level-claim
+DCQL profile as the direct OpenID4VP adapter.
+
 The verifier still validates the issuer signature, holder signature, audience, nonce, expiry, and required claims. Presentations include a fresh signing time and should be sent promptly; a verifier that has consumed the nonce requires a new challenge.
 
 **Unlisted local inspection** uses the same feature flag and MCP exclusion:

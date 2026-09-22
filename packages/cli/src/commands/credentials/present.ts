@@ -4,8 +4,19 @@ import { holderJwksEqual, parseHolderPublicJwk } from '@stripe/link-sdk';
 import { z } from 'incur';
 import { readArtifact } from '../identity/artifact-reader';
 import { loadHolderKey } from './holder-key';
-import { presentOptions } from './schema';
 import { getOutputDirectory } from './storage';
+
+export interface PresentIdentityCredentialInput {
+  aud: string;
+  nonce: string;
+  claim: string[];
+}
+
+const presentationInputSchema = z.object({
+  aud: z.string().min(1),
+  nonce: z.string().min(1),
+  claim: z.array(z.string().min(1)).min(1),
+});
 
 const artifactSchema = z.object({
   version: z.literal(1),
@@ -63,9 +74,9 @@ function encodeJson(value: unknown): string {
 }
 
 export async function presentIdentityCredential(
-  input: z.infer<typeof presentOptions>,
+  input: PresentIdentityCredentialInput,
 ) {
-  const options = presentOptions.parse(input);
+  const options = presentationInputSchema.parse(input);
   const file = path.join(getOutputDirectory(), 'current.json');
   let artifact: z.infer<typeof artifactSchema>;
   try {
