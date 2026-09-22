@@ -4,12 +4,22 @@ import { BaseResource } from '@/resources/base';
 import type { IPaymentMethodsResource } from '@/resources/interfaces';
 import type { PaymentMethod } from '@/types/index';
 
+const balanceDetailsSchema = z.looseObject({
+  available_balance: z
+    .looseObject({
+      amount: z.number().int(),
+      currency: z.string(),
+    })
+    .optional(),
+});
+
 const paymentMethodSchema = z.looseObject({
   id: z.string(),
   type: z.string(),
   is_default: z.boolean(),
   name: z.string(),
   nickname: z.optional(z.string().nullable()),
+  balance_details: balanceDetailsSchema.nullable().optional(),
 });
 const paymentMethodsResponseSchema = z.looseObject({
   payment_details: z.array(paymentMethodSchema),

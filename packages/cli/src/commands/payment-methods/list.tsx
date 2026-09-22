@@ -4,6 +4,7 @@ import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback } from 'react';
 import { useAsyncAction } from '../../hooks/use-async-action';
+import { formatAmount } from '../../utils/format-amount';
 
 interface PaymentMethodsListProps {
   resource: IPaymentMethodsResource;
@@ -56,6 +57,12 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
             'Bank account';
           const last4 =
             pm.card_details?.last4 ?? pm.bank_account_details?.last4;
+          const availableBalance = pm.balance_details?.available_balance;
+          const details = last4
+            ? ` ****${last4}`
+            : availableBalance
+              ? ` ${formatAmount(availableBalance.amount, availableBalance.currency)} available`
+              : '';
           const suffix = pm.nickname ? `(${pm.nickname})` : '';
           const agenticCap = pm.capabilities?.agentic_payments;
           const ineligible = agenticCap && !agenticCap.eligible;
@@ -64,7 +71,8 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
               <Text>
                 <Text dimColor>{pm.id}</Text>
                 {'  '}
-                {label} ****{last4}
+                {label}
+                {details}
                 {suffix ? ` ${suffix}` : ''}
                 {pm.is_default ? <Text color="green"> (default)</Text> : ''}
                 {ineligible ? (
