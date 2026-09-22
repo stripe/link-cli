@@ -1,7 +1,7 @@
 {
   "name": "link",
   "displayName": "Link",
-  "version": "0.21.0",
+  "version": "0.15.1",
   "description": "Complete purchases with one-time-use payment credentials from a Link wallet, using spend requests the user has approved.",
   "author": {
     "name": "Stripe"
