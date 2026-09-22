@@ -68,6 +68,58 @@ describe('PaymentMethodsResource', () => {
     ]);
   });
 
+  it('retrieves a payment method from the expected endpoint', async () => {
+    mockFetchResponse(200, {
+      id: 'pd_123',
+      type: 'CARD',
+      is_default: true,
+      name: 'Visa',
+      card_details: {
+        brand: 'visa',
+        last4: '4242',
+        exp_month: 12,
+        exp_year: 2028,
+      },
+    });
+
+    const result = await repo.retrieve('pd_123');
+
+    expect(mockFetch).toHaveBeenCalledOnce();
+    const [url, opts] = mockFetch.mock.calls[0]!;
+    expect(url).toBe('https://api.link.com/payment-details/pd_123');
+    expect(opts.method).toBe('GET');
+    expect(opts.headers.Authorization).toBe('Bearer test_token');
+    expect(result).toMatchObject({ id: 'pd_123', name: 'Visa' });
+  });
+
+  it('returns null when a payment method is not found', async () => {
+    mockFetchResponse(404, {
+      error: { message: 'Payment details not found' },
+    });
+
+    await expect(repo.retrieve('pd_missing')).resolves.toBeNull();
+  });
+
+  it('encodes the payment method ID in the retrieve path', async () => {
+    mockFetchResponse(404, {
+      error: { message: 'Payment details not found' },
+    });
+
+    await repo.retrieve('pd/../other');
+
+    expect(mockFetch.mock.calls[0]![0]).toBe(
+      'https://api.link.com/payment-details/pd%2F..%2Fother',
+    );
+  });
+
+  it('throws non-404 retrieve errors', async () => {
+    mockFetchResponse(500, { error: 'internal_error' });
+
+    await expect(repo.retrieve('pd_123')).rejects.toThrow(
+      'Failed to retrieve payment method (500): internal_error',
+    );
+  });
+
   it('refreshes the token and retries once on 401', async () => {
     mockFetch
       .mockResolvedValueOnce({

@@ -1524,6 +1524,69 @@ describe('production mode', () => {
     });
   });
 
+  describe('payment-methods retrieve', () => {
+    it('retrieves a payment method by ID', async () => {
+      setResponseForUrl('/payment-details/pd_123', 200, {
+        id: 'pd_123',
+        type: 'CARD',
+        is_default: true,
+        name: 'Visa',
+      });
+
+      const result = await runProdCli(
+        'payment-methods',
+        'retrieve',
+        'pd_123',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.method).toBe('GET');
+      expect(lastRequest.url).toBe('/payment-details/pd_123');
+      expect(lastRequest.headers.authorization).toBe(
+        'Bearer prod_test_access_token',
+      );
+      expect(parseJson(result.stdout)).toMatchObject({ id: 'pd_123' });
+    });
+
+    it('returns NOT_FOUND when the payment method does not exist', async () => {
+      setResponseForUrl('/payment-details/pd_missing', 404, {
+        error: { message: 'Payment details not found' },
+      });
+
+      const result = await runProdCli(
+        'payment-methods',
+        'retrieve',
+        'pd_missing',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(parseJson(result.stdout)).toEqual({
+        code: 'NOT_FOUND',
+        message: 'Payment method pd_missing not found',
+      });
+    });
+
+    it('rejects unauthenticated requests before hitting the API', async () => {
+      storage.clearTokens();
+
+      const result = await runProdCli(
+        'payment-methods',
+        'retrieve',
+        'pd_123',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      const output = parseJson(result.stdout) as Record<string, unknown>;
+      expect(output.code).toBe('NOT_AUTHENTICATED');
+      expect(
+        requests.find((request) => request.url === '/payment-details/pd_123'),
+      ).toBeUndefined();
+    });
+  });
+
   describe('shipping-address list', () => {
     it('sends GET to /shipping_addresses and returns the API response as JSON output', async () => {
       setResponseForUrl('/shipping_addresses', 200, {
@@ -2734,6 +2797,30 @@ describe('production mode', () => {
       expect(result.exitCode).toBe(0);
       const pmRequest = requests.find((r) => r.url === '/payment-details');
       expect(pmRequest).toBeDefined();
+      expect(pmRequest?.headers.authorization).toBe(`Bearer ${ENV_TOKEN}`);
+    });
+
+    it('allows payment-methods retrieve with no stored auth', async () => {
+      setResponseForUrl('/payment-details/pd_123', 200, {
+        id: 'pd_123',
+        type: 'CARD',
+        is_default: true,
+        name: 'Visa',
+      });
+
+      const result = await runProdCliWithEnv(
+        { LINK_ACCESS_TOKEN: ENV_TOKEN },
+        'payment-methods',
+        'retrieve',
+        'pd_123',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(parseJson(result.stdout)).toMatchObject({ id: 'pd_123' });
+      const pmRequest = requests.find(
+        (request) => request.url === '/payment-details/pd_123',
+      );
       expect(pmRequest?.headers.authorization).toBe(`Bearer ${ENV_TOKEN}`);
     });
 
