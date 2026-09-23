@@ -73,12 +73,27 @@ func (source *Source) UnmarshalJSON(data []byte) error {
 
 func (source Source) MarshalJSON() ([]byte, error) {
 	type wire Source
-	present := make(map[string]any, len(source.AdditionalFields)+1)
+	present := make(map[string]any, len(source.AdditionalFields)+5)
 	for key, value := range source.AdditionalFields {
 		present[key] = value
 	}
+	// Every modelled field below is omitempty, which drops a non-nil but
+	// empty map or slice. Re-adding them here keeps an empty object or array
+	// the server sent distinguishable from an absent one.
 	if source.GrantedActions != nil {
 		present["granted_actions"] = source.GrantedActions
+	}
+	if source.Capabilities != nil {
+		present["capabilities"] = source.Capabilities
+	}
+	if source.ExternalConnection != nil {
+		present["external_connection"] = source.ExternalConnection
+	}
+	if source.BankAccount != nil {
+		present["bank_account"] = source.BankAccount
+	}
+	if source.Card != nil {
+		present["card"] = source.Card
 	}
 	return marshalExtra(wire(source), present)
 }

@@ -312,6 +312,39 @@ func TestExplicitEmptyCollectionsMarshalAcrossRequestTypes(t *testing.T) {
 	}
 }
 
+func TestSourcePreservesExplicitEmptyResponseObjects(t *testing.T) {
+	const payload = `{"id":"src_1","capabilities":{},"external_connection":{},` +
+		`"bank_account":{},"card":{},"granted_actions":[],"unknown_future_field":{}}`
+
+	var source Source
+	assertNoError(t, json.Unmarshal([]byte(payload), &source))
+
+	data, err := json.Marshal(source)
+	assertNoError(t, err)
+
+	var fields map[string]json.RawMessage
+	assertNoError(t, json.Unmarshal(data, &fields))
+
+	keys := []string{
+		"capabilities",
+		"external_connection",
+		"bank_account",
+		"card",
+		"granted_actions",
+		"unknown_future_field",
+	}
+	for _, key := range keys {
+		value, ok := fields[key]
+		if !ok {
+			t.Errorf("field %s was dropped when re-encoding the source", key)
+			continue
+		}
+		if string(value) != "[]" && string(value) != "{}" {
+			t.Errorf("field %s was not encoded as an empty collection: %s", key, value)
+		}
+	}
+}
+
 func TestRetrieveReturnsNilOnNotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
 		response.WriteHeader(http.StatusNotFound)
