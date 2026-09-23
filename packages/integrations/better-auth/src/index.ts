@@ -1,14 +1,17 @@
 import type { UserInfo } from '@stripe/link-sdk';
 import type { BetterAuthPlugin } from 'better-auth';
-import {
-  APIError,
-  createAuthEndpoint,
-  freshSessionMiddleware,
-  sensitiveSessionMiddleware,
-} from 'better-auth/api';
-import { decryptOAuthToken } from 'better-auth/oauth2';
 import { genericOAuth } from 'better-auth/plugins/generic-oauth';
 import { z } from 'zod';
+import { LINK_ERROR_CODES } from './error-codes';
+import { connectLink, disconnectLink } from './routes';
+
+declare module '@better-auth/core' {
+  interface BetterAuthPluginRegistry<AuthOptions, Options> {
+    link: {
+      creator: typeof link;
+    };
+  }
+}
 
 const linkProfileSchema = z.object({
   id: z.string().min(1),
@@ -69,83 +72,11 @@ export function link(options: LinkOptions) {
     ...oauth,
     id: 'link',
     endpoints: {
+      connectLink: connectLink(),
       disconnectLink: disconnectLink(options),
     },
+    $ERROR_CODES: LINK_ERROR_CODES,
   } satisfies BetterAuthPlugin;
 }
 
-function disconnectLink(options: LinkOptions) {
-  return createAuthEndpoint(
-    '/link/disconnect',
-    {
-      method: 'POST',
-      requireHeaders: true,
-      body: z.strictObject({ accountId: z.string().min(1) }),
-      use: [sensitiveSessionMiddleware, freshSessionMiddleware],
-    },
-    async (ctx) => {
-      const accounts = await ctx.context.internalAdapter.findAccounts(
-        ctx.context.session.user.id,
-      );
-      const account = accounts.find(
-        (candidate) =>
-          candidate.id === ctx.body.accountId &&
-          candidate.providerId === 'link',
-      );
-      if (!account) {
-        throw new APIError('BAD_REQUEST', {
-          code: 'ACCOUNT_NOT_FOUND',
-          message: 'Link account not found.',
-        });
-      }
-      if (
-        accounts.length === 1 &&
-        !ctx.context.options.account?.accountLinking?.allowUnlinkingAll
-      ) {
-        throw new APIError('BAD_REQUEST', {
-          code: 'FAILED_TO_UNLINK_LAST_ACCOUNT',
-          message: 'Add another sign-in method before disconnecting Link.',
-        });
-      }
-      if (!account.refreshToken) {
-        throw new APIError('BAD_REQUEST', {
-          code: 'LINK_REFRESH_TOKEN_NOT_FOUND',
-          message:
-            'Link refresh token is missing. The account remains connected.',
-        });
-      }
-
-      try {
-        const token = await decryptOAuthToken(
-          account.refreshToken,
-          ctx.context,
-        );
-        const response = await fetch('https://login.link.com/auth/revoke', {
-          method: 'POST',
-          redirect: 'error',
-          signal: AbortSignal.timeout(10_000),
-          headers: {
-            Authorization: `Bearer ${options.publishableKey}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-            client_id: options.clientId,
-            client_secret: options.clientSecret,
-            token,
-            token_type_hint: 'refresh_token',
-          }),
-        });
-        if (!response.ok) throw new Error('Revocation rejected');
-      } catch {
-        throw new APIError('BAD_GATEWAY', {
-          code: 'LINK_REVOCATION_FAILED',
-          message:
-            'Unable to revoke Link access. The account remains connected; try again.',
-        });
-      }
-
-      await ctx.context.internalAdapter.deleteAccount(account.id);
-      return ctx.json({ status: true });
-    },
-  );
-}
+export { LINK_ERROR_CODES } from './error-codes';

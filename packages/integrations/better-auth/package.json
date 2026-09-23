@@ -42,12 +42,14 @@
     "test": "vitest run"
   },
   "peerDependencies": {
+    "@better-auth/core": "^1.7.5",
     "better-auth": "^1.7.5"
   },
   "dependencies": {
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@better-auth/core": "1.7.5",
     "@stripe/link-sdk": "workspace:*",
     "@stripe/link-typescript-config": "workspace:*",
     "@types/node": "^26.4.1",

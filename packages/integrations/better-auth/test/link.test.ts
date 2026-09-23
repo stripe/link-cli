@@ -531,7 +531,50 @@ it('uses native refresh and background token access, retaining rotated refresh t
   ).toBe(401);
 });
 
-describe('Link client actions', () => {
+describe('Link actions', () => {
+  it('registers the plugin and error codes with Better Auth', async () => {
+    const f = await fixture();
+    const ctx = await f.auth.$context;
+    const plugin = ctx.getPlugin('link');
+
+    expectTypeOf(plugin).toEqualTypeOf<ReturnType<typeof link> | null>();
+    expect(plugin?.id).toBe('link');
+    expect(f.auth.$ERROR_CODES.LINK_REVOCATION_FAILED).toMatchObject({
+      code: 'LINK_REVOCATION_FAILED',
+      message:
+        'Unable to revoke Link access. The account remains connected; try again.',
+    });
+    expectTypeOf(
+      f.client.$ERROR_CODES.LINK_REVOCATION_FAILED.code,
+    ).toEqualTypeOf<'LINK_REVOCATION_FAILED'>();
+  });
+
+  it('starts the same Link connection through the server API', async () => {
+    const f = await fixture();
+    const result = await f.auth.api.connectLink({
+      body: {
+        callbackURL: '/settings',
+        disableRedirect: true,
+      },
+      headers: {
+        cookie: f.cookies.toString(),
+        origin: 'http://localhost:3000',
+      },
+      returnHeaders: true,
+    });
+
+    expectTypeOf(f.auth.api.connectLink).toBeFunction();
+    expect(result.response.redirect).toBe(false);
+    expect(new URL(result.response.url).searchParams.get('client_id')).toBe(
+      credentials.clientId,
+    );
+    const responseHeaders = result.headers ?? new Headers();
+    expect(responseHeaders.getSetCookie().length).toBeGreaterThan(0);
+    f.cookies.absorb(new Response(null, { headers: responseHeaders }));
+    const callback = await f.complete(new URL(result.response.url));
+    expect(callback.headers.get('location')).toBe('/settings');
+  });
+
   it('connect forwards OAuth options and uses the existing client fetch configuration', async () => {
     const f = await fixture('database', '/custom/auth', {
       scopes: ['userinfo:read'],
@@ -564,7 +607,7 @@ describe('Link client actions', () => {
     ).toBe(403);
   });
 
-  it('connect types and returns the requested response shape', async () => {
+  it('connect follows the configured client error handling', async () => {
     const data = { url: 'https://login.link.com/auth', redirect: false };
     const fetch = vi
       .fn<typeof globalThis.fetch>()
@@ -574,21 +617,16 @@ describe('Link client actions', () => {
       plugins: [linkClient()],
       fetchOptions: { throw: true, customFetchImpl: fetch },
     });
-    const wrapped = await client.link.connect();
-    expect(wrapped.data).toEqual(data);
-    const unwrapped = await client.link.connect({}, { throw: true });
-    expectTypeOf(unwrapped).toEqualTypeOf<typeof data>();
-    expect(unwrapped).toEqual(data);
+    const result = await client.link.connect();
+    expectTypeOf(result).toEqualTypeOf<typeof data>();
+    expect(result).toEqual(data);
     fetch.mockImplementation(async () =>
       Response.json(
         { code: 'UNAUTHORIZED', message: 'Unauthorized' },
         { status: 401 },
       ),
     );
-    expect((await client.link.connect()).error?.code).toBe('UNAUTHORIZED');
-    await expect(
-      client.link.connect({}, { throw: true }),
-    ).rejects.toMatchObject({ status: 401 });
+    await expect(client.link.connect()).rejects.toMatchObject({ status: 401 });
   });
 
   it('connect requires an authenticated app user', async () => {
@@ -690,18 +728,19 @@ describe('Link client actions', () => {
     );
     if (!ownPasswordAccount) throw new Error('Expected a password account');
     const callCount = f.fetchMock.mock.calls.length;
-    expect(
-      (await f.client.link.disconnect({ accountId: ownPasswordAccount.id }))
-        .error?.code,
-    ).toBe('ACCOUNT_NOT_FOUND');
-    expect(
-      (await f.client.link.disconnect({ accountId: account.accountId })).error
-        ?.code,
-    ).toBe('ACCOUNT_NOT_FOUND');
+    const passwordAccountResult = await f.client.link.disconnect({
+      accountId: ownPasswordAccount.id,
+    });
+    expect(passwordAccountResult.error?.code).toBe('ACCOUNT_NOT_FOUND');
+    const providerAccountResult = await f.client.link.disconnect({
+      accountId: account.accountId,
+    });
+    expect(providerAccountResult.error?.code).toBe('ACCOUNT_NOT_FOUND');
     await f.signUp('another@example.com');
-    expect(
-      (await f.client.link.disconnect({ accountId: account.id })).error?.code,
-    ).toBe('ACCOUNT_NOT_FOUND');
+    const anotherUserResult = await f.client.link.disconnect({
+      accountId: account.id,
+    });
+    expect(anotherUserResult.error?.code).toBe('ACCOUNT_NOT_FOUND');
     expect(f.fetchMock).toHaveBeenCalledTimes(callCount);
     expect(
       f.database
@@ -802,9 +841,8 @@ describe('Link client actions', () => {
     const ctx = await f.auth.$context;
     await ctx.internalAdapter.updateAccount(account.id, { refreshToken: null });
     const callCount = f.fetchMock.mock.calls.length;
-    expect(
-      (await f.client.link.disconnect({ accountId: account.id })).error?.code,
-    ).toBe('LINK_REFRESH_TOKEN_NOT_FOUND');
+    const result = await f.client.link.disconnect({ accountId: account.id });
+    expect(result.error?.code).toBe('LINK_REFRESH_TOKEN_NOT_FOUND');
     expect(f.fetchMock).toHaveBeenCalledTimes(callCount);
     expect(
       f.database.prepare('select id from account where id = ?').get(account.id),
