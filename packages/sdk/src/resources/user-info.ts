@@ -29,14 +29,19 @@ const agentWalletVerificationRequirementSchema = z.object({
   action_url: z.string().nullable(),
 });
 
-const userInfoAddressSchema = z.object({
-  line1: z.string().nullable(),
-  line2: z.string().nullable(),
-  city: z.string().nullable(),
-  state: z.string().nullable(),
-  postal_code: z.string().nullable(),
-  country: z.string().nullable(),
-});
+const userInfoAddressSchema = z
+  .object({
+    line1: z.string().nullable(),
+    line2: z.string().nullable().optional(),
+    city: z.string().nullable(),
+    state: z.string().nullable(),
+    postal_code: z.string().nullable(),
+    country: z.string().nullable(),
+  })
+  .transform(({ line2, ...address }) => ({
+    ...address,
+    ...(line2 === undefined ? {} : { line2 }),
+  }));
 
 const userInfoSchema = z
   .looseObject({
