@@ -131,9 +131,7 @@ async def test_update_payment_method(api: API, nickname: str) -> None:
         }
     )
 
-    result = await api.call(
-        "payment_methods", "update", "pd_1", nickname=nickname
-    )
+    result = await api.call("payment_methods", "update", "pd_1", nickname=nickname)
 
     assert isinstance(result, PaymentMethod)
     assert result.nickname == (nickname or None)
