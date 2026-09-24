@@ -13,7 +13,7 @@ import {
   buildHeaders,
   MppPay,
   type PayResult,
-  probeMppRequest,
+  prepareMppProbe,
   readPayResult,
   runMppPayWithSpendRequest,
 } from './pay';
@@ -45,7 +45,7 @@ export function createMppCli(
 
   cli.command('pay', {
     description:
-      'Pay a URL via the Machine Payment Protocol. Handles the full 402 flow: probes the URL, parses the challenge, creates a spend request, gets approval, and pays with the SPT. Pass --spend-request-id to skip creation and use a pre-approved spend request.',
+      'Pay a URL via the Machine Payment Protocol. Answers supported Link attestation and identity-claim 401 challenges, then handles the 402 payment flow with an SPT. Pass --spend-request-id to skip creation and use a pre-approved spend request.',
     args: z.object({
       url: z.string().describe('URL to pay'),
     }),
@@ -101,7 +101,7 @@ export function createMppCli(
       const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
       const requestHeaders = buildHeaders(data, headers);
 
-      const probe = await probeMppRequest(
+      const { probe, ephemeralHeaderNames } = await prepareMppProbe(
         createMppRequest(url, httpMethod, data, requestHeaders),
       );
       const probeResponse = probe.response;
@@ -196,6 +196,7 @@ export function createMppCli(
       ];
       if (probe.body !== undefined) nextArgs.push('-d', probe.body);
       for (const [name, value] of probe.headers) {
+        if (ephemeralHeaderNames.includes(name.toLowerCase())) continue;
         nextArgs.push('-H', `${name}: ${value}`);
       }
       const nextCommand = `mpp ${shellCommand(nextArgs)}`;

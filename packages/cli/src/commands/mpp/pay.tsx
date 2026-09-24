@@ -11,6 +11,8 @@ import { useEffect, useState } from 'react';
 import { openUrl } from '../../utils/open-url';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
 import { sanitizeDeep } from '../../utils/sanitize-text';
+import { takeAttestation } from '../attestations/storage';
+import { presentIdentityCredential } from '../credentials/present';
 import {
   decodeStripeChallenge,
   getStripeChargeChallengeFromHeader,
@@ -104,6 +106,202 @@ export interface MppProbe extends MppRequest {
   response: Response;
 }
 
+export interface AapCredentialProvider {
+  takeAttestation: typeof takeAttestation;
+  presentIdentityCredential: typeof presentIdentityCredential;
+}
+
+const defaultAapCredentialProvider: AapCredentialProvider = {
+  takeAttestation,
+  presentIdentityCredential,
+};
+
+export interface PreparedMppProbe {
+  probe: MppProbe;
+  ephemeralHeaderNames: readonly string[];
+}
+
+type ClaimsChallenge = {
+  aud: string;
+  nonce: string;
+  claims: string[];
+};
+
+function authenticationSchemes(header: string): Set<string> {
+  const schemes = new Set<string>();
+  let quoted = false;
+  let escaped = false;
+  let segmentStart = 0;
+
+  const inspectSegment = (segment: string, first: boolean) => {
+    const match = segment.trim().match(/^([^\s=,]+)(?:\s|$)/);
+    if (!match) return;
+    // The first segment always begins an authentication challenge. Later
+    // segments beginning with `name=` are parameters on the prior challenge.
+    if (first || !segment.trim().startsWith(`${match[1]}=`)) {
+      schemes.add(match[1].toLowerCase());
+    }
+  };
+
+  let first = true;
+  for (let index = 0; index <= header.length; index++) {
+    const character = header[index];
+    if (index === header.length || (character === ',' && !quoted)) {
+      inspectSegment(header.slice(segmentStart, index), first);
+      first = false;
+      segmentStart = index + 1;
+      continue;
+    }
+    if (escaped) {
+      escaped = false;
+    } else if (character === '\\' && quoted) {
+      escaped = true;
+    } else if (character === '"') {
+      quoted = !quoted;
+    }
+  }
+  return schemes;
+}
+
+async function parseClaimsChallenge(
+  response: Response,
+  requestUrl: string,
+): Promise<ClaimsChallenge> {
+  const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
+  if (!contentType.startsWith('application/problem+json')) {
+    throw new Error(
+      'Identity-Presentation challenge must use application/problem+json',
+    );
+  }
+
+  let value: unknown;
+  try {
+    const body = await response.clone().text();
+    if (new TextEncoder().encode(body).byteLength > 64 * 1024) {
+      throw new Error();
+    }
+    value = JSON.parse(body);
+  } catch {
+    throw new Error('Identity-Presentation challenge body is invalid');
+  }
+
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Identity-Presentation challenge body is invalid');
+  }
+  const challenge = value as Record<string, unknown>;
+  const claims = challenge.claims;
+  const formats = challenge.formats;
+  const trustedIssuers = challenge.trusted_issuers;
+  if (
+    challenge.type !== 'urn:aap:claims-required' ||
+    typeof challenge.aud !== 'string' ||
+    typeof challenge.nonce !== 'string' ||
+    challenge.nonce.length === 0 ||
+    !Array.isArray(claims) ||
+    claims.length === 0 ||
+    claims.some((claim) => typeof claim !== 'string' || claim.length === 0) ||
+    new Set(claims).size !== claims.length ||
+    !Array.isArray(formats) ||
+    !formats.includes('dc+sd-jwt') ||
+    !Array.isArray(trustedIssuers) ||
+    !trustedIssuers.includes('https://api.link.com')
+  ) {
+    throw new Error('Identity-Presentation challenge body is invalid');
+  }
+
+  const expectedAudience = new URL(requestUrl).origin;
+  if (challenge.aud !== expectedAudience) {
+    throw new Error(
+      'Identity-Presentation challenge audience does not match the request origin',
+    );
+  }
+
+  return {
+    aud: challenge.aud,
+    nonce: challenge.nonce,
+    claims: claims as string[],
+  };
+}
+
+async function createAapCredentialHeaders(
+  probe: MppProbe,
+  credentialProvider: AapCredentialProvider,
+): Promise<{
+  headers: Headers;
+  ephemeralHeaderNames: string[];
+} | null> {
+  if (probe.response.status !== 401) {
+    return null;
+  }
+
+  const wwwAuthenticate = probe.response.headers.get('www-authenticate');
+  if (!wwwAuthenticate) return null;
+  const schemes = authenticationSchemes(wwwAuthenticate);
+  const needsAttestation = schemes.has('privatetoken');
+  const needsClaims = schemes.has('identity-presentation');
+  if (!needsAttestation && !needsClaims) {
+    return null;
+  }
+
+  const headers = new Headers(probe.headers);
+  const ephemeralHeaderNames: string[] = [];
+
+  try {
+    // Build the non-destructive presentation first. Only consume a one-time AAT
+    // after all challenge validation and local credential checks have succeeded.
+    if (needsClaims) {
+      const challenge = await parseClaimsChallenge(probe.response, probe.url);
+      const { presentation } =
+        await credentialProvider.presentIdentityCredential({
+          aud: challenge.aud,
+          nonce: challenge.nonce,
+          claim: challenge.claims,
+        });
+      headers.set('Identity-Presentation', presentation);
+      ephemeralHeaderNames.push('identity-presentation');
+    }
+    if (needsAttestation) {
+      const { authorization } = await credentialProvider.takeAttestation();
+      headers.set('Authorization', authorization);
+      ephemeralHeaderNames.push('authorization');
+    }
+  } catch (error) {
+    await probe.response.body?.cancel();
+    throw error;
+  }
+
+  return { headers, ephemeralHeaderNames };
+}
+
+async function answerAapChallenge(
+  probe: MppProbe,
+  fetcher: typeof fetch,
+  credentialProvider: AapCredentialProvider,
+): Promise<PreparedMppProbe> {
+  const credentials = await createAapCredentialHeaders(
+    probe,
+    credentialProvider,
+  );
+  if (!credentials) return { probe, ephemeralHeaderNames: [] };
+
+  await probe.response.body?.cancel();
+  const response = await fetchMppRequest(
+    { ...probe, headers: credentials.headers },
+    fetcher,
+  );
+  if (isRedirectResponse(response)) {
+    await response.body?.cancel();
+    throw new Error(
+      `Credential-bearing request returned redirect ${response.status}; refusing to forward identity credentials`,
+    );
+  }
+
+  return {
+    probe: { ...probe, headers: credentials.headers, response },
+    ephemeralHeaderNames: credentials.ephemeralHeaderNames,
+  };
+}
+
 export async function probeMppRequest(
   initial: MppRequest,
   fetcher: typeof fetch = fetch,
@@ -140,6 +338,18 @@ export async function probeMppRequest(
   };
 }
 
+export async function prepareMppProbe(
+  initial: MppRequest,
+  fetcher: typeof fetch = fetch,
+  credentialProvider: AapCredentialProvider = defaultAapCredentialProvider,
+): Promise<PreparedMppProbe> {
+  return answerAapChallenge(
+    await probeMppRequest(initial, fetcher),
+    fetcher,
+    credentialProvider,
+  );
+}
+
 export interface MppPayFullFlowOptions {
   url: string;
   method: string | undefined;
@@ -153,6 +363,7 @@ export interface MppPayFullFlowOptions {
   paymentMethodsFactory: () => IPaymentMethodsResource;
   onStep?: (step: Step) => void;
   onApprovalUrl?: (url: string) => void;
+  aapCredentialProvider?: AapCredentialProvider;
 }
 
 export async function runMppPayWithSpendRequest(
@@ -163,6 +374,7 @@ export async function runMppPayWithSpendRequest(
   headers: string[] | undefined,
   repository: ISpendRequestResource,
   approvedChallengeHeader?: string,
+  credentialProvider?: AapCredentialProvider,
 ): Promise<PayResult> {
   const spendRequest = await repository.retrieve(spendRequestId, {
     include: ['shared_payment_token'],
@@ -193,6 +405,7 @@ export async function runMppPayWithSpendRequest(
     data,
     headers,
     approvedChallengeHeader,
+    credentialProvider,
   );
 }
 
@@ -203,6 +416,7 @@ export async function payWithSpt(
   data: string | undefined,
   headers: string[] | undefined,
   approvedChallengeHeader?: string,
+  credentialProvider?: AapCredentialProvider,
 ): Promise<PayResult> {
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
   const requestHeaders = buildHeaders(data, headers);
@@ -213,12 +427,14 @@ export async function payWithSpt(
     createMppRequest(url, httpMethod, data, requestHeaders),
     spt,
     approvedChallenge,
+    credentialProvider,
   );
 }
 
 async function submitMppPayment(
   challenge: MppProbe,
   spt: string,
+  credentialProvider: AapCredentialProvider,
 ): Promise<PayResult> {
   // Credential creation needs only the challenge status and headers. Keep the
   // untrusted response body out of signing and release its stream separately.
@@ -232,15 +448,69 @@ async function submitMppPayment(
   const credential = await payment.createCredential();
   await challenge.response.body?.cancel();
 
-  const response = await fetch(challenge.url, {
-    ...payment.setCredential(
+  let submissionHeaders = challenge.headers;
+  const privateToken = submissionHeaders.get('authorization');
+  if (
+    privateToken?.toLowerCase().startsWith('privatetoken ') &&
+    (payment.challenge.header ?? 'Authorization').toLowerCase() ===
+      'authorization'
+  ) {
+    throw new Error(
+      'MPP payment challenge must select a separate credential header when Authorization carries a PrivateToken attestation',
+    );
+  }
+
+  if (
+    privateToken?.toLowerCase().startsWith('privatetoken ') ||
+    submissionHeaders.has('identity-presentation')
+  ) {
+    // The credentials that unlocked the 402 may have consumed a one-time
+    // identity nonce. Fetch a fresh 401, then attach those new access proofs
+    // and the payment credential to the same final request.
+    const unauthenticatedHeaders = new Headers(submissionHeaders);
+    if (privateToken?.toLowerCase().startsWith('privatetoken ')) {
+      unauthenticatedHeaders.delete('authorization');
+    }
+    unauthenticatedHeaders.delete('identity-presentation');
+    const accessResponse = await fetchMppRequest({
+      ...challenge,
+      headers: unauthenticatedHeaders,
+    });
+    if (isRedirectResponse(accessResponse)) {
+      await accessResponse.body?.cancel();
+      throw new Error(
+        `Access challenge refresh returned redirect ${accessResponse.status}; refusing to forward credentials`,
+      );
+    }
+    const freshCredentials = await createAapCredentialHeaders(
       {
-        method: challenge.method,
-        headers: challenge.headers,
-        body: challenge.body,
+        ...challenge,
+        headers: unauthenticatedHeaders,
+        response: accessResponse,
       },
-      credential,
-    ),
+      credentialProvider,
+    );
+    if (!freshCredentials) {
+      await accessResponse.body?.cancel();
+      throw new Error(
+        'Expected a fresh Link access challenge before submitting payment',
+      );
+    }
+    await accessResponse.body?.cancel();
+    submissionHeaders = freshCredentials.headers;
+  }
+
+  const paidRequest = payment.setCredential(
+    {
+      method: challenge.method,
+      headers: submissionHeaders,
+      body: challenge.body,
+    },
+    credential,
+  );
+
+  const response = await fetch(challenge.url, {
+    ...paidRequest,
     redirect: 'manual',
   });
   if (isRedirectResponse(response)) {
@@ -256,6 +526,7 @@ async function payPinnedChallengeWithSpt(
   request: MppRequest,
   spt: string,
   approvedChallenge?: Challenge.Challenge,
+  credentialProvider: AapCredentialProvider = defaultAapCredentialProvider,
 ): Promise<PayResult> {
   // Approved credentials may be used minutes later. Refresh the challenge at
   // the pinned destination, but never let that destination move afterward.
@@ -266,27 +537,33 @@ async function payPinnedChallengeWithSpt(
       `MPP challenge destination redirected with status ${response.status} after approval`,
     );
   }
-  const refreshed = { ...request, response };
-  if (response.status !== 402) return readPayResult(response);
+  const { probe: refreshed } = await answerAapChallenge(
+    { ...request, response },
+    fetch,
+    credentialProvider,
+  );
+  const refreshedResponse = refreshed.response;
+  if (refreshedResponse.status !== 402) return readPayResult(refreshedResponse);
   if (approvedChallenge) {
     let refreshedChallenge: Challenge.Challenge;
     try {
-      refreshedChallenge = getStripeChargeChallengeFromResponse(response);
+      refreshedChallenge =
+        getStripeChargeChallengeFromResponse(refreshedResponse);
     } catch (error) {
-      await response.body?.cancel();
+      await refreshedResponse.body?.cancel();
       throw error;
     }
     if (
       comparableChallenge(refreshedChallenge) !==
       comparableChallenge(approvedChallenge)
     ) {
-      await response.body?.cancel();
+      await refreshedResponse.body?.cancel();
       throw new Error(
         'MPP challenge changed after approval; refusing to use the approved payment credential',
       );
     }
   }
-  return submitMppPayment(refreshed, spt);
+  return submitMppPayment(refreshed, spt, credentialProvider);
 }
 
 function comparableChallenge(challenge: Challenge.Challenge): string {
@@ -313,6 +590,7 @@ export async function runMppPayFullFlow(
     paymentMethodsFactory,
     onStep,
     onApprovalUrl,
+    aapCredentialProvider,
   } = opts;
 
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
@@ -320,8 +598,10 @@ export async function runMppPayFullFlow(
 
   // 1. Probe URL
   onStep?.('probing');
-  const probe = await probeMppRequest(
+  const { probe } = await prepareMppProbe(
     createMppRequest(url, httpMethod, data, requestHeaders),
+    fetch,
+    aapCredentialProvider,
   );
   const probeResponse = probe.response;
 
@@ -421,6 +701,7 @@ export async function runMppPayFullFlow(
     probe,
     withSpt.shared_payment_token.id,
     approvedChallenge,
+    aapCredentialProvider,
   );
 }
 

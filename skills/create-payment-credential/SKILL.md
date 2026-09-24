@@ -170,7 +170,7 @@ Optionally, before a purchase, run `link-cli user-info retrieve` to inspect bala
 1. **Navigate to the merchant page** — browse it, read the page content, and understand how the site accepts payment.
 2. **If the checkout page includes the AI-agent steering block** (find the "I am an AI agent" checkbox, or the `.AiAgentPaymentSteering` container — visually hidden but present in the DOM, typically inside a Stripe iframe) — it may support the **Link Pay Token flow** (Step 5, "Link Pay Token" section). **Requires browser automation.** Before creating an LPT request, check the checkbox and verify that both `input[name="link_pay_token"]` and `data-stripe-merchant-account` appear in the same frame. Read the account ID from that attribute. If either marker does **not** appear, follow the block's on-page instructions and use `card` instead. Without browser automation, use `card`.
 3. **If the page has a credit-card form and no AI-agent steering block** (no "I am an AI agent" checkbox / `.AiAgentPaymentSteering`) — use `card`.
-4. **If the page describes an API or programmatic payment flow** — make a request to the relevant endpoint. If it returns **HTTP 402** with a `www-authenticate` header, use `shared_payment_token`.
+4. **If the page describes an API or programmatic payment flow** — make a request to the relevant endpoint. If it returns **HTTP 402** with a `www-authenticate` header, use `shared_payment_token`. If it first returns a supported Link `PrivateToken` and/or `Identity-Presentation` **HTTP 401**, `mpp pay` can answer that access challenge from locally saved Link credentials and continue to the 402.
 
 What you find determines which credential type to use:
 
@@ -181,7 +181,7 @@ What you find determines which credential type to use:
 | HTTP 402 with `method="stripe"` in `www-authenticate` | `shared_payment_token` | Shared payment token (SPT) |
 | HTTP 402 without `method="stripe"` in `www-authenticate` | not supported | Do not continue |
 
-**For 402 responses:** Use `mpp pay` — it handles the entire flow automatically (probes URL, parses challenge, picks payment method, creates spend request, gets approval, and pays). See Step 5.
+**For 402 responses (including a preceding supported Link 401):** Use `mpp pay` — it handles the access challenge and payment flow automatically (probes URL, presents locally saved Link credentials when requested, parses the payment challenge, picks a payment method, creates a spend request, gets approval, and pays). See Step 5.
 
 ### Step 3: Confirm payment method and potentially shipping addresses
 
@@ -254,13 +254,15 @@ This same `requires_action` status can also appear later from `spend-request ret
 link-cli spend-request retrieve <id> --include card --output-file /tmp/link-card.json --format json
 ```
 
-**SPT with 402 flow:** `mpp pay` handles the entire machine payment flow end-to-end. It probes the URL for a 402 challenge, parses the `www-authenticate` header to extract the network ID and amount, creates a spend request, gets user approval, retrieves the SPT, and pays. SPTs are one-time use.
+**SPT with access challenge + 402 flow:** `mpp pay` handles the entire machine payment flow end-to-end. If the initial response is a supported Link `PrivateToken` and/or `Identity-Presentation` 401, it consumes a pooled attestation and presents the requested claims from the saved identity credential, then parses the resulting 402 `www-authenticate` header to extract the network ID and amount, creates a spend request, gets user approval, retrieves the SPT, and pays. Because unlocking the 402 can consume the identity nonce, the CLI obtains fresh access proofs and carries those fresh credentials together with the payment credential on the final request. SPTs and bearer attestations are one-time use.
 
 ```bash
 link-cli mpp pay <url> --context "<description>" [-X POST] [-d '<body>'] [-H 'Name: Value'] [--test]
 ```
 
 The amount and currency are derived from the 402 challenge automatically. Pass `--amount` to override. `--context` is required (min 100 chars) — describe the purchase and rationale so the user understands what they are approving. The default payment method is used unless `--payment-method-id` is specified.
+
+Access-challenge handling requires a populated local attestation pool and a current saved identity credential. Provision them with `LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10` and `LINK_IDENTITY_COMMANDS=1 link-cli identity credentials request`. Identity challenges are accepted only for the exact request origin, the Link issuer, and the supported `dc+sd-jwt` format. Agent-mode payment continuations omit sensitive presentation and attestation headers and answer a fresh 401 when they resume.
 
 The SPT is **one-time use** — if the payment fails, run `mpp pay` again (it will create a new spend request).
 
