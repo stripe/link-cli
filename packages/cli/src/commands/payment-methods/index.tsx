@@ -1,4 +1,4 @@
-import type { IPaymentMethodsResource } from '@stripe/link-sdk';
+import type { IPaymentMethodsResource, PaymentMethod } from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import type { CliAuthStorage } from '../../auth/storage';
 import { renderInteractive } from '../../utils/render-interactive';
@@ -6,7 +6,8 @@ import { requireAuth } from '../../utils/require-auth';
 import { AddPaymentMethod, WALLET_URL } from './add';
 import { PaymentMethodsList } from './list';
 import { PaymentMethodRetrieve } from './retrieve';
-import { retrieveArgs } from './schema';
+import { retrieveArgs, updateArgs, updateOptions } from './schema';
+import { PaymentMethodUpdate } from './update';
 
 export function createPaymentMethodsCli(
   createResource: () => IPaymentMethodsResource,
@@ -69,6 +70,41 @@ export function createPaymentMethodsCli(
         });
       }
       return paymentMethod;
+    },
+  });
+
+  cli.command('update', {
+    description: 'Update a payment method nickname',
+    args: updateArgs,
+    options: updateOptions,
+    outputPolicy: 'agent-only' as const,
+    middleware: [requireAuth(authStorage, envAccessToken)],
+    async run(c) {
+      const resource = createResource();
+      const id = c.args.id;
+      const nickname = c.options.nickname;
+
+      if (!c.agent && !c.formatExplicit) {
+        let capturedResult: PaymentMethod | undefined;
+        return renderInteractive(
+          <PaymentMethodUpdate
+            resource={resource}
+            id={id}
+            nickname={nickname}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => {
+            if (capturedResult === undefined) {
+              throw new Error('Component exited without producing a result');
+            }
+            return capturedResult;
+          },
+        );
+      }
+
+      return resource.update(id, { nickname });
     },
   });
 

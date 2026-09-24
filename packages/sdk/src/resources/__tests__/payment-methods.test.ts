@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { LinkApiError } from '@/errors';
 import { PaymentMethodsResource } from '@/resources/payment-methods';
 
 const mockFetch = vi.fn();
@@ -150,6 +151,125 @@ describe('PaymentMethodsResource', () => {
     });
 
     await expect(repo.retrieve('pd_missing')).resolves.toBeNull();
+  });
+
+  it('updates a payment-method nickname', async () => {
+    mockFetchResponse(200, {
+      id: 'pd_123',
+      type: 'CARD',
+      is_default: true,
+      name: 'Visa',
+      nickname: 'Work card',
+    });
+
+    const result = await repo.update('pd_123', { nickname: 'Work card' });
+
+    const [url, opts] = mockFetch.mock.calls[0]!;
+    expect(url).toBe('https://api.link.com/payment-details/pd_123');
+    expect(opts).toMatchObject({
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer test_token',
+        'Content-Type': 'application/json',
+      },
+      body: '{"nickname":"Work card"}',
+    });
+    expect(result).toMatchObject({ id: 'pd_123', nickname: 'Work card' });
+  });
+
+  it('preserves an empty nickname when clearing', async () => {
+    mockFetchResponse(200, {
+      id: 'pd_123',
+      type: 'CARD',
+      is_default: true,
+      name: 'Visa',
+      nickname: null,
+    });
+
+    await expect(
+      repo.update('pd_123', { nickname: '' }),
+    ).resolves.toMatchObject({
+      nickname: null,
+    });
+    expect(mockFetch.mock.calls[0]![1].body).toBe('{"nickname":""}');
+  });
+
+  it('encodes the payment method ID in the update path', async () => {
+    mockFetchResponse(200, {
+      id: 'pd/../other',
+      type: 'CARD',
+      is_default: false,
+      name: 'Visa',
+    });
+
+    await repo.update('pd/../other', { nickname: 'Work' });
+
+    expect(mockFetch.mock.calls[0]![0]).toBe(
+      'https://api.link.com/payment-details/pd%2F..%2Fother',
+    );
+  });
+
+  it.each([
+    [400, 'nickname is too long'],
+    [403, 'Nickname updates are unavailable'],
+    [404, 'Payment method not found'],
+  ])('throws a typed update error for %s', async (status, message) => {
+    mockFetchResponse(status, { error: { message } });
+
+    const error = await repo
+      .update('pd_123', { nickname: 'Work' })
+      .catch((e) => e);
+    expect(error).toBeInstanceOf(LinkApiError);
+    expect(error).toMatchObject({ status });
+    expect(error.message).toContain(message);
+  });
+
+  it('rejects malformed successful update responses', async () => {
+    mockFetchResponse(200, { id: 123 });
+
+    const error = await repo
+      .update('pd_123', { nickname: 'Work' })
+      .catch((e) => e);
+    expect(error.code).toBe('invalid_response');
+  });
+
+  it('refreshes and retries an update once on 401', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        status: 401,
+        text: async () => JSON.stringify({ error: 'expired_token' }),
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            id: 'pd_123',
+            type: 'CARD',
+            is_default: true,
+            name: 'Visa',
+            nickname: 'Work',
+          }),
+      });
+    getAccessToken
+      .mockResolvedValueOnce('test_token')
+      .mockResolvedValueOnce('fresh_token');
+
+    await repo.update('pd_123', { nickname: 'Work' });
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch.mock.calls[1]![1].headers.Authorization).toBe(
+      'Bearer fresh_token',
+    );
+  });
+
+  it('does not retry a fixed-token update after a 401', async () => {
+    repo = new PaymentMethodsResource({ accessToken: 'fixed_token' });
+    mockFetchResponse(401, { error: 'expired_token' });
+
+    await expect(repo.update('pd_123', { nickname: 'Work' })).rejects.toThrow(
+      'Failed to update payment method (401): expired_token',
+    );
+    expect(mockFetch).toHaveBeenCalledOnce();
   });
 
   it('encodes the payment method ID in the retrieve path', async () => {

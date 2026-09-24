@@ -1587,6 +1587,92 @@ describe('production mode', () => {
     });
   });
 
+  describe('payment-methods update', () => {
+    const updatedPaymentMethod = {
+      id: 'pd_123',
+      type: 'CARD',
+      is_default: true,
+      name: 'Visa',
+      nickname: 'Work card',
+    };
+
+    it('updates a nickname and returns the updated payment method', async () => {
+      setResponseForUrl('/payment-details/pd_123', 200, updatedPaymentMethod);
+
+      const result = await runProdCli(
+        'payment-methods',
+        'update',
+        'pd_123',
+        '--nickname',
+        'Work card',
+        '--format',
+        'json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.method).toBe('POST');
+      expect(lastRequest.url).toBe('/payment-details/pd_123');
+      expect(JSON.parse(lastRequest.body)).toEqual({ nickname: 'Work card' });
+      expect(parseJson(result.stdout)).toEqual(updatedPaymentMethod);
+    });
+
+    it('preserves an explicit empty nickname', async () => {
+      setResponseForUrl('/payment-details/pd_123', 200, {
+        ...updatedPaymentMethod,
+        nickname: null,
+      });
+
+      const result = await runProdCli(
+        'payment-methods',
+        'update',
+        'pd_123',
+        '--nickname',
+        '',
+        '--format',
+        'json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(lastRequest.body)).toEqual({ nickname: '' });
+    });
+
+    it('requires --nickname before making an HTTP request', async () => {
+      const result = await runProdCli(
+        'payment-methods',
+        'update',
+        'pd_123',
+        '--format',
+        'json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(requests).toHaveLength(0);
+      expect(result.stdout + result.stderr).toContain('nickname');
+    });
+
+    it.each([
+      [403, 'Nickname updates are unavailable'],
+      [404, 'Payment method not found'],
+    ])('surfaces a %s update error', async (status, message) => {
+      setResponseForUrl('/payment-details/pd_123', status, {
+        error: { message },
+      });
+
+      const result = await runProdCli(
+        'payment-methods',
+        'update',
+        'pd_123',
+        '--nickname',
+        'Work',
+        '--format',
+        'json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout + result.stderr).toContain(message);
+    });
+  });
+
   describe('shipping-address list', () => {
     it('sends GET to /shipping_addresses and returns the API response as JSON output', async () => {
       setResponseForUrl('/shipping_addresses', 200, {

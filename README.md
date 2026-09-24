@@ -186,6 +186,21 @@ link-cli payment-methods retrieve <payment-method-id>
 The response contains the same redacted fields as the matching list item,
 including capability eligibility when available.
 
+Set or change a payment-method nickname:
+
+```bash
+link-cli payment-methods update <payment-method-id> --nickname "Work card"
+```
+
+Clear a nickname by passing an explicit empty string:
+
+```bash
+link-cli payment-methods update <payment-method-id> --nickname ""
+```
+
+Link trims surrounding whitespace and returns the updated, redacted payment
+method.
+
 ### List shipping addresses
 
 ```bash

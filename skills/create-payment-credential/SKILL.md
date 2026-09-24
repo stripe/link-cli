@@ -149,6 +149,17 @@ Link will automatically use the default payment method on the account. If the us
 link-cli payment-methods list
 ```
 
+Only rename or clear a payment-method nickname when the user explicitly asks.
+Never infer that a nickname should change. If the target ID is not known, run
+`payment-methods list` first and identify the intended method using only its
+redacted details and existing nickname. Then use:
+
+```bash
+link-cli payment-methods update <payment-method-id> --nickname "Work card"
+```
+
+Pass `--nickname ""` to clear a nickname.
+
 If the merchant checkout requires a shipping or delivery address, fetch the user's saved shipping addresses. Use the default address unless the user specifies otherwise.
 
 ```bash
