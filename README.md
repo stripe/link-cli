@@ -560,13 +560,6 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
   --header "X-Custom: value"
 ```
 
-`mpp pay` also handles a supported Link access challenge before the 402. It
-can consume a pooled bearer attestation, create a holder-signed presentation
-of the claims requested for the endpoint's origin, and obtain fresh access
-credentials for the final paid request. The generated agent-mode continuation never embeds
-those sensitive, short-lived headers; it obtains fresh credentials when the
-approved payment is continued.
-
 In agent mode (`--format json`), the full flow returns the payment continuation twice: as `_next.pay_argv` (`{ "command": "mpp", "args": [...] }`) and as `_next.pay_command`. Prefer `pay_argv` and invoke it directly, passing each `args` entry as its own process argument. The URL, body and headers can carry merchant-controlled text, so `pay_command` is shell-quoted for callers that must go through a shell — pass it to the shell verbatim, without unquoting or re-splitting it.
 
 Use `mpp decode` to validate a raw `WWW-Authenticate` header and extract the `network_id` needed for `shared_payment_token` spend requests:
