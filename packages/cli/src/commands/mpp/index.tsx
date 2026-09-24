@@ -45,7 +45,7 @@ export function createMppCli(
 
   cli.command('pay', {
     description:
-      'Pay a URL via the Machine Payment Protocol. Answers supported Link attestation and identity-claim 401 challenges, then handles the 402 payment flow with an SPT. Pass --spend-request-id to skip creation and use a pre-approved spend request.',
+      'Pay a URL via the Machine Payment Protocol. Handles the full 402 flow: probes the URL, parses the challenge, creates a spend request, gets approval, and pays with the SPT. Pass --spend-request-id to skip creation and use a pre-approved spend request.',
     args: z.object({
       url: z.string().describe('URL to pay'),
     }),

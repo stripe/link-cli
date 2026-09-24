@@ -493,17 +493,6 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
   --header "X-Custom: value"
 ```
 
-If the endpoint first returns a Link `PrivateToken` and/or
-`Identity-Presentation` 401 challenge, `mpp pay` answers it from the local
-attestation pool and saved identity credential before handling the resulting
-402. Because the first presentation's nonce can be consumed while unlocking
-the 402, the final paid request obtains fresh access credentials and sends them
-alongside the payment credential. Requested identity claims are disclosed only when the
-challenge is for the endpoint's exact origin, supports `dc+sd-jwt`, and trusts
-Link. Provision them first with `identity attestations request` and
-`identity credentials request`; these commands require
-`LINK_IDENTITY_COMMANDS=1`.
-
 ### Link Pay Token
 
 Some Stripe checkout pages expose an AI-agent steering block that supports a
