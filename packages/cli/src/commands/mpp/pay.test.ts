@@ -2,7 +2,7 @@ import type { ISpendRequestResource } from '@stripe/link-sdk';
 import { Challenge, Credential } from 'mppx';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  type AapCredentialProvider,
+  type IdentityProvider,
   payWithSpt,
   prepareMppProbe,
   runMppPayFullFlow,
@@ -79,7 +79,7 @@ function accessChallengeResponse(
   );
 }
 
-function aapCredentialProvider(): AapCredentialProvider {
+function fakeIdentityProvider(): IdentityProvider {
   let presentationCount = 0;
   let attestationCount = 0;
   return {
@@ -89,7 +89,7 @@ function aapCredentialProvider(): AapCredentialProvider {
     takeAttestation: vi.fn().mockImplementation(async () => ({
       authorization: `PrivateToken token="attestation-secret-${++attestationCount}"`,
     })),
-  } as unknown as AapCredentialProvider;
+  } as unknown as IdentityProvider;
 }
 
 beforeEach(() => {
@@ -103,7 +103,7 @@ afterEach(() => {
 describe('payWithSpt', () => {
   it('answers access challenges, then presents identity and payment credentials together', async () => {
     const repository = approvedRepository();
-    const credentialProvider = aapCredentialProvider();
+    const identityProvider = fakeIdentityProvider();
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(accessChallengeResponse())
@@ -119,15 +119,15 @@ describe('payWithSpt', () => {
     vi.stubGlobal('fetch', fetcher);
 
     await expect(
-      runFullFlow(repository, 1000, credentialProvider),
+      runFullFlow(repository, 1000, identityProvider),
     ).resolves.toMatchObject({ status: 200, body: 'paid' });
 
-    expect(credentialProvider.presentIdentityCredential).toHaveBeenCalledWith({
+    expect(identityProvider.presentIdentityCredential).toHaveBeenCalledWith({
       aud: 'https://merchant.example',
       nonce: 'challenge-nonce',
       claim: ['email'],
     });
-    expect(credentialProvider.takeAttestation).toHaveBeenCalledTimes(3);
+    expect(identityProvider.takeAttestation).toHaveBeenCalledTimes(3);
 
     const accessHeaders = new Headers(fetcher.mock.calls[1][1]?.headers);
     expect(accessHeaders.get('authorization')).toBe(
@@ -152,7 +152,7 @@ describe('payWithSpt', () => {
   });
 
   it('does not carry ephemeral identity credentials in a continuation probe', async () => {
-    const credentialProvider = aapCredentialProvider();
+    const identityProvider = fakeIdentityProvider();
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(accessChallengeResponse())
@@ -165,7 +165,7 @@ describe('payWithSpt', () => {
         'content-type': 'application/json',
       }),
       fetcher,
-      credentialProvider,
+      identityProvider,
     );
 
     expect(prepared.ephemeralHeaderNames).toEqual([
@@ -182,7 +182,7 @@ describe('payWithSpt', () => {
   });
 
   it('rejects a claims audience mismatch before consuming an attestation', async () => {
-    const credentialProvider = aapCredentialProvider();
+    const identityProvider = fakeIdentityProvider();
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(
@@ -198,15 +198,15 @@ describe('payWithSpt', () => {
           {},
         ),
         fetcher,
-        credentialProvider,
+        identityProvider,
       ),
     ).rejects.toThrow(/audience does not match/);
-    expect(credentialProvider.presentIdentityCredential).not.toHaveBeenCalled();
-    expect(credentialProvider.takeAttestation).not.toHaveBeenCalled();
+    expect(identityProvider.presentIdentityCredential).not.toHaveBeenCalled();
+    expect(identityProvider.takeAttestation).not.toHaveBeenCalled();
   });
 
   it('rejects a claims challenge that trusts issuers in addition to Link', async () => {
-    const credentialProvider = aapCredentialProvider();
+    const identityProvider = fakeIdentityProvider();
     const fetcher = vi.fn().mockResolvedValueOnce(
       accessChallengeResponse({
         trusted_issuers: ['https://api.link.com', 'https://issuer.example'],
@@ -222,15 +222,15 @@ describe('payWithSpt', () => {
           {},
         ),
         fetcher,
-        credentialProvider,
+        identityProvider,
       ),
     ).rejects.toThrow(/challenge body is invalid/);
-    expect(credentialProvider.presentIdentityCredential).not.toHaveBeenCalled();
-    expect(credentialProvider.takeAttestation).not.toHaveBeenCalled();
+    expect(identityProvider.presentIdentityCredential).not.toHaveBeenCalled();
+    expect(identityProvider.takeAttestation).not.toHaveBeenCalled();
   });
 
   it('requires a separate payment header when Authorization carries an attestation', async () => {
-    const credentialProvider = aapCredentialProvider();
+    const identityProvider = fakeIdentityProvider();
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(accessChallengeResponse())
@@ -239,7 +239,7 @@ describe('payWithSpt', () => {
     vi.stubGlobal('fetch', fetcher);
 
     await expect(
-      runFullFlow(approvedRepository(), 1000, credentialProvider),
+      runFullFlow(approvedRepository(), 1000, identityProvider),
     ).rejects.toThrow(/separate credential header/);
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
@@ -253,7 +253,7 @@ describe('payWithSpt', () => {
         shared_payment_token: { id: 'spt_test_123' },
       }),
     } as unknown as ISpendRequestResource;
-    const credentialProvider = aapCredentialProvider();
+    const identityProvider = fakeIdentityProvider();
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(accessChallengeResponse())
@@ -273,7 +273,7 @@ describe('payWithSpt', () => {
         undefined,
         repository,
         undefined,
-        credentialProvider,
+        identityProvider,
       ),
     ).resolves.toMatchObject({ status: 200, body: 'paid' });
 
@@ -677,7 +677,7 @@ function approvedRepository() {
 function runFullFlow(
   repository: ISpendRequestResource,
   amountOverride = 1000,
-  aapCredentialProvider?: AapCredentialProvider,
+  identityProvider?: IdentityProvider,
 ) {
   return runMppPayFullFlow({
     url: 'https://merchant.example/challenge',
@@ -691,6 +691,6 @@ function runFullFlow(
     test: true,
     repository,
     paymentMethodsFactory: vi.fn(),
-    aapCredentialProvider,
+    identityProvider,
   });
 }

@@ -106,12 +106,14 @@ export interface MppProbe extends MppRequest {
   response: Response;
 }
 
-export interface AapCredentialProvider {
+export interface IdentityProvider {
   takeAttestation: typeof takeAttestation;
   presentIdentityCredential: typeof presentIdentityCredential;
 }
 
-const defaultAapCredentialProvider: AapCredentialProvider = {
+// Production implementation. Tests inject an IdentityProvider so they never
+// consume a real attestation or read the user's saved identity credential.
+const defaultIdentityProvider: IdentityProvider = {
   takeAttestation,
   presentIdentityCredential,
 };
@@ -224,9 +226,9 @@ async function parseClaimsChallenge(
   };
 }
 
-async function createAapCredentialHeaders(
+async function createIdentityCredentialHeaders(
   probe: MppProbe,
-  credentialProvider: AapCredentialProvider,
+  identityProvider: IdentityProvider,
 ): Promise<{
   headers: Headers;
   ephemeralHeaderNames: string[];
@@ -252,17 +254,18 @@ async function createAapCredentialHeaders(
     // after all challenge validation and local credential checks have succeeded.
     if (needsClaims) {
       const challenge = await parseClaimsChallenge(probe.response, probe.url);
-      const { presentation } =
-        await credentialProvider.presentIdentityCredential({
+      const { presentation } = await identityProvider.presentIdentityCredential(
+        {
           aud: challenge.aud,
           nonce: challenge.nonce,
           claim: challenge.claims,
-        });
+        },
+      );
       headers.set('Identity-Presentation', presentation);
       ephemeralHeaderNames.push('identity-presentation');
     }
     if (needsAttestation) {
-      const { authorization } = await credentialProvider.takeAttestation();
+      const { authorization } = await identityProvider.takeAttestation();
       headers.set('Authorization', authorization);
       ephemeralHeaderNames.push('authorization');
     }
@@ -274,14 +277,14 @@ async function createAapCredentialHeaders(
   return { headers, ephemeralHeaderNames };
 }
 
-async function answerAapChallenge(
+async function answerIdentityChallenge(
   probe: MppProbe,
   fetcher: typeof fetch,
-  credentialProvider: AapCredentialProvider,
+  identityProvider: IdentityProvider,
 ): Promise<PreparedMppProbe> {
-  const credentials = await createAapCredentialHeaders(
+  const credentials = await createIdentityCredentialHeaders(
     probe,
-    credentialProvider,
+    identityProvider,
   );
   if (!credentials) return { probe, ephemeralHeaderNames: [] };
 
@@ -342,12 +345,12 @@ export async function probeMppRequest(
 export async function prepareMppProbe(
   initial: MppRequest,
   fetcher: typeof fetch = fetch,
-  credentialProvider: AapCredentialProvider = defaultAapCredentialProvider,
+  identityProvider: IdentityProvider = defaultIdentityProvider,
 ): Promise<PreparedMppProbe> {
-  return answerAapChallenge(
+  return answerIdentityChallenge(
     await probeMppRequest(initial, fetcher),
     fetcher,
-    credentialProvider,
+    identityProvider,
   );
 }
 
@@ -364,7 +367,7 @@ export interface MppPayFullFlowOptions {
   paymentMethodsFactory: () => IPaymentMethodsResource;
   onStep?: (step: Step) => void;
   onApprovalUrl?: (url: string) => void;
-  aapCredentialProvider?: AapCredentialProvider;
+  identityProvider?: IdentityProvider;
 }
 
 export async function runMppPayWithSpendRequest(
@@ -375,7 +378,7 @@ export async function runMppPayWithSpendRequest(
   headers: string[] | undefined,
   repository: ISpendRequestResource,
   approvedChallengeHeader?: string,
-  credentialProvider?: AapCredentialProvider,
+  identityProvider?: IdentityProvider,
 ): Promise<PayResult> {
   const spendRequest = await repository.retrieve(spendRequestId, {
     include: ['shared_payment_token'],
@@ -406,7 +409,7 @@ export async function runMppPayWithSpendRequest(
     data,
     headers,
     approvedChallengeHeader,
-    credentialProvider,
+    identityProvider,
   );
 }
 
@@ -417,7 +420,7 @@ export async function payWithSpt(
   data: string | undefined,
   headers: string[] | undefined,
   approvedChallengeHeader?: string,
-  credentialProvider?: AapCredentialProvider,
+  identityProvider?: IdentityProvider,
 ): Promise<PayResult> {
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
   const requestHeaders = buildHeaders(data, headers);
@@ -428,14 +431,14 @@ export async function payWithSpt(
     createMppRequest(url, httpMethod, data, requestHeaders),
     spt,
     approvedChallenge,
-    credentialProvider,
+    identityProvider,
   );
 }
 
 async function submitMppPayment(
   challenge: MppProbe,
   spt: string,
-  credentialProvider: AapCredentialProvider,
+  identityProvider: IdentityProvider,
 ): Promise<PayResult> {
   // Credential creation needs only the challenge status and headers. Keep the
   // untrusted response body out of signing and release its stream separately.
@@ -483,13 +486,13 @@ async function submitMppPayment(
         `Access challenge refresh returned redirect ${accessResponse.status}; refusing to forward credentials`,
       );
     }
-    const freshCredentials = await createAapCredentialHeaders(
+    const freshCredentials = await createIdentityCredentialHeaders(
       {
         ...challenge,
         headers: unauthenticatedHeaders,
         response: accessResponse,
       },
-      credentialProvider,
+      identityProvider,
     );
     if (!freshCredentials) {
       await accessResponse.body?.cancel();
@@ -527,7 +530,7 @@ async function payPinnedChallengeWithSpt(
   request: MppRequest,
   spt: string,
   approvedChallenge?: Challenge.Challenge,
-  credentialProvider: AapCredentialProvider = defaultAapCredentialProvider,
+  identityProvider: IdentityProvider = defaultIdentityProvider,
 ): Promise<PayResult> {
   // Approved credentials may be used minutes later. Refresh the challenge at
   // the pinned destination, but never let that destination move afterward.
@@ -538,10 +541,10 @@ async function payPinnedChallengeWithSpt(
       `MPP challenge destination redirected with status ${response.status} after approval`,
     );
   }
-  const { probe: refreshed } = await answerAapChallenge(
+  const { probe: refreshed } = await answerIdentityChallenge(
     { ...request, response },
     fetch,
-    credentialProvider,
+    identityProvider,
   );
   const refreshedResponse = refreshed.response;
   if (refreshedResponse.status !== 402) return readPayResult(refreshedResponse);
@@ -564,7 +567,7 @@ async function payPinnedChallengeWithSpt(
       );
     }
   }
-  return submitMppPayment(refreshed, spt, credentialProvider);
+  return submitMppPayment(refreshed, spt, identityProvider);
 }
 
 function comparableChallenge(challenge: Challenge.Challenge): string {
@@ -591,7 +594,7 @@ export async function runMppPayFullFlow(
     paymentMethodsFactory,
     onStep,
     onApprovalUrl,
-    aapCredentialProvider,
+    identityProvider,
   } = opts;
 
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
@@ -602,7 +605,7 @@ export async function runMppPayFullFlow(
   const { probe } = await prepareMppProbe(
     createMppRequest(url, httpMethod, data, requestHeaders),
     fetch,
-    aapCredentialProvider,
+    identityProvider,
   );
   const probeResponse = probe.response;
 
@@ -702,7 +705,7 @@ export async function runMppPayFullFlow(
     probe,
     withSpt.shared_payment_token.id,
     approvedChallenge,
-    aapCredentialProvider,
+    identityProvider,
   );
 }
 
