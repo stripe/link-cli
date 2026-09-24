@@ -205,6 +205,30 @@ describe('payWithSpt', () => {
     expect(credentialProvider.takeAttestation).not.toHaveBeenCalled();
   });
 
+  it('rejects a claims challenge that trusts issuers in addition to Link', async () => {
+    const credentialProvider = aapCredentialProvider();
+    const fetcher = vi.fn().mockResolvedValueOnce(
+      accessChallengeResponse({
+        trusted_issuers: ['https://api.link.com', 'https://issuer.example'],
+      }),
+    );
+
+    await expect(
+      prepareMppProbe(
+        createMppRequest(
+          'https://merchant.example/contribute',
+          'GET',
+          undefined,
+          {},
+        ),
+        fetcher,
+        credentialProvider,
+      ),
+    ).rejects.toThrow(/challenge body is invalid/);
+    expect(credentialProvider.presentIdentityCredential).not.toHaveBeenCalled();
+    expect(credentialProvider.takeAttestation).not.toHaveBeenCalled();
+  });
+
   it('requires a separate payment header when Authorization carries an attestation', async () => {
     const credentialProvider = aapCredentialProvider();
     const fetcher = vi

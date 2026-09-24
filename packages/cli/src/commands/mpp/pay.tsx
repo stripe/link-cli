@@ -204,7 +204,8 @@ async function parseClaimsChallenge(
     !Array.isArray(formats) ||
     !formats.includes('dc+sd-jwt') ||
     !Array.isArray(trustedIssuers) ||
-    !trustedIssuers.includes('https://api.link.com')
+    trustedIssuers.length !== 1 ||
+    trustedIssuers[0] !== 'https://api.link.com'
   ) {
     throw new Error('Identity-Presentation challenge body is invalid');
   }
