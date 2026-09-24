@@ -1,6 +1,12 @@
 import type {
+  IdentityChallengeHeaders,
+  IdentityProvider,
   IPaymentMethodsResource,
   ISpendRequestResource,
+} from '@stripe/link-sdk';
+import {
+  createIdentityChallengeHeaders,
+  stripIdentityCredentialHeaders,
 } from '@stripe/link-sdk';
 import { Box, Text, useInput } from 'ink';
 import Spinner from 'ink-spinner';
@@ -106,10 +112,7 @@ export interface MppProbe extends MppRequest {
   response: Response;
 }
 
-export interface IdentityProvider {
-  takeAttestation: typeof takeAttestation;
-  presentIdentityCredential: typeof presentIdentityCredential;
-}
+export type { IdentityProvider } from '@stripe/link-sdk';
 
 // Production implementation. Tests inject an IdentityProvider so they never
 // consume a real attestation or read the user's saved identity credential.
@@ -123,169 +126,23 @@ export interface PreparedMppProbe {
   ephemeralHeaderNames: readonly string[];
 }
 
-type ClaimsChallenge = {
-  aud: string;
-  nonce: string;
-  claims: string[];
-};
-
-function authenticationSchemes(header: string): Set<string> {
-  const schemes = new Set<string>();
-  let quoted = false;
-  let escaped = false;
-  let segmentStart = 0;
-
-  const inspectSegment = (segment: string, first: boolean) => {
-    const match = segment.trim().match(/^([^\s=,]+)(?:\s|$)/);
-    if (!match) return;
-    // The first segment always begins an authentication challenge. Later
-    // segments beginning with `name=` are parameters on the prior challenge.
-    if (first || !segment.trim().startsWith(`${match[1]}=`)) {
-      schemes.add(match[1].toLowerCase());
-    }
-  };
-
-  let first = true;
-  for (let index = 0; index <= header.length; index++) {
-    const character = header[index];
-    if (index === header.length || (character === ',' && !quoted)) {
-      inspectSegment(header.slice(segmentStart, index), first);
-      first = false;
-      segmentStart = index + 1;
-      continue;
-    }
-    if (escaped) {
-      escaped = false;
-    } else if (character === '\\' && quoted) {
-      escaped = true;
-    } else if (character === '"') {
-      quoted = !quoted;
-    }
-  }
-  return schemes;
-}
-
-async function parseClaimsChallenge(
-  response: Response,
-  requestUrl: string,
-): Promise<ClaimsChallenge> {
-  const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
-  if (!contentType.startsWith('application/problem+json')) {
-    throw new Error(
-      'Identity-Presentation challenge must use application/problem+json',
-    );
-  }
-
-  let value: unknown;
-  try {
-    const body = await response.clone().text();
-    if (new TextEncoder().encode(body).byteLength > 64 * 1024) {
-      throw new Error();
-    }
-    value = JSON.parse(body);
-  } catch {
-    throw new Error('Identity-Presentation challenge body is invalid');
-  }
-
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('Identity-Presentation challenge body is invalid');
-  }
-  const challenge = value as Record<string, unknown>;
-  const claims = challenge.claims;
-  const formats = challenge.formats;
-  const trustedIssuers = challenge.trusted_issuers;
-  if (
-    challenge.type !== 'urn:aap:claims-required' ||
-    typeof challenge.aud !== 'string' ||
-    typeof challenge.nonce !== 'string' ||
-    challenge.nonce.length === 0 ||
-    !Array.isArray(claims) ||
-    claims.length === 0 ||
-    claims.some((claim) => typeof claim !== 'string' || claim.length === 0) ||
-    new Set(claims).size !== claims.length ||
-    !Array.isArray(formats) ||
-    !formats.includes('dc+sd-jwt') ||
-    !Array.isArray(trustedIssuers) ||
-    trustedIssuers.length !== 1 ||
-    trustedIssuers[0] !== 'https://api.link.com'
-  ) {
-    throw new Error('Identity-Presentation challenge body is invalid');
-  }
-
-  const expectedAudience = new URL(requestUrl).origin;
-  if (challenge.aud !== expectedAudience) {
-    throw new Error(
-      'Identity-Presentation challenge audience does not match the request origin',
-    );
-  }
-
-  return {
-    aud: challenge.aud,
-    nonce: challenge.nonce,
-    claims: claims as string[],
-  };
-}
-
-async function createIdentityCredentialHeaders(
-  probe: MppProbe,
-  identityProvider: IdentityProvider,
-): Promise<{
-  headers: Headers;
-  ephemeralHeaderNames: string[];
-} | null> {
-  if (probe.response.status !== 401) {
-    return null;
-  }
-
-  const wwwAuthenticate = probe.response.headers.get('www-authenticate');
-  if (!wwwAuthenticate) return null;
-  const schemes = authenticationSchemes(wwwAuthenticate);
-  const needsAttestation = schemes.has('privatetoken');
-  const needsClaims = schemes.has('identity-presentation');
-  if (!needsAttestation && !needsClaims) {
-    return null;
-  }
-
-  const headers = new Headers(probe.headers);
-  const ephemeralHeaderNames: string[] = [];
-
-  try {
-    // Build the non-destructive presentation first. Only consume a one-time AAT
-    // after all challenge validation and local credential checks have succeeded.
-    if (needsClaims) {
-      const challenge = await parseClaimsChallenge(probe.response, probe.url);
-      const { presentation } = await identityProvider.presentIdentityCredential(
-        {
-          aud: challenge.aud,
-          nonce: challenge.nonce,
-          claim: challenge.claims,
-        },
-      );
-      headers.set('Identity-Presentation', presentation);
-      ephemeralHeaderNames.push('identity-presentation');
-    }
-    if (needsAttestation) {
-      const { authorization } = await identityProvider.takeAttestation();
-      headers.set('Authorization', authorization);
-      ephemeralHeaderNames.push('authorization');
-    }
-  } catch (error) {
-    await probe.response.body?.cancel();
-    throw error;
-  }
-
-  return { headers, ephemeralHeaderNames };
-}
-
 async function answerIdentityChallenge(
   probe: MppProbe,
   fetcher: typeof fetch,
   identityProvider: IdentityProvider,
 ): Promise<PreparedMppProbe> {
-  const credentials = await createIdentityCredentialHeaders(
-    probe,
-    identityProvider,
-  );
+  let credentials: IdentityChallengeHeaders | null;
+  try {
+    credentials = await createIdentityChallengeHeaders({
+      response: probe.response,
+      requestUrl: probe.url,
+      requestHeaders: probe.headers,
+      identityProvider,
+    });
+  } catch (error) {
+    await probe.response.body?.cancel();
+    throw error;
+  }
   if (!credentials) return { probe, ephemeralHeaderNames: [] };
 
   await probe.response.body?.cancel();
@@ -464,21 +321,14 @@ async function submitMppPayment(
     );
   }
 
-  if (
-    privateToken?.toLowerCase().startsWith('privatetoken ') ||
-    submissionHeaders.has('identity-presentation')
-  ) {
+  const strippedIdentity = stripIdentityCredentialHeaders(submissionHeaders);
+  if (strippedIdentity.hadIdentityCredentials) {
     // The credentials that unlocked the 402 may have consumed a one-time
     // identity nonce. Fetch a fresh 401, then attach those new access proofs
     // and the payment credential to the same final request.
-    const unauthenticatedHeaders = new Headers(submissionHeaders);
-    if (privateToken?.toLowerCase().startsWith('privatetoken ')) {
-      unauthenticatedHeaders.delete('authorization');
-    }
-    unauthenticatedHeaders.delete('identity-presentation');
     const accessResponse = await fetchMppRequest({
       ...challenge,
-      headers: unauthenticatedHeaders,
+      headers: strippedIdentity.headers,
     });
     if (isRedirectResponse(accessResponse)) {
       await accessResponse.body?.cancel();
@@ -486,14 +336,18 @@ async function submitMppPayment(
         `Access challenge refresh returned redirect ${accessResponse.status}; refusing to forward credentials`,
       );
     }
-    const freshCredentials = await createIdentityCredentialHeaders(
-      {
-        ...challenge,
-        headers: unauthenticatedHeaders,
+    let freshCredentials: IdentityChallengeHeaders | null;
+    try {
+      freshCredentials = await createIdentityChallengeHeaders({
         response: accessResponse,
-      },
-      identityProvider,
-    );
+        requestUrl: challenge.url,
+        requestHeaders: strippedIdentity.headers,
+        identityProvider,
+      });
+    } catch (error) {
+      await accessResponse.body?.cancel();
+      throw error;
+    }
     if (!freshCredentials) {
       await accessResponse.body?.cancel();
       throw new Error(
