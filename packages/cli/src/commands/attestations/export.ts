@@ -12,7 +12,7 @@ export function base64urlPad(value: Uint8Array | string): string {
 }
 
 /**
- * Exact Authorization header for a bearer AAT. Token bytes are preserved;
+ * Exact Authorization header for a bearer attestation. Token bytes are preserved;
  * only base64url padding is added for the header parameter.
  */
 export function authorizationHeader(token: string): string {

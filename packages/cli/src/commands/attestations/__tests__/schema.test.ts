@@ -6,8 +6,8 @@ describe('attestation request options', () => {
     expect(Object.keys(requestOptions.shape)).toEqual(['count', 'outputFile']);
     expect(requestOptions.parse({ count: '10' })).toEqual({ count: 10 });
     expect(
-      requestOptions.parse({ count: 10, outputFile: './aats.json' }),
-    ).toEqual({ count: 10, outputFile: './aats.json' });
+      requestOptions.parse({ count: 10, outputFile: './attestations.json' }),
+    ).toEqual({ count: 10, outputFile: './attestations.json' });
     expect(requestOptions.safeParse({ count: 0 }).success).toBe(false);
     expect(requestOptions.safeParse({ count: 101 }).success).toBe(false);
     expect(requestOptions.safeParse({ count: 1, outputFile: '' }).success).toBe(

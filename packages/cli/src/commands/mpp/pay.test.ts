@@ -2,10 +2,13 @@ import type { ISpendRequestResource } from '@stripe/link-sdk';
 import { Challenge, Credential } from 'mppx';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  type IdentityProvider,
   payWithSpt,
+  prepareMppProbe,
   runMppPayFullFlow,
   runMppPayWithSpendRequest,
 } from './pay';
+import { createMppRequest } from './request';
 
 const STRIPE_REQUEST = {
   amount: '1000',
@@ -25,6 +28,10 @@ const STRIPE_CHALLENGE: Challenge.Challenge = {
 };
 
 const WWW_AUTHENTICATE_STRIPE = Challenge.serialize(STRIPE_CHALLENGE);
+const EMAIL_DISCLOSURE_AUTHORIZATION = {
+  audience: 'https://merchant.example',
+  claims: ['email'],
+};
 
 function challengeWith(overrides: Partial<Challenge.Challenge> = {}): string {
   return Challenge.serialize({
@@ -52,6 +59,43 @@ function challengeResponseWithCredentialHeader(header: string): Response {
   );
 }
 
+function accessChallengeResponse(
+  overrides: Record<string, unknown> = {},
+  authenticate = 'PrivateToken challenge="stable", token-key="link-key", max-age=300, Identity-Presentation',
+): Response {
+  return new Response(
+    JSON.stringify({
+      type: 'urn:aap:claims-required',
+      aud: 'https://merchant.example',
+      nonce: 'challenge-nonce',
+      claims: ['email'],
+      formats: ['dc+sd-jwt'],
+      trusted_issuers: ['https://api.link.com'],
+      ...overrides,
+    }),
+    {
+      status: 401,
+      headers: {
+        'content-type': 'application/problem+json',
+        'www-authenticate': authenticate,
+      },
+    },
+  );
+}
+
+function fakeIdentityProvider(): IdentityProvider {
+  let presentationCount = 0;
+  let attestationCount = 0;
+  return {
+    presentIdentityCredential: vi.fn().mockImplementation(async () => ({
+      presentation: `identity-presentation-secret-${++presentationCount}`,
+    })),
+    takeAttestation: vi.fn().mockImplementation(async () => ({
+      authorization: `PrivateToken token="attestation-secret-${++attestationCount}"`,
+    })),
+  } as unknown as IdentityProvider;
+}
+
 beforeEach(() => {
   vi.stubGlobal('__CLI_VERSION__', 'test');
 });
@@ -61,6 +105,367 @@ afterEach(() => {
 });
 
 describe('payWithSpt', () => {
+  it('answers access challenges, then presents identity and payment credentials together', async () => {
+    const repository = approvedRepository();
+    const identityProvider = fakeIdentityProvider();
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(accessChallengeResponse())
+      .mockResolvedValueOnce(
+        challengeResponseWithCredentialHeader('Payment-Authorization'),
+      )
+      .mockResolvedValueOnce(accessChallengeResponse())
+      .mockResolvedValueOnce(
+        challengeResponseWithCredentialHeader('Payment-Authorization'),
+      )
+      .mockResolvedValueOnce(accessChallengeResponse())
+      .mockResolvedValueOnce(new Response('paid'));
+    vi.stubGlobal('fetch', fetcher);
+
+    await expect(
+      runFullFlow(repository, 1000, identityProvider),
+    ).resolves.toMatchObject({ status: 200, body: 'paid' });
+
+    expect(identityProvider.presentIdentityCredential).toHaveBeenCalledWith({
+      aud: 'https://merchant.example',
+      nonce: 'challenge-nonce',
+      claim: ['email'],
+    });
+    expect(identityProvider.takeAttestation).toHaveBeenCalledTimes(3);
+
+    const accessHeaders = new Headers(fetcher.mock.calls[1][1]?.headers);
+    expect(accessHeaders.get('authorization')).toBe(
+      'PrivateToken token="attestation-secret-1"',
+    );
+    expect(accessHeaders.get('identity-presentation')).toBe(
+      'identity-presentation-secret-1',
+    );
+    expect(accessHeaders.has('payment-authorization')).toBe(false);
+
+    const continuationHeaders = new Headers(fetcher.mock.calls[2][1]?.headers);
+    expect(continuationHeaders.has('authorization')).toBe(false);
+    expect(continuationHeaders.has('identity-presentation')).toBe(false);
+
+    const [paidInput, paidInit] = fetcher.mock.calls.at(-1) ?? [];
+    const paidHeaders = new Headers(
+      paidInput instanceof Request ? paidInput.headers : paidInit?.headers,
+    );
+    expect(paidHeaders.get('authorization')).toBe(
+      'PrivateToken token="attestation-secret-3"',
+    );
+    expect(paidHeaders.get('identity-presentation')).toBe(
+      'identity-presentation-secret-3',
+    );
+    expect(paidHeaders.get('payment-authorization')).toMatch(/^Payment /);
+  });
+
+  it('completes the full flow against a service that rejects reused identity credentials', async () => {
+    const repository = approvedRepository();
+    const identityProvider = fakeIdentityProvider();
+    const seenAttestations = new Set<string>();
+    const seenPresentations = new Set<string>();
+    let challengeCount = 0;
+
+    const fetcher = vi.fn(
+      async (
+        input: string | URL | Request,
+        init?: RequestInit,
+      ): Promise<Response> => {
+        const headers = new Headers(
+          input instanceof Request ? input.headers : init?.headers,
+        );
+        const attestation = headers.get('authorization');
+        const presentation = headers.get('identity-presentation');
+
+        if (!attestation && !presentation) {
+          challengeCount += 1;
+          return accessChallengeResponse({
+            nonce: `challenge-nonce-${challengeCount}`,
+          });
+        }
+
+        if (
+          !attestation ||
+          !presentation ||
+          seenAttestations.has(attestation) ||
+          seenPresentations.has(presentation)
+        ) {
+          return new Response('{"code":"nonce_already_used"}', {
+            status: 401,
+            headers: { 'content-type': 'application/problem+json' },
+          });
+        }
+
+        seenAttestations.add(attestation);
+        seenPresentations.add(presentation);
+
+        if (headers.has('payment-authorization')) {
+          return new Response('paid');
+        }
+        return challengeResponseWithCredentialHeader('Payment-Authorization');
+      },
+    );
+    vi.stubGlobal('fetch', fetcher);
+
+    await expect(
+      runFullFlow(repository, 1000, identityProvider),
+    ).resolves.toMatchObject({ status: 200, body: 'paid' });
+
+    expect(seenAttestations).toEqual(
+      new Set([
+        'PrivateToken token="attestation-secret-1"',
+        'PrivateToken token="attestation-secret-2"',
+        'PrivateToken token="attestation-secret-3"',
+      ]),
+    );
+    expect(seenPresentations).toEqual(
+      new Set([
+        'identity-presentation-secret-1',
+        'identity-presentation-secret-2',
+        'identity-presentation-secret-3',
+      ]),
+    );
+  });
+
+  it('does not carry a spent attestation into a presentation-only refresh', async () => {
+    const identityProvider = fakeIdentityProvider();
+    const presentationChallenge = () =>
+      accessChallengeResponse({}, 'Identity-Presentation');
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(accessChallengeResponse())
+      .mockResolvedValueOnce(
+        challengeResponseWithCredentialHeader('Payment-Authorization'),
+      )
+      .mockImplementationOnce(presentationChallenge)
+      .mockResolvedValueOnce(
+        challengeResponseWithCredentialHeader('Payment-Authorization'),
+      )
+      .mockImplementationOnce(presentationChallenge)
+      .mockResolvedValueOnce(new Response('paid'));
+    vi.stubGlobal('fetch', fetcher);
+
+    await expect(
+      runFullFlow(approvedRepository(), 1000, identityProvider),
+    ).resolves.toMatchObject({ status: 200, body: 'paid' });
+
+    expect(identityProvider.takeAttestation).toHaveBeenCalledTimes(1);
+    for (const callIndex of [2, 3, 4, 5]) {
+      const headers = new Headers(fetcher.mock.calls[callIndex][1]?.headers);
+      expect(headers.has('authorization')).toBe(false);
+    }
+  });
+
+  it('does not carry ephemeral identity credentials in a continuation probe', async () => {
+    const identityProvider = fakeIdentityProvider();
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(accessChallengeResponse())
+      .mockResolvedValueOnce(
+        challengeResponseWithCredentialHeader('Payment-Authorization'),
+      );
+
+    const prepared = await prepareMppProbe(
+      createMppRequest('https://merchant.example/contribute', 'POST', '{}', {
+        'content-type': 'application/json',
+      }),
+      fetcher,
+      identityProvider,
+      EMAIL_DISCLOSURE_AUTHORIZATION,
+    );
+
+    expect(prepared.ephemeralHeaderNames).toEqual([
+      'identity-presentation',
+      'authorization',
+    ]);
+    const continuationHeaders = [...prepared.probe.headers].filter(
+      ([name]) => !prepared.ephemeralHeaderNames.includes(name),
+    );
+    expect(continuationHeaders).toEqual([
+      ['accept-payment', 'stripe/charge, stripe/session'],
+      ['content-type', 'application/json'],
+    ]);
+  });
+
+  it('rejects a claims audience mismatch before consuming an attestation', async () => {
+    const identityProvider = fakeIdentityProvider();
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        accessChallengeResponse({ aud: 'https://attacker.example' }),
+      );
+
+    await expect(
+      prepareMppProbe(
+        createMppRequest(
+          'https://merchant.example/contribute',
+          'GET',
+          undefined,
+          {},
+        ),
+        fetcher,
+        identityProvider,
+        EMAIL_DISCLOSURE_AUTHORIZATION,
+      ),
+    ).rejects.toThrow(/audience does not match/);
+    expect(identityProvider.presentIdentityCredential).not.toHaveBeenCalled();
+    expect(identityProvider.takeAttestation).not.toHaveBeenCalled();
+  });
+
+  it('rejects a claims challenge that trusts issuers in addition to Link', async () => {
+    const identityProvider = fakeIdentityProvider();
+    const fetcher = vi.fn().mockResolvedValueOnce(
+      accessChallengeResponse({
+        trusted_issuers: ['https://api.link.com', 'https://issuer.example'],
+      }),
+    );
+
+    await expect(
+      prepareMppProbe(
+        createMppRequest(
+          'https://merchant.example/contribute',
+          'GET',
+          undefined,
+          {},
+        ),
+        fetcher,
+        identityProvider,
+        EMAIL_DISCLOSURE_AUTHORIZATION,
+      ),
+    ).rejects.toThrow(/challenge body is invalid/);
+    expect(identityProvider.presentIdentityCredential).not.toHaveBeenCalled();
+    expect(identityProvider.takeAttestation).not.toHaveBeenCalled();
+  });
+
+  it('does not disclose claims without explicit caller authorization', async () => {
+    const identityProvider = fakeIdentityProvider();
+    const fetcher = vi.fn().mockResolvedValueOnce(accessChallengeResponse());
+
+    await expect(
+      prepareMppProbe(
+        createMppRequest(
+          'https://merchant.example/contribute',
+          'GET',
+          undefined,
+          {},
+        ),
+        fetcher,
+        identityProvider,
+      ),
+    ).rejects.toThrow(/requires explicit claim authorization/);
+    expect(identityProvider.presentIdentityCredential).not.toHaveBeenCalled();
+    expect(identityProvider.takeAttestation).not.toHaveBeenCalled();
+  });
+
+  it('rejects claim escalation after payment approval', async () => {
+    const identityProvider = fakeIdentityProvider();
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(accessChallengeResponse())
+      .mockResolvedValueOnce(
+        challengeResponseWithCredentialHeader('Payment-Authorization'),
+      )
+      .mockResolvedValueOnce(
+        accessChallengeResponse({ claims: ['email', 'phone'] }),
+      );
+    vi.stubGlobal('fetch', fetcher);
+
+    await expect(
+      runFullFlow(approvedRepository(), 1000, identityProvider, ['email']),
+    ).rejects.toThrow(/claims that were not explicitly authorized/);
+    expect(identityProvider.presentIdentityCredential).toHaveBeenCalledTimes(1);
+    expect(identityProvider.takeAttestation).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not carry claim authorization across an origin-changing redirect', async () => {
+    const identityProvider = fakeIdentityProvider();
+    const redirectedResponse = challengeResponse();
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 302,
+          headers: { location: 'https://other.example/contribute' },
+        }),
+      )
+      .mockResolvedValueOnce(redirectedResponse);
+
+    await expect(
+      prepareMppProbe(
+        createMppRequest(
+          'https://merchant.example/contribute',
+          'GET',
+          undefined,
+          {},
+        ),
+        fetcher,
+        identityProvider,
+        EMAIL_DISCLOSURE_AUTHORIZATION,
+      ),
+    ).rejects.toThrow(/cannot follow a cross-origin redirect/);
+    expect(identityProvider.presentIdentityCredential).not.toHaveBeenCalled();
+    expect(identityProvider.takeAttestation).not.toHaveBeenCalled();
+    expect(redirectedResponse.bodyUsed).toBe(true);
+  });
+
+  it('requires a separate payment header when Authorization carries an attestation', async () => {
+    const identityProvider = fakeIdentityProvider();
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(accessChallengeResponse())
+      .mockResolvedValueOnce(challengeResponse())
+      .mockResolvedValueOnce(accessChallengeResponse())
+      .mockResolvedValueOnce(challengeResponse());
+    vi.stubGlobal('fetch', fetcher);
+
+    await expect(
+      runFullFlow(approvedRepository(), 1000, identityProvider),
+    ).rejects.toThrow(/separate credential header/);
+    expect(fetcher).toHaveBeenCalledTimes(4);
+  });
+
+  it('answers a fresh access challenge when continuing an approved spend request', async () => {
+    const repository = {
+      retrieve: vi.fn().mockResolvedValue({
+        id: 'lsrq_123',
+        status: 'approved',
+        credential_type: 'shared_payment_token',
+        shared_payment_token: { id: 'spt_test_123' },
+      }),
+    } as unknown as ISpendRequestResource;
+    const identityProvider = fakeIdentityProvider();
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(accessChallengeResponse())
+      .mockResolvedValueOnce(
+        challengeResponseWithCredentialHeader('Payment-Authorization'),
+      )
+      .mockResolvedValueOnce(accessChallengeResponse())
+      .mockResolvedValueOnce(new Response('paid'));
+    vi.stubGlobal('fetch', fetcher);
+
+    await expect(
+      runMppPayWithSpendRequest(
+        'https://merchant.example/contribute',
+        'lsrq_123',
+        'POST',
+        '{}',
+        undefined,
+        repository,
+        undefined,
+        ['email'],
+        identityProvider,
+      ),
+    ).resolves.toMatchObject({ status: 200, body: 'paid' });
+
+    const paidHeaders = new Headers(fetcher.mock.calls.at(-1)?.[1]?.headers);
+    expect(paidHeaders.get('authorization')).toMatch(/^PrivateToken /);
+    expect(paidHeaders.get('identity-presentation')).toBe(
+      'identity-presentation-secret-2',
+    );
+    expect(paidHeaders.get('payment-authorization')).toMatch(/^Payment /);
+  });
+
   it('rejects a redirect before using an approved credential', async () => {
     const fetcher = vi.fn().mockResolvedValue(
       new Response(null, {
@@ -450,7 +855,12 @@ function approvedRepository() {
   } as unknown as ISpendRequestResource;
 }
 
-function runFullFlow(repository: ISpendRequestResource, amountOverride = 1000) {
+function runFullFlow(
+  repository: ISpendRequestResource,
+  amountOverride = 1000,
+  identityProvider?: IdentityProvider,
+  identityClaims: readonly string[] = ['email'],
+) {
   return runMppPayFullFlow({
     url: 'https://merchant.example/challenge',
     method: 'GET',
@@ -463,5 +873,7 @@ function runFullFlow(repository: ISpendRequestResource, amountOverride = 1000) {
     test: true,
     repository,
     paymentMethodsFactory: vi.fn(),
+    identityProvider,
+    identityClaims,
   });
 }

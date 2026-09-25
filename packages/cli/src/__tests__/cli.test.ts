@@ -4,11 +4,16 @@ import http from 'node:http';
 import os from 'node:os';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { storage } from '../auth/storage';
+import { Storage } from '../auth/storage';
 
 const execFileAsync = promisify(execFile);
 
 const CLI_PATH = new URL('../../dist/cli.js', import.meta.url).pathname;
+const authDirectory = fs.mkdtempSync(
+  `${os.tmpdir()}/link-cli-integration-auth-`,
+);
+const authFile = `${authDirectory}/auth.json`;
+const storage = new Storage({ configPath: authFile });
 
 const AUTH_TOKENS = {
   access_token: 'test_access_token_1234567890',
@@ -34,6 +39,7 @@ beforeEach(() => {
 
 afterAll(() => {
   storage.clearAll();
+  fs.rmSync(authDirectory, { force: true, recursive: true });
 });
 
 // ─── Production mode tests (real HTTP against local mock server) ────────────
@@ -145,6 +151,7 @@ async function runProdCliWithEnv(
           ...process.env,
           LINK_API_BASE_URL: `http://127.0.0.1:${serverPort}`,
           LINK_AUTH_BASE_URL: `http://127.0.0.1:${serverPort}`,
+          LINK_AUTH_FILE: authFile,
           XDG_DATA_HOME: '/tmp/link-cli-test-empty',
           ...extraEnv,
         },
@@ -2931,6 +2938,52 @@ describe('production mode', () => {
       expect(merchantRequests[1].headers.authorization).toMatch(/^Payment /);
     });
 
+    it('does not answer identity challenges when identity commands are disabled', async () => {
+      setNextResponse(200, APPROVED_SPT_REQUEST);
+      setMerchantResponse(401, '{"error":"attestation required"}', {
+        'www-authenticate':
+          'PrivateToken challenge="stable", token-key="link-key", max-age=300',
+      });
+
+      const result = await runProdCli(
+        'mpp',
+        'pay',
+        `http://127.0.0.1:${merchantPort}/api/verified`,
+        '--spend-request-id',
+        'lsrq_spt_001',
+        '--format',
+        'json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout + result.stderr).toContain(
+        'LINK_IDENTITY_COMMANDS=1',
+      );
+      expect(merchantRequests).toHaveLength(1);
+      expect(merchantRequests[0].headers.authorization).toBeUndefined();
+    });
+
+    it('rejects identity claim authorization when identity commands are disabled', async () => {
+      const result = await runProdCli(
+        'mpp',
+        'pay',
+        `http://127.0.0.1:${merchantPort}/api/verified`,
+        '--spend-request-id',
+        'lsrq_spt_001',
+        '--identity-claim',
+        'email',
+        '--format',
+        'json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(parseJson(result.stdout)).toMatchObject({
+        code: 'IDENTITY_COMMANDS_DISABLED',
+      });
+      expect(requests).toHaveLength(0);
+      expect(merchantRequests).toHaveLength(0);
+    });
+
     it('returns structured response when the paid retry fails', async () => {
       setNextResponse(200, APPROVED_SPT_REQUEST);
       setMerchantResponse(402, '{"error":"payment required"}', {
@@ -3214,13 +3267,21 @@ describe('production mode', () => {
         return `http://127.0.0.1:${merchantPort}/api/charge$(touch\${IFS}${marker})`;
       }
 
-      async function runFullFlow(url: string) {
+      async function runFullFlow(url: string, identityClaims: string[] = []) {
         setNextResponse(200, PENDING_SPT_REQUEST);
         setMerchantResponse(402, '{"error":"payment required"}', {
           'www-authenticate': WWW_AUTHENTICATE_STRIPE,
         });
 
-        const result = await runProdCli(
+        const claimArgs = identityClaims.flatMap((claim) => [
+          '--identity-claim',
+          claim,
+        ]);
+        const run = identityClaims.length
+          ? (...args: string[]) =>
+              runProdCliWithEnv({ LINK_IDENTITY_COMMANDS: '1' }, ...args)
+          : runProdCli;
+        const result = await run(
           'mpp',
           'pay',
           url,
@@ -3228,6 +3289,7 @@ describe('production mode', () => {
           VALID_CONTEXT,
           '--payment-method-id',
           'pd_prod_test',
+          ...claimArgs,
           '--format',
           'json',
         );
@@ -3263,6 +3325,19 @@ describe('production mode', () => {
 
         expect(next.pay_command).not.toContain('pay $(touch');
         expect(next.pay_command).toContain(`'${effectiveUrl}'`);
+      });
+
+      it('preserves the caller-authorized identity claims in the continuation', async () => {
+        const next = await runFullFlow(
+          `http://127.0.0.1:${merchantPort}/api/charge`,
+          ['email', 'phone'],
+        );
+        const args = next.pay_argv.args;
+        const claimValues = args.flatMap((arg, index) =>
+          arg === '--identity-claim' ? [args[index + 1]] : [],
+        );
+
+        expect(claimValues).toEqual(['email', 'phone']);
       });
 
       it('continues from the effective redirected request', async () => {

@@ -25,6 +25,12 @@ export const payOptions = z.object({
     .array(z.string())
     .default([])
     .describe('Request header in "Name: Value" format (repeatable)'),
+  identityClaim: z
+    .array(z.string().min(1))
+    .default([])
+    .describe(
+      'Identity claim authorized for disclosure to the request URL origin (repeatable, e.g. --identity-claim email)',
+    ),
   context: z
     .string()
     .min(100)

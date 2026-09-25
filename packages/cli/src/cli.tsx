@@ -147,6 +147,7 @@ cli.command(
     () => factory.createPaymentMethodsResource(),
     authStorage,
     envAccessToken,
+    identityCommandsEnabled,
   ),
 );
 // cli.command(
