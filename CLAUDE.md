@@ -75,7 +75,7 @@ Commands in `packages/cli/src/cli.tsx` (incur framework). Each has two output mo
 - **Interactive** (default): Ink/React components from `packages/cli/src/commands/`
 - **JSON** (`--format json`): JSON to stdout, errors as JSON with `code` and `message` fields with exit code 1
 
-Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `identity attestations request|list|take`, `identity credentials request|list|present`, `report`, `serve`.
+Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list|retrieve|add|update`, `shipping-address list`, `mpp pay|decode`, `identity attestations request|list|take`, `identity credentials request|list|present`, `report`, `serve`.
 
 The CLI also runs as an MCP server (`--mcp`) and serves skill files via `skills` subcommand, both provided by incur.
 
@@ -116,6 +116,13 @@ Key input field notes:
 - `card` credentials include `billing_address` (name, line1, line2, city, state, postal_code, country) and `valid_until` (ISO date string — when the card expires/stops working)
 - `--output-file <path>` on `retrieve` or `create` writes full card credentials to a local file (0600 permissions) and redacts card data in stdout. `--force` allows overwriting an existing file.
 - `create` also accepts an undocumented `--expires-at <unix_seconds>` to override the default 12-hour spend request expiration (3 hours to 7 days in the future). It's deliberately excluded from `--schema`/`--llms-full` output and from README/SKILL.md: it's gated to an allow-list of OAuth clients server-side, and most callers get a 400 (`"expires_at is not supported for this client"`) if they try it — don't document or suggest it to general agents.
+
+### payment-methods command
+
+- `payment-methods update <id> --nickname <nickname>` requires a positional payment-method ID and the `--nickname` option.
+- An explicit empty nickname (`--nickname ""`) clears the nickname. Omission is invalid.
+- Clients pass the exact string; the server trims surrounding whitespace and validates length.
+- TypeScript, Go, and Python SDK implementations must all preserve explicit empty strings in the JSON request body.
 
 ### user-info retrieve
 

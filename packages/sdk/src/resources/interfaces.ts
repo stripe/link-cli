@@ -106,6 +106,11 @@ export interface ISpendRequestResource {
 export interface IPaymentMethodsResource {
   list(): Promise<PaymentMethod[]>;
   retrieve(id: string): Promise<PaymentMethod | null>;
+  update(id: string, params: UpdatePaymentMethodParams): Promise<PaymentMethod>;
+}
+
+export interface UpdatePaymentMethodParams {
+  nickname: string;
 }
 
 export interface IShippingAddressResource {

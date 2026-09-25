@@ -1,9 +1,10 @@
-import type { IPaymentMethodsResource } from '@stripe/link-sdk';
+import type { IPaymentMethodsResource, PaymentMethod } from '@stripe/link-sdk';
 import { render } from 'ink-testing-library';
 import { describe, expect, it, vi } from 'vitest';
 import { sanitizeResource } from '../../../utils/resource-factory';
 import { PaymentMethodsList } from '../list';
 import { PaymentMethodRetrieve } from '../retrieve';
+import { PaymentMethodUpdate } from '../update';
 
 const ESCAPE_PAYLOAD = '\x1b[2JEvil\rHidden';
 const CLEAN_TEXT = 'EvilHidden';
@@ -115,6 +116,118 @@ describe('payment-methods', () => {
 
       await vi.waitFor(() => {
         expect(lastFrame()).toContain('Payment method pd_missing not found');
+      });
+    });
+  });
+
+  describe('update', () => {
+    it('renders loading and the server-returned nickname', async () => {
+      let resolveUpdate: ((value: PaymentMethod) => void) | undefined;
+      const resource = {
+        update: vi.fn(
+          () =>
+            new Promise((resolve) => {
+              resolveUpdate = resolve;
+            }),
+        ),
+      } as unknown as IPaymentMethodsResource;
+
+      const { lastFrame } = render(
+        <PaymentMethodUpdate
+          resource={resource}
+          id="pd_123"
+          nickname="  Work card  "
+          onComplete={() => {}}
+        />,
+      );
+
+      expect(lastFrame()).toContain('Updating payment method...');
+      await vi.waitFor(() => expect(resolveUpdate).toBeDefined());
+      resolveUpdate?.({
+        id: 'pd_123',
+        type: 'CARD',
+        name: 'Visa',
+        is_default: true,
+        nickname: 'Work card',
+      });
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain('Nickname updated to Work card.');
+      });
+      expect(resource.update).toHaveBeenCalledWith('pd_123', {
+        nickname: '  Work card  ',
+      });
+    });
+
+    it.each([null, ''])(
+      'renders a cleared nickname when the response contains %j',
+      async (nickname) => {
+        const resource = {
+          update: vi.fn(async () => ({
+            id: 'pd_123',
+            type: 'CARD',
+            name: 'Visa',
+            is_default: true,
+            nickname,
+          })),
+        } as unknown as IPaymentMethodsResource;
+        const { lastFrame } = render(
+          <PaymentMethodUpdate
+            resource={resource}
+            id="pd_123"
+            nickname=""
+            onComplete={() => {}}
+          />,
+        );
+        await vi.waitFor(() => {
+          expect(lastFrame()).toContain('Nickname cleared.');
+        });
+      },
+    );
+
+    it('renders a sanitized update failure', async () => {
+      const resource = {
+        update: vi.fn(async () => {
+          throw new Error(ESCAPE_PAYLOAD);
+        }),
+      } as unknown as IPaymentMethodsResource;
+      const { lastFrame } = render(
+        <PaymentMethodUpdate
+          resource={resource}
+          id="pd_123"
+          nickname="Work"
+          onComplete={() => {}}
+        />,
+      );
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Failed to update payment method');
+        expect(frame).toContain(CLEAN_TEXT);
+        expect(frame).not.toContain('\x1b[2J');
+      });
+    });
+
+    it('sanitizes the returned nickname', async () => {
+      const resource = sanitizeResource({
+        update: vi.fn(async () => ({
+          id: 'pd_123',
+          type: 'CARD',
+          name: 'Visa',
+          is_default: true,
+          nickname: ESCAPE_PAYLOAD,
+        })),
+      } as unknown as IPaymentMethodsResource);
+      const { lastFrame } = render(
+        <PaymentMethodUpdate
+          resource={resource}
+          id="pd_123"
+          nickname="Work"
+          onComplete={() => {}}
+        />,
+      );
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain(CLEAN_TEXT);
+        expect(frame).not.toContain('\x1b[2J');
       });
     });
   });

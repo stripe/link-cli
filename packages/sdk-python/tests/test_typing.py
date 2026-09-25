@@ -28,6 +28,9 @@ def valid(client: Client) -> None:
     )
     assert_type(result, SpendRequest)
     assert_type(client.payment_methods.list(), list[PaymentMethod])
+    assert_type(
+        client.payment_methods.update("pd_1", nickname=""), PaymentMethod
+    )
     assert_type(client.spend_requests.retrieve("sr_1"), SpendRequest | None)
     client.reports.create(
         domain="example.com", outcome="success", spend_request_id="sr_1"
@@ -43,6 +46,10 @@ async def valid_async(client: AsyncClient) -> None:
         context="Purchase", credential_type="card"
     )
     assert_type(result, SpendRequest)
+    assert_type(
+        await client.payment_methods.update("pd_1", nickname="Work card"),
+        PaymentMethod,
+    )
 """)
     command = [
         sys.executable,

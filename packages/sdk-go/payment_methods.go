@@ -3,7 +3,13 @@ package link
 import (
 	"context"
 	"net/http"
+	"net/url"
 )
+
+// UpdatePaymentMethodParams contains mutable payment-method fields.
+type UpdatePaymentMethodParams struct {
+	Nickname string `json:"nickname"`
+}
 
 // PaymentMethodsResource provides payment-method operations.
 type PaymentMethodsResource struct {
@@ -26,4 +32,14 @@ func (r *PaymentMethodsResource) List(ctx context.Context) ([]PaymentMethod, err
 		return nil, err
 	}
 	return envelope.PaymentDetails, nil
+}
+
+// Update sets, changes, or clears a payment-method nickname.
+func (r *PaymentMethodsResource) Update(ctx context.Context, id string, params UpdatePaymentMethodParams) (*PaymentMethod, error) {
+	var result PaymentMethod
+	endpoint := r.base.baseURL + "/payment-details/" + url.PathEscape(id)
+	if err := r.base.doJSON(ctx, "update payment method", http.MethodPost, endpoint, params, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
 }

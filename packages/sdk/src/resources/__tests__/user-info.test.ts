@@ -170,6 +170,28 @@ describe('UserInfoResource', () => {
     expect(result.eligible_for_balance).toBe(true);
   });
 
+  it('accepts an address with omitted line2', async () => {
+    mockFetchResponse(200, {
+      address: {
+        line1: '510 Townsend St',
+        city: 'San Francisco',
+        state: 'CA',
+        postal_code: '94103',
+        country: 'US',
+      },
+    });
+
+    const result = await resource.retrieve();
+
+    expect(result.address).toEqual({
+      line1: '510 Townsend St',
+      city: 'San Francisco',
+      state: 'CA',
+      postal_code: '94103',
+      country: 'US',
+    });
+  });
+
   it('preserves a null address with false balance eligibility', async () => {
     mockFetchResponse(200, {
       address: null,

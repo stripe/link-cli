@@ -1,7 +1,10 @@
 import { z } from 'zod';
 import type { LinkOptions } from '@/config';
 import { BaseResource } from '@/resources/base';
-import type { IPaymentMethodsResource } from '@/resources/interfaces';
+import type {
+  IPaymentMethodsResource,
+  UpdatePaymentMethodParams,
+} from '@/resources/interfaces';
 import type { PaymentMethod } from '@/types/index';
 
 const balanceDetailsSchema = z.looseObject({
@@ -65,6 +68,28 @@ export class PaymentMethodsResource
 
     return this.parseResponse(
       'retrieve payment method',
+      status,
+      () => paymentMethodSchema.parse(data) as PaymentMethod,
+    );
+  }
+
+  async update(
+    id: string,
+    params: UpdatePaymentMethodParams,
+  ): Promise<PaymentMethod> {
+    const { status, data, rawBody } = await this.apiFetch({
+      method: 'POST',
+      url: `${this.endpoint}/${encodeURIComponent(id)}`,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nickname: params.nickname }),
+    });
+
+    if (status < 200 || status >= 300) {
+      this.throwApiError('update payment method', status, data, rawBody);
+    }
+
+    return this.parseResponse(
+      'update payment method',
       status,
       () => paymentMethodSchema.parse(data) as PaymentMethod,
     );

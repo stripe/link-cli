@@ -175,6 +175,24 @@ def payment_methods() -> Request[list[PaymentMethod]]:
     )
 
 
+def _payment_method_path(id: str) -> str:
+    # HTTP clients normalize literal dot segments, so encode those IDs as well.
+    segment = quote(id, safe="")
+    if id in (".", ".."):
+        segment = segment.replace(".", "%2E")
+    return "/payment-details/" + segment
+
+
+def payment_method_update(id: str, nickname: str) -> Request[PaymentMethod]:
+    return Request(
+        "update payment method",
+        "POST",
+        _payment_method_path(id),
+        PaymentMethod.model_validate,
+        body={"nickname": nickname},
+    )
+
+
 def shipping_addresses() -> Request[list[ShippingAddressRecord]]:
     return Request(
         "list shipping addresses",

@@ -119,6 +119,64 @@ async def test_list_resources(
     assert request.content == b""
 
 
+@pytest.mark.parametrize("nickname", ["Work card", ""])
+async def test_update_payment_method(api: API, nickname: str) -> None:
+    api.respond(
+        {
+            "id": "pd_1",
+            "type": "CARD",
+            "is_default": True,
+            "name": "Visa",
+            "nickname": nickname or None,
+        }
+    )
+
+    result = await api.call("payment_methods", "update", "pd_1", nickname=nickname)
+
+    assert isinstance(result, PaymentMethod)
+    assert result.nickname == (nickname or None)
+    request = api.requests[0]
+    assert request.method == "POST"
+    assert request.url.path == "/payment-details/pd_1"
+    assert request.headers["Content-Type"] == "application/json"
+    assert json.loads(request.content) == {"nickname": nickname}
+
+
+@pytest.mark.parametrize("id", ["pd/a?b#c%", "..", ".", "a b", "é"])
+async def test_update_payment_method_path_encoding(api: API, id: str) -> None:
+    from urllib.parse import unquote
+
+    api.respond(
+        {
+            "id": id,
+            "type": "CARD",
+            "is_default": False,
+            "name": "Visa",
+            "nickname": "Work",
+        }
+    )
+    await api.call("payment_methods", "update", id, nickname="Work")
+    raw_path = api.requests[0].url.raw_path.decode()
+    segment = raw_path.removeprefix("/payment-details/")
+    assert "/" not in segment
+    assert unquote(segment) == id
+
+
+@pytest.mark.parametrize("status", [400, 403, 404])
+async def test_update_payment_method_api_errors(api: API, status: int) -> None:
+    api.respond({"error": {"message": "nickname unavailable"}}, status)
+    with pytest.raises(LinkAPIError) as caught:
+        await api.call("payment_methods", "update", "pd_1", nickname="Work")
+    assert caught.value.status == status
+    assert "nickname unavailable" in str(caught.value)
+
+
+async def test_update_payment_method_malformed_response(api: API) -> None:
+    api.respond({"id": 123})
+    with pytest.raises(LinkResponseError):
+        await api.call("payment_methods", "update", "pd_1", nickname="Work")
+
+
 @pytest.mark.parametrize("address", [{}, {"country_code": "US", "line_1": "123 Main"}])
 async def test_sparse_shipping_address_preserves_field_presence(
     api: API, address: dict[str, str]
