@@ -1,5 +1,12 @@
 # @stripe/link-cli
 
+## 0.23.1
+
+### Patch Changes
+
+- 73af809: Report the invoking AI agent in the User-Agent header on Link API and authentication requests when detectable. Merchant requests made by `mpp pay` retain their existing User-Agent.
+- a4497ca: Retry delayed shared payment token retrieval in both interactive and continued MPP payment flows.
+
 ## 0.23.0
 
 ### Minor Changes
