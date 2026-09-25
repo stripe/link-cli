@@ -57,6 +57,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -393,6 +394,47 @@ describe('payWithSpt', () => {
       new Headers(fetcher.mock.calls[0][1]?.headers).has('authorization'),
     ).toBe(false);
     expect(refreshedResponse.bodyUsed).toBe(true);
+  });
+
+  it('waits for SPT propagation when continuing an approved spend request', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const retrievedAt: number[] = [];
+    const repository = {
+      retrieve: vi.fn().mockImplementation(async () => {
+        retrievedAt.push(Date.now());
+        return {
+          id: 'lsrq_123',
+          status: 'approved',
+          credential_type: 'shared_payment_token',
+          ...(retrievedAt.length === 8
+            ? { shared_payment_token: { id: 'spt_test_123' } }
+            : {}),
+        };
+      }),
+    } as unknown as ISpendRequestResource;
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(challengeResponse())
+      .mockResolvedValueOnce(new Response('paid'));
+    vi.stubGlobal('fetch', fetcher);
+
+    const resultPromise = runMppPayWithSpendRequest(
+      'https://merchant.example/challenge',
+      'lsrq_123',
+      'GET',
+      undefined,
+      undefined,
+      repository,
+    );
+    await vi.runAllTimersAsync();
+
+    await expect(resultPromise).resolves.toMatchObject({
+      status: 200,
+      body: 'paid',
+    });
+    expect(retrievedAt).toEqual([0, 1000, 2000, 3000, 5000, 7000, 9000, 11000]);
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it('rejects an explicit amount that conflicts with the challenge', async () => {
