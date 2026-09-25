@@ -1,8 +1,7 @@
 import { hostname } from 'node:os';
 import { LinkApiError, LinkTransportError } from '@stripe/link-sdk';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LinkAuthResource } from '../auth-resource';
-import { LinkAuthorizationDeclinedError } from '../errors';
 
 const mockFetch = vi.fn();
 

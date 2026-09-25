@@ -1,13 +1,16 @@
 import {
   type AccessTokenProvider,
+  type IApprovalPolicyResource,
   type IAttestationsResource,
   type IBalancesResource,
+  type IIdentityCredentialsResource,
   type IPaymentMethodsResource,
   type IReportResource,
   type IShippingAddressResource,
   type ISourcesResource,
   type ISpendRequestResource,
   type ITransactionsResource,
+  type IUcpResource,
   type IUserInfoResource,
   type IWebBotAuthResource,
   default as Link,
@@ -110,15 +113,18 @@ export class ResourceFactory {
   private accessTokenProvider?: ReturnType<typeof createAccessTokenProvider>;
   private sdkClient?: Link;
   private attestationsResource?: IAttestationsResource;
+  private identityCredentialsResource?: IIdentityCredentialsResource;
   private spendRequestResource?: ISpendRequestResource;
   private paymentMethodsResource?: IPaymentMethodsResource;
   private shippingAddressResource?: IShippingAddressResource;
   private userInfoResource?: IUserInfoResource;
+  private approvalPolicyResource?: IApprovalPolicyResource;
   private transactionsResource?: ITransactionsResource;
   private sourcesResource?: ISourcesResource;
   private balancesResource?: IBalancesResource;
   private webBotAuthResource?: IWebBotAuthResource;
   private reportResource?: IReportResource;
+  private ucpResource?: IUcpResource;
 
   constructor(options: ResourceFactoryOptions = {}) {
     this.verbose = options.verbose ?? false;
@@ -232,6 +238,18 @@ export class ResourceFactory {
     return resource;
   }
 
+  createIdentityCredentialsResource(): IIdentityCredentialsResource {
+    if (this.identityCredentialsResource) {
+      return this.identityCredentialsResource;
+    }
+
+    const resource = sanitizeResource(
+      this.createSdkClient().identityCredentials,
+    );
+    this.identityCredentialsResource = resource;
+    return resource;
+  }
+
   createSpendRequestResource(): ISpendRequestResource {
     if (this.spendRequestResource) {
       return this.spendRequestResource;
@@ -269,6 +287,16 @@ export class ResourceFactory {
 
     const resource = sanitizeResource(this.createSdkClient().userInfo);
     this.userInfoResource = resource;
+    return resource;
+  }
+
+  createApprovalPolicyResource(): IApprovalPolicyResource {
+    if (this.approvalPolicyResource) {
+      return this.approvalPolicyResource;
+    }
+
+    const resource = sanitizeResource(this.createSdkClient().approvalPolicy);
+    this.approvalPolicyResource = resource;
     return resource;
   }
 
@@ -319,6 +347,16 @@ export class ResourceFactory {
 
     const resource = sanitizeResource(this.createSdkClient().reports);
     this.reportResource = resource;
+    return resource;
+  }
+
+  createUcpResource(): IUcpResource {
+    if (this.ucpResource) {
+      return this.ucpResource;
+    }
+
+    const resource = sanitizeResource(this.createSdkClient().ucp);
+    this.ucpResource = resource;
     return resource;
   }
 }

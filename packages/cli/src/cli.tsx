@@ -1,5 +1,6 @@
 import { Cli } from 'incur';
 import { type CliAuthStorage, Storage, storage } from './auth/storage';
+import { createApprovalPolicyCli } from './commands/approval-policy';
 import { createAuthCli } from './commands/auth';
 import { createBalancesCli } from './commands/balances';
 import { createDemoCli } from './commands/demo';
@@ -13,8 +14,8 @@ import { createShippingAddressCli } from './commands/shipping-address';
 import { createSourcesCli } from './commands/sources';
 import { createSpendRequestCli } from './commands/spend-request';
 import { createTransactionsCli } from './commands/transactions';
+import { createUcpCli } from './commands/ucp';
 import { createUserInfoCli } from './commands/user-info';
-import { createWebBotAuthCli } from './commands/web-bot-auth';
 import { detectAIAgent } from './utils/ai-agent';
 import { buildMcpCommand } from './utils/package-runner';
 import { ResourceFactory } from './utils/resource-factory';
@@ -103,6 +104,8 @@ if (identityCommandsEnabled) {
   cli.command(
     createIdentityCli({
       createAttestationsResource: () => factory.createAttestationsResource(),
+      createIdentityCredentialsResource: () =>
+        factory.createIdentityCredentialsResource(),
     }),
   );
 }
@@ -129,6 +132,13 @@ cli.command(
 cli.command(
   createUserInfoCli(
     () => factory.createUserInfoResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+cli.command(
+  createApprovalPolicyCli(
+    () => factory.createApprovalPolicyResource(),
     authStorage,
     envAccessToken,
   ),
@@ -172,6 +182,10 @@ cli.command(
     envAccessToken,
   ),
 );
+cli.command(
+  createUcpCli(() => factory.createUcpResource(), authStorage, envAccessToken),
+);
+
 cli.command(
   createDemoCli(
     authRepo,

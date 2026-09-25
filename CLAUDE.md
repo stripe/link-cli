@@ -8,6 +8,8 @@ Link CLI — lets agents get secure, one-time-use payment credentials from a Lin
 
 - **`@stripe/link-sdk`** (`packages/sdk`): Typed Link API client and resource implementations. It accepts `accessToken` or `getAccessToken`; it does not own OAuth state. Entry: `src/index.ts`.
 - **Link Go SDK** (`packages/sdk-go`): Go equivalent of `@stripe/link-sdk`. It accepts `AccessToken` or `GetAccessToken`; it does not own OAuth state. Package name: `link`.
+- **Link Python SDK** (`packages/sdk-python`): Python 3.11+ library covering the Go SDK's API resources with Python conventions. Distribution name: `link-sdk`; import name: `link`. HTTPX `Client` and `AsyncClient` expose typed keyword arguments and Pydantic response models. Uses uv for Python, dependencies, environments, builds, and development commands.
+- **`@stripe/link-integrations-better-auth`** (`packages/integrations/better-auth`): Generic OAuth wrapper for Link sign-in and connecting wallets. Link's stable `/userinfo.id` identifies the provider account, using the SDK's `UserInfo` type through a development dependency. The `/client` export provides `linkClient()`: `link.connect()` wraps native `linkSocial`, while `link.disconnect()` checks an authoritative fresh session, ownership, provider, and last-account policy before revoking the stored refresh token and deleting the account. Revocation failures retain the account and credentials. Better Auth owns OAuth state, token storage, and refresh; wallet API calls remain in the SDK.
 - **`@stripe/link-cli`** (`packages/cli`): Commander.js + Ink/React CLI that consumes `@stripe/link-sdk`. Entry: `src/cli.tsx`.
 
 ## Commands
@@ -18,6 +20,8 @@ pnpm run build                  # build all packages (turbo)
 pnpm run dev                    # watch mode
 pnpm run test                   # run all tests
 pnpm run test:go                # run the Go SDK tests
+pnpm run test:python            # run the Python SDK tests via uv
+pnpm run check:python           # Python Ruff lint/format checks and ty type checking
 pnpm run typecheck              # type-check all packages
 pnpm biome check .              # lint + format check (CI)
 pnpm run check                  # lint + format with auto-fix
@@ -41,6 +45,7 @@ node packages/cli/dist/cli.js <command>
 
 Defined in `packages/sdk/src/resources/interfaces.ts`:
 - `IAttestationsResource` — Privacy Pass Blind RSA token issuance
+- `IIdentityCredentialsResource` — signed user info issuance
 - `ISpendRequestResource` — CRUD + request-approval for spend requests
 
 The SDK only accepts credentials. Device authorization, refresh-token
@@ -51,13 +56,26 @@ The Go SDK currently mirrors the Link API resources exposed by the TypeScript
 SDK. Until a server-owned OpenAPI schema is available, keep API changes aligned
 through implementation review and each package's unit tests.
 
+The Python SDK mirrors the current Go SDK resources and parameters. Shared
+request construction and decoding live in `packages/sdk-python/src/link/_operations.py`
+and `_transport.py`; explicit sync/async resource signatures must stay aligned.
+Python responses preserve unknown string enum values and the extra fields
+preserved by Go. Required response fields have no fabricated zero-value defaults;
+Pydantic error text hides input values. Request enums use narrow literal types.
+SDK-owned HTTP clients default to a 30-second timeout, configurable with
+`timeout=`; omitted timeouts respect an injected client's configuration.
+Use `uv run --directory packages/sdk-python --locked ...` from
+the repository root so tools load the Python project's configuration. Run
+`uv build --directory packages/sdk-python` to build locally; Python publishing
+is not configured.
+
 ### CLI Command Structure
 
 Commands in `packages/cli/src/cli.tsx` (incur framework). Each has two output modes:
 - **Interactive** (default): Ink/React components from `packages/cli/src/commands/`
 - **JSON** (`--format json`): JSON to stdout, errors as JSON with `code` and `message` fields with exit code 1
 
-Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list`, `shipping-address list`, `mpp pay|decode`, `identity attestations request`, `report`, `serve`.
+Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list|retrieve|add|update`, `shipping-address list`, `mpp pay|decode`, `identity attestations request|list|take`, `identity credentials request|list|present`, `report`, `serve`.
 
 The CLI also runs as an MCP server (`--mcp`) and serves skill files via `skills` subcommand, both provided by incur.
 
@@ -99,11 +117,19 @@ Key input field notes:
 - `--output-file <path>` on `retrieve` or `create` writes full card credentials to a local file (0600 permissions) and redacts card data in stdout. `--force` allows overwriting an existing file.
 - `create` also accepts an undocumented `--expires-at <unix_seconds>` to override the default 12-hour spend request expiration (3 hours to 7 days in the future). It's deliberately excluded from `--schema`/`--llms-full` output and from README/SKILL.md: it's gated to an allow-list of OAuth clients server-side, and most callers get a 400 (`"expires_at is not supported for this client"`) if they try it — don't document or suggest it to general agents.
 
+### payment-methods command
+
+- `payment-methods update <id> --nickname <nickname>` requires a positional payment-method ID and the `--nickname` option.
+- An explicit empty nickname (`--nickname ""`) clears the nickname. Omission is invalid.
+- Clients pass the exact string; the server trims surrounding whitespace and validates length.
+- TypeScript, Go, and Python SDK implementations must all preserve explicit empty strings in the JSON request body.
+
 ### user-info retrieve
 
-- `user-info retrieve` returns the existing identity fields and can include `agent_wallet_spend_limits` and `agent_wallet_verification_requirement` enrichment.
+- `user-info retrieve` returns the existing identity fields and can include `address`, `eligible_for_balance`, `agent_wallet_spend_limits`, and `agent_wallet_verification_requirement` enrichment.
+- `address` contains nullable `line1`, `line2`, `city`, `state`, `postal_code`, and `country` fields. It is itself `null` when the user has no Person record. `eligible_for_balance` indicates whether balance is available for Agent Wallet usage.
 - Spend limits contain per-transaction, daily, and 30-day values. Finite values are cents because `/userinfo` does not return currency. A `null` limit or remaining amount explicitly means unlimited; `used` remains numeric.
-- Either enrichment object can be omitted independently when enrichment is disabled or unavailable. Do not interpret omission as unlimited or as a default verification status.
+- Enrichment fields can be omitted when enrichment is disabled or unavailable. Do not interpret omission as an empty address, balance ineligibility, unlimited spend, or a default verification status.
 - Verification status is one of `not_required`, `ssn_verification`, `identity_verification`, `contact_support`, or `complete`. `action_url` is nullable and directs the user to the required action when present. This is informational and does not change spend-request or `requires_action` handling.
 
 ### mpp pay
@@ -134,15 +160,31 @@ Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENT
 - `attestations-crypto.ts` implements the RFC 9578 type `0x0002` client flow: PSS-encode, blind, unblind, verify, then assemble the token. Issuer keys must be 2048-bit RSA-PSS with SHA-384, MGF1-SHA-384, and a 48-byte salt.
 - Blind signatures are verified after unblinding before final tokens are returned.
 - Output is a versioned artifact: issuer, `token_key_id`, and each complete base64url token plus `authorization: PrivateToken token="<token>"`. Token bytes are preserved exactly.
-- Token artifacts are written with mode 0600 to uniquely named files in `~/.link-cli/attestations`; the directory uses mode 0700. Command output contains the artifact path and non-secret metadata, not raw tokens.
+- Default requests append batches to `~/.link-cli/attestations/pool.json` (version 2, mode 0600; directory mode 0700). `request --count <n> --output-file <path>` exports a version-1 batch outside that directory without adding it to the pool. Exports use exclusive creation; existing files are not overwritten. Request output contains the path and metadata.
+- Unlisted `identity attestations take` removes one pooled token and returns its bytes, generated `authorization` header, issuer, and key ID in both terminal and structured output. It uses no API resource and returns `ATTESTATION_POOL_EMPTY` when empty. `storage.ts` serializes append/take with an exclusive directory lock, fsyncs a private temporary file, atomically renames it, and fsyncs the directory on POSIX before returning. Windows uses file fsync and atomic rename because Node cannot fsync a directory there. Locks are never stolen based on age; after a crash, remove `pool.json.lock` only after ensuring no attestation commands are running. A crash after commit may lose a token; never reinsert it on output failure.
 - Server-side max batch is 100. Issuance does not require an additional OAuth scope.
 - Auth: standard CLI authentication (`LINK_ACCESS_TOKEN` or stored credentials).
+- Unlisted local inspection: `identity attestations list` reports saved batch paths, issuer/key identifiers, per-file `stored_token_count` and aggregate `total_token_count`, and per-file `errors`. It reads JSON batches in `~/.link-cli/attestations`, expanding the pool into batches marked `storage: pool`; legacy exports are marked `storage: export` and never imported automatically. Counts describe stored tokens; external usage is untracked. The command works without auth or API calls, prints metadata in terminals and structured output (`outputPolicy: 'all'`), and preserves the feature gate and MCP exclusion. The version-1 export schema lives in `export.ts`, the version-2 pool schema in `storage.ts`, and shared file reading in `identity/artifact-reader.ts`.
 
 ### report command
 
 - `report --domain <d> --outcome <success|blocked|abandoned> --spend-request-id <lsrq_...> [--tag <t>]... [--step <s>] [--freeform-context <s>] [--attempt-trace <s>]` — records the outcome of a purchase attempt. Options in `packages/cli/src/commands/report/schema.ts`, SDK params in `CreateReportParams`. API endpoint: `/agent_observations`. Output policy is `agent-only`.
 - `--step` is where the agent was when the outcome occurred (max 500). `--attempt-trace` is the whole path it took, one numbered line per step, intended to be replayable by another agent. Both are optional and independent.
 - `--attempt-trace` intentionally carries **no** zod `.max()`. The API truncates at `REPORT_ATTEMPT_TRACE_MAX_LENGTH` (8000, exported from the SDK) and still records the report, so client-side rejection would trade a long narrative for a lost outcome. `--step` and `--freeform-context` keep their `.max(500)` because the API rejects those outright.
+
+### identity credentials command
+
+Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENTITY_COMMANDS=1` (or `true`). Even when enabled, the command sets `mcp: false` so MCP clients do not see it.
+
+`identity credentials request` requests signed user info proving it comes from Link (a wallet of claims such as name, email, and phone). Like `identity attestations request`, it saves the full artifact and returns only its path and metadata in every output mode, including JSON, pipes, and `--full-output`. Human TTY runs show the saved path and expiry; structured output includes `output_file`, issuer, expiry, holder-key path/thumbprint, and claim names. Credentials and claim values remain in the saved file for scripts to use with the holder key when signing presentations. Neither request command has an option to include secret contents in its output. The SDK discovers and calls `credential_endpoint`; the CLI owns default holder-key persistence, claim decoding, and command registration under `packages/cli/src/commands/identity/`.
+
+- Discovery uses `GET https://api.link.com/.well-known/aap-issuer`. The metadata issuer must be exactly `https://api.link.com`, and `credential_endpoint` must remain on that HTTPS origin. `LINK_API_BASE_URL` does not change the credential issuer.
+- `POST <credential_endpoint>` sends `{"cnf":{"jwk":<public JWK>}}`.
+- Issuance uses the Ed25519 holder key at `~/.link/holder-key.jwk` (mode 0600).
+- The issued `cnf.jwk` is checked against the requested public key before returning the credential artifact.
+- Unlisted local inspection: `identity credentials list` inspects `~/.link-cli/credentials/current.json` for its path, issuer, cached expiry/`expired` status, holder-key path/thumbprint, and claim names. It never opens the private key or prints credential bytes or claim values. The command works without auth or API calls, uses `outputPolicy: 'all'`, and preserves the feature gate and MCP exclusion. Inspection validates saved metadata without verifying signatures or scoping files to the active account.
+
+- Unlisted presentation: `identity credentials present --aud <audience> --nonce <nonce> --claim email [--claim email_verified]` reads the current saved credential and existing holder key without auth or API calls. It returns `{ presentation }` with `outputPolicy: 'all'`, including terminal output, and remains excluded from MCP. `present.ts` selects original encoded disclosures, preserves the issuer JWT, and signs an Ed25519 `kb+jwt` containing the exact audience, nonce, current `iat`, and SHA-256 `sd_hash` over the selected SD-JWT including its trailing tilde. It requires explicit claims, checks validity and the holder key against the issuer JWT, and rejects unsupported nested disclosures or plaintext user claims. It does not regenerate keys, modify artifacts, or verify the issuer signature locally; the recipient verifier owns signature verification and nonce consumption. Clients should capture the sensitive presentation and send it as `Identity-Presentation`, without logging it.
 
 ### serve command
 
@@ -170,6 +212,7 @@ Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENT
 Server-returned strings can contain ANSI escape sequences or control characters that spoof the terminal approval UI. Sanitization is handled automatically via `sanitizeDeep()` from `packages/cli/src/utils/sanitize-text.ts`:
 
 - **SDK-resource data** — sanitized automatically at the `sanitizeResource()` proxy boundary in `packages/cli/src/utils/resource-factory.ts`. All server data flowing through SDK resources (spend-request, payment-methods, sources, etc.) is `sanitizeDeep()`'d before reaching components or the incur formatter, in every output format.
+- **Encoded server data decoded by the CLI** — must be sanitized after decoding. Credential issuance sanitizes claims recovered from SD-JWT disclosures in `commands/credentials/issue.ts`; sanitizing the compact credential string at the resource boundary does not sanitize its decoded values.
 - **Commands using `useAsyncAction` hook** — sanitized automatically. The hook calls `sanitizeDeep()` on all returned data before it reaches components.
 - **Commands with manual state management** (e.g. `create.tsx`, `retrieve.tsx`, `request-approval.tsx`, `mpp/pay.tsx`) — must call `sanitizeDeep()` on API responses before calling `setRequest()`/`setState()`.
 - **Attacker-controlled data that does NOT flow through an SDK resource** — must be sanitized at its own parse boundary. `mpp pay` sanitizes the HTTP response in `readPayResult()` (`pay.tsx`); `mpp decode` sanitizes the parsed `WWW-Authenticate` challenge in `decodeStripeChallenge()` (`decode.ts`). These bypass the resource factory, so the return value of the parse/fetch helper is the chokepoint — sanitizing there covers both the interactive Ink render and the agent (toon/yaml/md) output at once.

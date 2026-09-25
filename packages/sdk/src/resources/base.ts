@@ -12,6 +12,7 @@ export interface ApiFetchOptions {
   headers?: Record<string, string>;
   body?: string;
   signal?: AbortSignal;
+  redirect?: RequestRedirect;
 }
 
 export interface ApiFetchResult {
@@ -82,6 +83,7 @@ export abstract class BaseResource {
         ...(opts.headers !== undefined && { headers: opts.headers }),
         ...(opts.body !== undefined && { body: opts.body }),
         ...(opts.signal !== undefined && { signal: opts.signal }),
+        ...(opts.redirect !== undefined && { redirect: opts.redirect }),
       };
       response = await this.fetchImpl(opts.url, init);
     } catch (error) {
@@ -120,8 +122,13 @@ export abstract class BaseResource {
 
     if (res.status === 401 && this.canRefreshAccessToken) {
       const refreshedToken = await this.getAccessToken({ forceRefresh: true });
-      authedOpts.headers.Authorization = `Bearer ${refreshedToken}`;
-      return this.rawFetch(authedOpts);
+      return this.rawFetch({
+        ...opts,
+        headers: {
+          ...opts.headers,
+          Authorization: `Bearer ${refreshedToken}`,
+        },
+      });
     }
 
     return res;

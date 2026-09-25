@@ -118,12 +118,22 @@ You receive a verification URL and a short phrase. Visit the URL, log in to your
 link-cli user-info retrieve --format json
 ```
 
-In addition to identity fields, the response can include spend limits and verification requirements:
+In addition to identity fields, the response can include the user's address,
+balance eligibility, spend limits, and verification requirements:
 
 ```json
 {
   "email": "jane@example.com",
   "name": "Jane Doe",
+  "address": {
+    "line1": "510 Townsend St",
+    "line2": null,
+    "city": "San Francisco",
+    "state": "CA",
+    "postal_code": "94103",
+    "country": "US"
+  },
+  "eligible_for_balance": true,
   "agent_wallet_spend_limits": {
     "per_transaction": { "limit": 50000 },
     "daily": { "limit": 500000, "used": 120000, "remaining": 380000 },
@@ -136,7 +146,25 @@ In addition to identity fields, the response can include spend limits and verifi
 }
 ```
 
-Finite spend-limit values are cents because this response does not include a currency. A null limit or remaining amount means unlimited. The verification requirement's action_url is null when no action is available.
+The address and `eligible_for_balance` fields are omitted when their enrichment
+is unavailable. `address` is null and `eligible_for_balance` is false when the
+user has no Person record. Finite spend-limit values are cents because this
+response does not include a currency. A null limit or remaining amount means
+unlimited. The verification requirement's action_url is null when no action is
+available.
+
+### Retrieve approval policy
+
+Retrieve the rules that grant the current app authority to create spend requests
+without manual approval:
+
+```bash
+link-cli approval-policy retrieve --format json
+```
+
+Each rule includes an action, a per-purchase limit, and optionally an ordered
+list of allowed payment method IDs. The API returns an error when no approval
+policy has been configured.
 
 ### List payment methods
 
@@ -145,6 +173,33 @@ link-cli payment-methods list
 ```
 
 Returns the cards and bank accounts saved to your Link account. Use the `id` field as `payment_method_id` in the next step. If you have no payment methods, [add new ones in Link](https://app.link.com/wallet).
+
+The list can also include a Link balance payment method with its available
+balance when that amount is available.
+
+Retrieve one payment method by ID:
+
+```bash
+link-cli payment-methods retrieve <payment-method-id>
+```
+
+The response contains the same redacted fields as the matching list item,
+including capability eligibility when available.
+
+Set or change a payment-method nickname:
+
+```bash
+link-cli payment-methods update <payment-method-id> --nickname "Work card"
+```
+
+Clear a nickname by passing an explicit empty string:
+
+```bash
+link-cli payment-methods update <payment-method-id> --nickname ""
+```
+
+Link trims surrounding whitespace and returns the updated, redacted payment
+method.
 
 ### List shipping addresses
 
@@ -206,6 +261,72 @@ Link is already integrated with the following agents:
 - [Instinct](https://instinct.com)
 - [Browser Use](https://browser-use.com/)
 
+## Financial Insights
+
+Link CLI can also read a consumer's financial data -- transactions, balances, and connected account details. Agents can use these features to answer personal finance questions and track trends. Financial Insights are powered by [Financial Connections](https://stripe.com/financial-connections), covering 12,000+ US financial institutions.
+
+
+### Authentication
+Financial Insights requires additional authorization beyond the default; request access to each type of data you want to access on financial data sources:
+
+```bash
+link-cli auth login \
+  --client-name "My Agent" \
+  --scope "userinfo:read" \
+  --source-actions read_link_transactions \
+  --source-actions read_external_transactions \
+  --source-actions read_balances \
+  --source-actions read_source_details
+```
+If already authenticated for payments, use `auth upgrade` to add financial data access without dropping existing scopes.
+
+#### List sources
+
+```bash
+link-cli sources list
+```
+
+Returns connected financial accounts (bank accounts, credit cards, etc.) with metadata, capabilities, and connection status. Use the `id` field as `--source` in other commands.
+
+#### List transactions
+
+```bash
+link-cli transactions list
+```
+
+Supports server-side filtering:
+
+```bash
+link-cli transactions list --start-date 2026-01-01 --end-date 2026-01-31
+link-cli transactions list --category groceries
+link-cli transactions list --origin external_connection
+link-cli transactions list --source <source_id>
+```
+
+| Flag | Description |
+| ---- | ---- |
+| `--start-date` | Only transactions on or after this date (YYYY-MM-DD) |
+| `--end-date` | Only transactions on or before this date (YYYY-MM-DD) |
+| `--category` | Filter by transaction category |
+| `--origin` | `link` (Link-native) or `external_connection` (from linked bank/card) |
+| `--source` | Filter by source ID (repeatable for multiple accounts) |
+| `--limit` | Max results per page (1–100) |
+
+Amounts are integers in the currency's smallest unit. Negative = money leaving the account, positive = money entering. Transactions may be Link-native (processed directly through Link), or sourced through an external connection (e.g. imported from transactions that would appear on a bank statement).
+
+#### Agent integration
+
+The financial-insights skill teaches agents which command to run for each question type, how to handle pagination, interpret amounts, and summarize results. See skills/financial-insights/SKILL.md for the full agent guide.
+
+
+#### List balances
+
+```bash
+link-cli balances list
+link-cli balances list --source <source_id>
+```
+
+Returns current balances for connected accounts, including `cash.available` (bank/savings) or `credit.used` (credit cards).
 
 ## Advanced
 
@@ -248,15 +369,72 @@ All commands accept `--auth <path>` to store auth credentials in a specific file
 
 ### Identity (experimental)
 
-Unlisted commands: set `LINK_IDENTITY_COMMANDS=1` to enable them. They are omitted from `--help`, `--llms`, and MCP tool lists otherwise.
+Unlisted commands: set `LINK_IDENTITY_COMMANDS=1` to enable them in `--help` and `--llms`. Identity commands remain excluded from MCP even when enabled.
 
-Privacy-preserving tokens that show Link attests to your agent:
+Both identity `request` commands save their artifacts to disk and return only the file path and metadata. This applies to every output format, including JSON, piped output, and `--full-output`. Request output never includes credentials, tokens, or claim values.
+
+**Privacy-preserving tokens** that show Link attests to your agent:
 
 ```bash
 LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10
 ```
 
-Attestation tokens can be used to respond to attestation challenges presented by downstream services. Token artifacts are written to `~/.link-cli/attestations`.
+Each request adds tokens to the CLI-managed pool at `~/.link-cli/attestations/pool.json`. Take one token when you need to answer an attestation challenge:
+
+```bash
+LINK_IDENTITY_COMMANDS=1 link-cli identity attestations take --format json
+```
+
+`take` removes one token before returning its `token`, ready-to-use `authorization` header, issuer, and issuer-key ID. Pass `authorization` as the `Authorization` header in your browser automation or HTTP client. An empty pool returns `ATTESTATION_POOL_EMPTY`; refill it with `request --count 10`.
+
+For agent-managed tokens, export a batch to a new file outside the CLI storage directory:
+
+```bash
+LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10 --output-file ./aats.json
+```
+
+Exported tokens never enter the CLI pool. The agent owns their consumption and cleanup. Existing exports remain separate and are never automatically imported. Wallet credentials keep their existing storage and behavior.
+
+Pool updates are serialized and saved atomically. A crash after removal can lose a token; `take` never returns it to the pool. If a crash leaves `pool.json.lock`, ensure no attestation commands are running before removing that lock directory.
+
+**User info that has been signed, proving it comes from Link**:
+
+```bash
+LINK_IDENTITY_COMMANDS=1 link-cli identity credentials request
+```
+
+`identity credentials request` saves a signed credential to `~/.link-cli/credentials/current.json`, bound to the CLI-managed holder key at `~/.link/holder-key.jwk`. Structured output includes `output_file`, issuer, expiry, holder-key path/thumbprint, and claim names. A script can read the saved credential and holder key to sign a presentation and send it through browser automation or an HTTP client without printing their contents into the agent transcript.
+
+**Unlisted presentations** disclose selected claims to a verifier using the saved credential and holder key:
+
+```bash
+LINK_IDENTITY_COMMANDS=1 link-cli identity credentials present \
+  --aud https://directory.example \
+  --nonce '<nonce-from-challenge>' \
+  --claim email \
+  --format json
+```
+
+```json
+{"presentation":"<issuer-jwt>~<email-disclosure>~<key-binding-jwt>"}
+```
+
+Use the verifier challenge's exact audience and nonce. Repeat `--claim` to disclose additional claims, such as `--claim email --claim email_verified`; at least one claim is required. The command reads `~/.link-cli/credentials/current.json`, signs with its saved holder key, and returns only the presentation. It works without login or network access and does not modify the saved credential or key. Missing claims, expired credentials, mismatched keys, and unsupported disclosure formats fail instead of producing a presentation. It supports Link's flat SHA-256 disclosures; credentials with plaintext user claims or nested selective disclosures are rejected.
+
+Send the returned `presentation` as the `Identity-Presentation` HTTP header.
+
+The verifier still validates the issuer signature, holder signature, audience, nonce, expiry, and required claims. Presentations include a fresh signing time and should be sent promptly; a verifier that has consumed the nonce requires a new challenge.
+
+**Unlisted local inspection** uses the same feature flag and MCP exclusion:
+
+```bash
+LINK_IDENTITY_COMMANDS=1 link-cli identity credentials list --format json
+LINK_IDENTITY_COMMANDS=1 link-cli identity attestations list --format json
+```
+
+These commands inspect local files without login or Link API calls and display metadata in both terminal and structured output. Credential inspection reports the saved `~/.link-cli/credentials/current.json` path, issuer, cached expiry/`expired` status, holder-key path/thumbprint, and claim names. Private keys are never opened; credentials, tokens, and claim values are never printed. Inspection does not modify files, verify signatures, or filter artifacts by the active account.
+
+Attestation inspection reports paths, issuer/key identifiers, per-batch `stored_token_count`, aggregate `total_token_count`, and `storage` (`pool` or `export`) for JSON batches in `~/.link-cli/attestations`. Counts describe stored tokens; external usage is untracked and AATs have no embedded expiry. Empty stores return empty lists. Lists include per-file `errors` alongside valid entries.
 
 ### Spend request lifecycle
 
@@ -472,11 +650,12 @@ for certain agents.
 
 ## SDKs
 
-Applications can use the credential-only Link client directly in either
-[TypeScript](packages/sdk/README.md) or [Go](packages/sdk-go/README.md). Both
-SDKs expose the same resources, wire models, enum values, request behavior, and
-response normalization. Authentication flows and credential persistence remain
-the embedding application's responsibility.
+Applications can use the credential-only Link client directly in
+[TypeScript](packages/sdk/README.md), [Go](packages/sdk-go/README.md), or
+[Python](packages/sdk-python/README.md). The Python SDK provides synchronous and
+asynchronous clients covering the Go SDK's API resources with Python conventions.
+Authentication flows and credential persistence remain the embedding
+application's responsibility.
 
 ## Onboarding and Demos
 
@@ -514,8 +693,16 @@ Run tests:
 pnpm run test
 ```
 
-This runs the TypeScript and Go suites. Go SDK development requires Go 1.23 or
-newer.
+This runs the TypeScript, Go, and Python suites. Go SDK development requires Go
+1.23 or newer. Python SDK development uses [uv](https://docs.astral.sh/uv/) and
+requires Python 3.11 or newer; uv can install the interpreter for you.
+
+```bash
+uv python install 3.11
+uv sync --directory packages/sdk-python --locked
+pnpm run test:python
+pnpm run check:python
+```
 
 Type-check and lint:
 
@@ -557,7 +744,7 @@ To inspect the packages without publishing them:
 
 ```bash
 pnpm turbo run build
-pnpm --filter @stripe/link-cli --filter @stripe/link-sdk publish --dry-run --no-git-checks
+pnpm --filter @stripe/link-cli --filter @stripe/link-sdk --filter @stripe/link-integrations-better-auth publish --dry-run --no-git-checks
 ```
 
 CI runs the same publish dry-run for every pull request.

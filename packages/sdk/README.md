@@ -27,6 +27,12 @@ const link = new Link({ accessToken: process.env.LINK_ACCESS_TOKEN! });
 const paymentMethods = await link.paymentMethods.list();
 ```
 
+Retrieve the approval policy for the current app and user:
+
+```ts
+const approvalPolicy = await link.approvalPolicy.retrieve();
+```
+
 Use a fixed token for a short-lived job or when the caller replaces the entire
 client as credentials change.
 
@@ -170,7 +176,7 @@ try {
 - `spendRequests` — create, approve, retrieve, update, cancel, and list
 - `paymentMethods` — list Link payment methods
 - `shippingAddresses` — list shipping addresses
-- `userInfo` — retrieve Link user information
+- `userInfo` — retrieve Link user information, including the stable `id` when returned by the API
 - `transactions` — list transactions
 - `sources` — list connected sources
 - `balances` — list balances

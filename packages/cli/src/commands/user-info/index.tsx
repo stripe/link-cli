@@ -1,6 +1,5 @@
 import type { IUserInfoResource } from '@stripe/link-sdk';
 import { Cli } from 'incur';
-import React from 'react';
 import type { CliAuthStorage } from '../../auth/storage';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
@@ -17,7 +16,7 @@ export function createUserInfoCli(
 
   cli.command('retrieve', {
     description:
-      'Retrieve user info, including optional Agent Wallet spend limits and verification requirements',
+      'Retrieve user info, including optional address, balance eligibility, Agent Wallet spend limits, and verification requirements',
     outputPolicy: 'agent-only' as const,
     middleware: [requireAuth(authStorage, envAccessToken)],
     async run(c) {

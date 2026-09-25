@@ -20,11 +20,14 @@ func (r *UserInfoResource) Retrieve(ctx context.Context) (*UserInfo, error) {
 		return nil, newAPIError("retrieve user info", response.status, response.data, response.rawBody)
 	}
 	var wire struct {
+		ID                     *string                             `json:"id"`
 		Email                  *string                             `json:"email"`
 		Name                   *string                             `json:"name"`
 		FirstName              *string                             `json:"first_name"`
 		LastName               *string                             `json:"last_name"`
 		Phone                  *string                             `json:"phone"`
+		Address                *UserInfoAddress                    `json:"address,omitempty"`
+		EligibleForBalance     *bool                               `json:"eligible_for_balance,omitempty"`
 		AgentWalletSpendLimits *AgentWalletSpendLimits             `json:"agent_wallet_spend_limits,omitempty"`
 		AgentWalletStepUp      *AgentWalletVerificationRequirement `json:"agent_wallet_step_up,omitempty"`
 	}
@@ -32,11 +35,14 @@ func (r *UserInfoResource) Retrieve(ctx context.Context) (*UserInfo, error) {
 		return nil, err
 	}
 	return &UserInfo{
+		ID:                                 wire.ID,
 		Email:                              wire.Email,
 		Name:                               wire.Name,
 		FirstName:                          wire.FirstName,
 		LastName:                           wire.LastName,
 		Phone:                              wire.Phone,
+		Address:                            wire.Address,
+		EligibleForBalance:                 wire.EligibleForBalance,
 		AgentWalletSpendLimits:             wire.AgentWalletSpendLimits,
 		AgentWalletVerificationRequirement: wire.AgentWalletStepUp,
 	}, nil

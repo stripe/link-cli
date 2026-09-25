@@ -1,2 +1,15 @@
-// Payment methods has no input options beyond what incur provides.
-// Output is an array of payment method objects from the SDK.
+import { z } from 'incur';
+
+export const retrieveArgs = z.object({
+  id: z.string().describe('Payment method ID'),
+});
+
+export const updateArgs = z.object({
+  id: z.string().describe('Payment method ID'),
+});
+
+export const updateOptions = z.object({
+  nickname: z
+    .string()
+    .describe('New nickname; pass an empty string to clear the nickname'),
+});

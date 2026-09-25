@@ -64,7 +64,7 @@ Use the minimum required source actions:
 - Transactions processed through Link: `read_link_transactions`
 - Transactions imported from bank connections: `read_external_transactions`
 - Account balances: `read_balances`
-- Data source details and descriptions: `read_source_details`
+- Data source details and descriptions: `read_source_details`. This action is broadly useful, for example if you will ever need to tie a transaction or balance to a particular account name.
 
 If the user asks a question that requires multiple data types, request all relevant actions together.
 

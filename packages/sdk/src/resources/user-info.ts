@@ -29,31 +29,54 @@ const agentWalletVerificationRequirementSchema = z.object({
   action_url: z.string().nullable(),
 });
 
+const userInfoAddressSchema = z
+  .object({
+    line1: z.string().nullable(),
+    line2: z.string().nullable().optional(),
+    city: z.string().nullable(),
+    state: z.string().nullable(),
+    postal_code: z.string().nullable(),
+    country: z.string().nullable(),
+  })
+  .transform(({ line2, ...address }) => ({
+    ...address,
+    ...(line2 === undefined ? {} : { line2 }),
+  }));
+
 const userInfoSchema = z
   .looseObject({
+    id: z.string().min(1).optional(),
     email: z.string().nullable().optional(),
     name: z.string().nullable().optional(),
     first_name: z.string().nullable().optional(),
     last_name: z.string().nullable().optional(),
     phone: z.string().nullable().optional(),
+    address: userInfoAddressSchema.nullable().optional(),
+    eligible_for_balance: z.boolean().optional(),
     agent_wallet_spend_limits: agentWalletSpendLimitsSchema.optional(),
     agent_wallet_step_up: agentWalletVerificationRequirementSchema.optional(),
   })
   .transform(
     ({
+      id,
       email,
       name,
       first_name,
       last_name,
       phone,
+      address,
+      eligible_for_balance,
       agent_wallet_spend_limits,
       agent_wallet_step_up,
     }) => ({
+      ...(id === undefined ? {} : { id }),
       email: email ?? null,
       name: name ?? null,
       first_name: first_name ?? null,
       last_name: last_name ?? null,
       phone: phone ?? null,
+      ...(address === undefined ? {} : { address }),
+      ...(eligible_for_balance === undefined ? {} : { eligible_for_balance }),
       ...(agent_wallet_spend_limits === undefined
         ? {}
         : { agent_wallet_spend_limits }),

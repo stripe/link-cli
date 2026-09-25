@@ -1,0 +1,61 @@
+{
+  "name": "@stripe/link-integrations-better-auth",
+  "version": "0.2.0",
+  "description": "Sign in with Link and connect Link wallets using Better Auth",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stripe/link-cli.git",
+    "directory": "packages/integrations/better-auth"
+  },
+  "homepage": "https://github.com/stripe/link-cli/tree/main/packages/integrations/better-auth#readme",
+  "bugs": "https://github.com/stripe/link-cli/issues",
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup && tsc --noEmit false --emitDeclarationOnly",
+    "prepack": "pnpm run build",
+    "typecheck": "tsc && tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@better-auth/core": "^1.7.5",
+    "better-auth": "^1.7.5"
+  },
+  "dependencies": {
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@better-auth/core": "1.7.5",
+    "@stripe/link-sdk": "workspace:*",
+    "@stripe/link-typescript-config": "workspace:*",
+    "@types/node": "^26.4.1",
+    "better-auth": "1.7.5",
+    "tsup": "^8.5.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
+  }
+}

@@ -115,5 +115,5 @@ If approval is denied, expires, or times out, report that outcome. Do not repeat
 Authentication alone does not authorize an individual purchase and does not answer a financial-data question.
 
 - For purchases and payment credentials, use the `create-payment-credential` skill.
-- For transactions, balances, sources, and summaries, use the `financial-insights` skill.
+- For transactions, balances, and sources, use the `financial-insights` skill.
 - For users who selected both, load the relevant downstream skill for each subsequent task.

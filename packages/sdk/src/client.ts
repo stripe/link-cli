@@ -1,15 +1,20 @@
 import type { LinkOptions } from '@/config';
+import { ApprovalPolicyResource } from '@/resources/approval-policy';
 import { AttestationsResource } from '@/resources/attestations';
 import { BalancesResource } from '@/resources/balances';
+import { IdentityCredentialsResource } from '@/resources/identity-credentials';
 import type {
+  IApprovalPolicyResource,
   IAttestationsResource,
   IBalancesResource,
+  IIdentityCredentialsResource,
   IPaymentMethodsResource,
   IReportResource,
   IShippingAddressResource,
   ISourcesResource,
   ISpendRequestResource,
   ITransactionsResource,
+  IUcpResource,
   IUserInfoResource,
   IWebBotAuthResource,
 } from '@/resources/interfaces';
@@ -19,32 +24,39 @@ import { ShippingAddressResource } from '@/resources/shipping-address';
 import { SourcesResource } from '@/resources/sources';
 import { SpendRequestResource } from '@/resources/spend-request';
 import { TransactionsResource } from '@/resources/transactions';
+import { UcpResource } from '@/resources/ucp';
 import { UserInfoResource } from '@/resources/user-info';
 import { WebBotAuthResource } from '@/resources/web-bot-auth';
 
 export class Link {
   readonly attestations: IAttestationsResource;
+  readonly identityCredentials: IIdentityCredentialsResource;
   readonly spendRequests: ISpendRequestResource;
   readonly paymentMethods: IPaymentMethodsResource;
   readonly shippingAddresses: IShippingAddressResource;
   readonly userInfo: IUserInfoResource;
+  readonly approvalPolicy: IApprovalPolicyResource;
   readonly transactions: ITransactionsResource;
   readonly sources: ISourcesResource;
   readonly balances: IBalancesResource;
   readonly webBotAuth: IWebBotAuthResource;
   readonly reports: IReportResource;
+  readonly ucp: IUcpResource;
 
   constructor(options: LinkOptions) {
     this.attestations = new AttestationsResource(options);
+    this.identityCredentials = new IdentityCredentialsResource(options);
     this.spendRequests = new SpendRequestResource(options);
     this.paymentMethods = new PaymentMethodsResource(options);
     this.shippingAddresses = new ShippingAddressResource(options);
     this.userInfo = new UserInfoResource(options);
+    this.approvalPolicy = new ApprovalPolicyResource(options);
     this.transactions = new TransactionsResource(options);
     this.sources = new SourcesResource(options);
     this.balances = new BalancesResource(options);
     this.webBotAuth = new WebBotAuthResource(options);
     this.reports = new ReportResource(options);
+    this.ucp = new UcpResource(options);
   }
 }
 
