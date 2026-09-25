@@ -1,6 +1,8 @@
 import { LinkApiError } from '@stripe/link-sdk';
+import { linkToolSchemas } from '@stripe/link-sdk/tools';
 import type { ToolContext } from 'eve/tools';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import createSpendRequest from '../extension/tools/create_spend_request';
 import listPaymentMethods from '../extension/tools/list_payment_methods';
 
 vi.mock('../extension/extension', () => ({
@@ -28,6 +30,39 @@ function context(): ToolContext {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe('Eve spend approval', () => {
+  it.each([undefined, true, false])(
+    'requires approval on every call with request_approval=%s',
+    async (requestApproval) => {
+      const approval = createSpendRequest.approval;
+      if (typeof approval !== 'function') {
+        throw new Error('Expected a spend-request approval policy');
+      }
+      for (const approvedTools of [
+        new Set<string>(),
+        new Set(['link__create_spend_request']),
+      ]) {
+        expect(
+          await approval({
+            ...context(),
+            approvedTools,
+            toolInput: linkToolSchemas.createSpendRequest.parse({
+              amount: 1000,
+              merchant_name: 'Example',
+              merchant_url: 'https://example.com',
+              context:
+                'A user-requested purchase with shipping and tax. '.repeat(3),
+              ...(requestApproval === undefined
+                ? {}
+                : { request_approval: requestApproval }),
+            }),
+          }),
+        ).toBe('user-approval');
+      }
+    },
+  );
 });
 
 describe('Eve access token', () => {

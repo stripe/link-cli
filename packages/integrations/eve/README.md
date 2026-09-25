@@ -51,8 +51,12 @@ Inputs use SDK/API field names, such as `payment_details`, `line_items`, and
 permissions on the supplied token. CLI-only actions,
 device login, delegated approval, and identity attestations are not exposed.
 
-Spend requests default to requesting Link approval and return immediately. Show
-the approval URL to the user and retrieve the same request after approval. Follow
+By default, `create_spend_request` requires Eve user approval on every call
+(`always()`). Applications can [override this policy](#override-or-remove-a-tool).
+Spend requests also default to requesting Link approval and return immediately.
+Setting `request_approval: false` intentionally supports preparing a draft before
+calling `request_spend_approval`; it does not authorize the purchase. Show the
+approval URL to the user and retrieve the same request after approval. Follow
 `status_details.requires_action.next_action` when further action is required.
 Eve approval is separate from Link's purchase authorization.
 
@@ -108,15 +112,20 @@ import { disableTool } from 'eve/tools';
 export default disableTool();
 ```
 
-To customize its Eve approval policy:
+To disable Eve's confirmation prompt for this tool, create
+`agent/extensions/link/tools/create_spend_request.ts`:
 
 ```ts
 import { create_spend_request } from '@stripe/link-integrations-eve/tools';
 import { defineTool } from 'eve/tools';
-import { always } from 'eve/tools/approval';
+import { never } from 'eve/tools/approval';
 
-export default defineTool({ ...create_spend_request, approval: always() });
+export default defineTool({ ...create_spend_request, approval: never() });
 ```
+
+Use `once()` to prompt once per session, or supply a custom approval policy.
+These overrides control Eve's confirmation prompt; Link's purchase authorization
+remains separate.
 
 ## Development
 
