@@ -1,6 +1,6 @@
 {
   "name": "@stripe/link-integrations-better-auth",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Sign in with Link and connect Link wallets using Better Auth",
   "type": "module",
   "main": "./dist/index.js",

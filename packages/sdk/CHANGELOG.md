@@ -1,5 +1,19 @@
 # @stripe/link-sdk
 
+## 0.8.0
+
+### Minor Changes
+
+- dab0fcd: Add the `approval-policy retrieve` CLI command and the SDK approval policy resource.
+- 4b85448: Add better-auth integration and include `id` in userinfo.
+- 2e5dae2: Add payment-method nickname updates to the CLI and SDKs. An empty nickname clears the existing nickname.
+- 8a5d13a: Add `payment-methods retrieve` to the CLI and payment-method retrieval to the TypeScript SDK.
+- 4e5da73: Temporarily remove the `/summaries` feature. It will return as `/insights`.
+
+### Patch Changes
+
+- aa6bd92: Support Link balance details returned by the payment methods list API.
+
 ## 0.7.0
 
 ### Minor Changes
