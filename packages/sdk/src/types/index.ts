@@ -222,6 +222,8 @@ export interface UserInfoAddress {
 }
 
 export interface UserInfo {
+  /** Stable Link user ID, when returned by the API. Never infer it from email. */
+  id?: string;
   email?: string | null;
   name?: string | null;
   first_name?: string | null;

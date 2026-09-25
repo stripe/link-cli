@@ -27,6 +27,7 @@ describe('UserInfoResource', () => {
 
   it('retrieves user info from the expected endpoint', async () => {
     mockFetchResponse(200, {
+      id: 'link_user_AbC123',
       email: 'user@example.com',
       name: 'Test User',
       phone: '+15551234567',
@@ -40,6 +41,7 @@ describe('UserInfoResource', () => {
     expect(opts.method).toBe('GET');
     expect(opts.headers.Authorization).toBe('Bearer test_token');
     expect(result).toEqual({
+      id: 'link_user_AbC123',
       email: 'user@example.com',
       name: 'Test User',
       first_name: null,
@@ -242,6 +244,12 @@ describe('UserInfoResource', () => {
     expect(result).not.toHaveProperty('agent_wallet_verification_requirement');
     expect(result).not.toHaveProperty('address');
     expect(result).not.toHaveProperty('eligible_for_balance');
+    expect(result).not.toHaveProperty('id');
+  });
+
+  it('rejects a malformed user ID rather than coercing it', async () => {
+    mockFetchResponse(200, { id: 123, email: 'user@example.com' });
+    await expect(resource.retrieve()).rejects.toThrow();
   });
 
   it('refreshes the token and retries once on 401', async () => {

@@ -342,6 +342,7 @@ type UserInfoAddress struct {
 
 // UserInfo contains identity and optional enrichment fields.
 type UserInfo struct {
+	ID                                 *string                             `json:"id,omitempty"`
 	Email                              *string                             `json:"email,omitempty"`
 	Name                               *string                             `json:"name,omitempty"`
 	FirstName                          *string                             `json:"first_name,omitempty"`

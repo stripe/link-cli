@@ -1,3 +1,16 @@
 packages:
   - 'packages/*'
+  - 'packages/integrations/*'
+  - 'packages/integrations/*/example'
 minimumReleaseAge: 10080
+# The Link plugin uses the public Generic OAuth APIs in 1.7.5.
+minimumReleaseAgeExclude:
+  - 'better-auth@1.7.5'
+  - '@better-auth/core@1.7.5'
+  - '@better-auth/drizzle-adapter@1.7.5'
+  - '@better-auth/kysely-adapter@1.7.5'
+  - '@better-auth/memory-adapter@1.7.5'
+  - '@better-auth/mongo-adapter@1.7.5'
+  - '@better-auth/prisma-adapter@1.7.5'
+  - '@better-auth/telemetry@1.7.5'
+  - '@better-fetch/fetch@1.3.2'
