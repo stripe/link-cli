@@ -10,6 +10,7 @@ Link CLI — lets agents get secure, one-time-use payment credentials from a Lin
 - **Link Go SDK** (`packages/sdk-go`): Go equivalent of `@stripe/link-sdk`. It accepts `AccessToken` or `GetAccessToken`; it does not own OAuth state. Package name: `link`.
 - **Link Python SDK** (`packages/sdk-python`): Python 3.11+ library covering the Go SDK's API resources with Python conventions. Distribution name: `link-sdk`; import name: `link`. HTTPX `Client` and `AsyncClient` expose typed keyword arguments and Pydantic response models. Uses uv for Python, dependencies, environments, builds, and development commands.
 - **`@stripe/link-integrations-better-auth`** (`packages/integrations/better-auth`): Generic OAuth wrapper for Link sign-in and connecting wallets. Link's stable `/userinfo.id` identifies the provider account, using the SDK's `UserInfo` type through a development dependency. The `/client` export provides `linkClient()`: `link.connect()` wraps native `linkSocial`, while `link.disconnect()` checks an authoritative fresh session, ownership, provider, and last-account policy before revoking the stored refresh token and deleting the account. Revocation failures retain the account and credentials. Better Auth owns OAuth state, token storage, and refresh; wallet API calls remain in the SDK.
+- **`@stripe/link-integrations-eve`** (`packages/integrations/eve`): Native Eve extension built with `eve extension build`. Static tool files wrap `@stripe/link-sdk/tools` and use the configured `accessToken` directly, without OAuth or automatic refresh. `create_spend_request` defaults to Eve approval via `always()`, which consumers can override; `request_approval: false` defers Link approval for a draft and does not authorize spending. Maintain its custom `extension/skills/link-wallet/SKILL.md` alongside the tool behavior. Workspace development and CI require Node 24+.
 - **`@stripe/link-cli`** (`packages/cli`): Commander.js + Ink/React CLI that consumes `@stripe/link-sdk`. Entry: `src/cli.tsx`.
 
 ## Commands
@@ -42,6 +43,11 @@ node packages/cli/dist/cli.js <command>
 ## Architecture
 
 ### SDK Resources
+
+`packages/sdk/src/tools/` exports the framework-independent tool catalog and Zod
+input schemas through `@stripe/link-sdk/tools`. Tools use API field names and
+delegate to SDK resources. Do not put OAuth state, CLI flags, or Eve dependencies
+in this entrypoint. Keep new tool schemas aligned with the SDK parameter types.
 
 Defined in `packages/sdk/src/resources/interfaces.ts`:
 - `IAttestationsResource` — Privacy Pass Blind RSA token issuance

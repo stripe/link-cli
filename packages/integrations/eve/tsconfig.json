@@ -1,0 +1,9 @@
+{
+  "extends": "@stripe/link-typescript-config/base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declarationMap": false,
+    "types": ["node"]
+  },
+  "include": ["extension/**/*.ts", "test/**/*.ts"]
+}

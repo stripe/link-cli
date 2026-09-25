@@ -57,6 +57,44 @@ The credential manager should coalesce concurrent refreshes if several
 requests can receive a 401 at the same time. A client configured with a fixed
 `accessToken` does not retry a 401 because it cannot obtain a different token.
 
+## Agent tools
+
+`@stripe/link-sdk/tools` exports `createLinkTools`, `linkToolSchemas`, and the
+`LinkTools` / `LinkToolName` types. Each tool has a description, a Zod input
+schema, and an executor that delegates to the existing SDK resources. This
+entrypoint has no dependency on Eve or another agent framework.
+
+```ts
+import { Link } from '@stripe/link-sdk';
+import { createLinkTools } from '@stripe/link-sdk/tools';
+
+const tools = createLinkTools(new Link({ accessToken }));
+const methods = await tools.list_payment_methods.execute({}, undefined);
+```
+
+For shared agents, pass a client resolver that receives your framework's
+execution context. The resolver runs for each execution, never during tool
+discovery:
+
+```ts
+const tools = createLinkTools((context: MyAuthenticatedContext) =>
+  new Link({
+    getAccessToken: (options) => credentials.getLinkToken(context.user, options),
+  }),
+);
+```
+
+Tool inputs use API field names and are validated before resolving the client.
+The catalog includes wallet reads, spend-request operations, financial-data
+reads, and purchase reports. Creating a spend request defaults to requesting
+Link approval and returns immediately; the application handles approval URLs
+and subsequent retrieval. Supply a stable `idempotency_key` when an executor can
+be replayed. CLI login, delegated approval, and identity attestations remain
+outside the catalog.
+
+For native Eve discovery, namespacing, access-token configuration, and replay handling, use
+[`@stripe/link-integrations-eve`](../integrations/eve/README.md).
+
 ## User-approved purchase flow
 
 Amounts are expressed in the currency's minor unit, such as cents for USD.
