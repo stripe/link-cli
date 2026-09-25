@@ -42,6 +42,11 @@ function identityProvider(): IdentityProvider {
   };
 }
 
+const disclosureAuthorization = {
+  audience: 'https://merchant.example',
+  claims: ['email'],
+};
+
 describe('authenticationSchemes', () => {
   it('distinguishes schemes from parameters and ignores quoted commas', () => {
     expect(
@@ -127,6 +132,7 @@ describe('createIdentityChallengeHeaders', () => {
       requestUrl: 'https://merchant.example/contribute',
       requestHeaders: { 'x-request': 'value' },
       identityProvider: provider,
+      disclosureAuthorization,
     });
 
     expect(calls).toEqual(['presentation', 'attestation']);
@@ -151,8 +157,59 @@ describe('createIdentityChallengeHeaders', () => {
         requestUrl: 'https://merchant.example/contribute',
         requestHeaders: {},
         identityProvider: provider,
+        disclosureAuthorization,
       }),
     ).rejects.toThrow('no credential');
+    expect(provider.takeAttestation).not.toHaveBeenCalled();
+  });
+
+  it('requires caller authorization before disclosing any claims', async () => {
+    const provider = identityProvider();
+
+    await expect(
+      createIdentityChallengeHeaders({
+        response: challengeResponse(),
+        requestUrl: 'https://merchant.example/contribute',
+        requestHeaders: {},
+        identityProvider: provider,
+      }),
+    ).rejects.toThrow(/requires explicit claim authorization/);
+    expect(provider.presentIdentityCredential).not.toHaveBeenCalled();
+    expect(provider.takeAttestation).not.toHaveBeenCalled();
+  });
+
+  it('rejects claims added after the caller authorized disclosure', async () => {
+    const provider = identityProvider();
+
+    await expect(
+      createIdentityChallengeHeaders({
+        response: challengeResponse({ claims: ['email', 'phone'] }),
+        requestUrl: 'https://merchant.example/contribute',
+        requestHeaders: {},
+        identityProvider: provider,
+        disclosureAuthorization,
+      }),
+    ).rejects.toThrow(/claims that were not explicitly authorized/);
+    expect(provider.presentIdentityCredential).not.toHaveBeenCalled();
+    expect(provider.takeAttestation).not.toHaveBeenCalled();
+  });
+
+  it('scopes claim authorization to one audience', async () => {
+    const provider = identityProvider();
+
+    await expect(
+      createIdentityChallengeHeaders({
+        response: challengeResponse(),
+        requestUrl: 'https://merchant.example/contribute',
+        requestHeaders: {},
+        identityProvider: provider,
+        disclosureAuthorization: {
+          audience: 'https://other.example',
+          claims: ['email'],
+        },
+      }),
+    ).rejects.toThrow(/audience was not explicitly authorized/);
+    expect(provider.presentIdentityCredential).not.toHaveBeenCalled();
     expect(provider.takeAttestation).not.toHaveBeenCalled();
   });
 

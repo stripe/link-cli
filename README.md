@@ -493,6 +493,13 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
   --header "X-Custom: value"
 ```
 
+If the service requests a signed identity presentation, authorize each claim
+explicitly with a repeatable flag, for example `--identity-claim email`. The
+authorization is limited to the request URL's origin and is preserved across
+the approval continuation. The CLI rejects unlisted claims instead of
+disclosing them. Automatic MPP identity handling is available only when
+`LINK_IDENTITY_COMMANDS=1` is set.
+
 ### Link Pay Token
 
 Some Stripe checkout pages expose an AI-agent steering block that supports a
@@ -546,7 +553,8 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
   --spend-request-id lsrq_001 \
   --method POST \
   --data '{"amount":100}' \
-  --header "X-Custom: value"
+  --header "X-Custom: value" \
+  --identity-claim email
 ```
 
 In agent mode (`--format json`), the full flow returns the payment continuation twice: as `_next.pay_argv` (`{ "command": "mpp", "args": [...] }`) and as `_next.pay_command`. Prefer `pay_argv` and invoke it directly, passing each `args` entry as its own process argument. The URL, body and headers can carry merchant-controlled text, so `pay_command` is shell-quoted for callers that must go through a shell — pass it to the shell verbatim, without unquoting or re-splitting it.

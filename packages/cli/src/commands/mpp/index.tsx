@@ -1,4 +1,5 @@
 import type {
+  IdentityProvider,
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
@@ -11,6 +12,7 @@ import { decodeStripeChallenge } from './decode';
 import { DecodeChallengeView } from './decode-view';
 import {
   buildHeaders,
+  createIdentityDisclosureAuthorization,
   MppPay,
   type PayResult,
   prepareMppProbe,
@@ -38,7 +40,22 @@ export function createMppCli(
   paymentMethodsFactory: () => IPaymentMethodsResource,
   authStorage?: CliAuthStorage,
   envAccessToken?: string,
+  identityCommandsEnabled = false,
 ) {
+  const identityProvider: IdentityProvider | undefined = identityCommandsEnabled
+    ? undefined
+    : {
+        async takeAttestation() {
+          throw new Error(
+            'Link identity handling is disabled. Set LINK_IDENTITY_COMMANDS=1 to enable it.',
+          );
+        },
+        async presentIdentityCredential() {
+          throw new Error(
+            'Link identity handling is disabled. Set LINK_IDENTITY_COMMANDS=1 to enable it.',
+          );
+        },
+      };
   const cli = Cli.create('mpp', {
     description: 'Machine payment protocol (MPP) commands',
   });
@@ -59,6 +76,13 @@ export function createMppCli(
       const method = opts.method;
       const data = opts.data;
       const headers = opts.header?.length ? opts.header : undefined;
+      if (!identityCommandsEnabled && opts.identityClaim.length > 0) {
+        return c.error({
+          code: 'IDENTITY_COMMANDS_DISABLED',
+          message:
+            '--identity-claim requires LINK_IDENTITY_COMMANDS=1 to be enabled',
+        });
+      }
 
       if (!c.agent && !c.formatExplicit) {
         let capturedResult: PayResult | null | undefined;
@@ -72,6 +96,8 @@ export function createMppCli(
             context={opts.context}
             amountOverride={opts.amount}
             paymentMethodId={opts.paymentMethodId}
+            identityClaims={opts.identityClaim}
+            identityProvider={identityProvider}
             test={opts.test}
             repository={repository}
             paymentMethodsFactory={paymentMethodsFactory}
@@ -92,6 +118,8 @@ export function createMppCli(
           headers,
           repository,
           opts.approvedChallenge,
+          opts.identityClaim,
+          identityProvider,
         );
         return;
       }
@@ -100,9 +128,16 @@ export function createMppCli(
       // can present it to the user while we poll for approval inline.
       const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
       const requestHeaders = buildHeaders(data, headers);
+      const disclosureAuthorization = createIdentityDisclosureAuthorization(
+        url,
+        opts.identityClaim,
+      );
 
       const { probe, ephemeralHeaderNames } = await prepareMppProbe(
         createMppRequest(url, httpMethod, data, requestHeaders),
+        fetch,
+        identityProvider,
+        disclosureAuthorization,
       );
       const probeResponse = probe.response;
 
@@ -194,6 +229,9 @@ export function createMppCli(
         '-X',
         probe.method,
       ];
+      for (const claim of opts.identityClaim) {
+        nextArgs.push('--identity-claim', claim);
+      }
       if (probe.body !== undefined) nextArgs.push('-d', probe.body);
       for (const [name, value] of probe.headers) {
         if (ephemeralHeaderNames.includes(name.toLowerCase())) continue;

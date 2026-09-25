@@ -13,11 +13,17 @@ export interface IdentityChallenge {
   claims: string[];
 }
 
+export interface IdentityDisclosureAuthorization {
+  audience: string;
+  claims: readonly string[];
+}
+
 export interface CreateIdentityChallengeHeadersParams {
   response: Response;
   requestUrl: string;
   requestHeaders: HeadersInit;
   identityProvider: IdentityProvider;
+  disclosureAuthorization?: IdentityDisclosureAuthorization;
 }
 
 export interface IdentityChallengeHeaders {
@@ -144,6 +150,7 @@ export async function createIdentityChallengeHeaders({
   requestUrl,
   requestHeaders,
   identityProvider,
+  disclosureAuthorization,
 }: CreateIdentityChallengeHeadersParams): Promise<IdentityChallengeHeaders | null> {
   if (response.status !== 401) return null;
 
@@ -159,6 +166,25 @@ export async function createIdentityChallengeHeaders({
 
   if (needsClaims) {
     const challenge = await parseIdentityChallenge(response, requestUrl);
+    if (!disclosureAuthorization) {
+      throw new Error(
+        'Identity-Presentation challenge requires explicit claim authorization',
+      );
+    }
+    if (challenge.aud !== disclosureAuthorization.audience) {
+      throw new Error(
+        'Identity-Presentation challenge audience was not explicitly authorized',
+      );
+    }
+    const authorizedClaims = new Set(disclosureAuthorization.claims);
+    const unauthorizedClaims = challenge.claims.filter(
+      (claim) => !authorizedClaims.has(claim),
+    );
+    if (unauthorizedClaims.length > 0) {
+      throw new Error(
+        'Identity-Presentation challenge requested claims that were not explicitly authorized',
+      );
+    }
     const { presentation } = await identityProvider.presentIdentityCredential({
       aud: challenge.aud,
       nonce: challenge.nonce,

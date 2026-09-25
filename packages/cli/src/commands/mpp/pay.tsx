@@ -1,5 +1,6 @@
 import type {
   IdentityChallengeHeaders,
+  IdentityDisclosureAuthorization,
   IdentityProvider,
   IPaymentMethodsResource,
   ISpendRequestResource,
@@ -121,6 +122,17 @@ const defaultIdentityProvider: IdentityProvider = {
   presentIdentityCredential,
 };
 
+export function createIdentityDisclosureAuthorization(
+  url: string,
+  claims: readonly string[],
+): IdentityDisclosureAuthorization | undefined {
+  if (claims.length === 0) return undefined;
+  return {
+    audience: new URL(url).origin,
+    claims: [...new Set(claims)],
+  };
+}
+
 export interface PreparedMppProbe {
   probe: MppProbe;
   ephemeralHeaderNames: readonly string[];
@@ -130,6 +142,7 @@ async function answerIdentityChallenge(
   probe: MppProbe,
   fetcher: typeof fetch,
   identityProvider: IdentityProvider,
+  disclosureAuthorization?: IdentityDisclosureAuthorization,
 ): Promise<PreparedMppProbe> {
   let credentials: IdentityChallengeHeaders | null;
   try {
@@ -138,6 +151,7 @@ async function answerIdentityChallenge(
       requestUrl: probe.url,
       requestHeaders: probe.headers,
       identityProvider,
+      disclosureAuthorization,
     });
   } catch (error) {
     await probe.response.body?.cancel();
@@ -203,11 +217,23 @@ export async function prepareMppProbe(
   initial: MppRequest,
   fetcher: typeof fetch = fetch,
   identityProvider: IdentityProvider = defaultIdentityProvider,
+  disclosureAuthorization?: IdentityDisclosureAuthorization,
 ): Promise<PreparedMppProbe> {
+  const probe = await probeMppRequest(initial, fetcher);
+  if (
+    disclosureAuthorization &&
+    new URL(probe.url).origin !== disclosureAuthorization.audience
+  ) {
+    await probe.response.body?.cancel();
+    throw new Error(
+      'Authorized identity claims cannot follow a cross-origin redirect; rerun with the final URL',
+    );
+  }
   return answerIdentityChallenge(
-    await probeMppRequest(initial, fetcher),
+    probe,
     fetcher,
     identityProvider,
+    disclosureAuthorization,
   );
 }
 
@@ -225,6 +251,7 @@ export interface MppPayFullFlowOptions {
   onStep?: (step: Step) => void;
   onApprovalUrl?: (url: string) => void;
   identityProvider?: IdentityProvider;
+  identityClaims?: readonly string[];
 }
 
 export async function runMppPayWithSpendRequest(
@@ -235,6 +262,7 @@ export async function runMppPayWithSpendRequest(
   headers: string[] | undefined,
   repository: ISpendRequestResource,
   approvedChallengeHeader?: string,
+  identityClaims: readonly string[] = [],
   identityProvider?: IdentityProvider,
 ): Promise<PayResult> {
   const spendRequest = await repository.retrieve(spendRequestId, {
@@ -266,6 +294,7 @@ export async function runMppPayWithSpendRequest(
     data,
     headers,
     approvedChallengeHeader,
+    identityClaims,
     identityProvider,
   );
 }
@@ -277,6 +306,7 @@ export async function payWithSpt(
   data: string | undefined,
   headers: string[] | undefined,
   approvedChallengeHeader?: string,
+  identityClaims: readonly string[] = [],
   identityProvider?: IdentityProvider,
 ): Promise<PayResult> {
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
@@ -284,10 +314,15 @@ export async function payWithSpt(
   const approvedChallenge = approvedChallengeHeader
     ? getStripeChargeChallengeFromHeader(approvedChallengeHeader)
     : undefined;
+  const disclosureAuthorization = createIdentityDisclosureAuthorization(
+    url,
+    identityClaims,
+  );
   return payPinnedChallengeWithSpt(
     createMppRequest(url, httpMethod, data, requestHeaders),
     spt,
     approvedChallenge,
+    disclosureAuthorization,
     identityProvider,
   );
 }
@@ -296,6 +331,7 @@ async function submitMppPayment(
   challenge: MppProbe,
   spt: string,
   identityProvider: IdentityProvider,
+  disclosureAuthorization?: IdentityDisclosureAuthorization,
 ): Promise<PayResult> {
   // Credential creation needs only the challenge status and headers. Keep the
   // untrusted response body out of signing and release its stream separately.
@@ -343,6 +379,7 @@ async function submitMppPayment(
         requestUrl: challenge.url,
         requestHeaders: strippedIdentity.headers,
         identityProvider,
+        disclosureAuthorization,
       });
     } catch (error) {
       await accessResponse.body?.cancel();
@@ -384,11 +421,18 @@ async function payPinnedChallengeWithSpt(
   request: MppRequest,
   spt: string,
   approvedChallenge?: Challenge.Challenge,
+  disclosureAuthorization?: IdentityDisclosureAuthorization,
   identityProvider: IdentityProvider = defaultIdentityProvider,
 ): Promise<PayResult> {
   // Approved credentials may be used minutes later. Refresh the challenge at
   // the pinned destination, but never let that destination move afterward.
-  const response = await fetchMppRequest(request);
+  // The probe may contain identity credentials that were already redeemed to
+  // unlock the approved 402. Never replay those one-time credentials.
+  const continuationHeaders = stripIdentityCredentialHeaders(request.headers);
+  const response = await fetchMppRequest({
+    ...request,
+    headers: continuationHeaders.headers,
+  });
   if (isRedirectResponse(response)) {
     await response.body?.cancel();
     throw new Error(
@@ -396,9 +440,10 @@ async function payPinnedChallengeWithSpt(
     );
   }
   const { probe: refreshed } = await answerIdentityChallenge(
-    { ...request, response },
+    { ...request, headers: continuationHeaders.headers, response },
     fetch,
     identityProvider,
+    disclosureAuthorization,
   );
   const refreshedResponse = refreshed.response;
   if (refreshedResponse.status !== 402) return readPayResult(refreshedResponse);
@@ -421,7 +466,12 @@ async function payPinnedChallengeWithSpt(
       );
     }
   }
-  return submitMppPayment(refreshed, spt, identityProvider);
+  return submitMppPayment(
+    refreshed,
+    spt,
+    identityProvider,
+    disclosureAuthorization,
+  );
 }
 
 function comparableChallenge(challenge: Challenge.Challenge): string {
@@ -449,10 +499,15 @@ export async function runMppPayFullFlow(
     onStep,
     onApprovalUrl,
     identityProvider,
+    identityClaims = [],
   } = opts;
 
   const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
   const requestHeaders = buildHeaders(data, headers);
+  const disclosureAuthorization = createIdentityDisclosureAuthorization(
+    url,
+    identityClaims,
+  );
 
   // 1. Probe URL
   onStep?.('probing');
@@ -460,6 +515,7 @@ export async function runMppPayFullFlow(
     createMppRequest(url, httpMethod, data, requestHeaders),
     fetch,
     identityProvider,
+    disclosureAuthorization,
   );
   const probeResponse = probe.response;
 
@@ -559,6 +615,7 @@ export async function runMppPayFullFlow(
     probe,
     withSpt.shared_payment_token.id,
     approvedChallenge,
+    disclosureAuthorization,
     identityProvider,
   );
 }
@@ -605,6 +662,8 @@ export function MppPay({
   context,
   amountOverride,
   paymentMethodId,
+  identityClaims,
+  identityProvider,
   test,
   repository,
   paymentMethodsFactory,
@@ -618,6 +677,8 @@ export function MppPay({
   context?: string;
   amountOverride?: number;
   paymentMethodId?: string;
+  identityClaims?: readonly string[];
+  identityProvider?: IdentityProvider;
   test?: boolean;
   repository: ISpendRequestResource;
   paymentMethodsFactory: () => IPaymentMethodsResource;
@@ -644,6 +705,9 @@ export function MppPay({
             data,
             headers,
             repository,
+            undefined,
+            identityClaims,
+            identityProvider,
           );
         } else {
           if (!context) {
@@ -659,9 +723,11 @@ export function MppPay({
             context,
             amountOverride,
             paymentMethodId,
+            identityClaims,
             test: test ?? false,
             repository,
             paymentMethodsFactory,
+            identityProvider,
             onStep: setStep,
             onApprovalUrl: (u) => setApprovalUrl(u),
           });
@@ -684,6 +750,8 @@ export function MppPay({
     context,
     amountOverride,
     paymentMethodId,
+    identityClaims,
+    identityProvider,
     test,
     repository,
     paymentMethodsFactory,
