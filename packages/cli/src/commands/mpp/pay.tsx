@@ -104,6 +104,10 @@ export interface MppProbe extends MppRequest {
   response: Response;
 }
 
+const SPT_RETRIEVAL_DELAYS_MS = [
+  0, 1000, 1000, 1000, 2000, 2000, 2000, 2000,
+] as const;
+
 export async function probeMppRequest(
   initial: MppRequest,
   fetcher: typeof fetch = fetch,
@@ -164,7 +168,7 @@ export async function runMppPayWithSpendRequest(
   repository: ISpendRequestResource,
   approvedChallengeHeader?: string,
 ): Promise<PayResult> {
-  const spendRequest = await repository.retrieve(spendRequestId, {
+  let spendRequest = await repository.retrieve(spendRequestId, {
     include: ['shared_payment_token'],
   });
 
@@ -182,8 +186,19 @@ export async function runMppPayWithSpendRequest(
       `Spend request must be approved (current status: ${spendRequest.status})`,
     );
   }
+  for (const delayMs of SPT_RETRIEVAL_DELAYS_MS.slice(1)) {
+    if (spendRequest.shared_payment_token) break;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    const retrieved = await repository.retrieve(spendRequestId, {
+      include: ['shared_payment_token'],
+    });
+    if (!retrieved) {
+      throw new Error(`Spend request ${spendRequestId} not found`);
+    }
+    spendRequest = retrieved;
+  }
   if (!spendRequest.shared_payment_token) {
-    throw new Error('Spend request does not have a shared payment token');
+    throw new Error('Failed to retrieve shared payment token');
   }
 
   return payWithSpt(
@@ -402,14 +417,15 @@ export async function runMppPayFullFlow(
 
   // 6. Retrieve with SPT (retry briefly in case of propagation delay)
   onStep?.('signing');
-  let withSpt = await repository.retrieve(spendRequest.id, {
-    include: ['shared_payment_token'],
-  });
-  for (let i = 0; i < 3 && withSpt && !withSpt.shared_payment_token; i++) {
-    await new Promise((r) => setTimeout(r, 1000));
+  let withSpt = null;
+  for (const delayMs of SPT_RETRIEVAL_DELAYS_MS) {
+    if (delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
     withSpt = await repository.retrieve(spendRequest.id, {
       include: ['shared_payment_token'],
     });
+    if (withSpt?.shared_payment_token) break;
   }
   if (!withSpt?.shared_payment_token) {
     throw new Error('Failed to retrieve shared payment token');
