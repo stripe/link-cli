@@ -261,6 +261,28 @@ func TestCreateSpendRequestIdempotencyKeyEncoding(t *testing.T) {
 	}
 }
 
+func TestCreateSpendRequestApprovalDetailsDeviceIDEncoding(t *testing.T) {
+	deviceID := "device_123"
+	data, err := json.Marshal(CreateSpendRequestParams{
+		Context: "A sufficiently detailed context for testing approval detail encoding.",
+		ApprovalDetails: &ApprovalDetail{
+			ApprovedAt:     123,
+			ApprovalMethod: ApprovalMethodProgrammatic,
+			AppName:        "Test app",
+			ExternalUserID: "user_123",
+			DeviceID:       &deviceID,
+		},
+	})
+	assertNoError(t, err)
+	var fields map[string]json.RawMessage
+	assertNoError(t, json.Unmarshal(data, &fields))
+	var approvalDetails map[string]any
+	assertNoError(t, json.Unmarshal(fields["approval_details"], &approvalDetails))
+	if approvalDetails["device_id"] != deviceID {
+		t.Fatalf("got device_id %#v, want %q", approvalDetails["device_id"], deviceID)
+	}
+}
+
 func TestCreateSpendRequestIncompleteIdempotentRequestReturnsAPIError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
 		response.WriteHeader(http.StatusConflict)

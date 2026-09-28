@@ -227,6 +227,8 @@ link-cli spend-request create \
 
 The `--request-approval` flag triggers a push notification to the user for approval. Interactive mode polls until the request leaves the approval waiting states. Agent mode returns a `spend-request retrieve` command to wait for a status change, including a transition to `submitted`.
 
+For delegated or pre-approved flows, `--approval-detail` accepts a JSON object (MCP/agent) or JSON string (CLI). In addition to the required approval fields, it supports optional evidence including `ip_address`, `user_agent`, `device_type`, `agent_log_id`, `external_user_name`, `external_session_id`, `device_id`, and `authentication_method`.
+
 Easily approve requests with the [Link app](https://link.com/download).
 
 ### Execute payment

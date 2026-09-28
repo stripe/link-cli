@@ -243,6 +243,7 @@ async def test_create_all_fields_and_nested_omission(api: API) -> None:
             "agent_log_id": "log",
             "external_user_name": "name",
             "external_session_id": "session",
+            "device_id": "device",
             "authentication_method": "passkey",
         },
     }

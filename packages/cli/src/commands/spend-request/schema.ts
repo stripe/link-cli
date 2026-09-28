@@ -95,7 +95,7 @@ export const createOptions = z.object({
     .union([z.string(), z.record(z.string(), z.unknown())])
     .optional()
     .describe(
-      'Approval details object (MCP/agent: pass as object; CLI: pass as JSON string). Required fields: approved_at (unix timestamp), approval_method (click|programmatic|voice), app_name, external_user_id. Optional: ip_address, user_agent, device_type (mobile|web), agent_log_id, external_user_name, external_session_id, authentication_method (biometric_face|biometric_fingerprint|passkey).',
+      'Approval details object (MCP/agent: pass as object; CLI: pass as JSON string). Required fields: approved_at (unix timestamp), approval_method (click|programmatic|voice), app_name, external_user_id. Optional: ip_address, user_agent, device_type (mobile|web), agent_log_id, external_user_name, external_session_id, device_id, authentication_method (biometric_face|biometric_fingerprint|passkey).',
     ),
   metadata: z
     .array(z.union([z.string(), z.record(z.string(), z.string())]))

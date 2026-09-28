@@ -38,7 +38,8 @@ def valid(client: Client) -> None:
     client.spend_requests.create(
         context="Purchase", line_items=[{"name": "Item", "totals": []}],
         approval_details={"approved_at": 1, "approval_method": "voice",
-                          "app_name": "app", "external_user_id": "user"},
+                          "app_name": "app", "external_user_id": "user",
+                          "device_id": "device"},
     )
 
 async def valid_async(client: AsyncClient) -> None:

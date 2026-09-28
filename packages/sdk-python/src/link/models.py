@@ -92,6 +92,7 @@ class ApprovalDetail(LinkModel):
     agent_log_id: str | None = None
     external_user_name: str | None = None
     external_session_id: str | None = None
+    device_id: str | None = None
     authentication_method: AuthenticationMethod | str | None = None
 
 

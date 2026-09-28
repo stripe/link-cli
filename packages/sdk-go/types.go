@@ -170,6 +170,7 @@ type ApprovalDetail struct {
 	AgentLogID           *string               `json:"agent_log_id,omitempty"`
 	ExternalUserName     *string               `json:"external_user_name,omitempty"`
 	ExternalSessionID    *string               `json:"external_session_id,omitempty"`
+	DeviceID             *string               `json:"device_id,omitempty"`
 	AuthenticationMethod *AuthenticationMethod `json:"authentication_method,omitempty"`
 }
 

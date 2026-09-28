@@ -101,6 +101,7 @@ export interface ApprovalDetail {
   agent_log_id?: string;
   external_user_name?: string;
   external_session_id?: string;
+  device_id?: string;
   authentication_method?:
     | 'biometric_face'
     | 'biometric_fingerprint'

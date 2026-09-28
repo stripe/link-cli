@@ -90,6 +90,26 @@ describe('SpendRequestResource', () => {
       expect(result).toEqual(spendRequestResponse);
     });
 
+    it('includes device_id in approval details', async () => {
+      mockFetchResponse(200, spendRequestResponse);
+
+      await repo.create({
+        ...validParams,
+        approval_details: {
+          approved_at: 123,
+          approval_method: 'programmatic',
+          app_name: 'Test app',
+          external_user_id: 'user_123',
+          device_id: 'device_123',
+        },
+      });
+
+      const [, opts] = mockFetch.mock.calls[0]!;
+      expect(JSON.parse(opts.body).approval_details.device_id).toBe(
+        'device_123',
+      );
+    });
+
     it('accepts omitted optional fields and a null shared payment token', async () => {
       mockFetchResponse(200, sparseSpendRequestResponse);
 

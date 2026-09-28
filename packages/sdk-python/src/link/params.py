@@ -54,6 +54,7 @@ class ApprovalDetailParams(TypedDict, total=False):
     agent_log_id: str | None
     external_user_name: str | None
     external_session_id: str | None
+    device_id: str | None
     authentication_method: AuthenticationMethod | None
 
 
