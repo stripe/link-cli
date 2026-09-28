@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
+import path from 'node:path';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { storage } from '../auth/storage';
@@ -2871,6 +2872,60 @@ describe('production mode', () => {
         r.url.includes('/device/revoke'),
       );
       expect(revokeRequest).toBeUndefined();
+    });
+  });
+
+  describe('--auth without a path', () => {
+    it('errors instead of logging out the default session', async () => {
+      setResponseForUrl('/device/revoke', 200, 'ok');
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'link-cli-auth-'));
+      try {
+        const result = await runProdCliWithEnv(
+          { LINK_AUTH_FILE: path.join(dir, 'other.json') },
+          'auth',
+          'logout',
+          '--format',
+          'json',
+          '--auth',
+        );
+
+        expect(storage.getTokens()?.refresh_token).toBe(
+          PROD_AUTH_TOKENS.refresh_token,
+        );
+        expect(
+          requests.find((r) => r.url.includes('/device/revoke')),
+        ).toBeUndefined();
+        expect(fs.existsSync(path.join(dir, 'other.json'))).toBe(false);
+        expect(result.exitCode).toBe(1);
+        const parsed = parseJson(result.stdout) as Record<string, unknown>;
+        expect(parsed.code).toBe('INVALID_INPUT');
+        expect(parsed.message).toContain('--auth');
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('does not take the next flag as the credential file path', async () => {
+      const stray = path.resolve('--format.json');
+      try {
+        // Without the fix `--format` is consumed, so skip the update check
+        // human output would otherwise make.
+        const result = await runProdCliWithEnv(
+          { NO_UPDATE_NOTIFIER: '1' },
+          'auth',
+          'status',
+          '--auth',
+          '--format',
+          'json',
+        );
+
+        expect(fs.existsSync(stray)).toBe(false);
+        expect(result.exitCode).toBe(1);
+        const parsed = parseJson(result.stdout) as Record<string, unknown>;
+        expect(parsed.code).toBe('INVALID_INPUT');
+      } finally {
+        fs.rmSync(stray, { force: true });
+      }
     });
   });
 
