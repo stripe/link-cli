@@ -644,7 +644,8 @@ application's responsibility.
 
 The TypeScript SDK also exports reusable [agent tools](packages/sdk/README.md#agent-tools).
 Use the [Eve extension](packages/integrations/eve/README.md) to mount them in an
-Eve agent with an access token and an Eve-specific wallet skill.
+Eve agent with a static access token or an application-provided Eve auth provider,
+plus a wallet skill.
 
 ## Onboarding and Demos
 

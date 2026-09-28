@@ -1,13 +1,21 @@
 import { LinkApiError } from '@stripe/link-sdk';
 import { linkToolSchemas } from '@stripe/link-sdk/tools';
-import type { ToolContext } from 'eve/tools';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ConnectionAuthorizationRequiredError } from 'eve/connections';
+import type { ToolAuthProvider, ToolContext } from 'eve/tools';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import createSpendRequest from '../extension/tools/create_spend_request';
 import listPaymentMethods from '../extension/tools/list_payment_methods';
 
-vi.mock('../extension/extension', () => ({
-  default: { config: { accessToken: 'configured-token' } },
+const settings = vi.hoisted(() => ({
+  config: { accessToken: 'configured-token' } as
+    | { accessToken: string }
+    | { auth: ToolAuthProvider },
 }));
+vi.mock('../extension/extension', () => ({ default: settings }));
+
+beforeEach(() => {
+  settings.config = { accessToken: 'configured-token' };
+});
 
 function context(): ToolContext {
   return {
@@ -104,5 +112,62 @@ describe('Eve access token', () => {
     await expect(
       listPaymentMethods.execute({}, context()),
     ).rejects.toBeInstanceOf(LinkApiError);
+  });
+});
+
+describe('Eve authorization provider', () => {
+  it('uses the current caller’s token on each execution', async () => {
+    const auth = { getToken: vi.fn() };
+    settings.config = { auth };
+    const fetch = vi
+      .fn()
+      .mockImplementation(async () => Response.json({ payment_details: [] }));
+    vi.stubGlobal('fetch', fetch);
+    for (const token of ['alice-token', 'bob-token']) {
+      const ctx = {
+        ...context(),
+        getToken: vi.fn().mockResolvedValue({ token }),
+      };
+      expect(await listPaymentMethods.execute({}, ctx)).toEqual([]);
+      expect(ctx.getToken).toHaveBeenCalledWith(auth);
+      expect(
+        new Headers(fetch.mock.lastCall?.[1]?.headers).get('authorization'),
+      ).toBe(`Bearer ${token}`);
+    }
+    expect(auth.getToken).not.toHaveBeenCalled();
+  });
+
+  it('lets Eve suspend the tool before making a Link request', async () => {
+    const auth = { getToken: vi.fn() };
+    settings.config = { auth };
+    const required = new ConnectionAuthorizationRequiredError('link');
+    const ctx = { ...context(), getToken: vi.fn().mockRejectedValue(required) };
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    await expect(listPaymentMethods.execute({}, ctx)).rejects.toBe(required);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('invalidates a rejected OAuth token through Eve without retrying the API call', async () => {
+    const auth = { getToken: vi.fn() };
+    settings.config = { auth };
+    const required = new ConnectionAuthorizationRequiredError('link');
+    const requireAuth = vi.fn(() => {
+      throw required;
+    });
+    const ctx = {
+      ...context(),
+      getToken: vi.fn().mockResolvedValue({ token: 'rejected-token' }),
+      requireAuth,
+    };
+    const fetch = vi
+      .fn()
+      .mockImplementation(async () =>
+        Response.json({ error: 'rejected-token' }, { status: 401 }),
+      );
+    vi.stubGlobal('fetch', fetch);
+    await expect(listPaymentMethods.execute({}, ctx)).rejects.toBe(required);
+    expect(requireAuth).toHaveBeenCalledWith(auth);
+    expect(fetch).toHaveBeenCalledOnce();
   });
 });

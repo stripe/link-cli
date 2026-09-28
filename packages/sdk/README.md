@@ -89,8 +89,7 @@ The catalog includes wallet reads, spend-request operations, financial-data
 reads, and purchase reports. Creating a spend request defaults to requesting
 Link approval and returns immediately; the application handles approval URLs
 and subsequent retrieval. Supply a stable `idempotency_key` when an executor can
-be replayed. CLI login, delegated approval, and identity attestations remain
-outside the catalog.
+be replayed.
 
 For native Eve discovery, namespacing, access-token configuration, and replay handling, use
 [`@stripe/link-integrations-eve`](../integrations/eve/README.md).

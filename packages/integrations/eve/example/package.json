@@ -1,0 +1,30 @@
+{
+  "name": "@stripe/link-integrations-eve-example",
+  "version": "0.0.0",
+  "type": "module",
+  "imports": {
+    "#*": "./agent/*",
+    "#evals/*": "./evals/*"
+  },
+  "scripts": {
+    "predev": "turbo run build --filter=@stripe/link-integrations-eve... --filter=@stripe/link-integrations-better-auth...",
+    "dev": "eve dev --host localhost --port 3000",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@openrouter/ai-sdk-provider": "3.1.0",
+    "@stripe/link-integrations-better-auth": "workspace:*",
+    "@stripe/link-integrations-eve": "workspace:*",
+    "ai": "^7.0.93",
+    "better-auth": "1.7.5",
+    "eve": "0.54.4",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "microsandbox": "^0.7.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
+  },
+  "private": true
+}

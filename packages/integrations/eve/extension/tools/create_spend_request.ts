@@ -6,6 +6,8 @@ export default defineTool({
   ...tools.create_spend_request,
   approval: always(),
   execute(input, ctx) {
-    return executeLink(() => tools.create_spend_request.execute(input, ctx));
+    return executeLink(ctx, () =>
+      tools.create_spend_request.execute(input, ctx),
+    );
   },
 });
