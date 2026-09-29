@@ -181,7 +181,7 @@ it('sanitizes control sequences in displayed local metadata', async () => {
   ).toBe('red');
 });
 
-it('runs the built commands without auth or network, preserves envelopes, and requires the identity flag', async () => {
+it('runs the built commands without auth or network and preserves envelopes', async () => {
   await save('credentials', 'current.json', credential);
   await save('attestations', 'batch.json', attestation);
   const preload = `
@@ -197,7 +197,6 @@ it('runs the built commands without auth or network, preserves envelopes, and re
   `;
   const env = {
     ...process.env,
-    LINK_IDENTITY_COMMANDS: '1',
     LINK_AUTH_FILE: path.join(directory, 'auth.json'),
     LINK_ACCESS_TOKEN: undefined,
     LINK_REFRESH_TOKEN: undefined,
@@ -222,12 +221,5 @@ it('runs the built commands without auth or network, preserves envelopes, and re
     expect(stdout).toContain('output_file');
     expect(stdout).not.toContain('secret');
   }
-  await expect(
-    promisify(execFile)(
-      process.execPath,
-      [...nodeArgs, 'identity', 'credentials', 'list', '--format', 'json'],
-      { env: { ...env, LINK_IDENTITY_COMMANDS: undefined } },
-    ),
-  ).rejects.toMatchObject({ code: 1 });
   expect(await fs.readdir(directory)).toEqual(['.link-cli']);
 }, 30_000);
