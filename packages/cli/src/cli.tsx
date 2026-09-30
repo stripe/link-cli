@@ -5,6 +5,7 @@ import { createAuthCli } from './commands/auth';
 import { createBalancesCli } from './commands/balances';
 import { createDemoCli } from './commands/demo';
 import { createIdentityCli } from './commands/identity';
+import { createInsightsCli } from './commands/insights';
 import { createMppCli } from './commands/mpp';
 import { createOnboardCli } from './commands/onboard';
 import { createPaymentMethodsCli } from './commands/payment-methods';
@@ -178,6 +179,13 @@ cli.command(
 cli.command(
   createTransactionsCli(
     () => factory.createTransactionsResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+cli.command(
+  createInsightsCli(
+    () => factory.createInsightsResource(),
     authStorage,
     envAccessToken,
   ),

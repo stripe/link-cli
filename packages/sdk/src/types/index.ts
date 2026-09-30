@@ -316,6 +316,24 @@ export interface TransactionsPage {
   [key: string]: unknown;
 }
 
+export interface InsightAuthorizationRemediation {
+  scope?: string[];
+  authorization_details?: Array<{ type: string; actions: string[] }>;
+}
+
+export interface AvailableInsightType {
+  id: string;
+  description: string;
+  authorization_remediation?: InsightAuthorizationRemediation | null;
+  [key: string]: unknown;
+}
+
+export interface AvailableInsightTypesPage {
+  data: AvailableInsightType[];
+  has_more: boolean;
+  [key: string]: unknown;
+}
+
 export interface Source {
   id?: string | null;
   name?: string | null;

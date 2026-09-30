@@ -3,11 +3,13 @@ import { ApprovalPolicyResource } from '@/resources/approval-policy';
 import { AttestationsResource } from '@/resources/attestations';
 import { BalancesResource } from '@/resources/balances';
 import { IdentityCredentialsResource } from '@/resources/identity-credentials';
+import { InsightsResource } from '@/resources/insights';
 import type {
   IApprovalPolicyResource,
   IAttestationsResource,
   IBalancesResource,
   IIdentityCredentialsResource,
+  IInsightsResource,
   IPaymentMethodsResource,
   IReportResource,
   IShippingAddressResource,
@@ -37,6 +39,7 @@ export class Link {
   readonly userInfo: IUserInfoResource;
   readonly approvalPolicy: IApprovalPolicyResource;
   readonly transactions: ITransactionsResource;
+  readonly insights: IInsightsResource;
   readonly sources: ISourcesResource;
   readonly balances: IBalancesResource;
   readonly webBotAuth: IWebBotAuthResource;
@@ -52,6 +55,7 @@ export class Link {
     this.userInfo = new UserInfoResource(options);
     this.approvalPolicy = new ApprovalPolicyResource(options);
     this.transactions = new TransactionsResource(options);
+    this.insights = new InsightsResource(options);
     this.sources = new SourcesResource(options);
     this.balances = new BalancesResource(options);
     this.webBotAuth = new WebBotAuthResource(options);
