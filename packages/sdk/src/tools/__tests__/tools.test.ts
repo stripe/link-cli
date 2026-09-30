@@ -161,6 +161,104 @@ describe('Link tools', () => {
     ).toBe(true);
   });
 
+  it('discovers insight types and returns remediation unchanged', async () => {
+    const { tools, fetch } = fixture();
+    const page = {
+      data: [
+        {
+          id: 'top_brand_by_transaction_count_per_category_t180d',
+          description:
+            'Top brands from shopping categories in the last 180 days based on transaction count',
+          authorization_remediation: {
+            authorization_details: [
+              { type: 'source', actions: ['read_link_transactions'] },
+            ],
+          },
+        },
+      ],
+      has_more: false,
+    };
+    fetch.mockImplementation(async () => Response.json(page));
+    expect(
+      await tools.list_available_insight_types.execute(
+        { limit: 100, starting_after: 'previous_type' },
+        context,
+      ),
+    ).toEqual(page);
+    const url = new URL(String(fetch.mock.calls[0]?.[0]));
+    expect(url.pathname).toBe('/insights/available_types');
+    expect(url.searchParams.get('limit')).toBe('100');
+    expect(url.searchParams.get('starting_after')).toBe('previous_type');
+  });
+
+  it('lists only the requested insights and preserves each status', async () => {
+    const { tools, fetch, getClient } = fixture();
+    const page = {
+      data: [
+        {
+          status: 'no_data',
+          id: 'top_brand_by_transaction_count_per_category_t180d',
+          description: 'Top brands',
+          error_code: 'missing_permissions',
+          error_message: 'Transaction access is required.',
+          authorization_remediation: {
+            authorization_details: [
+              { type: 'source', actions: ['read_external_transactions'] },
+            ],
+          },
+          data: [],
+        },
+        { status: 'pending', id: 'pending_insight', description: 'Pending' },
+      ],
+      has_more: false,
+    };
+    fetch.mockImplementation(async () => Response.json(page));
+    expect(
+      await tools.list_insights.execute(
+        {
+          insights: [
+            'top_brand_by_transaction_count_per_category_t180d',
+            'pending_insight',
+          ],
+        },
+        { userId: 'bob' },
+      ),
+    ).toEqual(page);
+    expect(getClient).toHaveBeenCalledWith({ userId: 'bob' });
+    const [target, init] = fetch.mock.calls[0] ?? [];
+    const url = new URL(String(target));
+    expect(url.pathname).toBe('/insights');
+    expect(url.searchParams.getAll('insights[]')).toEqual([
+      'top_brand_by_transaction_count_per_category_t180d',
+      'pending_insight',
+    ]);
+    expect(url.searchParams.has('limit')).toBe(false);
+    expect(new Headers(init?.headers).get('authorization')).toBe('Bearer bob');
+  });
+
+  it('rejects invalid insight inputs before token lookup', async () => {
+    const { tools, getClient } = fixture();
+    for (const input of [
+      { limit: 0 },
+      { limit: 101 },
+      { insights: [''] },
+      { insights: 'top_brand' },
+      { ending_before: 'x' },
+      { access_token: 'model-supplied' },
+    ]) {
+      await expect(
+        tools.list_insights.execute(input as never, context),
+      ).rejects.toThrow();
+    }
+    await expect(
+      tools.list_available_insight_types.execute(
+        { insights: ['x'] } as never,
+        context,
+      ),
+    ).rejects.toThrow();
+    expect(getClient).not.toHaveBeenCalled();
+  });
+
   it('accepts a preconfigured SDK client', async () => {
     const client = new Link({ accessToken: 'token' });
     const retrieve = vi.spyOn(client.userInfo, 'retrieve').mockResolvedValue({

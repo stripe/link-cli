@@ -114,6 +114,16 @@ export function createLinkTools<Context = unknown>(
       schemas.listBalances,
       (link, input) => link.balances.list(input),
     ),
+    list_available_insight_types: tool(
+      'Discover which Link insight types exist and any authorization_remediation each needs. Returns types, not results; use list_insights to fetch computed results.',
+      schemas.listAvailableInsightTypes,
+      (link, input) => link.insights.listAvailableTypes(input),
+    ),
+    list_insights: tool(
+      'Fetch computed Link insight results by ID. Each result has status ready, pending, or no_data; no_data with error_code missing_permissions means access is missing, not zero activity.',
+      schemas.listInsights,
+      (link, input) => link.insights.list(input),
+    ),
     create_report: tool(
       'Report the outcome of a purchase attempt associated with a Link spend request.',
       schemas.createReport,

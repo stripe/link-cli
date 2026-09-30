@@ -4,6 +4,8 @@ import { ConnectionAuthorizationRequiredError } from 'eve/connections';
 import type { ToolAuthProvider, ToolContext } from 'eve/tools';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import createSpendRequest from '../extension/tools/create_spend_request';
+import listAvailableInsightTypes from '../extension/tools/list_available_insight_types';
+import listInsights from '../extension/tools/list_insights';
 import listPaymentMethods from '../extension/tools/list_payment_methods';
 
 const settings = vi.hoisted(() => ({
@@ -168,5 +170,108 @@ describe('Eve authorization provider', () => {
     await expect(listPaymentMethods.execute({}, ctx)).rejects.toBe(required);
     expect(requireAuth).toHaveBeenCalledWith(auth);
     expect(fetch).toHaveBeenCalledOnce();
+  });
+});
+
+describe('Eve insights tools', () => {
+  const TOP_BRAND = 'top_brand_by_transaction_count_per_category_t180d';
+
+  it('resolves the current caller’s token for each insights call', async () => {
+    const auth = { getToken: vi.fn() };
+    settings.config = { auth };
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockImplementation(async () =>
+        Response.json({ data: [], has_more: false }),
+      );
+    vi.stubGlobal('fetch', fetch);
+    for (const [token, tool] of [
+      ['alice-token', listAvailableInsightTypes],
+      ['bob-token', listInsights],
+    ] as const) {
+      const ctx = {
+        ...context(),
+        getToken: vi.fn().mockResolvedValue({ token }),
+      };
+      expect(
+        await tool.execute(
+          tool === listInsights ? { insights: [TOP_BRAND] } : {},
+          ctx,
+        ),
+      ).toEqual({ data: [], has_more: false });
+      expect(ctx.getToken).toHaveBeenCalledWith(auth);
+      expect(
+        new Headers(fetch.mock.lastCall?.[1]?.headers).get('authorization'),
+      ).toBe(`Bearer ${token}`);
+    }
+    const urls = fetch.mock.calls.map(([url]) => new URL(String(url)));
+    expect(urls.map((url) => url.pathname)).toEqual([
+      '/insights/available_types',
+      '/insights',
+    ]);
+    expect(urls[1]?.searchParams.getAll('insights[]')).toEqual([TOP_BRAND]);
+    expect(auth.getToken).not.toHaveBeenCalled();
+  });
+
+  it('returns missing-permission results as data rather than auth errors', async () => {
+    settings.config = { auth: { getToken: vi.fn() } };
+    const page = {
+      data: [
+        {
+          status: 'no_data',
+          id: TOP_BRAND,
+          description: 'Top brands',
+          error_code: 'missing_permissions',
+          error_message: 'Transaction access is required.',
+          authorization_remediation: {
+            authorization_details: [
+              { type: 'source', actions: ['read_link_transactions'] },
+            ],
+          },
+          data: [],
+        },
+      ],
+      has_more: false,
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async () => Response.json(page)),
+    );
+    const requireAuth = vi.fn((): never => {
+      throw new Error('Unexpected auth');
+    });
+    const ctx = {
+      ...context(),
+      getToken: vi.fn().mockResolvedValue({ token: 'alice-token' }),
+      requireAuth,
+    };
+    expect(await listInsights.execute({}, ctx)).toEqual(page);
+    expect(requireAuth).not.toHaveBeenCalled();
+  });
+
+  it('maps a rejected OAuth token to Eve authorization', async () => {
+    const auth = { getToken: vi.fn() };
+    settings.config = { auth };
+    const required = new ConnectionAuthorizationRequiredError('link');
+    const requireAuth = vi.fn(() => {
+      throw required;
+    });
+    const fetch = vi
+      .fn()
+      .mockImplementation(async () =>
+        Response.json({ error: 'rejected-token' }, { status: 401 }),
+      );
+    vi.stubGlobal('fetch', fetch);
+    for (const tool of [listAvailableInsightTypes, listInsights]) {
+      const ctx = {
+        ...context(),
+        getToken: vi.fn().mockResolvedValue({ token: 'rejected-token' }),
+        requireAuth,
+      };
+      await expect(tool.execute({}, ctx)).rejects.toBe(required);
+    }
+    expect(requireAuth).toHaveBeenCalledTimes(2);
+    expect(requireAuth).toHaveBeenCalledWith(auth);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

@@ -45,6 +45,8 @@ Mounting as `link` adds the `link__` prefix to these names:
 | `list_spend_requests`, `create_spend_request`, `retrieve_spend_request`, `update_spend_request` | Purchase requests and their status |
 | `request_spend_approval`, `cancel_spend_request` | Request approval or cancel a request |
 | `list_transactions`, `list_sources`, `list_balances` | Financial data permitted by the user's OAuth grant |
+| `list_available_insight_types` | Discover insight types and any `authorization_remediation` each needs |
+| `list_insights` | Computed insight results by ID, with `ready`, `pending`, or `no_data` status |
 | `create_report` | Record a purchase attempt's outcome |
 
 Inputs use SDK/API field names, such as `payment_details`, `line_items`, and
@@ -61,9 +63,17 @@ approval URL to the user and retrieve the same request after approval. Follow
 Eve approval is separate from Link's purchase authorization.
 
 Tool results are normal SDK responses. Requesting `include: ['card']` can return
-payment credentials in Eve's tool output and stored events. The extension's
-instructions tell the agent not to repeat them in conversation; applications
-still control who can access the transcript and how results are retained.
+payment credentials in Eve's tool output and stored events. Financial-data and
+insight tools return private transaction history, balances, and inferred
+shopping patterns in the same way. The extension's instructions tell the agent
+not to repeat credentials and to summarize financial data; applications still
+control who can access the transcript and how results are retained.
+
+`list_insights` reports insufficient access as a result (`status: no_data`,
+`error_code: missing_permissions`, plus `authorization_remediation`), not as a
+401. The extension does not widen the grant itself; your authorization provider
+decides whether and how to request the listed access. These tools require the
+Link API release that serves `/insights` and `/insights/available_types`.
 
 ## Skills
 

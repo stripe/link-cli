@@ -1,6 +1,6 @@
 ---
 name: financial-insights
-description: Reads a user's Link transactions, balances, and financial sources to answer questions about spending, available funds, connected accounts, and account activity. Use for balance checks, transaction history, spending summaries, and source capabilities.
+description: Reads a user's Link transactions, balances, financial sources, and precomputed insights to answer questions about spending, available funds, connected accounts, and account activity. Use for balance checks, transaction history, spending summaries, shopping patterns, and source capabilities.
 license: MIT
 metadata:
   author: stripe
@@ -34,6 +34,7 @@ Use the smallest set that answers the question.
 | Purchases, merchants, spend, income, deposits, recurring payments | `list_transactions` |
 | Current balance, available funds, cash position | `list_balances` |
 | Connected accounts, source details, data capabilities | `list_sources` |
+| Precomputed signals, such as top brands per shopping category | `list_available_insight_types`, then `list_insights` |
 
 For restaurant spending last month, retrieve transactions for that period.
 For an account balance, retrieve balances. For connected accounts, retrieve
@@ -128,9 +129,61 @@ Use capabilities and granted actions to understand what data is accessible.
 Summarize institution, account type, and connection status when relevant. Avoid
 exposing full account numbers, tokens, or unnecessary identifiers.
 
+## Insights
+
+Insights are signals Link computes ahead of time, such as
+`top_brand_by_transaction_count_per_category_t180d` (top brands per shopping
+category over the last 180 days, by transaction count). New types can appear
+without an extension release.
+
+1. If you do not already know the applicable insight ID or its access
+   requirement, call `list_available_insight_types` with `{}`. Each type has an
+   `id`, a `description`, and, when the current grant needs more access, an
+   `authorization_remediation` with the `scope` or `authorization_details`
+   required.
+2. Call `list_insights` with only the IDs the task needs, for example
+   `{ "insights": ["top_brand_by_transaction_count_per_category_t180d"] }`.
+   Omit `insights` only when the user asks for an overview of all insights.
+
+Both tools accept `limit` (1 to 100, default 10) and `starting_after` (the last
+returned insight `id`); they do not accept `ending_before`.
+
+Handle each result by `status` and `error_code`:
+
+| Result | Meaning | What to do |
+| --- | --- | --- |
+| `ready` | Computed; `data` holds `{ label, value }` entries | Use it and mention `as_of` when freshness matters |
+| `pending` | Not computed yet | Treat as unavailable for this answer. Do not call again in a loop |
+| `no_data` with `error_code: missing_permissions` | The grant lacks access | Explain the access listed in `authorization_remediation` (below) |
+| `no_data` with `error_code: internal_error` | Link could not compute it | Say the insight is temporarily unavailable |
+| `no_data` with no `error_code` | No qualifying activity in the authorized data | Say no qualifying activity was found for the access granted |
+
+Never report missing permissions, pending, or failed results as zero activity.
+
+For `missing_permissions`, tell the user which access is missing (for example,
+transaction access for a Link payment detail) and why. Access comes from the
+application's authorization provider, never from chat. If Eve presents an
+authorization challenge, let the user complete it, then call `list_insights`
+once more for the same IDs. If authorization is declined or access is still
+missing, continue without the insight and say so. Request nothing beyond the
+supplied remediation.
+
+Values are tagged by `type`. `number_of_items` values carry
+`number_of_items.label`, naming what was counted (such as the brand), and
+`number_of_items.count`; the entry `label` names the category, for example
+"Top brand from Clothing and accessories shopping category" with `J.crew` and
+a count of 10. The `number_of_items.label` may be absent. For an unfamiliar `type`, describe only what its
+fields make clear, or omit it.
+
+Insights describe observed history. Explicit user instructions and stated
+preferences always override them. Describe a pattern as observed, for example
+"your recent transactions point to J.crew for clothing", not as a
+preference the user declared. Results cover only authorized sources; mention
+that coverage may be incomplete.
+
 ## Pagination
 
-All three tools accept:
+`list_transactions`, `list_balances`, and `list_sources` accept:
 
 | Input | Meaning |
 | --- | --- |
@@ -166,6 +219,7 @@ records or object IDs.
 If the tools return no matching data, say that no data was available for the
 requested filters and access. That does not prove no activity occurred or that
 an inaccessible balance is zero. Report uncertain derived insights as uncertain.
+Mention `as_of` when stale data could change the answer.
 
 This skill does not move money, initiate payments, or modify sources. Retrieve
 only relevant financial data and never expose payment credentials.

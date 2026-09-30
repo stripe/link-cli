@@ -25,6 +25,19 @@ const pagination = {
   ending_before: id.optional(),
 };
 
+const insightPagination = {
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .describe('Maximum results per page. Defaults to 10.'),
+  starting_after: id
+    .optional()
+    .describe('Return results after this insight ID from the previous page.'),
+};
+
 /** API inputs, independent of CLI flags and framework execution context. */
 export const linkToolSchemas = {
   empty: z.strictObject({}),
@@ -153,6 +166,16 @@ export const linkToolSchemas = {
   listBalances: z.strictObject({
     ...pagination,
     sources: z.array(id).optional(),
+  }),
+  listAvailableInsightTypes: z.strictObject(insightPagination),
+  listInsights: z.strictObject({
+    insights: z
+      .array(id)
+      .optional()
+      .describe(
+        'Insight IDs to return. Omit to return all; request only the IDs the task needs.',
+      ),
+    ...insightPagination,
   }),
   createReport: z.strictObject({
     domain: z.string().min(1),
