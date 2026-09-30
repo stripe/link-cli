@@ -12,7 +12,7 @@ Set up and authenticate Link CLI for the user's intended use case. After setup, 
 Infer the use case only when the user's intent is explicit:
 
 - **Agent payments**: buying, paying, checking out, or obtaining a payment credential.
-- **Financial insights**: reading transactions, balances, connected accounts, or spending patterns.
+- **Financial insights**: reading precomputed purchase-pattern insights, transactions, balances, connected accounts, or spending patterns.
 - **Both**: enabling payments and financial insights.
 
 If the intended use case is unclear, present **Both** first and explicitly recommend it as the default before installing, authenticating, or choosing permissions:
@@ -74,6 +74,7 @@ Map financial-insight needs to source actions:
 |---|---|
 | Link-processed transactions | `read_link_transactions` |
 | Transactions imported from connected banks | `read_external_transactions` |
+| Precomputed shopping insights | Discover requirements with `insights list-available-types`; the current top-brand insight can use `read_link_transactions` or `read_external_transactions` on a source. |
 | Account balances | `read_balances` |
 | Connected source details and descriptions | `read_source_details` |
 
@@ -115,5 +116,5 @@ If approval is denied, expires, or times out, report that outcome. Do not repeat
 Authentication alone does not authorize an individual purchase and does not answer a financial-data question.
 
 - For purchases and payment credentials, use the `create-payment-credential` skill.
-- For transactions, balances, and sources, use the `financial-insights` skill.
+- For precomputed insights, transactions, balances, and sources, use the `financial-insights` skill. Discover available insight IDs with `insights list-available-types` before retrieving relevant ones with `insights list`.
 - For users who selected both, load the relevant downstream skill for each subsequent task.

@@ -265,6 +265,8 @@ Link is already integrated with the following agents:
 
 Link CLI can also read a consumer's financial data -- transactions, balances, and connected account details. Agents can use these features to answer personal finance questions and track trends. Financial Insights are powered by [Financial Connections](https://stripe.com/financial-connections), covering 12,000+ US financial institutions.
 
+Financial Insights also provides pre-computed and user-provided insights to power betterr shopping experiences through the `insights` commands.
+
 
 ### Authentication
 Financial Insights requires additional authorization beyond the default; request access to each type of data you want to access on financial data sources:
@@ -279,6 +281,17 @@ link-cli auth login \
   --source-actions read_source_details
 ```
 If already authenticated for payments, use `auth upgrade` to add financial data access without dropping existing scopes.
+
+Discovering available insight types only requires an authenticated session. Retrieving an insight can require additional source actions, which the discovery response identifies.
+
+#### Discover and list user-supplied and pre-aggregated insights
+
+```bash
+link-cli insights list-available-types --format json
+link-cli insights list --insight <insight_id> --format json
+```
+
+The first command lists available insight IDs, descriptions, and any access needed to retrieve them. The second returns the selected insight's status and data. Omit `--insight` to list all insights, or repeat it for several IDs to request only a few. Both commands support `--limit` and `--starting-after` to retrieve paginated results. If the provided access token is insufficient to view an insight, a `no_data` result will include `authorization_remediation` for missing permissions. A `pending` result means the insight is still being computed.
 
 #### List sources
 

@@ -3,6 +3,7 @@ version: 0.15.1
 name: financial-insights
 description: |
   Reads a user's Link financial data — transactions, balances, and wallet sources — so agents can answer questions about spending and available source capabilities. Use when the user says "check my balance", "how much did I spend", "show my transactions", "what accounts are connected", "summarize my spending", "recent purchases", or asks about their financial activity, account balances, or linked sources.
+  Also use available precomputed insights to answer questions about shopping preferences or identifying preferred businesses.
 allowed-tools:
  - Bash(link-cli:*)
  - Bash(npx --yes @stripe/link-cli:*)
@@ -34,6 +35,7 @@ Use this skill to answer questions about a user’s Link-connected financial dat
 - Account balances
 - Linked wallet sources
 - Basic summaries derived from the user’s financial data
+- Available precomputed insights about purchase patterns and preferences
 
 All commands are read-only. They do not move money, initiate payments, modify accounts, or expose payment credentials.
 
@@ -59,14 +61,19 @@ When present, inspect `authorization_details` in the response for entries with `
 
 If the user is not authenticated, start a login that requests only the source actions needed for the requested data. If the user is already authenticated but one or more required source actions are missing, use `auth upgrade` instead of `auth login`. `auth upgrade` preserves the current session while the user approves the additional access and replaces it only after approval succeeds.
 
+The `insights` commands will indicate when the access token is insufficient to retrieve a particular insight in the list. It will provide `authorization_remediation` indicating required scopes and `authorization_details` when more access is needed. When `LINK_ACCESS_TOKEN` is set, explain the missing access but do not attempt to upgrade access through the CLI. Otherwise, upgrade to obtain the requisite access or skip using `insights`.
+
 Use the minimum required source actions:
 
 - Transactions processed through Link: `read_link_transactions`
 - Transactions imported from bank connections: `read_external_transactions`
 - Account balances: `read_balances`
 - Data source details and descriptions: `read_source_details`. This action is broadly useful, for example if you will ever need to tie a transaction or balance to a particular account name.
+- Pre-computed aggregations: all of the above.
 
 If the user asks a question that requires multiple data types, request all relevant actions together.
+
+If this skill supports a purchase and the merchant is unspecified, identify the needed Link capabilities before login. Request transaction access with the payment scopes in one login when a purchase-pattern insight is likely to help. The current top-brand insight can use a source granting either `read_link_transactions` or `read_external_transactions`; requesting both covers both kinds of source. If already authenticated, consult `insights list-available-types` and request only the missing access it reports.
 
 Example for a new login that needs all financial data types:
 
@@ -103,12 +110,16 @@ Use the smallest command set that answers the user’s question.
 
 | User asks about | Command |
 |---|---|
+| Available purchase-pattern insights and their access requirements | `link-cli insights list-available-types` |
+| A specific available insight or observed shopping preference | `link-cli insights list` |
 | Recent purchases, merchants, spend, transaction history, income, deposits, subscriptions | `link-cli transactions list` |
 | Current available balance, account balance, cash position | `link-cli balances list` |
 | Connected accounts, cards, banks, wallet sources, source metadata | `link-cli sources list` |
 
 Examples:
 
+- “Which brands do I tend to shop at?” → Discover available insight types, then retrieve the relevant insight.
+- “Buy flour from my usual store.” → Use a relevant available insight to inform merchant selection; treat the result as a clue, not a guaranteed preference.
 - “How much did I spend on restaurants last month?” → Use transactions only.
 - “What is my current checking account balance?” → Use balances only.
 - “Which accounts are connected?” → Use sources only.
@@ -119,6 +130,8 @@ Examples:
 Use JSON for agent-readable structured output.
 
 ```bash
+link-cli insights list-available-types --format json
+link-cli insights list --insight <insight_id> --format json
 link-cli transactions list --format json
 link-cli balances list --format json
 link-cli sources list --format json
@@ -129,6 +142,32 @@ The default `toon` format is intended for humans. Prefer `--format json` wheneve
 All monetary amounts across all endpoints are integers in the currency's smallest unit (e.g. `152340` = $1,523.40 USD). Format amounts with a currency-aware formatter that uses the currency's ISO 4217 minor-unit exponent; do not assume every currency has two decimal places or always divide by 100.
 
 Keep sign interpretation field-specific. Only `transactions.amount` uses negative for money leaving the account and positive for money entering it. Do not apply transaction sign semantics to balance fields; interpret `current`, `cash.available`, and `credit.used` according to the balance type.
+
+## Insights
+
+Use precomputed insights when their descriptions match the user's question. First discover IDs and access requirements without computing every insight:
+
+```bash
+link-cli insights list-available-types --format json
+```
+
+The response contains `data` entries with `id`, `description`, and optionally `authorization_remediation`, plus `has_more`. Continue with `--starting-after <last_id>` while `has_more` is true. An insight may be listed even when the current session lacks the access needed to retrieve its data. If the insight is needed, use the reported remediation with `auth upgrade` for a CLI-managed session; follow the environment-token rule above for `LINK_ACCESS_TOKEN`. Pass missing `scope` values as one space-separated `--scope` argument; for a source `authorization_details` entry, pass each listed action as a separate `--source-actions` flag. Do not guess insight IDs or assume that every listed insight has data for this user.
+
+Retrieve only relevant IDs (repeat `--insight` for more than one), or omit the filter when the user needs all available insights:
+
+```bash
+link-cli insights list --insight <insight_id> --format json
+```
+
+Both commands support `--limit` (1–100) and `--starting-after` for pagination. Each page has `data` and `has_more`; use the last item's `id` as the next cursor, keeping the filter unchanged. Stop if `has_more` is true but no usable cursor is returned.
+
+Each retrieved insight has a `status`:
+
+- `ready`: use its `data` entries and mention `as_of` (Unix seconds) when giving an answer. A `number_of_items` value contains `number_of_items.label` and `number_of_items.count`.
+- `pending`: the computation is not ready; suggest checking later.
+- `no_data`: inspect `error_code`, `error_message`, and `authorization_remediation`. For `missing_permissions`, follow the authentication guidance above; otherwise report that data is unavailable. In a purchase flow, continue without the insight when access is unavailable or the user declines to share data.
+
+Other value types or statuses may appear in future responses. Preserve their JSON rather than inventing a meaning. Treat purchase-pattern results as observed history, not a definitive statement of the user's preference. Use raw transactions only if the available insights cannot answer the question and transaction-level detail is needed.
 
 ## Sources (concept)
 
