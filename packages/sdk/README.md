@@ -162,6 +162,60 @@ polled automatically. For any other resolution, surface the action to the user
 and follow its instructions. Keep returned card or shared-payment-token
 credentials out of model context, logs, and user-visible messages.
 
+## Machine payments (MPP)
+
+The [Machine Payments Protocol](https://mpp.dev) uses HTTP 402 challenges to
+describe a payment required by an API. `link.mpp` exposes two operations:
+`decodeChallenge` for inspecting the supported challenges in a header and
+`pay` for paying a Stripe challenge with an approved Link spend request.
+
+`decodeChallenge` returns an array because one header can advertise several
+payment methods. The current SDK recognizes Stripe charge and session
+challenges; future methods will be added as new members of the
+`DecodedMppChallenge` union.
+
+Decode the merchant's `WWW-Authenticate` header, then use the regular
+`spendRequests` resource to create and approve a shared-payment-token request:
+
+```ts
+const challengeHeader = response.headers.get('www-authenticate')!;
+const challenges = link.mpp.decodeChallenge(challengeHeader);
+const challenge = challenges.find((candidate) => candidate.method === 'stripe');
+if (!challenge) throw new Error('No supported Stripe challenge found');
+const paymentMethods = await link.paymentMethods.list();
+
+const spendRequest = await link.spendRequests.create({
+  payment_details: paymentMethods[0].id,
+  credential_type: 'shared_payment_token',
+  network_id: challenge.network_id,
+  amount: Number(challenge.request_json.amount),
+  currency: String(challenge.request_json.currency),
+  context:
+    'The user asked the agent to buy the selected item from Merchant after reviewing the Link approval.',
+  request_approval: true,
+});
+
+await sendToUser(spendRequest.approval_url!);
+```
+
+After confirming that the spend request is approved, pass its ID to `pay`.
+Supplying the original challenge pins the approved payment details and causes
+the SDK to reject a changed challenge:
+
+```ts
+const paid = await link.mpp.pay({
+  url: 'https://merchant.example/api/purchase',
+  method: 'POST',
+  body: JSON.stringify({ sku: 'sku_123' }),
+  headers: { 'Content-Type': 'application/json' },
+  spendRequestId: spendRequest.id,
+  challenge: challengeHeader,
+});
+```
+
+Remote URLs must use HTTPS; plain HTTP is allowed only for loopback
+development.
+
 ## Configuration
 
 ```ts
@@ -219,3 +273,4 @@ try {
 - `balances` — list balances
 - `webBotAuth` — sign URLs for Web Bot Auth
 - `reports` — report agent outcomes
+- `mpp` — probe and pay Machine Payment Protocol endpoints with Link approval

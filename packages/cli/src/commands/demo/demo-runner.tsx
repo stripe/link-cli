@@ -1,4 +1,5 @@
 import type {
+  IMppResource,
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
@@ -31,6 +32,7 @@ interface DemoRunnerProps {
   authRepo: IAuthResource;
   spendRequestRepo: ISpendRequestResource;
   paymentMethodsResource: IPaymentMethodsResource;
+  mpp: IMppResource;
   authStorage?: CliAuthStorage;
   paymentMethodId?: string;
   onlyCard?: boolean;
@@ -42,6 +44,7 @@ export const DemoRunner: React.FC<DemoRunnerProps> = ({
   authRepo,
   spendRequestRepo,
   paymentMethodsResource,
+  mpp,
   authStorage = defaultStorage,
   paymentMethodId: preselectedPmId,
   onlyCard,
@@ -191,6 +194,7 @@ export const DemoRunner: React.FC<DemoRunnerProps> = ({
           <SptFlow
             spendRequestRepo={spendRequestRepo}
             paymentMethodsResource={paymentMethodsResource}
+            mpp={mpp}
             paymentMethodId={paymentMethodId || undefined}
             onComplete={onSptComplete}
           />

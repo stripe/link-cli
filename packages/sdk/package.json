@@ -49,6 +49,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "mppx": "0.10.1",
     "zod": "^4.5.4"
   },
   "devDependencies": {

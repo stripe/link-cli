@@ -3619,16 +3619,17 @@ describe('production mode', () => {
       );
 
       expect(result.exitCode).toBe(0);
-      const parsed = parseJson(result.stdout) as {
+      const parsed = parseJson(result.stdout) as Array<{
         method: string;
         intent: string;
         network_id: string;
         request_json: Record<string, unknown>;
-      };
-      expect(parsed.method).toBe('stripe');
-      expect(parsed.intent).toBe('charge');
-      expect(parsed.network_id).toBe('net_001');
-      expect(parsed.request_json.networkId).toBe('net_001');
+      }>;
+      expect(parsed).toHaveLength(1);
+      expect(parsed[0]?.method).toBe('stripe');
+      expect(parsed[0]?.intent).toBe('charge');
+      expect(parsed[0]?.network_id).toBe('net_001');
+      expect(parsed[0]?.request_json.networkId).toBe('net_001');
     });
 
     it('fails when the stripe challenge payload is invalid', async () => {

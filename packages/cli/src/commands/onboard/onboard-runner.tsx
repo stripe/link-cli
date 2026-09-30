@@ -1,4 +1,5 @@
 import type {
+  IMppResource,
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
@@ -20,6 +21,7 @@ interface OnboardRunnerProps {
   authRepo: IAuthResource;
   spendRequestRepo: ISpendRequestResource;
   paymentMethodsResource: IPaymentMethodsResource;
+  mpp: IMppResource;
   authStorage?: CliAuthStorage;
   onComplete: () => void;
 }
@@ -28,6 +30,7 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
   authRepo,
   spendRequestRepo,
   paymentMethodsResource,
+  mpp,
   authStorage = defaultStorage,
   onComplete,
 }) => {
@@ -172,6 +175,7 @@ export const OnboardRunner: React.FC<OnboardRunnerProps> = ({
             authRepo={authRepo}
             spendRequestRepo={spendRequestRepo}
             paymentMethodsResource={paymentMethodsResource}
+            mpp={mpp}
             authStorage={storage}
             onComplete={onComplete}
           />

@@ -482,7 +482,7 @@ By default, a spend request provisions a virtual card. Link can also provide a s
 
 For merchants that support the [Machine Payments Protocol](https://mpp.dev) (HTTP 402) and the Stripe payment method, instead pass `--credential-type "shared_payment_token"` when creating the spend request. The SPT is one-time-use — if payment fails, create a new spend request.
 
-Use `mpp decode` to validate a raw `WWW-Authenticate` header and extract the `network_id` needed for `shared_payment_token` spend requests:
+Use `mpp decode` to validate a raw `WWW-Authenticate` header. It returns an array of supported challenges; select the Stripe entry to get the `network_id` needed for `shared_payment_token` spend requests:
 
 ```bash
 link-cli mpp decode \
@@ -557,7 +557,7 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
 
 In agent mode (`--format json`), the full flow returns the payment continuation twice: as `_next.pay_argv` (`{ "command": "mpp", "args": [...] }`) and as `_next.pay_command`. Prefer `pay_argv` and invoke it directly, passing each `args` entry as its own process argument. The URL, body and headers can carry merchant-controlled text, so `pay_command` is shell-quoted for callers that must go through a shell — pass it to the shell verbatim, without unquoting or re-splitting it.
 
-Use `mpp decode` to validate a raw `WWW-Authenticate` header and extract the `network_id` needed for `shared_payment_token` spend requests:
+Use `mpp decode` to validate a raw `WWW-Authenticate` header. It returns an array of supported challenges; select the Stripe entry to get the `network_id` needed for `shared_payment_token` spend requests:
 
 ```bash
 link-cli mpp decode \

@@ -38,9 +38,6 @@ importers:
       ink-spinner:
         specifier: ^5.0.0
         version: 5.0.0(ink@7.1.1(@types/react@19.2.18)(react@19.2.8))(react@19.2.8)
-      mppx:
-        specifier: 0.10.1
-        version: 0.10.1(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.5.4))(express@5.2.1)(hono@4.13.7)(next@16.3.4(@types/node@26.4.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(typescript@7.0.2)(viem@2.56.3(typescript@7.0.2)(zod@4.5.4))
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
@@ -223,6 +220,9 @@ importers:
 
   packages/sdk:
     dependencies:
+      mppx:
+        specifier: 0.10.1
+        version: 0.10.1(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.5.4))(express@5.2.1)(hono@4.13.7)(next@16.3.4(@types/node@26.4.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(typescript@7.0.2)(viem@2.56.3(typescript@7.0.2)(zod@4.5.4))
       zod:
         specifier: ^4.5.4
         version: 4.5.4

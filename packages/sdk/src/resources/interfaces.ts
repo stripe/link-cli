@@ -103,6 +103,59 @@ export interface ISpendRequestResource {
   ): Promise<SpendRequest | null>;
 }
 
+export interface MppPayOptions {
+  url: string;
+  method?: string;
+  body?: string;
+  headers?: HeadersInit;
+  spendRequestId: string;
+  challenge?: string;
+}
+
+export interface MppPaymentResult {
+  status: number;
+  headers: Record<string, string>;
+  body: string;
+}
+
+export interface DecodedMppChallengeBase {
+  id: string;
+  realm: string;
+  description?: string;
+  digest?: string;
+  expires?: string;
+  header?: string;
+  meta?: Record<string, string>;
+  opaque?: string;
+}
+
+export interface DecodedStripeChallengeRequest extends Record<string, unknown> {
+  amount: string;
+  currency: string;
+  networkId?: string;
+  methodDetails?: {
+    networkId: string;
+    paymentMethodTypes?: string[];
+    metadata?: Record<string, string>;
+    [key: string]: unknown;
+  };
+}
+
+export interface DecodedStripeChallenge extends DecodedMppChallengeBase {
+  method: 'stripe';
+  intent: 'charge' | 'session';
+  network_id: string;
+  request_json: DecodedStripeChallengeRequest;
+}
+
+/** Supported decoded MPP challenges. Add new method variants to this union. */
+export type DecodedMppChallenge = DecodedStripeChallenge;
+
+export interface IMppResource {
+  decodeChallenge(challengeHeader: string): DecodedMppChallenge[];
+  pay(options: MppPayOptions): Promise<MppPaymentResult>;
+}
+
 export interface IPaymentMethodsResource {
   list(): Promise<PaymentMethod[]>;
   retrieve(id: string): Promise<PaymentMethod | null>;
