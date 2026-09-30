@@ -334,6 +334,31 @@ export interface AvailableInsightTypesPage {
   [key: string]: unknown;
 }
 
+export interface InsightEntry {
+  label: string;
+  /** Value payloads are tagged by `type`; preserve future payloads unchanged. */
+  value: unknown;
+  [key: string]: unknown;
+}
+
+export interface Insight {
+  id: string;
+  description: string;
+  status: string;
+  as_of?: number | null;
+  data?: InsightEntry[] | null;
+  error_code?: string | null;
+  error_message?: string | null;
+  authorization_remediation?: InsightAuthorizationRemediation | null;
+  [key: string]: unknown;
+}
+
+export interface InsightsPage {
+  data: Insight[];
+  has_more: boolean;
+  [key: string]: unknown;
+}
+
 export interface Source {
   id?: string | null;
   name?: string | null;

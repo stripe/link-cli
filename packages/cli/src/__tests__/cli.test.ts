@@ -1876,6 +1876,85 @@ describe('production mode', () => {
     status: 'succeeded',
   };
 
+  describe('insights commands', () => {
+    it('discovers insight types with their authorization remediation', async () => {
+      const page = {
+        data: [
+          {
+            id: 'top_brand_by_transaction_count_per_category_t180d',
+            description: 'Top brands',
+            authorization_remediation: {
+              authorization_details: [
+                { type: 'source', actions: ['read_link_transactions'] },
+              ],
+            },
+          },
+        ],
+        has_more: false,
+      };
+      setNextResponse(200, page);
+
+      const result = await runProdCli(
+        'insights',
+        'list-available-types',
+        '--limit',
+        '1',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.method).toBe('GET');
+      expect(lastRequest.url).toBe('/insights/available_types?limit=1');
+      expect(parseJson(result.stdout)).toEqual(page);
+    });
+
+    it('lists filtered insights and retains unknown value types in JSON output', async () => {
+      const page = {
+        data: [
+          {
+            id: 'top_brand_by_transaction_count_per_category_t180d',
+            description: 'Top brands',
+            status: 'ready',
+            as_of: 1790723779,
+            data: [
+              {
+                label: 'Future metric',
+                value: { type: 'percentile', percentile: { value: 92 } },
+              },
+            ],
+          },
+        ],
+        has_more: false,
+      };
+      setNextResponse(200, page);
+
+      const result = await runProdCli(
+        'insights',
+        'list',
+        '--insight',
+        'top_brand_by_transaction_count_per_category_t180d',
+        '--insight',
+        'another_insight',
+        '--limit',
+        '5',
+        '--starting-after',
+        'earlier',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const url = new URL(lastRequest.url, 'https://api.link.com');
+      expect(url.pathname).toBe('/insights');
+      expect(url.searchParams.getAll('insights[]')).toEqual([
+        'top_brand_by_transaction_count_per_category_t180d',
+        'another_insight',
+      ]);
+      expect(url.searchParams.get('limit')).toBe('5');
+      expect(url.searchParams.get('starting_after')).toBe('earlier');
+      expect(parseJson(result.stdout)).toEqual(page);
+    });
+  });
+
   describe('transactions list', () => {
     it('GETs the Link API endpoint with bearer auth', async () => {
       setResponseForUrl('/transactions', 200, {

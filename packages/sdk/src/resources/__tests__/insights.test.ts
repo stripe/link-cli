@@ -74,4 +74,74 @@ describe('InsightsResource', () => {
       'Invalid limit',
     );
   });
+
+  it('lists filtered insights and preserves future value formats', async () => {
+    const page = {
+      data: [
+        {
+          id: 'top_brand_by_transaction_count_per_category_t180d',
+          description: 'Top brands',
+          status: 'ready',
+          as_of: 1790723779,
+          data: [
+            {
+              label: 'Clothing',
+              value: {
+                type: 'number_of_items',
+                number_of_items: { label: 'Marine Layer', count: 2 },
+              },
+            },
+            {
+              label: 'Future metric',
+              value: { type: 'percentile', percentile: { value: 92 } },
+            },
+          ],
+        },
+      ],
+      has_more: false,
+    };
+    respond(200, page);
+
+    await expect(
+      resource.list({
+        limit: 5,
+        starting_after: 'earlier',
+        insights: [
+          'top_brand_by_transaction_count_per_category_t180d',
+          'another_insight',
+        ],
+      }),
+    ).resolves.toEqual(page);
+    const url = new URL(mockFetch.mock.calls[0]![0]);
+    expect(url.origin + url.pathname).toBe('https://api.link.com/insights');
+    expect(url.searchParams.get('limit')).toBe('5');
+    expect(url.searchParams.get('starting_after')).toBe('earlier');
+    expect(url.searchParams.getAll('insights[]')).toEqual([
+      'top_brand_by_transaction_count_per_category_t180d',
+      'another_insight',
+    ]);
+  });
+
+  it('preserves per-insight missing-permission errors', async () => {
+    const page = {
+      data: [
+        {
+          id: 'top_brand_by_transaction_count_per_category_t180d',
+          description: 'Top brands',
+          status: 'no_data',
+          as_of: 1790723779,
+          error_code: 'missing_permissions',
+          error_message: 'Additional authorization is required',
+          authorization_remediation: {
+            authorization_details: [
+              { type: 'source', actions: ['read_link_transactions'] },
+            ],
+          },
+        },
+      ],
+      has_more: false,
+    };
+    respond(200, page);
+    await expect(resource.list()).resolves.toEqual(page);
+  });
 });

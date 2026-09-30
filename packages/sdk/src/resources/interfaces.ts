@@ -4,6 +4,7 @@ import type {
   AvailableInsightTypesPage,
   BalancesPage,
   CredentialType,
+  InsightsPage,
   LineItem,
   PaymentMethod,
   RequestApprovalResponse,
@@ -150,10 +151,15 @@ export interface ListInsightTypesParams {
   starting_after?: string;
 }
 
+export interface ListInsightsParams extends ListInsightTypesParams {
+  insights?: string[];
+}
+
 export interface IInsightsResource {
   listAvailableTypes(
     params?: ListInsightTypesParams,
   ): Promise<AvailableInsightTypesPage>;
+  list(params?: ListInsightsParams): Promise<InsightsPage>;
 }
 
 export interface ListSourcesParams {

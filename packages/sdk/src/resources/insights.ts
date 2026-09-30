@@ -3,9 +3,10 @@ import type { LinkOptions } from '@/config';
 import { BaseResource } from '@/resources/base';
 import type {
   IInsightsResource,
+  ListInsightsParams,
   ListInsightTypesParams,
 } from '@/resources/interfaces';
-import type { AvailableInsightTypesPage } from '@/types/index';
+import type { AvailableInsightTypesPage, InsightsPage } from '@/types/index';
 
 const authorizationRemediationSchema = z.looseObject({
   scope: z.array(z.string()).optional(),
@@ -19,6 +20,27 @@ const availableInsightTypesPageSchema = z.looseObject({
     z.looseObject({
       id: z.string(),
       description: z.string(),
+      authorization_remediation: authorizationRemediationSchema
+        .nullable()
+        .optional(),
+    }),
+  ),
+  has_more: z.boolean(),
+});
+
+const insightsPageSchema = z.looseObject({
+  data: z.array(
+    z.looseObject({
+      id: z.string(),
+      description: z.string(),
+      status: z.string(),
+      as_of: z.number().nullable().optional(),
+      data: z
+        .array(z.looseObject({ label: z.string(), value: z.unknown() }))
+        .nullable()
+        .optional(),
+      error_code: z.string().nullable().optional(),
+      error_message: z.string().nullable().optional(),
       authorization_remediation: authorizationRemediationSchema
         .nullable()
         .optional(),
@@ -57,6 +79,29 @@ export class InsightsResource
         availableInsightTypesPageSchema.parse(
           data,
         ) as AvailableInsightTypesPage,
+    );
+  }
+
+  async list(params: ListInsightsParams = {}): Promise<InsightsPage> {
+    const url = new URL(this.endpoint);
+    if (params.limit !== undefined)
+      url.searchParams.set('limit', String(params.limit));
+    if (params.starting_after !== undefined)
+      url.searchParams.set('starting_after', params.starting_after);
+    if (params.insights !== undefined)
+      for (const insight of params.insights)
+        url.searchParams.append('insights[]', insight);
+
+    const { status, data, rawBody } = await this.apiFetch({
+      method: 'GET',
+      url: url.toString(),
+    });
+    if (status < 200 || status >= 300)
+      this.throwApiError('list insights', status, data, rawBody);
+    return this.parseResponse(
+      'list insights',
+      status,
+      () => insightsPageSchema.parse(data) as InsightsPage,
     );
   }
 }
