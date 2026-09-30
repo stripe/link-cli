@@ -132,6 +132,22 @@ const (
 	CredentialTypeCard               CredentialType = "card"
 )
 
+// RecurringInterval identifies how often a recurring spend request can be charged.
+type RecurringInterval string
+
+const (
+	RecurringIntervalDay   RecurringInterval = "day"
+	RecurringIntervalWeek  RecurringInterval = "week"
+	RecurringIntervalMonth RecurringInterval = "month"
+	RecurringIntervalYear  RecurringInterval = "year"
+)
+
+// SpendRequestRecurring contains the terms of a recurring spend request.
+type SpendRequestRecurring struct {
+	Interval      RecurringInterval `json:"interval"`
+	IntervalCount int64             `json:"interval_count"`
+}
+
 // ApprovalMethod describes how delegated approval was obtained.
 type ApprovalMethod string
 
@@ -255,6 +271,7 @@ type SpendRequest struct {
 	ActivityURL          *string                    `json:"activity_url,omitempty"`
 	Metadata             map[string]string          `json:"metadata,omitempty"`
 	ExpiresAt            *int64                     `json:"expires_at,omitempty"`
+	Recurring            *SpendRequestRecurring     `json:"recurring,omitempty"`
 	CreatedAt            string                     `json:"created_at"`
 	UpdatedAt            string                     `json:"updated_at"`
 }

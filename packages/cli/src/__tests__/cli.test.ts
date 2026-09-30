@@ -888,6 +888,65 @@ describe('production mode', () => {
       expect(sentBody.expires_at).toBeUndefined();
     });
 
+    it('sends recurring terms in POST body when --recurring-interval is used', async () => {
+      setNextResponse(200, BASE_REQUEST);
+
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '--merchant-name',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--recurring-interval',
+        'month',
+        '--recurring-interval-count',
+        '2',
+        '--no-request-approval',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const sentBody = JSON.parse(lastRequest.body);
+      expect(sentBody.recurring).toEqual({
+        interval: 'month',
+        interval_count: 2,
+      });
+    });
+
+    it('rejects --recurring-interval-count without --recurring-interval', async () => {
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--payment-method-id',
+        'pd_prod_test',
+        '--merchant-name',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--recurring-interval-count',
+        '2',
+        '--no-request-approval',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout + result.stderr).toContain(
+        'recurring-interval is required with recurring-interval-count',
+      );
+      expect(requests).toHaveLength(0);
+    });
+
     it('sends test flag in POST body when --test is used', async () => {
       setNextResponse(200, BASE_REQUEST);
 

@@ -108,6 +108,16 @@ export const createOptions = z.object({
     .int()
     .optional()
     .describe('Unix timestamp (seconds).'),
+  recurringInterval: z
+    .enum(['day', 'week', 'month', 'year'])
+    .optional()
+    .describe('Recurring interval.'),
+  recurringIntervalCount: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Recurring interval count.'),
 });
 
 export const listOptions = z.object({

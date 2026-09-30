@@ -219,6 +219,17 @@ export function createSpendRequestCli(
         });
       }
 
+      if (
+        opts.recurringIntervalCount !== undefined &&
+        !opts.recurringInterval
+      ) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message:
+            'recurring-interval is required with recurring-interval-count',
+        });
+      }
+
       // Parse line items/totals: strings from flags need parsing, objects from MCP pass through
       const lineItems = opts.lineItem?.length
         ? opts.lineItem.map((item: unknown) =>
@@ -273,6 +284,12 @@ export function createSpendRequestCli(
         approval_details: approvalDetails,
         metadata,
         expires_at: opts.expiresAt,
+        recurring: opts.recurringInterval
+          ? {
+              interval: opts.recurringInterval,
+              interval_count: opts.recurringIntervalCount,
+            }
+          : undefined,
       };
 
       const outputFile = opts.outputFile;

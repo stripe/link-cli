@@ -207,6 +207,22 @@ describe('SpendRequestResource', () => {
       });
     });
 
+    it('serializes recurring terms in POST body', async () => {
+      mockFetchResponse(200, spendRequestResponse);
+
+      await repo.create({
+        ...validParams,
+        recurring: { interval: 'month', interval_count: 2 },
+      });
+
+      const [, opts] = mockFetch.mock.calls[0]!;
+      const sentBody = JSON.parse(opts.body);
+      expect(sentBody.recurring).toEqual({
+        interval: 'month',
+        interval_count: 2,
+      });
+    });
+
     it('serializes idempotency_key in the normal create body', async () => {
       mockFetchResponse(200, spendRequestResponse);
 

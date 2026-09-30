@@ -348,6 +348,21 @@ func TestRetrieveReturnsNilOnNotFound(t *testing.T) {
 	}
 }
 
+func TestRetrieveDecodesRecurringTerms(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		_, _ = response.Write([]byte(`{"id":"lsrq_123","status":"approved","recurring":{"interval":"month","interval_count":2},"created_at":"now","updated_at":"now"}`))
+	}))
+	defer server.Close()
+	client, err := NewClient(Options{AccessToken: "token", SpendRequestBaseURL: server.URL})
+	assertNoError(t, err)
+	result, err := client.SpendRequests.Retrieve(context.Background(), "lsrq_123", nil)
+	assertNoError(t, err)
+	want := SpendRequestRecurring{Interval: RecurringIntervalMonth, IntervalCount: 2}
+	if result.Recurring == nil || *result.Recurring != want {
+		t.Fatalf("got recurring %#v, want %#v", result.Recurring, want)
+	}
+}
+
 func TestWebBotAuthCachesByAuthority(t *testing.T) {
 	requestCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {

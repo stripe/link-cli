@@ -9,6 +9,7 @@ import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
+import { formatRecurring } from '../../utils/format-recurring';
 import { openUrl } from '../../utils/open-url';
 import { ApprovalWaitingView } from './approval-waiting-view';
 import { useApprovalPolling } from './use-approval-polling';
@@ -222,6 +223,11 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
                 : 'N/A'}
             </Text>
           </Text>
+          {result?.recurring && (
+            <Text>
+              Recurring: <Text bold>{formatRecurring(result.recurring)}</Text>
+            </Text>
+          )}
           <Text>
             Merchant: <Text bold>{result?.merchant_name}</Text>
           </Text>

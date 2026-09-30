@@ -16,6 +16,7 @@ import {
 } from '../../utils/constants';
 import { writeCredentialFile } from '../../utils/credential-output';
 import { formatAmount } from '../../utils/format-amount';
+import { formatRecurring } from '../../utils/format-recurring';
 import { openUrl } from '../../utils/open-url';
 import { sanitizeDeep } from '../../utils/sanitize-text';
 import { shouldPollSpendRequest } from '../../utils/should-poll-spend-request';
@@ -464,6 +465,11 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
                 : 'N/A'}
             </Text>
           </Text>
+          {request?.recurring && (
+            <Text>
+              Recurring: <Text bold>{formatRecurring(request.recurring)}</Text>
+            </Text>
+          )}
           <Text>
             Merchant: <Text bold>{request?.merchant_name}</Text>
           </Text>

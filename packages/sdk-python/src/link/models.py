@@ -14,6 +14,7 @@ from ._types import (
     NextActionResolution,
     NextActionType,
     PaymentOutcome,
+    RecurringInterval,
     SpendRequestStatus,
     TransactionOrigin,
 )
@@ -109,6 +110,11 @@ class SharedPaymentToken(LinkModel):
         return value
 
 
+class SpendRequestRecurring(LinkModel):
+    interval: RecurringInterval | str
+    interval_count: int
+
+
 class RefundDetails(LinkModel):
     amount: int
     currency: str
@@ -152,6 +158,7 @@ class SpendRequest(LinkModel):
     activity_url: str | None = None
     metadata: dict[str, str] | None = None
     expires_at: int | None = None
+    recurring: SpendRequestRecurring | None = None
     created_at: str
     updated_at: str
 

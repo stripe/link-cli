@@ -90,6 +90,13 @@ export interface SpendRequestStatusDetails {
 
 export type CredentialType = 'shared_payment_token' | 'card';
 
+export type RecurringInterval = 'day' | 'week' | 'month' | 'year';
+
+export interface SpendRequestRecurring {
+  interval: RecurringInterval;
+  interval_count: number;
+}
+
 export interface ApprovalDetail {
   approved_at: number;
   approval_method: 'click' | 'programmatic' | 'voice';
@@ -157,6 +164,7 @@ export interface SpendRequest {
   activity_url?: string;
   metadata?: Record<string, string>;
   expires_at?: number;
+  recurring?: SpendRequestRecurring | null;
   created_at: string;
   updated_at: string;
 }

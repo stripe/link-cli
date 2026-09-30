@@ -95,6 +95,7 @@ def test_spend_request_full_response() -> None:
         "activity_url": "https://link.com/activity",
         "metadata": {},
         "expires_at": 789,
+        "recurring": {"interval": "month", "interval_count": 2},
         "created_at": "now",
         "updated_at": "later",
     }

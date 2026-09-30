@@ -5,6 +5,7 @@ import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { writeCredentialFile } from '../../utils/credential-output';
+import { formatRecurring } from '../../utils/format-recurring';
 import { shouldPollSpendRequest } from '../../utils/should-poll-spend-request';
 
 interface RetrieveSpendRequestProps {
@@ -386,6 +387,11 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
             {request?.amount != null ? String(request.amount) : 'N/A'}
           </Text>
         </Text>
+        {request?.recurring && (
+          <Text>
+            Recurring: <Text bold>{formatRecurring(request.recurring)}</Text>
+          </Text>
+        )}
         <Text>
           Merchant: <Text bold>{request?.merchant_name}</Text>
         </Text>
