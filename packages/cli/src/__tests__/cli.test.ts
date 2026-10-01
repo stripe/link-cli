@@ -13,6 +13,7 @@ const CLI_VERSION = JSON.parse(
   fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
 ).version;
 const CLI_USER_AGENT = `link-cli/${CLI_VERSION}`;
+const CLI_TIMEOUT_MS = 10_000;
 
 // Do not inherit agent attribution from the developer's shell or CI runner.
 const EMPTY_AGENT_ENV = {
@@ -173,7 +174,7 @@ async function runProdCli(...args: string[]): Promise<CliResult> {
 async function runShell(command: string): Promise<CliResult> {
   try {
     const { stdout, stderr } = await execFileAsync('bash', ['-c', command], {
-      timeout: 10_000,
+      timeout: CLI_TIMEOUT_MS,
     });
     return { stdout, stderr, exitCode: 0 };
   } catch (err: unknown) {
@@ -203,7 +204,7 @@ async function runProdCliWithEnv(
           XDG_DATA_HOME: '/tmp/link-cli-test-empty',
           ...extraEnv,
         },
-        timeout: 10_000,
+        timeout: CLI_TIMEOUT_MS,
       },
     );
     return { stdout, stderr, exitCode: 0 };
@@ -217,7 +218,8 @@ async function runProdCliWithEnv(
   }
 }
 
-describe('production mode', () => {
+// Let the child-process deadline settle before Vitest starts the next test.
+describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
   beforeAll(async () => {
     merchantServer = http.createServer((req, res) => {
       let body = '';
