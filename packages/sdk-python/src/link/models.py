@@ -112,7 +112,7 @@ class SharedPaymentToken(LinkModel):
 
 class SpendRequestRecurring(LinkModel):
     interval: RecurringInterval | str
-    interval_count: int | None = None
+    interval_count: int = 1
 
 
 class RefundDetails(LinkModel):

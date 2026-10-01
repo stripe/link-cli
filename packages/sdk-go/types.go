@@ -148,6 +148,17 @@ type SpendRequestRecurring struct {
 	IntervalCount int64             `json:"interval_count"`
 }
 
+// UnmarshalJSON defaults IntervalCount to 1, matching the API, when it is omitted.
+func (r *SpendRequestRecurring) UnmarshalJSON(data []byte) error {
+	type spendRequestRecurring SpendRequestRecurring
+	decoded := spendRequestRecurring{IntervalCount: 1}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*r = SpendRequestRecurring(decoded)
+	return nil
+}
+
 // ApprovalMethod describes how delegated approval was obtained.
 type ApprovalMethod string
 

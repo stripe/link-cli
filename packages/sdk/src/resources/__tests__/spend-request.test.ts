@@ -542,6 +542,17 @@ describe('SpendRequestResource', () => {
       expect(result).toEqual(spendRequestResponse);
     });
 
+    it('defaults an omitted recurring interval_count to 1', async () => {
+      mockFetchResponse(200, {
+        ...spendRequestResponse,
+        recurring: { interval: 'day' },
+      });
+
+      const result = await repo.retrieve('si_123');
+
+      expect(result?.recurring).toEqual({ interval: 'day', interval_count: 1 });
+    });
+
     it('returns SpendRequest with card after approval', async () => {
       const approvedResponse = {
         ...spendRequestResponse,

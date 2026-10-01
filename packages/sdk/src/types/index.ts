@@ -94,8 +94,7 @@ export type RecurringInterval = 'day' | 'week' | 'month' | 'year';
 
 export interface SpendRequestRecurring {
   interval: RecurringInterval;
-  /** Defaults to 1 server-side; may be omitted from responses. */
-  interval_count?: number;
+  interval_count: number;
 }
 
 export interface ApprovalDetail {

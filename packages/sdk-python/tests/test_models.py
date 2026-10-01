@@ -141,7 +141,7 @@ def test_optional_fields_remain_optional() -> None:
     recurring = SpendRequest.model_validate(
         {**SPEND, "recurring": {"interval": "month"}}
     ).recurring
-    assert recurring is not None and recurring.interval_count is None
+    assert recurring is not None and recurring.interval_count == 1
     assert TransactionsPage(data=[]).data == []
     assert UserInfo.model_validate({}).agent_wallet_spend_limits is None
 

@@ -27,6 +27,14 @@ const spendRequestSchema = z.looseObject({
   created_at: z.string(),
   updated_at: z.string(),
   shared_payment_token: sharedPaymentTokenSchema.nullable().optional(),
+  // interval_count defaults to 1 server-side and may be omitted.
+  recurring: z
+    .looseObject({
+      interval: z.string(),
+      interval_count: z.number().default(1),
+    })
+    .nullable()
+    .optional(),
 });
 
 const spendRequestsResponseSchema = z.looseObject({
