@@ -24,3 +24,9 @@ pnpm dev
 
 Ask “List my payment methods.” Open the authorization link in your browser,
 approve access, and return to the terminal.
+
+Sign-in also requests read access to Link transactions, so you can ask
+“Which brands do I buy most often?” to use Link insights. To include external
+accounts, add `read_external_transactions` to `authorizationDetails` in
+`agent/lib/auth.ts`; it requires your Stripe account to be registered for
+Financial Connections.

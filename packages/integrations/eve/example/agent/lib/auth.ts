@@ -51,7 +51,16 @@ async function initialize() {
         allowDifferentEmails: true,
       },
     },
-    plugins: [link(credentials)],
+    plugins: [
+      link({
+        ...credentials,
+        // Transaction access for insights. Add read_external_transactions if
+        // your Stripe account is registered for Financial Connections.
+        authorizationDetails: [
+          { type: 'source', actions: ['read_link_transactions'] },
+        ],
+      }),
+    ],
     logger: { disabled: true },
   } satisfies BetterAuthOptions;
   await (await getMigrations(options)).runMigrations();
