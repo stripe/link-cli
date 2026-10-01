@@ -61,9 +61,10 @@ it.each(['accessToken', 'auth'])(
         dependencies: { eve: '*', '@stripe/link-integrations-eve': '*' },
       }),
     );
+    // An explicit context window keeps discovery independent of model metadata APIs.
     await writeFile(
       join(appRoot, 'agent/agent.ts'),
-      "import { defineAgent } from 'eve';\nexport default defineAgent({ model: 'openai/gpt-4.1-mini' });\n",
+      "import { defineAgent } from 'eve';\nexport default defineAgent({ model: 'openai/gpt-4.1-mini', modelContextWindowTokens: 1_000_000 });\n",
     );
     await writeFile(
       join(appRoot, 'agent/instructions.md'),

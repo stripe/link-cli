@@ -28,7 +28,6 @@ function context(): ToolContext {
     toolName: 'link__create_spend_request',
     abortSignal: new AbortController().signal,
     getSandbox: vi.fn(),
-    getSkill: vi.fn(),
     getToken: vi.fn(),
     requireAuth: () => {
       throw new Error('Unexpected auth');
