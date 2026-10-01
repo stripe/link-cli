@@ -1,5 +1,13 @@
 # @stripe/link-integrations-eve
 
+## 0.2.1
+
+### Patch Changes
+
+- 208e3e0: Upgrades Eve version
+- Updated dependencies [208e3e0]
+  - @stripe/link-sdk@0.9.1
+
 ## 0.2.0
 
 ### Minor Changes

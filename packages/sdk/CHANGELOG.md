@@ -1,5 +1,11 @@
 # @stripe/link-sdk
 
+## 0.9.1
+
+### Patch Changes
+
+- 208e3e0: Upgrades Eve version
+
 ## 0.9.0
 
 ### Minor Changes

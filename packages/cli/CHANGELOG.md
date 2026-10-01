@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.23.2
+
+### Patch Changes
+
+- 208e3e0: Upgrades Eve version
+
 ## 0.23.1
 
 ### Patch Changes
