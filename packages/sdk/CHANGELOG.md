@@ -1,5 +1,11 @@
 # @stripe/link-sdk
 
+## 0.11.0
+
+### Minor Changes
+
+- 000b1ad: Spend requests now include their recurring terms (`recurring.interval` and `recurring.interval_count`) when set, and interactive spend request output shows them.
+
 ## 0.10.0
 
 ### Minor Changes
