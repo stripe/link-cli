@@ -138,6 +138,8 @@ def test_optional_fields_remain_optional() -> None:
     method = PaymentMethod(id="pm_1", type="card", is_default=False, name="Visa")
     assert method.nickname is None
     assert SpendRequest.model_validate(SPEND).amount is None
+    recurring = SpendRequest.model_validate({**SPEND, "recurring": {"interval": "month"}}).recurring
+    assert recurring is not None and recurring.interval_count is None
     assert TransactionsPage(data=[]).data == []
     assert UserInfo.model_validate({}).agent_wallet_spend_limits is None
 

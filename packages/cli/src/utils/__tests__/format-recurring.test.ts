@@ -10,4 +10,8 @@ describe('formatRecurring', () => {
       'every 2 weeks',
     );
   });
+
+  it('treats a missing count as one', () => {
+    expect(formatRecurring({ interval: 'month' })).toBe('every month');
+  });
 });
