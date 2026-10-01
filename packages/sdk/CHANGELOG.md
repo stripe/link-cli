@@ -1,5 +1,11 @@
 # @stripe/link-sdk
 
+## 0.10.0
+
+### Minor Changes
+
+- edaab73: Add `insights list-available-types` and `insights list` for discovering and retrieving Link financial insights.
+
 ## 0.9.1
 
 ### Patch Changes

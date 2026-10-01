@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.24.0
+
+### Minor Changes
+
+- edaab73: Add `insights list-available-types` and `insights list` for discovering and retrieving Link financial insights.
+
 ## 0.23.2
 
 ### Patch Changes
