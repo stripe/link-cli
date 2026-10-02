@@ -380,22 +380,22 @@ Set `NO_UPDATE_NOTIFIER=1` to suppress update checks (for example, in CI).
 
 All commands accept `--auth <path>` to store auth credentials in a specific file instead of the default location. `auth login` writes to this file; all other commands read from it. Useful for running multiple sessions with separate identities.
 
-### Identity (experimental)
+### Identity (beta)
 
-Unlisted commands: set `LINK_IDENTITY_COMMANDS=1` to enable them in `--help` and `--llms`. Identity commands remain excluded from MCP even when enabled.
+Identity commands are available in `--help` and `--llms`, but remain excluded from MCP.
 
 Both identity `request` commands save their artifacts to disk and return only the file path and metadata. This applies to every output format, including JSON, piped output, and `--full-output`. Request output never includes credentials, tokens, or claim values.
 
 **Privacy-preserving tokens** that show Link attests to your agent:
 
 ```bash
-LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10
+link-cli identity attestations request --count 10
 ```
 
 Each request adds tokens to the CLI-managed pool at `~/.link-cli/attestations/pool.json`. Take one token when you need to answer an attestation challenge:
 
 ```bash
-LINK_IDENTITY_COMMANDS=1 link-cli identity attestations take --format json
+link-cli identity attestations take --format json
 ```
 
 `take` removes one token before returning its `token`, ready-to-use `authorization` header, issuer, and issuer-key ID. Pass `authorization` as the `Authorization` header in your browser automation or HTTP client. An empty pool returns `ATTESTATION_POOL_EMPTY`; refill it with `request --count 10`.
@@ -403,7 +403,7 @@ LINK_IDENTITY_COMMANDS=1 link-cli identity attestations take --format json
 For agent-managed tokens, export a batch to a new file outside the CLI storage directory:
 
 ```bash
-LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10 --output-file ./aats.json
+link-cli identity attestations request --count 10 --output-file ./aats.json
 ```
 
 Exported tokens never enter the CLI pool. The agent owns their consumption and cleanup. Existing exports remain separate and are never automatically imported. Wallet credentials keep their existing storage and behavior.
@@ -413,15 +413,15 @@ Pool updates are serialized and saved atomically. A crash after removal can lose
 **User info that has been signed, proving it comes from Link**:
 
 ```bash
-LINK_IDENTITY_COMMANDS=1 link-cli identity credentials request
+link-cli identity credentials request
 ```
 
 `identity credentials request` saves a signed credential to `~/.link-cli/credentials/current.json`, bound to the CLI-managed holder key at `~/.link/holder-key.jwk`. Structured output includes `output_file`, issuer, expiry, holder-key path/thumbprint, and claim names. A script can read the saved credential and holder key to sign a presentation and send it through browser automation or an HTTP client without printing their contents into the agent transcript.
 
-**Unlisted presentations** disclose selected claims to a verifier using the saved credential and holder key:
+**Presentations** disclose selected claims to a verifier using the saved credential and holder key:
 
 ```bash
-LINK_IDENTITY_COMMANDS=1 link-cli identity credentials present \
+link-cli identity credentials present \
   --aud https://directory.example \
   --nonce '<nonce-from-challenge>' \
   --claim email \
@@ -438,11 +438,11 @@ Send the returned `presentation` as the `Identity-Presentation` HTTP header.
 
 The verifier still validates the issuer signature, holder signature, audience, nonce, expiry, and required claims. Presentations include a fresh signing time and should be sent promptly; a verifier that has consumed the nonce requires a new challenge.
 
-**Unlisted local inspection** uses the same feature flag and MCP exclusion:
+**Local inspection** uses the same MCP exclusion:
 
 ```bash
-LINK_IDENTITY_COMMANDS=1 link-cli identity credentials list --format json
-LINK_IDENTITY_COMMANDS=1 link-cli identity attestations list --format json
+link-cli identity credentials list --format json
+link-cli identity attestations list --format json
 ```
 
 These commands inspect local files without login or Link API calls and display metadata in both terminal and structured output. Credential inspection reports the saved `~/.link-cli/credentials/current.json` path, issuer, cached expiry/`expired` status, holder-key path/thumbprint, and claim names. Private keys are never opened; credentials, tokens, and claim values are never printed. Inspection does not modify files, verify signatures, or filter artifacts by the active account.

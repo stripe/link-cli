@@ -213,7 +213,6 @@ it('serializes separate CLI processes so a token is handed out at most once', as
   ];
   const env = {
     ...process.env,
-    LINK_IDENTITY_COMMANDS: '1',
     LINK_AUTH_FILE: path.join(directory, 'auth.json'),
     LINK_ACCESS_TOKEN: undefined,
     LINK_REFRESH_TOKEN: undefined,
