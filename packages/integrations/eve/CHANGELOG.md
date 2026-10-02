@@ -1,5 +1,11 @@
 # @stripe/link-integrations-eve
 
+## 0.2.4
+
+### Patch Changes
+
+- 194a374: Upgrade the Eve extension compiler and example to Eve 0.66.3.
+
 ## 0.2.3
 
 ### Patch Changes
