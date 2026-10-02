@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.25.1
+
+### Patch Changes
+
+- b386f15: Fix: fix release workflow
+
 ## 0.25.0
 
 ### Minor Changes
