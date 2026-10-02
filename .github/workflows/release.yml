@@ -17,7 +17,7 @@ jobs:
       id-token: write
     outputs:
       published: ${{ steps.changesets.outputs.published }}
-      publishedPackages: ${{ steps.changesets.outputs.publishedPackages }}
+      publishedPackages: ${{ steps.changesets.outputs.published-packages }}
       cliPublished: ${{ steps.cli_published.outputs.value }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -38,19 +38,18 @@ jobs:
 
       - name: Create release PR or publish
         id: changesets
-        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1
+        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
-          publish: pnpm changeset publish
-          title: 'Version Packages'
-          commit: 'Version Packages'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          publish-script: pnpm changeset publish
+          pr-title: 'Version Packages'
+          commit-message: 'Version Packages'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check whether the CLI was published
         id: cli_published
         if: steps.changesets.outputs.published == 'true'
         env:
-          PUBLISHED_PACKAGES: ${{ steps.changesets.outputs.publishedPackages }}
+          PUBLISHED_PACKAGES: ${{ steps.changesets.outputs.published-packages }}
         run: |
           cli_published="$(jq -r 'any(.[]; .name == "@stripe/link-cli")' <<<"$PUBLISHED_PACKAGES")"
           echo "value=$cli_published" >> "$GITHUB_OUTPUT"
@@ -59,7 +58,7 @@ jobs:
         if: steps.cli_published.outputs.value == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          STEPS_CHANGESETS_OUTPUTS_PUBLISHEDPACKAGES: ${{ steps.changesets.outputs.publishedPackages }}
+          STEPS_CHANGESETS_OUTPUTS_PUBLISHEDPACKAGES: ${{ steps.changesets.outputs.published-packages }}
         run: |
           TAG=$(printf '%s' "$STEPS_CHANGESETS_OUTPUTS_PUBLISHEDPACKAGES" \
             | jq -r '.[] | select(.name == "@stripe/link-cli") | "@stripe/link-cli@" + .version')
