@@ -2,9 +2,10 @@ import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
+import path from 'node:path';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { storage } from '../auth/storage';
+import { Storage } from '../auth/storage';
 
 const execFileAsync = promisify(execFile);
 
@@ -14,6 +15,13 @@ const CLI_VERSION = JSON.parse(
 ).version;
 const CLI_USER_AGENT = `link-cli/${CLI_VERSION}`;
 const CLI_TIMEOUT_MS = 10_000;
+
+// Keep test credentials out of the developer's real auth file. On macOS the
+// default location ignores XDG_*, so both this process and the spawned CLI
+// must be pointed at a temporary file explicitly.
+const AUTH_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'link-cli-test-auth-'));
+const AUTH_FILE = path.join(AUTH_DIR, 'auth.json');
+const storage = new Storage({ configPath: AUTH_FILE });
 
 // Do not inherit agent attribution from the developer's shell or CI runner.
 const EMPTY_AGENT_ENV = {
@@ -88,7 +96,7 @@ beforeEach(() => {
 });
 
 afterAll(() => {
-  storage.clearAll();
+  fs.rmSync(AUTH_DIR, { recursive: true, force: true });
 });
 
 // ─── Production mode tests (real HTTP against local mock server) ────────────
@@ -202,6 +210,7 @@ async function runProdCliWithEnv(
           LINK_API_BASE_URL: `http://127.0.0.1:${serverPort}`,
           LINK_AUTH_BASE_URL: `http://127.0.0.1:${serverPort}`,
           XDG_DATA_HOME: '/tmp/link-cli-test-empty',
+          LINK_AUTH_FILE: AUTH_FILE,
           ...extraEnv,
         },
         timeout: CLI_TIMEOUT_MS,
