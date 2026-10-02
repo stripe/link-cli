@@ -1,5 +1,16 @@
 # @stripe/link-integrations-eve
 
+## 0.3.0
+
+### Minor Changes
+
+- 4a9b116: Add `list_available_insight_types` and `list_insights` to the shared Link tool catalog and the Eve extension. The Eve financial-insights skill covers insight discovery, missing permissions, and pending or empty results.
+
+### Patch Changes
+
+- Updated dependencies [4a9b116]
+  - @stripe/link-sdk@0.12.0
+
 ## 0.2.4
 
 ### Patch Changes
