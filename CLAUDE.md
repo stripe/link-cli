@@ -212,7 +212,7 @@ Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENT
 
 | Flag | Effect |
 |------|--------|
-| `--auth <path>` | Store auth credentials in a specific file instead of the default platform config location. `auth login` writes to this file; all other commands read from it. Parsed from `process.argv` and stripped before incur processes flags. |
+| `--auth <path>` | Store auth credentials in a specific file instead of the default platform config location. `auth login` writes to this file; all other commands read from it. Parsed from `process.argv` by `takeAuthFileFlag()` and stripped before incur processes flags. A missing path (bare `--auth`, or `--auth` followed by another flag) fails every command with `INVALID_INPUT` instead of falling back to another credential file. |
 
 ## Security: Terminal Output Sanitization
 

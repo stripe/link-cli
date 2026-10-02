@@ -1,4 +1,5 @@
 import { Cli } from 'incur';
+import { takeAuthFileFlag } from './auth/auth-file-flag';
 import { type CliAuthStorage, Storage, storage } from './auth/storage';
 import { createApprovalPolicyCli } from './commands/approval-policy';
 import { createAuthCli } from './commands/auth';
@@ -42,14 +43,8 @@ if (verboseIndex !== -1) {
   process.argv.splice(verboseIndex, 1);
 }
 
-const authFileIndex = process.argv.indexOf('--auth');
-const credentialFilePath =
-  authFileIndex !== -1
-    ? process.argv[authFileIndex + 1]
-    : process.env.LINK_AUTH_FILE;
-if (authFileIndex !== -1) {
-  process.argv.splice(authFileIndex, 2);
-}
+const authFileFlag = takeAuthFileFlag(process.argv, process.env.LINK_AUTH_FILE);
+const credentialFilePath = authFileFlag.path;
 const authStorage: CliAuthStorage = credentialFilePath
   ? new Storage({ configPath: credentialFilePath })
   : storage;
@@ -80,6 +75,13 @@ const cli = Cli.create('link-cli', {
     include: ['skills/*'],
   },
 });
+
+const authFileFlagError = authFileFlag.error;
+if (authFileFlagError) {
+  cli.use((c) =>
+    c.error({ code: 'INVALID_INPUT', message: authFileFlagError }),
+  );
+}
 
 const isAgent =
   process.argv.includes('--format') || process.argv.includes('--mcp');
