@@ -1,0 +1,41 @@
+name: Go SDK CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/sdk-go/**'
+  pull_request:
+    paths:
+      - 'packages/sdk-go/**'
+
+permissions:
+  contents: read
+
+jobs:
+  go-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6
+        with:
+          go-version-file: packages/sdk-go/go.mod
+          cache-dependency-path: packages/sdk-go/go.mod
+
+      - name: Check Go SDK
+        run: |
+          unformatted="$(gofmt -l packages/sdk-go/*.go)"
+          if [ -n "$unformatted" ]; then
+            echo "The following Go files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+          go -C packages/sdk-go mod tidy -diff
+          go -C packages/sdk-go vet ./...
+
+      - name: Test Go SDK
+        working-directory: packages/sdk-go
+        run: go test -race ./...
