@@ -15,6 +15,8 @@ export default defineConfig({
   clean: true,
   sourcemap: false,
   external: ['update-notifier'],
+  // Keep the spinner's React/Ink imports in the CLI's dependency scope when hoisted.
+  noExternal: ['ink-spinner'],
   banner: { js: '#!/usr/bin/env node' },
   define: {
     __CLI_VERSION__: JSON.stringify(pkg.version),
