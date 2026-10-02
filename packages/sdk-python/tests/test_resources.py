@@ -209,7 +209,6 @@ async def test_create_all_fields_and_nested_omission(api: API) -> None:
         "payment_details": "pm_1",
         "credential_type": "card",
         "network_id": "network",
-        "execution_method": "link_pay_token",
         "merchant_account_id": "acct_1",
         "amount": 0,
         "currency": "usd",
@@ -301,7 +300,7 @@ async def test_update_all_fields(api: API) -> None:
     assert api.requests[1].content == b"{}"
     with pytest.raises(TypeError):
         await api.call(
-            "spend_requests", "update", "sr_123", execution_method="link_pay_token"
+            "spend_requests", "update", "sr_123", merchant_account_id="acct_1"
         )
 
 

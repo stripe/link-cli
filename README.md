@@ -5,7 +5,7 @@ Link CLI lets agents get secure, one-time-use payment credentials from a Link wa
 The CLI can produce one of three credential types:
 
 - A virtual card (PAN) for use with a standard web checkout form. The issued card works anywhere, and is not restricted to Link-enabled sellers or sellers that use Stripe.
-- A Link Pay Token (LPT) for use with a Stripe hosted payment form. Stripe checkout pages use WebMCP to allow agents to complete the checkout.
+- A Link Pay Token (LPT) for use on supported Stripe payment surfaces. Stripe checkout pages use WebMCP to allow agents to complete the checkout.
 - A [Shared Payment Token](https://docs.stripe.com/agentic-commerce/concepts/shared-payment-tokens) (SPT) for use when the seller accepts programmatic payments through [Machine Payment Protocols](https://mpp.dev) (MPP)
 
 For now, this is only available to US and Canadian Link accounts.
@@ -457,7 +457,7 @@ A spend request moves through: **create** → **request approval** → **approve
 `context`, and `amount`. `payment_method_id` is optional — if omitted,
 your default payment method will be used, or the first eligible one if no
 default is set. Shared Payment Token requests instead require `network_id`;
-Link Pay Token requests require `execution_method=link_pay_token` and the
+Link Pay Token requests require `credential_type=link_pay_token` and the
 DOM-derived `merchant_account_id`, and Link supplies their canonical merchant
 identity.
 
@@ -472,7 +472,7 @@ link-cli spend-request update lsrq_001 \
 # Request approval separately (alternative to create --request-approval)
 link-cli spend-request request-approval lsrq_001
 
-# Retrieve at any time (includes card credentials after approval)
+# Retrieve a request; request a credential only when needed
 link-cli spend-request retrieve lsrq_001
 
 # Cancel a spend request (from created, pending_approval, or approved state)
@@ -489,7 +489,7 @@ non-zero with `POLLING_TIMEOUT`.
 
 ### Credential types
 
-By default, a spend request provisions a virtual card. Link can also provide a shared payment token (SPT) for use with the Machine Payment Protocol (MPP) and a Link Pay Token (LPT) for use on Stripe hosted checkout forms.
+By default, a spend request provisions a virtual card. Link can also provide a shared payment token (SPT) for use with the Machine Payment Protocol (MPP) or a Link Pay Token (LPT) for supported Stripe payment surfaces. LPT is a distinct credential type.
 
 ### Shared Payment Token
 
@@ -514,7 +514,7 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
 
 ### Link Pay Token
 
-Some Stripe checkout pages expose an AI-agent steering block that supports a
+Some Stripe payment surfaces expose an AI-agent steering block that supports a
 Link Pay Token (LPT). Inspect the checkout in a browser before creating the
 SpendRequest: enable the agent checkbox, then verify that both
 `input[name="link_pay_token"]` and
@@ -527,20 +527,20 @@ identity from the account ID for the approval screen.
 
 ```bash
 link-cli spend-request create \
-  --payment-method-id csmrpd_xxx \
-  --execution-method link_pay_token \
+  --credential-type link_pay_token \
   --merchant-account-id acct_... \
+  --payment-method-id csmrpd_xxx \
   --context "Purchasing an item from the checkout the agent inspected. The user initiated this purchase through the shopping assistant." \
   --amount 3500 \
   --request-approval
 ```
 
-LPT requests use the default `card` credential type and do not support
-`--test`, `--network-id`, or `shared_payment_token`. After approval, retrieve
-`--include link_pay_token` immediately before using it on the same checkout
-surface. Each returned LPT is valid for up to 30 minutes, or until the
-SpendRequest expires. If either DOM marker is absent, create a regular virtual
-card SpendRequest instead; do not create an LPT request.
+LPT requests do not support `--test`, `--network-id`, merchant name, or merchant
+URL. After approval, retrieve `--include link_pay_token` immediately before
+using it on the same checkout surface. Each returned LPT is valid for up to 30
+minutes, or until the SpendRequest expires. If either DOM marker is absent,
+create a regular virtual card SpendRequest instead; do not create an LPT
+request.
 
 
 ### Limits

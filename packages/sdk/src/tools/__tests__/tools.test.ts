@@ -95,33 +95,58 @@ describe('Link tools', () => {
   });
 
   it('enforces Link Pay Token targeting without exposing delegated approval', () => {
+    const lpt = {
+      amount: 1000,
+      context: purchase.context,
+      credential_type: 'link_pay_token',
+      merchant_account_id: 'acct_one',
+    };
+    const parse = (input: object) =>
+      linkToolSchemas.createSpendRequest.safeParse(input).success;
+
+    expect(parse(lpt)).toBe(true);
+    expect(parse({ ...lpt, merchant_account_id: undefined })).toBe(false);
+    expect(parse({ ...lpt, merchant_name: 'Shop' })).toBe(false);
+    expect(parse({ ...lpt, test: true })).toBe(false);
     expect(
       linkToolSchemas.createSpendRequest.safeParse({
-        ...purchase,
+        ...lpt,
         execution_method: 'link_pay_token',
-        merchant_account_id: 'acct_one',
-      }).success,
-    ).toBe(false);
+      }).error?.issues[0]?.message,
+    ).toContain('execution_method has been removed');
+    expect(parse({ ...purchase, merchant_account_id: 'acct_one' })).toBe(false);
     expect(
-      linkToolSchemas.createSpendRequest.safeParse({
-        amount: 1000,
-        context: purchase.context,
-        execution_method: 'link_pay_token',
-        merchant_account_id: 'acct_one',
-      }).success,
-    ).toBe(true);
-    expect(
-      linkToolSchemas.createSpendRequest.safeParse({
+      parse({
         ...purchase,
         approval_details: { approval_method: 'programmatic' },
-      }).success,
+      }),
     ).toBe(false);
     expect(
       linkToolSchemas.updateSpendRequest.safeParse({
         id: 'lsrq_one',
-        execution_method: 'link_pay_token',
+        merchant_account_id: 'acct_one',
       }).success,
     ).toBe(false);
+  });
+
+  it('sends the new Link Pay Token credential type through the SDK', async () => {
+    const { tools, fetch } = fixture();
+    await tools.create_spend_request.execute(
+      {
+        amount: 1000,
+        context: purchase.context,
+        credential_type: 'link_pay_token',
+        merchant_account_id: 'acct_one',
+      },
+      context,
+    );
+
+    const [, init] = fetch.mock.calls[0]!;
+    const body = JSON.parse(String(init?.body));
+    expect(body).toMatchObject({
+      credential_type: 'link_pay_token',
+      merchant_account_id: 'acct_one',
+    });
   });
 
   it('maps retrieve includes and update IDs without putting IDs in the body', async () => {

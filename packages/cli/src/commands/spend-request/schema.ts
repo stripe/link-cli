@@ -13,10 +13,10 @@ export const createOptions = z.object({
     ),
   paymentMethodId: z.string().optional().describe('Payment method ID'),
   credentialType: z
-    .enum(['shared_payment_token', 'card'])
+    .enum(['shared_payment_token', 'card', 'link_pay_token'])
     .default('card')
     .describe(
-      '"card" for checkout forms and Link Pay Token; "shared_payment_token" for HTTP 402/machine payment flows',
+      '"card" for checkout forms, "link_pay_token" for supported Stripe payment surfaces, or "shared_payment_token" for HTTP 402/machine payment flows',
     ),
   networkId: z
     .string()
@@ -24,17 +24,11 @@ export const createOptions = z.object({
     .describe(
       'Network ID (required for shared_payment_token) — use `link-cli mpp decode` to extract',
     ),
-  executionMethod: z
-    .enum(['link_pay_token'])
-    .optional()
-    .describe(
-      'Use link_pay_token only with merchant_account_id read from the checkout AI-agent steering DOM',
-    ),
   merchantAccountId: z
     .string()
     .optional()
     .describe(
-      'Stripe account ID from data-stripe-merchant-account; required with execution_method link_pay_token',
+      'Stripe account ID from data-stripe-merchant-account; required for link_pay_token requests',
     ),
   amount: z.coerce.number().int().positive().describe('Amount in cents'),
   currency: z.string().length(3).default('usd').describe('Currency code'),
@@ -149,7 +143,9 @@ export const retrieveOptions = z.object({
   include: z
     .array(z.string())
     .default([])
-    .describe('Include extra data (repeatable, e.g. --include card)'),
+    .describe(
+      'Include extra data (repeatable, e.g. --include card, or --include link_pay_token for an approved Link Pay Token request)',
+    ),
   outputFile: z
     .string()
     .optional()

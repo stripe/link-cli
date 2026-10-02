@@ -9,7 +9,6 @@ from . import _operations as op
 from ._transport import AsyncTransport
 from ._types import (
     CredentialType,
-    ExecutionMethod,
     ReportOutcome,
     ReportTag,
     TransactionOrigin,
@@ -58,7 +57,6 @@ class AsyncSpendRequestsResource:
         payment_details: str | None = None,
         credential_type: CredentialType | None = None,
         network_id: str | None = None,
-        execution_method: ExecutionMethod | None = None,
         merchant_account_id: str | None = None,
         amount: int | None = None,
         currency: str | None = None,
@@ -78,7 +76,6 @@ class AsyncSpendRequestsResource:
             "payment_details": payment_details,
             "credential_type": credential_type,
             "network_id": network_id,
-            "execution_method": execution_method,
             "merchant_account_id": merchant_account_id,
             "amount": amount,
             "currency": currency,

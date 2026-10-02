@@ -130,6 +130,7 @@ type CredentialType string
 const (
 	CredentialTypeSharedPaymentToken CredentialType = "shared_payment_token"
 	CredentialTypeCard               CredentialType = "card"
+	CredentialTypeLinkPayToken       CredentialType = "link_pay_token"
 )
 
 // RecurringInterval identifies how often a recurring spend request can be charged.

@@ -19,6 +19,7 @@ import { createUcpCli } from './commands/ucp';
 import { createUserInfoCli } from './commands/user-info';
 import { detectAIAgent } from './utils/ai-agent';
 import { buildMcpCommand } from './utils/package-runner';
+import { stripRemovedFlag } from './utils/removed-flags';
 import { ResourceFactory } from './utils/resource-factory';
 import {
   createAgentUpdateInfoProvider,
@@ -50,6 +51,13 @@ const credentialFilePath =
 if (authFileIndex !== -1) {
   process.argv.splice(authFileIndex, 2);
 }
+// `spend-request create --execution-method` was replaced by
+// `--credential-type link_pay_token`; strip it so create can say so.
+const usedRemovedExecutionMethod =
+  process.argv.includes('spend-request') &&
+  process.argv.includes('create') &&
+  stripRemovedFlag(process.argv, '--execution-method');
+
 const authStorage: CliAuthStorage = credentialFilePath
   ? new Storage({ configPath: credentialFilePath })
   : storage;
@@ -114,7 +122,9 @@ cli.command(
   createAuthCli(authRepo, getUpdateInfo, authStorage, envAccessToken),
 );
 cli.command(
-  createSpendRequestCli(spendRequestRepo, authStorage, envAccessToken),
+  createSpendRequestCli(spendRequestRepo, authStorage, envAccessToken, {
+    usedRemovedExecutionMethod,
+  }),
 );
 cli.command(
   createPaymentMethodsCli(

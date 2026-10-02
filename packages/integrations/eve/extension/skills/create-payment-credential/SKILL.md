@@ -51,7 +51,7 @@ Use the credential type established by those purchase details:
 | --- | --- |
 | Card form | `credential_type: "card"`, with `merchant_name` and `merchant_url` |
 | Supported Stripe programmatic payment flow | `credential_type: "shared_payment_token"`, with the merchant's `network_id` |
-| Link Pay Token | `credential_type: "card"`, `execution_method: "link_pay_token"`, and the checkout-provided `merchant_account_id` |
+| Link Pay Token | `credential_type: "link_pay_token"` and the checkout-provided `merchant_account_id` |
 
 Never invent a `network_id` or `merchant_account_id`. For LPT, omit merchant
 name/URL, network ID, and test mode; Link resolves the merchant identity for

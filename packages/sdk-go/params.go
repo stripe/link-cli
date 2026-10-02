@@ -5,18 +5,12 @@ type GetAccessTokenOptions struct {
 	ForceRefresh bool
 }
 
-// ExecutionMethod identifies how an approved credential will be executed.
-type ExecutionMethod string
-
-const ExecutionMethodLinkPayToken ExecutionMethod = "link_pay_token"
-
 // CreateSpendRequestParams contains fields accepted when creating a spend request.
 type CreateSpendRequestParams struct {
 	IdempotencyKey    *string           `json:"idempotency_key,omitempty"`
 	PaymentDetails    *string           `json:"payment_details,omitempty"`
 	CredentialType    *CredentialType   `json:"credential_type,omitempty"`
 	NetworkID         *string           `json:"network_id,omitempty"`
-	ExecutionMethod   *ExecutionMethod  `json:"execution_method,omitempty"`
 	MerchantAccountID *string           `json:"merchant_account_id,omitempty"`
 	Amount            *int64            `json:"amount,omitempty"`
 	Currency          *string           `json:"currency,omitempty"`

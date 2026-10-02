@@ -77,6 +77,7 @@ export function createSpendRequestCli(
   repository: ISpendRequestResource,
   authStorage?: CliAuthStorage,
   envAccessToken?: string,
+  { usedRemovedExecutionMethod = false } = {},
 ) {
   const cli = Cli.create('spend-request', {
     description: 'Spend request management commands',
@@ -112,65 +113,62 @@ export function createSpendRequestCli(
     alias: { merchantName: 'm' },
     outputPolicy: 'agent-only' as const,
     async *run(c) {
+      if (usedRemovedExecutionMethod) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message:
+            '--execution-method has been removed. Use --credential-type link_pay_token with --merchant-account-id.',
+        });
+      }
       requireAuthGuard(c, authStorage, envAccessToken);
 
       const opts = c.options;
       const requestApproval = !!opts.requestApproval;
       const credentialType = opts.credentialType as CredentialType | undefined;
       const networkId = opts.networkId;
-      const executionMethod = opts.executionMethod;
       const merchantAccountId = opts.merchantAccountId?.trim();
-      const lptExecutionRequested =
-        executionMethod !== undefined || merchantAccountId !== undefined;
+      const lptRequested = credentialType === 'link_pay_token';
 
-      if (lptExecutionRequested) {
-        if (executionMethod !== 'link_pay_token') {
-          return c.error({
-            code: 'INVALID_INPUT',
-            message:
-              'execution-method link_pay_token is required when merchant-account-id is provided',
-          });
-        }
+      if (!lptRequested && merchantAccountId !== undefined) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message:
+            'merchant-account-id requires credential-type link_pay_token',
+        });
+      }
+
+      if (lptRequested) {
         if (!merchantAccountId) {
           return c.error({
             code: 'INVALID_INPUT',
             message:
-              'merchant-account-id is required when execution-method is link_pay_token',
-          });
-        }
-        if (credentialType !== 'card') {
-          return c.error({
-            code: 'INVALID_INPUT',
-            message:
-              'credential-type must be card when execution-method is link_pay_token',
+              'merchant-account-id is required when credential-type is link_pay_token',
           });
         }
         if (networkId) {
           return c.error({
             code: 'INVALID_INPUT',
-            message:
-              'network-id cannot be used when execution-method is link_pay_token',
+            message: 'network-id cannot be used with Link Pay Token',
           });
         }
         if (opts.test) {
           return c.error({
             code: 'INVALID_INPUT',
-            message:
-              'test cannot be used when execution-method is link_pay_token',
+            message: 'test cannot be used with Link Pay Token',
           });
         }
         if (opts.approve && requestApproval) {
           return c.error({
             code: 'INVALID_INPUT',
             message:
-              '--approve with --execution-method link_pay_token requires --no-request-approval',
+              '--approve with Link Pay Token requires --no-request-approval',
           });
         }
         if (opts.merchantName || opts.merchantUrl) {
           return c.error({
             code: 'INVALID_INPUT',
             message:
-              'merchant-name and merchant-url cannot be used when execution-method is link_pay_token; Link resolves the merchant identity from merchant-account-id',
+              'merchant-name and merchant-url cannot be used with Link Pay Token; Link resolves the merchant identity from merchant-account-id',
           });
         }
       }
@@ -199,7 +197,7 @@ export function createSpendRequestCli(
         });
       }
       if (
-        !lptExecutionRequested &&
+        !lptRequested &&
         credentialType !== 'shared_payment_token' &&
         !opts.merchantName
       ) {
@@ -209,7 +207,7 @@ export function createSpendRequestCli(
         });
       }
       if (
-        !lptExecutionRequested &&
+        !lptRequested &&
         credentialType !== 'shared_payment_token' &&
         !opts.merchantUrl
       ) {
@@ -269,7 +267,6 @@ export function createSpendRequestCli(
         payment_details: opts.paymentMethodId,
         credential_type: credentialType,
         network_id: networkId,
-        execution_method: executionMethod,
         merchant_account_id: merchantAccountId,
         amount: opts.amount,
         currency: opts.currency,

@@ -29,13 +29,10 @@ user-invocable: true
 
 Use [Link](https://link.com) to get secure, one-time-use payment credentials from a Link wallet to complete purchases.
 
-The CLI can produce one of two credential types:
+The CLI can produce three credential types:
 - A virtual card (PAN) for use with a standard web checkout form. The issued card works anywhere.
 - A Shared Payment Token (SPT) when the seller is in the Stripe Network and accepts payments programmatically (for example with Machine Payment Protocols).
-
-It can also create a Link Pay Token (LPT)-bound SpendRequest for a supported
-Stripe checkout surface. LPT is an execution mode for the card flow, not a
-third credential type.
+- A Link Pay Token (LPT) for a supported Stripe payment surface.
 
 ## Installing
 
@@ -134,7 +131,7 @@ What you find determines which credential type to use:
 
 | What you see | Credential type | What to request |
 |---|---|---|
-| `.AiAgentPaymentSteering` block / "I am an AI agent" checkbox, and ticking it reveals both `input[name="link_pay_token"]` and `data-stripe-merchant-account` | (none needed) | Link Pay Token flow (else `card`) |
+| `.AiAgentPaymentSteering` block / "I am an AI agent" checkbox, and ticking it reveals both `input[name="link_pay_token"]` and `data-stripe-merchant-account` | `link_pay_token` | Link Pay Token (else `card`) |
 | Credit-card form, no AI-agent steering block | `card` (default) | Card |
 | HTTP 402 with `method="stripe"` in `www-authenticate` | `shared_payment_token` | Shared payment token (SPT) |
 | HTTP 402 without `method="stripe"` in `www-authenticate` | not supported | Do not continue |
@@ -280,7 +277,7 @@ following steps in the frame that contains it.
 
    ```bash
    link-cli spend-request create \
-     --execution-method link_pay_token \
+     --credential-type link_pay_token \
      --merchant-account-id <acct_...> \
      --payment-method-id <id> \
      --amount <cents> \
@@ -289,9 +286,8 @@ following steps in the frame that contains it.
      --total "type:total,display_text:Total,amount:<cents>"
    ```
 
-   LPT uses the default `card` credential type. Do not set
-   `--credential-type shared_payment_token`, `--network-id`, or `--test`.
-   Present the approval URL and wait for approval before retrieving a token.
+   Do not set `--network-id` or `--test` for an LPT request. Present the
+   approval URL and wait for approval before retrieving a token.
 
 5. **Retrieve the token immediately before injecting it.** Each returned LPT
    is valid for up to 30 minutes, or until the SpendRequest expires:

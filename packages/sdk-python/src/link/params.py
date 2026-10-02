@@ -9,7 +9,6 @@ from ._types import (
     AuthenticationMethod,
     CredentialType,
     DeviceType,
-    ExecutionMethod,
     ReportOutcome,
     ReportTag,
     TransactionOrigin,
@@ -64,7 +63,6 @@ class CreateSpendRequestParams(TypedDict, total=False):
     payment_details: str | None
     credential_type: CredentialType | None
     network_id: str | None
-    execution_method: ExecutionMethod | None
     merchant_account_id: str | None
     amount: int | None
     currency: str | None

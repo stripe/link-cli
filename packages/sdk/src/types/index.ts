@@ -88,7 +88,7 @@ export interface SpendRequestStatusDetails {
   };
 }
 
-export type CredentialType = 'shared_payment_token' | 'card';
+export type CredentialType = 'shared_payment_token' | 'card' | 'link_pay_token';
 
 export type RecurringInterval = 'day' | 'week' | 'month' | 'year';
 

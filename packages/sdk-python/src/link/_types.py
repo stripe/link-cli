@@ -37,7 +37,7 @@ NextActionResolution: TypeAlias = Literal[
     "create_new_spend_request",
     "create_new_spend_request_after_completion",
 ]
-CredentialType: TypeAlias = Literal["shared_payment_token", "card"]
+CredentialType: TypeAlias = Literal["shared_payment_token", "card", "link_pay_token"]
 RecurringInterval: TypeAlias = Literal["day", "week", "month", "year"]
 ApprovalMethod: TypeAlias = Literal["click", "programmatic", "voice"]
 DeviceType: TypeAlias = Literal["mobile", "web"]
@@ -46,7 +46,6 @@ AuthenticationMethod: TypeAlias = Literal[
     "biometric_fingerprint",
     "passkey",
 ]
-ExecutionMethod: TypeAlias = Literal["link_pay_token"]
 PaymentOutcome: TypeAlias = Literal["success", "failure"]
 AgentWalletVerificationStatus: TypeAlias = Literal[
     "not_required",
