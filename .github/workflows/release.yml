@@ -67,6 +67,19 @@ jobs:
             gh release upload "$TAG" packages/cli/dist/cli.js packages/cli/dist/cli.js.sha256 --clobber
           fi
 
+      # GitHub marks the newest release as Latest, so SDK and Eve releases
+      # would otherwise break /releases/latest/download/<cli-asset> URLs.
+      - name: Keep the CLI release marked as Latest
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=$(gh release list --limit 100 --json tagName,createdAt \
+            --jq '[.[] | select(.tagName | startswith("@stripe/link-cli@"))] | sort_by(.createdAt) | last | .tagName // empty')
+          if [ -n "$TAG" ]; then
+            gh release edit "$TAG" --latest
+          fi
+
   build-sea:
     needs: release
     if: needs.release.outputs.cliPublished == 'true'
