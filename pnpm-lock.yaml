@@ -175,8 +175,8 @@ importers:
         specifier: ^26.4.1
         version: 26.4.1
       eve:
-        specifier: 0.66.1
-        version: 0.66.1(ai@7.0.113(zod@4.5.4))(microsandbox@0.5.10)
+        specifier: 0.66.3
+        version: 0.66.3(ai@7.0.113(zod@4.5.4))(microsandbox@0.5.10)
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -202,8 +202,8 @@ importers:
         specifier: 1.7.5
         version: 1.7.5(next@16.3.6(@types/node@26.4.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@5.0.0(@types/node@26.4.1)(vite@8.2.0(@types/node@26.4.1)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.0)))
       eve:
-        specifier: 0.66.1
-        version: 0.66.1(ai@7.0.113(zod@4.5.4))(microsandbox@0.5.10)
+        specifier: 0.66.3
+        version: 0.66.3(ai@7.0.113(zod@4.5.4))(microsandbox@0.5.10)
       zod:
         specifier: 4.5.4
         version: 4.5.4
@@ -2145,8 +2145,8 @@ packages:
     resolution: {integrity: sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==}
     engines: {node: '>= 0.6'}
 
-  eve@0.66.1:
-    resolution: {integrity: sha512-oOZo4ERpMwQbHxVtmhz224mHfN84TCRcC9sIhnCNliW+BVmWiEXjU8VRrlT5joiJA0cI3cedUC6yXl239qHh0Q==}
+  eve@0.66.3:
+    resolution: {integrity: sha512-oJkQdVrlmb1GFeaSUNY6IF71ttXjQdFnkKQP+84Qlvs/M+fUqMjGTqnwevQ+qFvc8KCswo3cbBohKOCGdgZPFg==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -4817,7 +4817,7 @@ snapshots:
   etag@1.8.1:
     optional: true
 
-  eve@0.66.1(ai@7.0.113(zod@4.5.4))(microsandbox@0.5.10):
+  eve@0.66.3(ai@7.0.113(zod@4.5.4))(microsandbox@0.5.10):
     dependencies:
       ai: 7.0.113(zod@4.5.4)
       nitro: 3.0.260903-beta
