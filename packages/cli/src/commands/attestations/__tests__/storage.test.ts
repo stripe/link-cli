@@ -10,8 +10,8 @@ import {
   addAttestationsToPool,
   exportAttestationArtifact,
   getPoolPath,
+  popAttestation,
   readAttestationPool,
-  takeAttestation,
 } from '../storage';
 
 let directory: string;
@@ -42,23 +42,26 @@ afterEach(async () => {
 
 it('appends batches to one private file and drains them with their original issuer keys', async () => {
   const file = await addAttestationsToPool(batch());
+  expect(file).toBe(
+    path.join(directory, '.link-cli', 'identity', 'attestations', 'pool.json'),
+  );
   expect(await addAttestationsToPool(batch(['third'], 'rotated-key'))).toBe(
     file,
   );
   expect((await fs.stat(file)).mode & 0o777).toBe(0o600);
   expect((await fs.stat(path.dirname(file))).mode & 0o777).toBe(0o700);
   expect(await fs.readdir(path.dirname(file))).toEqual(['pool.json']);
-  expect(await takeAttestation()).toEqual({
+  expect(await popAttestation()).toEqual({
     issuer: 'https://api.link.com',
     token_key_id: 'key-id',
     token: 'token-one',
     authorization: authorizationHeader('token-one'),
   });
   expect((await readAttestationPool()).batches[0]?.count).toBe(1);
-  expect((await takeAttestation()).token).toBe('token-two');
-  expect((await takeAttestation()).token_key_id).toBe('rotated-key');
+  expect((await popAttestation()).token).toBe('token-two');
+  expect((await popAttestation()).token_key_id).toBe('rotated-key');
   expect((await readAttestationPool()).batches).toEqual([]);
-  await expect(takeAttestation()).rejects.toMatchObject({
+  await expect(popAttestation()).rejects.toMatchObject({
     code: 'ATTESTATION_POOL_EMPTY',
   });
 });
@@ -68,7 +71,7 @@ it('does not import old exports into a missing pool', async () => {
   await fs.mkdir(path.dirname(file), { recursive: true });
   const exported = path.join(path.dirname(file), 'legacy.json');
   await fs.writeFile(exported, JSON.stringify(batch()));
-  await expect(takeAttestation()).rejects.toMatchObject({
+  await expect(popAttestation()).rejects.toMatchObject({
     code: 'ATTESTATION_POOL_EMPTY',
   });
   expect(JSON.parse(await fs.readFile(exported, 'utf8'))).toEqual(batch());
@@ -118,7 +121,7 @@ it('rejects exports through aliases of the pool and lock paths', async () => {
 it('fails closed for corrupt pools without replacing them or revealing token contents', async () => {
   await addAttestationsToPool(batch());
   await fs.writeFile(getPoolPath(), 'secret-token-invalid-json');
-  await expect(takeAttestation()).rejects.toThrow(
+  await expect(popAttestation()).rejects.toThrow(
     `Invalid JSON in ${getPoolPath()}.`,
   );
   await expect(addAttestationsToPool(batch(['another']))).rejects.toThrow(
@@ -141,7 +144,7 @@ it('rejects duplicate and malformed tokens without committing a mutation', async
     JSON.stringify({ version: 2, batches: [batch(['invalid\ntoken'])] }),
   );
   const invalid = await fs.readFile(getPoolPath());
-  await expect(takeAttestation()).rejects.toThrow(
+  await expect(popAttestation()).rejects.toThrow(
     'Invalid attestation token encoding',
   );
   expect(await fs.readFile(getPoolPath())).toEqual(invalid);
@@ -151,10 +154,10 @@ it('leaves the original pool intact when atomic replacement fails', async () => 
   await addAttestationsToPool(batch());
   const before = await fs.readFile(getPoolPath());
   vi.spyOn(fs, 'rename').mockRejectedValueOnce(new Error('disk unavailable'));
-  await expect(takeAttestation()).rejects.toThrow('disk unavailable');
+  await expect(popAttestation()).rejects.toThrow('disk unavailable');
   expect(await fs.readFile(getPoolPath())).toEqual(before);
   expect(await fs.readdir(path.dirname(getPoolPath()))).toEqual(['pool.json']);
-  expect((await takeAttestation()).token).toBe('token-one');
+  expect((await popAttestation()).token).toBe('token-one');
 });
 
 it('rejects symbolic-link pool files and directories without writing to their targets', async () => {
@@ -163,7 +166,7 @@ it('rejects symbolic-link pool files and directories without writing to their ta
   await fs.mkdir(path.dirname(getPoolPath()), { recursive: true });
   await fs.symlink(target, getPoolPath());
   await expect(addAttestationsToPool(batch())).rejects.toThrow('symbolic link');
-  await expect(takeAttestation()).rejects.toThrow('symbolic link');
+  await expect(popAttestation()).rejects.toThrow('symbolic link');
   expect(await fs.readFile(target, 'utf8')).toBe('untouched');
   await fs.rm(path.dirname(getPoolPath()), { recursive: true });
   await fs.mkdir(path.join(directory, 'target'));
@@ -180,7 +183,7 @@ it('does not steal an old lock from a paused writer', async () => {
   const lock = `${getPoolPath()}.lock`;
   await fs.mkdir(lock);
   await fs.utimes(lock, new Date(0), new Date(0));
-  await expect(takeAttestation()).rejects.toMatchObject({
+  await expect(popAttestation()).rejects.toMatchObject({
     code: 'ATTESTATION_POOL_LOCKED',
   });
   expect(await fs.readFile(getPoolPath())).toEqual(before);
@@ -207,7 +210,7 @@ it('serializes separate CLI processes so a token is handed out at most once', as
     fileURLToPath(new URL('../../../../dist/cli.js', import.meta.url)),
     'identity',
     'attestations',
-    'take',
+    'pop',
     '--format',
     'json',
   ];
@@ -239,12 +242,12 @@ it('serializes separate CLI processes so a token is handed out at most once', as
   expect((await readAttestationPool()).batches).toEqual([]);
 }, 30_000);
 
-it('serializes concurrent appends and takes without losing new batches', async () => {
+it('serializes concurrent appends and pops without losing new batches', async () => {
   await addAttestationsToPool(batch(['initial']));
   const updates = Array.from({ length: 6 }, (_, i) =>
     addAttestationsToPool(batch([`new-${i}`])),
   );
-  await Promise.all([...updates, takeAttestation()]);
+  await Promise.all([...updates, popAttestation()]);
   const remaining = (await readAttestationPool()).batches.flatMap((item) =>
     item.tokens.map(({ token }) => token),
   );

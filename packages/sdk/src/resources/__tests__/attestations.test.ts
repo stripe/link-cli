@@ -56,7 +56,7 @@ describe('AttestationsResource', () => {
     const fetchMock = vi.fn(async () =>
       jsonResponse({
         issuer: 'https://issuer.example',
-        token_issuance_endpoint: 'https://api.link.com/issue',
+        token_issuance_endpoint: 'https://api.link.com/identity/attestations',
         token_keys: 'https://api.link.com/token-keys',
       }),
     );
@@ -117,7 +117,8 @@ describe('AttestationsResource', () => {
         if (url.endsWith('/.well-known/aap-issuer')) {
           return jsonResponse({
             issuer: 'https://api.link.com',
-            token_issuance_endpoint: 'https://api.link.com/issue',
+            token_issuance_endpoint:
+              'https://api.link.com/identity/attestations',
             token_keys: 'https://api.link.com/token-keys',
           });
         }
@@ -182,7 +183,7 @@ describe('AttestationsResource', () => {
       if (url.endsWith('/.well-known/aap-issuer')) {
         return jsonResponse({
           issuer: 'https://api.link.com',
-          token_issuance_endpoint: 'https://api.link.com/issue',
+          token_issuance_endpoint: 'https://api.link.com/identity/attestations',
           token_keys: 'https://api.link.com/token-keys',
         });
       }
@@ -234,7 +235,7 @@ describe('attestation key activation', () => {
         Response.json({
           issuer: 'https://api.link.com',
           token_keys: 'https://api.link.com/token-keys',
-          token_issuance_endpoint: 'https://api.link.com/issue',
+          token_issuance_endpoint: 'https://api.link.com/identity/attestations',
         }),
       )
       .mockResolvedValueOnce(Response.json({ 'token-keys': keys }));

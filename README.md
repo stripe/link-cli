@@ -394,13 +394,13 @@ Both identity `request` commands save their artifacts to disk and return only th
 LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10
 ```
 
-Each request adds tokens to the CLI-managed pool at `~/.link-cli/attestations/pool.json`. Take one token when you need to answer an attestation challenge:
+Each request adds tokens to the CLI-managed pool at `~/.link-cli/identity/attestations/pool.json`. Pop one token when you need to answer an attestation challenge:
 
 ```bash
-LINK_IDENTITY_COMMANDS=1 link-cli identity attestations take --format json
+LINK_IDENTITY_COMMANDS=1 link-cli identity attestations pop --format json
 ```
 
-`take` removes one token before returning its `token`, ready-to-use `authorization` header, issuer, and issuer-key ID. Pass `authorization` as the `Authorization` header in your browser automation or HTTP client. An empty pool returns `ATTESTATION_POOL_EMPTY`; refill it with `request --count 10`.
+`pop` removes one token before returning its `token`, ready-to-use `authorization` header, issuer, and issuer-key ID. Pass `authorization` as the `Authorization` header in your browser automation or HTTP client. An empty pool returns `ATTESTATION_POOL_EMPTY`; refill it with `request --count 10`.
 
 For agent-managed tokens, export a batch to a new file outside the CLI storage directory:
 
@@ -410,7 +410,7 @@ LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10 --out
 
 Exported tokens never enter the CLI pool. The agent owns their consumption and cleanup. Existing exports remain separate and are never automatically imported. Wallet credentials keep their existing storage and behavior.
 
-Pool updates are serialized and saved atomically. A crash after removal can lose a token; `take` never returns it to the pool. If a crash leaves `pool.json.lock`, ensure no attestation commands are running before removing that lock directory.
+Pool updates are serialized and saved atomically. A crash after removal can lose a token; `pop` never returns it to the pool. If a crash leaves `pool.json.lock`, ensure no attestation commands are running before removing that lock directory.
 
 **User info that has been signed, proving it comes from Link**:
 
@@ -418,7 +418,7 @@ Pool updates are serialized and saved atomically. A crash after removal can lose
 LINK_IDENTITY_COMMANDS=1 link-cli identity credentials request
 ```
 
-`identity credentials request` saves a signed credential to `~/.link-cli/credentials/current.json`, bound to the CLI-managed holder key at `~/.link/holder-key.jwk`. Structured output includes `output_file`, issuer, expiry, holder-key path/thumbprint, and claim names. A script can read the saved credential and holder key to sign a presentation and send it through browser automation or an HTTP client without printing their contents into the agent transcript.
+`identity credentials request` saves a signed credential to `~/.link-cli/identity/credentials/current.json`, bound to the CLI-managed holder key at `~/.link-cli/identity/holder-key.jwk`. Structured output includes `output_file`, issuer, expiry, holder-key path/thumbprint, and claim names. A script can read the saved credential and holder key to sign a presentation and send it through browser automation or an HTTP client without printing their contents into the agent transcript.
 
 **Unlisted presentations** disclose selected claims to a verifier using the saved credential and holder key:
 
@@ -434,7 +434,7 @@ LINK_IDENTITY_COMMANDS=1 link-cli identity credentials present \
 {"presentation":"<issuer-jwt>~<email-disclosure>~<key-binding-jwt>"}
 ```
 
-Use the verifier challenge's exact audience and nonce. Repeat `--claim` to disclose additional claims, such as `--claim email --claim email_verified`; at least one claim is required. The command reads `~/.link-cli/credentials/current.json`, signs with its saved holder key, and returns only the presentation. It works without login or network access and does not modify the saved credential or key. Missing claims, expired credentials, mismatched keys, and unsupported disclosure formats fail instead of producing a presentation. It supports Link's flat SHA-256 disclosures; credentials with plaintext user claims or nested selective disclosures are rejected.
+Use the verifier challenge's exact audience and nonce. Repeat `--claim` to disclose additional claims, such as `--claim email --claim email_verified`; at least one claim is required. The command reads `~/.link-cli/identity/credentials/current.json`, signs with its saved holder key, and returns only the presentation. It works without login or network access and does not modify the saved credential or key. Missing claims, expired credentials, mismatched keys, and unsupported disclosure formats fail instead of producing a presentation. It supports Link's flat SHA-256 disclosures; credentials with plaintext user claims or nested selective disclosures are rejected.
 
 Send the returned `presentation` as the `Identity-Presentation` HTTP header.
 
@@ -447,9 +447,9 @@ LINK_IDENTITY_COMMANDS=1 link-cli identity credentials list --format json
 LINK_IDENTITY_COMMANDS=1 link-cli identity attestations list --format json
 ```
 
-These commands inspect local files without login or Link API calls and display metadata in both terminal and structured output. Credential inspection reports the saved `~/.link-cli/credentials/current.json` path, issuer, cached expiry/`expired` status, holder-key path/thumbprint, and claim names. Private keys are never opened; credentials, tokens, and claim values are never printed. Inspection does not modify files, verify signatures, or filter artifacts by the active account.
+These commands inspect local files without login or Link API calls and display metadata in both terminal and structured output. Credential inspection reports the saved `~/.link-cli/identity/credentials/current.json` path, issuer, cached expiry/`expired` status, holder-key path/thumbprint, and claim names. Private keys are never opened; credentials, tokens, and claim values are never printed. Inspection does not modify files, verify signatures, or filter artifacts by the active account.
 
-Attestation inspection reports paths, issuer/key identifiers, per-batch `stored_token_count`, aggregate `total_token_count`, and `storage` (`pool` or `export`) for JSON batches in `~/.link-cli/attestations`. Counts describe stored tokens; external usage is untracked and AATs have no embedded expiry. Empty stores return empty lists. Lists include per-file `errors` alongside valid entries.
+Attestation inspection reports paths, issuer/key identifiers, per-batch `stored_token_count`, aggregate `total_token_count`, and `storage` (`pool` or `export`) for JSON batches in `~/.link-cli/identity/attestations`. Counts describe stored tokens; external usage is untracked and AATs have no embedded expiry. Empty stores return empty lists. Lists include per-file `errors` alongside valid entries.
 
 ### Spend request lifecycle
 

@@ -15,7 +15,7 @@ afterEach(async () => {
   await fs.rm(directory, { recursive: true, force: true });
 });
 
-it('requests into the pool, takes without an API resource, and exports independently', async () => {
+it('requests into the pool, pops without an API resource, and exports independently', async () => {
   const request = vi.fn().mockResolvedValue({
     issuer: 'https://api.link.com',
     token_key_id: 'key-id',
@@ -47,7 +47,7 @@ it('requests into the pool, takes without an API resource, and exports independe
     total_token_count: 2,
     attestations: [{ storage: 'pool', stored_token_count: 2 }],
   });
-  expect(await run(['take'])).toEqual({
+  expect(await run(['pop'])).toEqual({
     issuer: 'https://api.link.com',
     token_key_id: 'key-id',
     token: 'secret-one',
@@ -77,4 +77,23 @@ it('requests into the pool, takes without an API resource, and exports independe
   expect(JSON.parse(await fs.readFile(exported, 'utf8')).tokens[0].token).toBe(
     'exported',
   );
+});
+
+it('does not retain take as an alias for pop', async () => {
+  const resource = vi.fn();
+  const cli = createAttestationsCli(resource);
+  let stdout = '';
+  let exitCode: number | undefined;
+  await cli.serve(['take', '--format', 'json'], {
+    stdout: (text) => {
+      stdout += text;
+    },
+    exit: (code) => {
+      exitCode = code;
+    },
+  });
+  expect(exitCode).toBe(1);
+  expect(JSON.parse(stdout).code).toBe('COMMAND_NOT_FOUND');
+  expect(resource).not.toHaveBeenCalled();
+  expect(await fs.readdir(directory)).toEqual([]);
 });

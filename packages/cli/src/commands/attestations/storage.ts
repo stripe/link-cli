@@ -26,7 +26,7 @@ const poolSchema = z
 type AttestationPool = z.infer<typeof poolSchema>;
 
 export function getOutputDirectory(): string {
-  return path.join(os.homedir(), '.link-cli', 'attestations');
+  return path.join(os.homedir(), '.link-cli', 'identity', 'attestations');
 }
 
 export function getPoolPath(): string {
@@ -131,7 +131,7 @@ export async function addAttestationsToPool(
   return getPoolPath();
 }
 
-export async function takeAttestation() {
+export async function popAttestation() {
   // Commit removal before returning any token bytes. A crash can lose a token,
   // but retrying must never return that token to another caller.
   return updatePool((pool) => {

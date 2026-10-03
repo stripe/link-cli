@@ -10,7 +10,7 @@ import { requestOptions } from './schema';
 import {
   addAttestationsToPool,
   exportAttestationArtifact,
-  takeAttestation,
+  popAttestation,
   validateExportPath,
 } from './storage';
 
@@ -35,13 +35,13 @@ export function createAttestationsCli(
     },
   });
 
-  cli.command('take', {
+  cli.command('pop', {
     description: 'Remove and return one attestation token from the CLI pool.',
     mcp: false,
     outputPolicy: 'all' as const,
     async run(c) {
       try {
-        return sanitizeDeep(await takeAttestation());
+        return sanitizeDeep(await popAttestation());
       } catch (error) {
         return c.error(inspectionError(error));
       }
