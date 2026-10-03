@@ -42,7 +42,7 @@ afterEach(async () => {
 });
 
 async function save(kind: string, name: string, value: unknown) {
-  const file = path.join(directory, '.link-cli', kind, name);
+  const file = path.join(directory, '.link-cli', 'identity', kind, name);
   await fs.mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
   await fs.writeFile(file, JSON.stringify(value), { mode: 0o600 });
   return file;
