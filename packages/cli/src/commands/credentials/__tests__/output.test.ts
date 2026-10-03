@@ -39,7 +39,12 @@ vi.mock('../holder-key', async (importOriginal) => {
   state.directory = mkdtempSync(join(tmpdir(), 'link-credential-output-'));
   return {
     ...actual,
-    DEFAULT_HOLDER_KEY_PATH: join(state.directory, 'holder-key.jwk'),
+    DEFAULT_HOLDER_KEY_PATH: join(
+      state.directory,
+      '.link-cli',
+      'identity',
+      'holder-key.jwk',
+    ),
   };
 });
 
@@ -134,12 +139,19 @@ it('prints a non-secret TTY confirmation and saves the credential', async () => 
   }>;
   expect(view.type).toBe(SavedArtifact);
   expect(view.props.message).toBe('Identity credential saved');
-  expect(view.props.outputFile).toContain('.link-cli/credentials/current.json');
+  expect(view.props.outputFile).toContain(
+    '.link-cli/identity/credentials/current.json',
+  );
   expect(view.props.details).toEqual([
     { label: 'Expires', value: '2026-09-18T00:00:00Z' },
   ]);
 
-  const directory = path.join(state.directory, '.link-cli', 'credentials');
+  const directory = path.join(
+    state.directory,
+    '.link-cli',
+    'identity',
+    'credentials',
+  );
   const files = await fs.readdir(directory);
   expect(files).toHaveLength(1);
   const file = path.join(directory, files[0]);
@@ -151,7 +163,10 @@ it('prints a non-secret TTY confirmation and saves the credential', async () => 
   expect(
     Object.keys(
       JSON.parse(
-        await fs.readFile(path.join(state.directory, 'holder-key.jwk'), 'utf8'),
+        await fs.readFile(
+          path.join(state.directory, '.link-cli', 'identity', 'holder-key.jwk'),
+          'utf8',
+        ),
       ),
     ),
   ).toEqual(['private_jwk']);
@@ -195,11 +210,11 @@ describe.each([true, false])('request metadata with isTTY=%s', (isTTY) => {
       ]);
       const credentialFile = path.join(
         state.directory,
-        '.link-cli/credentials/current.json',
+        '.link-cli/identity/credentials/current.json',
       );
       const poolFile = path.join(
         state.directory,
-        '.link-cli/attestations/pool.json',
+        '.link-cli/identity/attestations/pool.json',
       );
       const artifact = JSON.parse(await fs.readFile(credentialFile, 'utf8'));
       const holderKey = JSON.parse(
@@ -283,10 +298,10 @@ it('prints the attestation pool path without exposing raw tokens', async () => {
   expect(view.type).toBe(SavedArtifact);
   expect(view.props.message).toBe('Attestation tokens added to pool');
   expect(view.props.outputFile).toBe(
-    path.join(home, '.link-cli', 'attestations', 'pool.json'),
+    path.join(home, '.link-cli', 'identity', 'attestations', 'pool.json'),
   );
   expect(view.props.details).toEqual([{ label: 'Count', value: 1 }]);
-  const directory = path.join(home, '.link-cli', 'attestations');
+  const directory = path.join(home, '.link-cli', 'identity', 'attestations');
   const files = await fs.readdir(directory);
   expect(files).toEqual(['pool.json']);
   const pool = JSON.parse(await fs.readFile(view.props.outputFile, 'utf8'));
