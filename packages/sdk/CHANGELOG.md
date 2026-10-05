@@ -1,5 +1,18 @@
 # @stripe/link-sdk
 
+## 0.12.0
+
+### Minor Changes
+
+- d4822cd: Make Link Pay Token a first-class spend request credential type. Create Link Pay Token requests with `credential_type: link_pay_token` and `merchant_account_id`.
+  
+  **Breaking:** the `--execution-method` CLI flag and the `execution_method` spend request parameter have been removed. Requests that used `execution_method: link_pay_token` with `credential_type: card` must switch to `credential_type: link_pay_token`.
+- 4a9b116: Add `list_available_insight_types` and `list_insights` to the shared Link tool catalog and the Eve extension. The Eve financial-insights skill covers insight discovery, missing permissions, and pending or empty results.
+
+### Patch Changes
+
+- b7083b3: Accept and display Canadian Agent Wallet verification statuses returned by user-info retrieve.
+
 ## 0.11.0
 
 ### Minor Changes
