@@ -3104,6 +3104,37 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       );
     });
 
+    it.each([
+      {
+        status: 'credit_file_match_ca',
+        action_url: 'https://example.com/verify/credit-file',
+      },
+      {
+        status: 'doc_upload_ca',
+        action_url: 'https://example.com/verify/document',
+      },
+      { status: 'pending', action_url: null },
+    ])('passes through $status in user-info JSON', async (stepUp) => {
+      setResponseForUrl('/userinfo', 200, {
+        agent_wallet_step_up: stepUp,
+      });
+
+      const result = await runProdCliWithEnv(
+        { LINK_ACCESS_TOKEN: ENV_TOKEN },
+        'user-info',
+        'retrieve',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const output = parseJson(result.stdout) as Record<string, unknown>;
+      expect(output.agent_wallet_verification_requirement).toEqual(stepUp);
+      const userInfoRequest = requests.find((r) => r.url === '/userinfo');
+      expect(userInfoRequest?.headers.authorization).toBe(
+        `Bearer ${ENV_TOKEN}`,
+      );
+    });
+
     it('allows spend-request list with no stored auth', async () => {
       setNextResponse(200, { data: [] });
 

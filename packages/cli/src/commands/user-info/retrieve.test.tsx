@@ -1,4 +1,8 @@
-import type { IUserInfoResource, UserInfo } from '@stripe/link-sdk';
+import type {
+  AgentWalletVerificationStatus,
+  IUserInfoResource,
+  UserInfo,
+} from '@stripe/link-sdk';
 import { render } from 'ink-testing-library';
 import { describe, expect, it, vi } from 'vitest';
 import { UserInfoRetrieve } from './retrieve';
@@ -114,25 +118,56 @@ describe('user-info retrieve component', () => {
     });
   });
 
-  it('renders an independently available verification requirement', async () => {
-    const resource = makeResource({
-      agent_wallet_verification_requirement: {
-        status: 'not_required',
-        action_url: null,
-      },
-    });
+  it.each([
+    { status: 'not_required', action_url: null },
+    {
+      status: 'ssn_verification',
+      action_url: 'https://example.com/verify/ssn',
+    },
+    {
+      status: 'credit_file_match_ca',
+      action_url: 'https://example.com/verify/credit-file',
+    },
+    {
+      status: 'identity_verification',
+      action_url: 'https://example.com/verify/identity',
+    },
+    {
+      status: 'doc_upload_ca',
+      action_url: 'https://example.com/verify/document',
+    },
+    { status: 'pending', action_url: null },
+    {
+      status: 'contact_support',
+      action_url: 'https://example.com/support',
+    },
+    { status: 'complete', action_url: null },
+  ] satisfies {
+    status: AgentWalletVerificationStatus;
+    action_url: string | null;
+  }[])(
+    'renders an independently available $status requirement',
+    async (stepUp) => {
+      const resource = makeResource({
+        agent_wallet_verification_requirement: stepUp,
+      });
 
-    const { lastFrame } = render(
-      <UserInfoRetrieve resource={resource} onComplete={() => {}} />,
-    );
-
-    await vi.waitFor(() => {
-      const frame = lastFrame();
-      expect(frame).toContain(
-        'Agent Wallet verification requirement: not_required',
+      const { lastFrame } = render(
+        <UserInfoRetrieve resource={resource} onComplete={() => {}} />,
       );
-      expect(frame).not.toContain('Action URL:');
-      expect(frame).not.toContain('Agent Wallet Spend Limits');
-    });
-  });
+
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain(
+          `Agent Wallet verification requirement: ${stepUp.status}`,
+        );
+        if (stepUp.action_url === null) {
+          expect(frame).not.toContain('Action URL:');
+        } else {
+          expect(frame).toContain(`Action URL: ${stepUp.action_url}`);
+        }
+        expect(frame).not.toContain('Agent Wallet Spend Limits');
+      });
+    },
+  );
 });

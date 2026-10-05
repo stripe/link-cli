@@ -196,7 +196,10 @@ export interface PaymentMethodBalanceDetails {
 export type AgentWalletVerificationStatus =
   | 'not_required'
   | 'ssn_verification'
+  | 'credit_file_match_ca'
   | 'identity_verification'
+  | 'doc_upload_ca'
+  | 'pending'
   | 'contact_support'
   | 'complete';
 

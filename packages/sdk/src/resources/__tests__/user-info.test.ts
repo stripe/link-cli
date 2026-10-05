@@ -126,6 +126,53 @@ describe('UserInfoResource', () => {
     });
   });
 
+  it.each([
+    { status: 'not_required', action_url: null },
+    {
+      status: 'ssn_verification',
+      action_url: 'https://example.com/verify/ssn',
+    },
+    {
+      status: 'credit_file_match_ca',
+      action_url: 'https://example.com/verify/credit-file',
+    },
+    {
+      status: 'identity_verification',
+      action_url: 'https://example.com/verify/identity',
+    },
+    {
+      status: 'doc_upload_ca',
+      action_url: 'https://example.com/verify/document',
+    },
+    { status: 'pending', action_url: null },
+    {
+      status: 'contact_support',
+      action_url: 'https://example.com/support',
+    },
+    { status: 'complete', action_url: null },
+  ])(
+    'maps Agent Wallet status $status without changing its URL',
+    async (stepUp) => {
+      mockFetchResponse(200, { agent_wallet_step_up: stepUp });
+
+      const result = await resource.retrieve();
+
+      expect(result.agent_wallet_verification_requirement).toEqual(stepUp);
+      expect(result).not.toHaveProperty('agent_wallet_step_up');
+    },
+  );
+
+  it('rejects an unknown Agent Wallet status', async () => {
+    mockFetchResponse(200, {
+      agent_wallet_step_up: {
+        status: 'future_verification_state',
+        action_url: null,
+      },
+    });
+
+    await expect(resource.retrieve()).rejects.toThrow();
+  });
+
   it('preserves unlimited limits and numeric usage', async () => {
     mockFetchResponse(200, {
       agent_wallet_spend_limits: {
