@@ -2,11 +2,42 @@ package link
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
+
+func TestUserInfoDefaultSpendRequestCurrency(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		body     string
+		wantJSON string
+	}{
+		{"present", `{"default_spend_request_currency":"eur"}`, `{"default_spend_request_currency":"eur"}`},
+		{"omitted", `{}`, `{}`},
+		{"null", `{"default_spend_request_currency":null}`, `{}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				fmt.Fprint(w, tc.body)
+			}))
+			defer server.Close()
+
+			client, err := NewClient(Options{AccessToken: "token", APIBaseURL: server.URL})
+			assertNoError(t, err)
+			info, err := client.UserInfo.Retrieve(context.Background())
+			assertNoError(t, err)
+
+			encoded, err := json.Marshal(info)
+			assertNoError(t, err)
+			if string(encoded) != tc.wantJSON {
+				t.Fatalf("got JSON %s, want %s", encoded, tc.wantJSON)
+			}
+		})
+	}
+}
 
 func TestUserInfoRetrieveDecodesAddressAndBalanceEligibility(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
