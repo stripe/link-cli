@@ -40,6 +40,34 @@ jobs:
       - name: Smoke test built wheel
         run: uv run --isolated --no-project --with dist/*.whl tests/smoke_test.py
 
+  agent-identity-node22:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @stripe/agent-identity...
+      - run: pnpm --filter @stripe/agent-identity build
+      - run: pnpm --filter @stripe/agent-identity build:test
+      # Build on the workspace runtime; test the SDK's supported consumer runtime.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Verify Agent Identity on Node 22
+        working-directory: packages/agent-identity
+        run: |
+          node scripts/run-tests.mjs
+          node --test example/step-up/server.test.mjs
+          node scripts/check-package.mjs
+          node scripts/check-docs.mjs
+          node example/verify.mjs
+          node example/step-up/demo.mjs
+
   ci:
     runs-on: ubuntu-latest
     steps:
@@ -65,6 +93,9 @@ jobs:
       - run: pnpm turbo run typecheck
       - run: pnpm biome check .
       - run: pnpm turbo run test
+      - run: pnpm --filter @stripe/agent-identity test:package
+      - name: Test wallet and verifier integration
+        run: pnpm --filter @stripe/agent-identity test:wallet
 
       - name: Check Go SDK
         run: |
@@ -82,4 +113,4 @@ jobs:
         run: go test -race ./...
 
       - name: Verify publishable
-        run: pnpm --filter @stripe/link-cli --filter @stripe/link-sdk --filter @stripe/link-integrations-better-auth --filter @stripe/link-integrations-eve publish --dry-run --no-git-checks
+        run: pnpm --filter @stripe/link-cli --filter @stripe/link-sdk --filter @stripe/link-integrations-better-auth --filter @stripe/link-integrations-eve --filter @stripe/agent-identity publish --dry-run --no-git-checks

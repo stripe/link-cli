@@ -14,7 +14,13 @@
     "indentStyle": "space",
     "indentWidth": 2
   },
-  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
   "linter": {
     "enabled": true,
     "rules": {
@@ -28,7 +34,10 @@
   },
   "overrides": [
     {
-      "includes": ["**/packages/sdk/src/**/*.test.ts"],
+      "includes": [
+        "**/packages/sdk/src/**/*.test.ts",
+        "**/packages/agent-identity/test/**/*.test.ts"
+      ],
       "linter": {
         "rules": {
           "style": {
