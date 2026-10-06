@@ -163,6 +163,7 @@ Unlisted: omitted from `--help`, `--llms`, and MCP tool lists unless `LINK_IDENT
 `identity attestations request --count <n>` — gets privacy-preserving tokens that show Link attests to your agent. Agent-only output. The SDK owns issuance in `packages/sdk/src/resources/attestations.ts` and `attestations-crypto.ts`; CLI schema and registration remain in `packages/cli/src/commands/attestations/`, mounted under `packages/cli/src/commands/identity/`.
 
 - Discovery: `GET https://api.link.com/.well-known/aap-issuer` → metadata, then `GET` its `token_keys` URL. The metadata issuer and every discovered endpoint must stay on the Link API's HTTPS DNS origin; redirects and IP-literal hosts are rejected before credentials are sent.
+- Issuance uses JSON at the discovered `/identity/attestations` endpoint: `{token_key_id, messages}` with the full SHA-256 key ID and blinded messages encoded as canonical unpadded base64url. The ordered `{attestations}` response contains blind signatures. A refused (`null`) entry or malformed response rejects the whole batch; signatures are never shifted between blinding states. There is no legacy binary fallback.
 - Tokens use a stable challenge: fixed `issuer_name`, empty `redemption_context`, and empty `origin_info`.
 - `attestations-crypto.ts` implements the RFC 9578 type `0x0002` client flow: PSS-encode, blind, unblind, verify, then assemble the token. Issuer keys must be 2048-bit RSA-PSS with SHA-384, MGF1-SHA-384, and a 48-byte salt.
 - Blind signatures are verified after unblinding before final tokens are returned.
