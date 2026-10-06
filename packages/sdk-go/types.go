@@ -129,6 +129,7 @@ type CredentialType string
 
 const (
 	CredentialTypeSharedPaymentToken CredentialType = "shared_payment_token"
+	CredentialTypeHTTPPayment        CredentialType = "http_payment"
 	CredentialTypeCard               CredentialType = "card"
 )
 
@@ -178,6 +179,14 @@ type SharedPaymentToken struct {
 	ID             string          `json:"id"`
 	BillingAddress *BillingAddress `json:"billing_address,omitempty"`
 	ValidUntil     *string         `json:"valid_until,omitempty"`
+}
+
+// HTTPPayment contains a ready-to-send merchant payment credential.
+type HTTPPayment struct {
+	Protocol   string  `json:"protocol"`
+	Header     string  `json:"header"`
+	Value      string  `json:"value"`
+	ValidUntil *string `json:"valid_until"`
 }
 
 // UnmarshalJSON accepts the legacy string representation returned by older APIs.
@@ -247,6 +256,7 @@ type SpendRequest struct {
 	ApprovalURL          *string                    `json:"approval_url,omitempty"`
 	Card                 *Card                      `json:"card,omitempty"`
 	SharedPaymentToken   *SharedPaymentToken        `json:"shared_payment_token,omitempty"`
+	HTTPPayment          *HTTPPayment               `json:"http_payment,omitempty"`
 	LinkPayToken         *string                    `json:"link_pay_token,omitempty"`
 	PaymentStatusDetails *PaymentStatusDetails      `json:"payment_status_details,omitempty"`
 	StatusDetails        *SpendRequestStatusDetails `json:"status_details,omitempty"`

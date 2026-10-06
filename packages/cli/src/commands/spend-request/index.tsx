@@ -22,6 +22,11 @@ import { shellQuote } from '../../utils/shell-quote';
 import { shouldPollSpendRequest } from '../../utils/should-poll-spend-request';
 import { CancelSpendRequest } from './cancel';
 import { CreateSpendRequest } from './create';
+import {
+  evaluateHttpPaymentChallenge,
+  MalformedHttpPaymentChallenge,
+  UnsupportedHttpPaymentChallenge,
+} from './evaluate-http-payment-challenge';
 import { SpendRequestList } from './list';
 import { RequestApproval } from './request-approval';
 import { RetrieveSpendRequest } from './retrieve';
@@ -199,6 +204,74 @@ export function createSpendRequestCli(
             'network-id can only be used when credential-type is shared_payment_token',
         });
       }
+      if (credentialType === 'http_payment' && !opts.paymentChallenge) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message:
+            'payment-challenge is required when credential-type is http_payment',
+        });
+      }
+      if (credentialType === 'http_payment' && opts.amount !== undefined) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message: 'amount is not allowed when credential-type is http_payment',
+        });
+      }
+      if (credentialType === 'http_payment' && opts.currency !== undefined) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message:
+            'currency is not allowed when credential-type is http_payment',
+        });
+      }
+      if (
+        credentialType === 'http_payment' &&
+        opts.paymentMethodId !== undefined
+      ) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message:
+            'payment-method-id is not allowed when credential-type is http_payment',
+        });
+      }
+      if (credentialType === 'http_payment' && opts.test) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message: 'test is not allowed when credential-type is http_payment',
+        });
+      }
+      if (credentialType === 'http_payment' && opts.paymentChallenge) {
+        try {
+          evaluateHttpPaymentChallenge(opts.paymentChallenge);
+        } catch (error) {
+          if (error instanceof MalformedHttpPaymentChallenge) {
+            return c.error({
+              code: 'INVALID_INPUT',
+              message: 'payment-challenge is malformed',
+            });
+          }
+          if (error instanceof UnsupportedHttpPaymentChallenge) {
+            return c.error({
+              code: 'INVALID_INPUT',
+              message: 'payment-challenge is not supported',
+            });
+          }
+          throw error;
+        }
+      }
+      if (opts.paymentChallenge && credentialType !== 'http_payment') {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message:
+            'payment-challenge can only be used when credential-type is http_payment',
+        });
+      }
+      if (credentialType !== 'http_payment' && opts.amount === undefined) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message: 'amount is required unless credential-type is http_payment',
+        });
+      }
       if (
         !lptExecutionRequested &&
         credentialType !== 'shared_payment_token' &&
@@ -206,7 +279,8 @@ export function createSpendRequestCli(
       ) {
         return c.error({
           code: 'INVALID_INPUT',
-          message: 'merchant-name is required when credential-type is card',
+          message:
+            'merchant-name is required when credential-type is card or http_payment',
         });
       }
       if (
@@ -216,7 +290,8 @@ export function createSpendRequestCli(
       ) {
         return c.error({
           code: 'INVALID_INPUT',
-          message: 'merchant-url is required when credential-type is card',
+          message:
+            'merchant-url is required when credential-type is card or http_payment',
         });
       }
 
@@ -258,11 +333,15 @@ export function createSpendRequestCli(
         idempotency_key: opts.idempotencyKey,
         payment_details: opts.paymentMethodId,
         credential_type: credentialType,
+        payment_challenge: opts.paymentChallenge,
         network_id: networkId,
         execution_method: executionMethod,
         merchant_account_id: merchantAccountId,
         amount: opts.amount,
-        currency: opts.currency,
+        currency:
+          credentialType === 'http_payment'
+            ? undefined
+            : (opts.currency ?? 'usd'),
         merchant_name: opts.merchantName,
         merchant_url: opts.merchantUrl,
         context: opts.context,

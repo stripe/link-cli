@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import { promisify } from 'node:util';
+import { Challenge } from 'mppx';
+import { usdce } from 'viem/tokens';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { storage } from '../auth/storage';
 
@@ -404,6 +406,135 @@ describe('production mode', () => {
       const request = output[0];
       expect(request.credential_type).toBe('shared_payment_token');
       expect(request.network_id).toBe('net_prod_abc');
+    });
+
+    it('creates an http_payment request from a raw challenge without an amount', async () => {
+      const paymentChallenge = Challenge.serialize({
+        id: 'challenge-id',
+        realm: 'merchant.example',
+        method: 'tempo',
+        intent: 'charge',
+        expires: '2027-01-01T00:00:00Z',
+        request: {
+          recipient: '0x1234567890123456789012345678901234567890',
+          amount: '1000000',
+          currency: usdce.addresses[4217],
+          methodDetails: { chainId: 4217 },
+        },
+      });
+      setNextResponse(200, {
+        ...BASE_REQUEST,
+        amount: undefined,
+        currency: undefined,
+        credential_type: 'http_payment',
+      });
+
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--credential-type',
+        'http_payment',
+        '--payment-challenge',
+        paymentChallenge,
+        '--merchant-name',
+        'Stable Studio',
+        '--merchant-url',
+        'https://merchant.example/api/generate',
+        '--context',
+        VALID_CONTEXT,
+        '--no-request-approval',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const sentBody = JSON.parse(lastRequest.body);
+      expect(sentBody).toMatchObject({
+        credential_type: 'http_payment',
+        payment_challenge: paymentChallenge,
+        merchant_name: 'Stable Studio',
+        merchant_url: 'https://merchant.example/api/generate',
+      });
+      expect(sentBody.amount).toBeUndefined();
+      expect(sentBody.currency).toBeUndefined();
+    });
+
+    it('requires payment-challenge for http_payment requests', async () => {
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--credential-type',
+        'http_payment',
+        '--merchant-name',
+        'Stable Studio',
+        '--merchant-url',
+        'https://merchant.example/api/generate',
+        '--context',
+        VALID_CONTEXT,
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout + result.stderr).toContain(
+        'payment-challenge is required when credential-type is http_payment',
+      );
+      expect(requests).toHaveLength(0);
+    });
+
+    it.each([
+      ['amount', ['--amount', '5000']],
+      ['currency', ['--currency', 'usd']],
+      ['payment-method-id', ['--payment-method-id', 'csmrpd_123']],
+      ['test', ['--test']],
+    ])(
+      'rejects explicit %s for http_payment requests',
+      async (_field, extraArgs) => {
+        const result = await runProdCli(
+          'spend-request',
+          'create',
+          '--credential-type',
+          'http_payment',
+          '--payment-challenge',
+          'not-evaluated-because-input-is-invalid',
+          '--merchant-name',
+          'Stable Studio',
+          '--merchant-url',
+          'https://merchant.example/api/generate',
+          '--context',
+          VALID_CONTEXT,
+          ...extraArgs,
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout + result.stderr).toContain(
+          `${_field} is not allowed when credential-type is http_payment`,
+        );
+        expect(requests).toHaveLength(0);
+      },
+    );
+
+    it('rejects a malformed http_payment challenge before calling Link', async () => {
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--credential-type',
+        'http_payment',
+        '--payment-challenge',
+        '%%%',
+        '--merchant-name',
+        'Stable Studio',
+        '--merchant-url',
+        'https://merchant.example/api/generate',
+        '--context',
+        VALID_CONTEXT,
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout + result.stderr).toContain(
+        'payment-challenge is malformed',
+      );
+      expect(requests).toHaveLength(0);
     });
 
     it('sends Link Pay Token execution fields in HTTP POST body', async () => {

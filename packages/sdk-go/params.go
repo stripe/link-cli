@@ -15,6 +15,7 @@ type CreateSpendRequestParams struct {
 	IdempotencyKey    *string           `json:"idempotency_key,omitempty"`
 	PaymentDetails    *string           `json:"payment_details,omitempty"`
 	CredentialType    *CredentialType   `json:"credential_type,omitempty"`
+	PaymentChallenge  *string           `json:"payment_challenge,omitempty"`
 	NetworkID         *string           `json:"network_id,omitempty"`
 	ExecutionMethod   *ExecutionMethod  `json:"execution_method,omitempty"`
 	MerchantAccountID *string           `json:"merchant_account_id,omitempty"`

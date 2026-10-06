@@ -154,6 +154,35 @@ describe('SpendRequestResource', () => {
       expect(result.network_id).toBe('net_abc');
     });
 
+    it('serializes a payment challenge and returns the HTTP payment credential', async () => {
+      const paymentChallenge =
+        'Payment id="ch_123", realm="merchant.example", method="tempo", intent="charge", request="..."';
+      const httpPayment = {
+        protocol: 'machine_payments',
+        header: 'Authorization',
+        value: 'Payment credential="proof"',
+        valid_until: '2026-09-17T19:10:00Z',
+      };
+      mockFetchResponse(200, {
+        ...spendRequestResponse,
+        credential_type: 'http_payment',
+        http_payment: httpPayment,
+      });
+
+      const result = await repo.create({
+        context: 'Generate an image with Stable Studio',
+        credential_type: 'http_payment',
+        payment_challenge: paymentChallenge,
+      });
+
+      const [, opts] = mockFetch.mock.calls[0]!;
+      expect(JSON.parse(opts.body)).toMatchObject({
+        credential_type: 'http_payment',
+        payment_challenge: paymentChallenge,
+      });
+      expect(result.http_payment).toEqual(httpPayment);
+    });
+
     it('serializes Link Pay Token execution fields in POST body', async () => {
       const paramsWithLptExecution: CreateSpendRequestParams = {
         ...validParams,

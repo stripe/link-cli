@@ -13,10 +13,23 @@ export const createOptions = z.object({
     ),
   paymentMethodId: z.string().optional().describe('Payment method ID'),
   credentialType: z
-    .enum(['shared_payment_token', 'card'])
+    .enum(['shared_payment_token', 'http_payment', 'card'])
     .default('card')
     .describe(
-      '"card" for checkout forms and Link Pay Token; "shared_payment_token" for HTTP 402/machine payment flows',
+      '"card" for checkout forms and Link Pay Token; "shared_payment_token" for Stripe MPP; "http_payment" for a merchant HTTP 402 payment challenge',
+    ),
+  paymentChallenge: z
+    .string()
+    .min(1, 'Challenge must not be empty')
+    .refine(
+      (challenge) => new TextEncoder().encode(challenge).length <= 32768,
+      {
+        message: 'Payment challenge must be at most 32 KiB',
+      },
+    )
+    .optional()
+    .describe(
+      'Raw WWW-Authenticate payment challenge (required for http_payment)',
     ),
   networkId: z
     .string()
@@ -36,19 +49,32 @@ export const createOptions = z.object({
     .describe(
       'Stripe account ID from data-stripe-merchant-account; required with execution_method link_pay_token',
     ),
-  amount: z.coerce.number().int().positive().describe('Amount in cents'),
-  currency: z.string().length(3).default('usd').describe('Currency code'),
+  amount: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe(
+      'Amount in cents (required except for http_payment, where it is forbidden and derived from the challenge)',
+    ),
+  currency: z
+    .string()
+    .length(3)
+    .optional()
+    .describe(
+      'Currency code (default: usd; forbidden for http_payment, where it is derived from the challenge)',
+    ),
   merchantName: z
     .string()
     .optional()
     .describe(
-      'Merchant name (required for regular card requests; omit for link_pay_token and shared_payment_token)',
+      'Merchant name (required for regular card and http_payment requests; omit for link_pay_token and shared_payment_token)',
     ),
   merchantUrl: z
     .string()
     .optional()
     .describe(
-      'Merchant URL (required for regular card requests; omit for link_pay_token and shared_payment_token)',
+      'Merchant URL (required for regular card and http_payment requests; omit for link_pay_token and shared_payment_token)',
     ),
   context: z
     .string()

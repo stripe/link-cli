@@ -312,6 +312,31 @@ func TestExplicitEmptyCollectionsMarshalAcrossRequestTypes(t *testing.T) {
 	}
 }
 
+func TestHTTPPaymentSpendRequestJSON(t *testing.T) {
+	credentialType := CredentialTypeHTTPPayment
+	paymentChallenge := `Payment id="ch_123", realm="merchant.example", method="tempo", intent="charge", request="..."`
+	data, err := json.Marshal(CreateSpendRequestParams{
+		Context:          "Generate an image with Stable Studio",
+		CredentialType:   &credentialType,
+		PaymentChallenge: &paymentChallenge,
+	})
+	assertNoError(t, err)
+	var request map[string]any
+	assertNoError(t, json.Unmarshal(data, &request))
+	if request["credential_type"] != "http_payment" || request["payment_challenge"] != paymentChallenge {
+		t.Fatalf("unexpected request body: %s", data)
+	}
+	if _, present := request["challenge"]; present {
+		t.Fatalf("unexpected legacy challenge field: %s", data)
+	}
+
+	var response SpendRequest
+	assertNoError(t, json.Unmarshal([]byte(`{"id":"lsrq_123","status":"approved","created_at":"2026-10-06T00:00:00Z","updated_at":"2026-10-06T00:00:00Z","credential_type":"http_payment","http_payment":{"protocol":"machine_payments","header":"Authorization","value":"Payment credential=proof","valid_until":"2026-10-06T12:00:00Z"}}`), &response))
+	if response.HTTPPayment == nil || response.HTTPPayment.Header != "Authorization" || response.HTTPPayment.Value != "Payment credential=proof" {
+		t.Fatalf("unexpected HTTP payment credential: %#v", response.HTTPPayment)
+	}
+}
+
 func TestRetrieveReturnsNilOnNotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
 		response.WriteHeader(http.StatusNotFound)

@@ -88,7 +88,7 @@ export interface SpendRequestStatusDetails {
   };
 }
 
-export type CredentialType = 'shared_payment_token' | 'card';
+export type CredentialType = 'shared_payment_token' | 'http_payment' | 'card';
 
 export interface ApprovalDetail {
   approved_at: number;
@@ -111,6 +111,13 @@ export interface SharedPaymentToken {
   id: string;
   billing_address?: BillingAddress;
   valid_until?: string;
+}
+
+export interface HTTPPayment {
+  protocol: string;
+  header: string;
+  value: string;
+  valid_until: string | null;
 }
 
 export interface RefundDetails {
@@ -149,6 +156,7 @@ export interface SpendRequest {
   approval_url?: string;
   card?: Card;
   shared_payment_token?: SharedPaymentToken | null;
+  http_payment?: HTTPPayment | null;
   link_pay_token?: string;
   payment_status_details?: PaymentStatusDetails | null;
   status_details?: SpendRequestStatusDetails | null;

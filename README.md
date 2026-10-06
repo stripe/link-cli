@@ -373,7 +373,26 @@ non-zero with `POLLING_TIMEOUT`.
 
 ### Credential types
 
-By default, a spend request provisions a virtual card. Link can also provide a shared payment token (SPT) for use with the Machine Payment Protocol (MPP) and a Link Pay Token (LPT) for use on Stripe hosted checkout forms.
+By default, a spend request provisions a virtual card. Link can also provide a shared payment token (SPT) for Stripe MPP payments, an HTTP payment credential for MPP pull payments, and a Link Pay Token (LPT) for use on Stripe hosted checkout forms.
+
+### HTTP payment
+
+For an MPP pull payment, pass the raw `WWW-Authenticate` payment challenge
+returned by the merchant. The CLI validates its Tempo payment terms before
+calling Link. Do not pass `--amount`, `--currency`, `--payment-method-id`, or
+`--test`; Link derives the amount and currency from the challenge and uses Link
+Balance. An approved request returns `http_payment` with `protocol`, `header`,
+`value`, and `valid_until`. Send its header and value exactly as returned.
+
+```bash
+link-cli spend-request create \
+  --credential-type http_payment \
+  --merchant-name "Stable Studio" \
+  --merchant-url "https://stablestudio.dev/api/generate/gpt-image-2/generate" \
+  --payment-challenge '<raw WWW-Authenticate payment challenge>' \
+  --context "Paying StableStudio to generate the lighthouse image requested by the user using their Link Balance." \
+  --request-approval
+```
 
 ### Shared Payment Token
 

@@ -43,6 +43,7 @@ export interface CreateSpendRequestParams {
   idempotency_key?: string;
   payment_details?: string;
   credential_type?: CredentialType;
+  payment_challenge?: string;
   network_id?: string;
   execution_method?: 'link_pay_token';
   merchant_account_id?: string;
