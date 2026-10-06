@@ -28,6 +28,7 @@ func (r *UserInfoResource) Retrieve(ctx context.Context) (*UserInfo, error) {
 		Phone                  *string                             `json:"phone"`
 		Address                *UserInfoAddress                    `json:"address,omitempty"`
 		EligibleForBalance     *bool                               `json:"eligible_for_balance,omitempty"`
+		DefaultSpendRequestCurrency *string                        `json:"default_spend_request_currency,omitempty"`
 		AgentWalletSpendLimits *AgentWalletSpendLimits             `json:"agent_wallet_spend_limits,omitempty"`
 		AgentWalletStepUp      *AgentWalletVerificationRequirement `json:"agent_wallet_step_up,omitempty"`
 	}
@@ -43,6 +44,7 @@ func (r *UserInfoResource) Retrieve(ctx context.Context) (*UserInfo, error) {
 		Phone:                              wire.Phone,
 		Address:                            wire.Address,
 		EligibleForBalance:                 wire.EligibleForBalance,
+		DefaultSpendRequestCurrency:        wire.DefaultSpendRequestCurrency,
 		AgentWalletSpendLimits:             wire.AgentWalletSpendLimits,
 		AgentWalletVerificationRequirement: wire.AgentWalletStepUp,
 	}, nil

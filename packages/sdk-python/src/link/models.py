@@ -209,6 +209,7 @@ class UserInfo(LinkModel):
     first_name: str | None = None
     last_name: str | None = None
     phone: str | None = None
+    default_spend_request_currency: str | None = None
     agent_wallet_spend_limits: AgentWalletSpendLimits | None = None
     agent_wallet_verification_requirement: AgentWalletVerificationRequirement | None = (
         None

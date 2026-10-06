@@ -98,6 +98,19 @@ describe('user-info retrieve component', () => {
     });
   });
 
+  it('renders default spend request currency', async () => {
+    const resource = makeResource({
+      default_spend_request_currency: 'usd',
+    });
+    const { lastFrame } = render(
+      <UserInfoRetrieve resource={resource} onComplete={() => {}} />,
+    );
+    await vi.waitFor(() => {
+      const frame = lastFrame();
+      expect(frame).toContain('Default spend request currency: usd');
+    });
+  });
+
   it('omits Agent Wallet output when enrichment is absent', async () => {
     const resource = makeResource({
       email: 'jane@example.com',

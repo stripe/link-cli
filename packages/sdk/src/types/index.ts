@@ -243,6 +243,7 @@ export interface UserInfo {
   phone?: string | null;
   address?: UserInfoAddress | null;
   eligible_for_balance?: boolean;
+  default_spend_request_currency?: string;
   agent_wallet_spend_limits?: AgentWalletSpendLimits;
   agent_wallet_verification_requirement?: AgentWalletVerificationRequirement;
 }

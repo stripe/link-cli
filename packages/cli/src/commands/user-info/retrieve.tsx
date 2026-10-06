@@ -93,6 +93,12 @@ export const UserInfoRetrieve: React.FC<UserInfoRetrieveProps> = ({
             {userInfo.eligible_for_balance ? 'Yes' : 'No'}
           </Text>
         )}
+        {userInfo?.default_spend_request_currency !== undefined && (
+          <Text>
+            <Text dimColor>Default spend request currency: </Text>
+            {userInfo.default_spend_request_currency}
+          </Text>
+        )}
         {userInfo?.agent_wallet_spend_limits && (
           <Box flexDirection="column" marginTop={1}>
             <Text bold>Agent Wallet Spend Limits</Text>
