@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    // DOM supplies the WebCrypto and Fetch types (CryptoKey, SubtleCrypto,
+    // Response, BufferSource). Node types are deliberately NOT in the library
+    // build: withholding them makes the compiler enforce that src/ uses no Node
+    // built-ins, which is what lets this run unchanged on non-Node runtimes.
+    "lib": ["ES2022", "DOM"],
+    // Empty, not merely unset. With no "types" key tsc auto-includes every
+    // @types/* package it can find, so @types/node was being loaded and a stray
+    // `Buffer` compiled cleanly. The guard only exists if this is explicit.
+    "types": [],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  }
+}

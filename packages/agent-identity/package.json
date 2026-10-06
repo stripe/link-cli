@@ -1,0 +1,76 @@
+{
+  "name": "@stripe/agent-identity",
+  "version": "0.2.0",
+  "description": "Verify Link agent attestations and selectively disclosed identity claims.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stripe/link-cli.git",
+    "directory": "packages/agent-identity"
+  },
+  "homepage": "https://github.com/stripe/link-cli/tree/main/packages/agent-identity#readme",
+  "bugs": {
+    "url": "https://github.com/stripe/link-cli/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    },
+    "./testing": {
+      "types": "./dist/esm/testing/index.d.ts",
+      "import": "./dist/esm/testing/index.js",
+      "require": "./dist/cjs/testing/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "AGENTS.md",
+    "LICENSE",
+    "example",
+    "test/README.md"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist dist-test",
+    "build": "pnpm run build:esm && pnpm run build:cjs",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json && node scripts/finish-cjs.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "build:test": "tsc -p tsconfig.test.json",
+    "test": "pnpm run build:test && node scripts/run-tests.mjs && pnpm run test:step-up && pnpm run test:docs",
+    "test:step-up": "node --test example/step-up/server.test.mjs",
+    "test:wallet": "node --test test/wallet.test.mjs",
+    "test:docs": "node scripts/check-docs.mjs",
+    "test:package": "node scripts/check-package.mjs",
+    "example:verify": "node example/verify.mjs",
+    "example:step-up": "node example/step-up/demo.mjs",
+    "verify": "pnpm run typecheck && pnpm run build && pnpm test && pnpm run test:package && pnpm run example:verify && pnpm run example:step-up",
+    "prepack": "pnpm run clean && pnpm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  },
+  "keywords": [
+    "link",
+    "agent",
+    "attestation",
+    "privacy-pass",
+    "sd-jwt-vc"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
