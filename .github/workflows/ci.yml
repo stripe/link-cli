@@ -64,8 +64,6 @@ jobs:
           node --test example/step-up/server.test.mjs
           node scripts/check-package.mjs
           node scripts/check-docs.mjs
-          node example/verify.mjs
-          node example/step-up/demo.mjs
 
   ci:
     runs-on: ubuntu-latest
@@ -92,11 +90,15 @@ jobs:
       - run: pnpm turbo run typecheck
       - run: pnpm biome check .
       - run: pnpm turbo run test
-      - run: pnpm --filter @stripe/agent-identity test:step-up
-      - run: pnpm --filter @stripe/agent-identity test:docs
-      - run: pnpm --filter @stripe/agent-identity test:package
+      - name: Check Agent Identity package, examples, and documentation
+        working-directory: packages/agent-identity
+        run: |
+          node --test example/step-up/server.test.mjs
+          node scripts/check-docs.mjs
+          node scripts/check-package.mjs
       - name: Test wallet and verifier integration
-        run: pnpm --filter @stripe/agent-identity test:wallet
+        working-directory: packages/agent-identity
+        run: node --test test/wallet.test.mjs
 
       - name: Check Go SDK
         run: |

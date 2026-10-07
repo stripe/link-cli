@@ -27,8 +27,8 @@ The new package name is not published to npm. In a checkout of this repository, 
 ```sh
 pnpm install --frozen-lockfile
 pnpm --filter @stripe/agent-identity build
-pnpm --filter @stripe/agent-identity example:verify
-pnpm --filter @stripe/agent-identity example:step-up
+node packages/agent-identity/example/verify.mjs
+node packages/agent-identity/example/step-up/demo.mjs
 ```
 
 To use it in a separate application, pack the package and install the resulting archive:
@@ -315,19 +315,29 @@ For identity claims, use `CredentialFixture.present()` and `combineFetch` to ser
 From `packages/agent-identity`, after installing workspace dependencies:
 
 ```sh
-pnpm run verify
+pnpm build
+pnpm typecheck
+pnpm test
 ```
 
 `pnpm test` runs the library tests with Vitest. Tests live alongside the source in `src/**/__tests__` and use `@/` imports, matching the wallet SDK. `typecheck` checks source and tests, then checks the library separately without Node built-ins. Tests and test helpers are excluded from builds and the published package.
 
-`verify` runs those checks, builds ESM and CommonJS, runs the HTTP example tests, checks documentation references and links, installs a packed archive into an isolated consumer, and runs both fixture examples. Workspace `build`, `typecheck`, and `test` include this package. CI runs the HTTP example and documentation checks separately and also exercises the built package on Node 22.
+Workspace `build`, `typecheck`, and `test` include this package. CI also runs the HTTP example tests, checks documentation references and links, and installs a packed archive into an isolated consumer to check ESM/CommonJS imports and both fixture examples. Run these checks locally after building:
 
-The separate wallet integration test runs the built Link Agent Wallet through JSON issuance, private storage, `pop`, and `present`, and runs the event-registration client against the example service. It uses synthetic credentials and a local issuer with real signatures. Wallet storage is isolated in a temporary directory, and issuer requests cannot reach Link. Run it on macOS or Linux with Node 24+ after `verify`:
+```sh
+node --test example/step-up/server.test.mjs
+node scripts/check-docs.mjs
+node scripts/check-package.mjs
+```
+
+CI also exercises the built package on Node 22.
+
+The separate wallet integration test runs the built Link Agent Wallet through JSON issuance, private storage, `pop`, and `present`, and runs the event-registration client against the example service. It uses synthetic credentials and a local issuer with real signatures. Wallet storage is isolated in a temporary directory, and issuer requests cannot reach Link. Run it on macOS or Linux with Node 24+ after the checks above:
 
 ```sh
 pnpm --filter @stripe/link-sdk build
 pnpm --filter=./../cli build
-pnpm run test:wallet
+node --test test/wallet.test.mjs
 ```
 
 CI runs this test after building the wallet and verifier. It stays separate from SDK-only tests so verifier consumers do not need the wallet.

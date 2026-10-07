@@ -58,9 +58,9 @@ test('verifies Link tokens without a request signature', async () => {
 });
 ```
 
-For credential tests, use `combineFetch` to serve Link metadata and credential JWKS and call `clearJwksCache()` between fixtures using different signing keys at the same issuer URL. After installing workspace dependencies and building the package, run `pnpm run verify` from `packages/agent-identity` for library typechecking, dual builds, tests, package installation, and documentation references.
+For credential tests, use `combineFetch` to serve Link metadata and credential JWKS and call `clearJwksCache()` between fixtures using different signing keys at the same issuer URL. After installing workspace dependencies, run `pnpm build`, `pnpm typecheck`, and `pnpm test` from `packages/agent-identity`. Follow the [development instructions](README.md#development) for the HTTP example, package installation, and documentation checks that also run in CI.
 
-After changing issuance formats or wallet commands, also run `pnpm run test:wallet` from this package after building the wallet client SDK and CLI. Follow the [development instructions](README.md#development). This separate CI check uses the built wallet, a local issuer, and temporary storage to test issuance and presentation against the verifier and HTTP example.
+After changing issuance formats or wallet commands, also run `node --test test/wallet.test.mjs` from this package after building the wallet client SDK and CLI. Follow the [development instructions](README.md#development). This separate CI check uses the built wallet, a local issuer, and temporary storage to test issuance and presentation against the verifier and HTTP example.
 
 ## Limits to preserve in documentation
 

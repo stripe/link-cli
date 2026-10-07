@@ -11,7 +11,7 @@ From the repository root, using Node 24+ for workspace development:
 ```sh
 pnpm install --frozen-lockfile
 pnpm --filter @stripe/agent-identity build
-pnpm --filter @stripe/agent-identity example:step-up
+node packages/agent-identity/example/step-up/demo.mjs
 ```
 
 The demo starts a loopback server on an available port, drives it with an HTTP client, and shuts it down. Issuer metadata and keys come from local cryptographic fixtures. No requests go to Link and no live credentials are used. The fixtures sign synthetic tokens directly; this mode does not exercise Link issuance or the wallet's blinding code.
@@ -97,10 +97,10 @@ For an agent using its own HTTP client or browser automation, provide the servic
 - `server.test.mjs`: HTTP acceptance, rejection, concurrency, expiry, session isolation, input validation, and client disclosure/redirect tests.
 
 ```sh
-pnpm --filter @stripe/agent-identity test:step-up
+node --test packages/agent-identity/example/step-up/server.test.mjs
 ```
 
-Build the SDK first. The example imports Agent Identity through its public exports. Its tests run in the workspace test suite on Node 24 and in the package compatibility check on Node 22.
+Build the SDK first. The example imports Agent Identity through its public exports. CI runs its tests on Node 24 and in the package compatibility check on Node 22.
 
 ## Deployment boundaries
 
