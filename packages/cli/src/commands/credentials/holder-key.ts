@@ -19,7 +19,8 @@ import { type HolderPublicJwk, parseHolderPublicJwk } from '@stripe/link-sdk';
 
 export const DEFAULT_HOLDER_KEY_PATH = join(
   homedir(),
-  '.link',
+  '.link-cli',
+  'identity',
   'holder-key.jwk',
 );
 
