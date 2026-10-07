@@ -20,27 +20,13 @@ The SDK uses Link's public metadata and verification keys. It needs neither the 
 
 Link is the default trust anchor. `issuerOptions.issuer` exists for staging and tests; using another provider is unsupported. Token issuance, risk scoring, issuer-mediated claims, and application authorization are outside this package's scope.
 
-## Build and install from source
-
-The new package name is not published to npm. In a checkout of this repository, use Node 24+ and pnpm to build it:
+## Installation
 
 ```sh
-pnpm install --frozen-lockfile
-pnpm --filter @stripe/agent-identity build
-node packages/agent-identity/example/verify.mjs
-node packages/agent-identity/example/step-up/demo.mjs
+npm install @stripe/agent-identity
 ```
 
-To use it in a separate application, pack the package and install the resulting archive:
-
-```sh
-cd packages/agent-identity
-pnpm pack
-# From your application directory, using the path to your checkout:
-npm install /path/to/link-cli/packages/agent-identity/stripe-agent-identity-0.2.0.tgz
-```
-
-The built package supports Node 22+, ESM and CommonJS. It uses Node’s built-in byte and cryptography APIs and `jose` for JWS verification, JWK import, and key thumbprints. Runtimes without the required Node APIs are unsupported. Licensed under the [MIT license](LICENSE).
+The package supports Node 22+, ESM and CommonJS. It uses Node’s built-in byte and cryptography APIs and `jose` for JWS verification, JWK import, and key thumbprints. Runtimes without the required Node APIs are unsupported. Licensed under the [MIT license](LICENSE).
 
 The `src/`, `example/`, and `test/` directories are kept in this repository and are not included in the npm package. The package includes compiled ESM and CommonJS builds, type declarations, source maps, and integration guidance.
 
@@ -315,6 +301,28 @@ For identity claims, use `CredentialFixture.present()` and `combineFetch` to ser
 - A presentation accepted twice is expected at the SDK level. Test single-use requirements against your application's interaction store.
 
 ## Development
+
+### Build and install from source
+
+In a checkout of this repository, use Node 24+ and pnpm to build the SDK and run the fixture examples:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm --filter @stripe/agent-identity build
+node packages/agent-identity/example/verify.mjs
+node packages/agent-identity/example/step-up/demo.mjs
+```
+
+To test local changes in a separate application, pack the package and install the resulting archive:
+
+```sh
+cd packages/agent-identity
+pnpm pack
+# From your application directory, use the archive path printed by pnpm pack:
+npm install /path/to/stripe-agent-identity-VERSION.tgz
+```
+
+### Checks
 
 From `packages/agent-identity`, after installing workspace dependencies:
 

@@ -1,6 +1,6 @@
 # Agent Identity in an MCP service
 
-Use the verifier at the HTTP boundary of an MCP Streamable HTTP service. It checks Link bearer Agent Attestation Tokens (AATs) and identity presentations; your application decides which operations those credentials permit. Build [Agent Identity from source](../../README.md#build-and-install-from-source). This guide describes an integration pattern; it does not include a runnable MCP server. The [HTTP step-up example](../step-up/README.md) provides runnable session and interaction handling.
+Use the verifier at the HTTP boundary of an MCP Streamable HTTP service. It checks Link bearer Agent Attestation Tokens (AATs) and identity presentations; your application decides which operations those credentials permit. Install [Agent Identity from npm](../../README.md#installation). This guide describes an integration pattern; it does not include a runnable MCP server. The [HTTP step-up example](../step-up/README.md) provides runnable session and interaction handling.
 
 ## Compatibility
 
