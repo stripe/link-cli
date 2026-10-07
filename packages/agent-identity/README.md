@@ -40,7 +40,7 @@ pnpm pack
 npm install /path/to/link-cli/packages/agent-identity/stripe-agent-identity-0.2.0.tgz
 ```
 
-The built package supports Node 22+, ESM and CommonJS, with zero runtime dependencies. The library uses WebCrypto, Fetch, URL, and TextEncoder; its typecheck excludes Node types. Deno, Bun, and edge runtimes are untested. Licensed under the [MIT license](LICENSE).
+The built package supports Node 22+, ESM and CommonJS. It uses Node’s built-in byte and cryptography APIs and `jose` for JWS verification, JWK import, and key thumbprints. Runtimes without the required Node APIs are unsupported. Licensed under the [MIT license](LICENSE).
 
 - [Examples](example/README.md): local credential verification and an HTTP event-registration flow with a wallet client.
 - [MCP integration](example/mcp/README.md): HTTP challenges, client retries, and application access policy.
@@ -322,7 +322,7 @@ pnpm typecheck
 pnpm test
 ```
 
-`pnpm test` runs the library tests with Vitest. Tests live alongside the source in `src/**/__tests__` and use `@/` imports, matching the wallet SDK. `typecheck` checks source and tests, then checks the library separately without Node built-ins. Tests and test helpers are excluded from builds and the published package.
+`pnpm test` runs the library tests with Vitest. Tests live alongside the source in `src/**/__tests__` and use `@/` imports, matching the wallet SDK. `typecheck` checks source and tests, then checks the library separately for declaration generation. Tests and test helpers are excluded from builds and the published package.
 
 Workspace `build`, `typecheck`, and `test` include this package. CI also runs the HTTP example tests, checks documentation references and links, and installs a packed archive into an isolated consumer to check ESM/CommonJS imports and both fixture examples. Run these checks locally after building:
 

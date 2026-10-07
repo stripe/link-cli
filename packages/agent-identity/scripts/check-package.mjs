@@ -41,7 +41,7 @@ try {
     'npm',
     [
       'install',
-      '--offline',
+      '--prefer-offline',
       '--ignore-scripts',
       '--no-audit',
       '--no-fund',
@@ -79,7 +79,7 @@ try {
     join(dir, 'cjs.cjs'),
     `const verifierPackage = require('@stripe/agent-identity');
      const { LinkVerifier, FAILURE_CODES } = verifierPackage;
-     const { LinkFixture, CredentialFixture } = require('@stripe/agent-identity/testing');
+     const { LinkFixture, CredentialFixture, combineFetch } = require('@stripe/agent-identity/testing');
      if (typeof LinkFixture !== 'function' || typeof CredentialFixture !== 'function') throw new Error('CommonJS testing exports missing');
      if (typeof LinkVerifier !== 'function') throw new Error('LinkVerifier missing');
      if (!Array.isArray(FAILURE_CODES)) throw new Error('FAILURE_CODES missing');
@@ -87,7 +87,22 @@ try {
        if (removed in verifierPackage) throw new Error(removed + ' must not be exported');
      }
      if (FAILURE_CODES.includes('store_unavailable')) throw new Error('store_unavailable must not be exported');
-     console.log('cjs ok');\n`,
+     // Exercise async jose imports as well as require(), including on Node 22.0.
+     (async () => {
+       const assert = require('node:assert/strict');
+       const link = await LinkFixture.create();
+       const credential = await CredentialFixture.create({ issuerUrl: link.issuer, claims: { email: 'guest@example.com' } });
+       const verifier = new LinkVerifier({ origin: 'https://events.example', fetchImpl: combineFetch(link.fetchImpl(), credential.fetchImpl()) });
+       assert.equal((await verifier.verifyAttestation((await link.mint()).authorization)).valid, true);
+       assert.equal((await verifier.verifyAttestation((await link.mint({ corruptAuthenticator: true })).authorization)).valid, false);
+       const challenge = await verifier.claimsChallenge({ claims: ['email'] });
+       const presentation = await credential.present({ aud: challenge.body.aud, nonce: challenge.nonce, disclose: ['email'] });
+       const result = await verifier.verifyClaims(presentation, { nonce: challenge.nonce, requiredClaims: ['email'] });
+       assert.equal(result.valid, true);
+       assert.equal(result.claims.email, 'guest@example.com');
+       assert.equal((await verifier.verifyClaims(presentation, { nonce: 'wrong', requiredClaims: ['email'] })).valid, false);
+       console.log('cjs verification ok');
+     })().catch(error => { console.error(error); process.exitCode = 1; });\n`,
   );
 
   process.stdout.write(run('node', ['esm.mjs'], dir));

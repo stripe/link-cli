@@ -25,6 +25,10 @@ importers:
         version: 7.0.2
 
   packages/agent-identity:
+    dependencies:
+      jose:
+        specifier: ^6.2.12
+        version: 6.2.12
     devDependencies:
       '@stripe/link-typescript-config':
         specifier: workspace:*

@@ -10,7 +10,7 @@ A bearer AAT proves issuance by Link. It does not identify the presenter or bind
 
 ## Integration
 
-1. Follow [build and install from source](README.md#build-and-install-from-source); this package name is not published to npm yet. Workspace builds require Node 24+; the built package supports Node 22+, ESM and CommonJS, with zero runtime dependencies. Other runtimes are untested.
+1. Follow [build and install from source](README.md#build-and-install-from-source); this package name is not published to npm yet. Workspace builds require Node 24+; the built package supports Node 22+, ESM and CommonJS. It uses Node built-ins and `jose`; runtimes without the required Node APIs are unsupported.
 2. Create one `LinkVerifier` per process. Set `origin` from the service's configuration; it is the audience for identity claims. Use an explicit HTTP origin such as `http://localhost:3000` for local servers; bare authorities default to HTTPS.
 3. Extract the `Authorization` or `Identity-Presentation` field value and pass the string directly. Reject duplicate credential fields if your framework would otherwise discard them. In Node or Express, use `req.headersDistinct`; the SDK cannot recover fields your framework dropped.
 4. Inspect `result.valid`, or use the `OrThrow` variants and handle `VerificationError`. The result object itself is truthy even when verification fails.
@@ -73,4 +73,4 @@ AAT and identity-presentation double-spend detection and replay prevention belon
 
 ## Package maintenance
 
-Keep the verifier independent of the wallet client: no runtime dependency on `@stripe/link-sdk` or `@stripe/link-cli`. Preserve ESM and CommonJS exports, the `/testing` entry point, Node 22 support for consumers, and the library typecheck without Node built-ins. Workspace development uses Node 24+. Examples use `example/`, matching the other integrations. Keep guidance in READMEs and examples; there is no documentation website. Preserve wire identifiers and published issuer paths when updating product names.
+Keep the verifier independent of the wallet client: no runtime dependency on `@stripe/link-sdk` or `@stripe/link-cli`. Preserve ESM and CommonJS exports, the `/testing` entry point, Node 22 support for consumers, and the library declaration typecheck. Use Node built-ins and `jose` for standard byte and cryptography operations; retain identity-specific validation. Keep `jose` imports dynamic so the CommonJS build works on Node 22.0. Workspace development uses Node 24+. Examples use `example/`, matching the other integrations. Keep guidance in READMEs and examples; there is no documentation website. Preserve wire identifiers and published issuer paths when updating product names.

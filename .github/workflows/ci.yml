@@ -64,6 +64,12 @@ jobs:
           node --test example/step-up/server.test.mjs
           node scripts/check-package.mjs
           node scripts/check-docs.mjs
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.0.0
+      - name: Verify package on minimum supported Node
+        working-directory: packages/agent-identity
+        run: node scripts/check-package.mjs
 
   ci:
     runs-on: ubuntu-latest

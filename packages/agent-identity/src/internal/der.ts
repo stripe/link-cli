@@ -1,41 +1,13 @@
 /**
- * Just enough DER to read an RSA SubjectPublicKeyInfo and re-wrap it.
- *
- * This exists because of a mismatch between the Privacy Pass key encoding and
- * what WebCrypto accepts. RFC 9578 section 6.5 requires a token key to be published
- * as an SPKI whose AlgorithmIdentifier is `id-RSASSA-PSS`, carrying explicit
- * RSASSA-PSS-params. WebCrypto's `importKey('spki', ..., {name: 'RSA-PSS'})`
- * accepts only the `rsaEncryption` AlgorithmIdentifier and rejects the mandated
- * one with `DataError: Invalid key type`.
- *
- * Both encodings wrap the identical `RSAPublicKey` structure, so the fix is to
- * lift that structure out and re-wrap it in the AlgorithmIdentifier WebCrypto
- * will take. Nothing about the key changes; only the label on the envelope.
- *
- * Deliberately not a general ASN.1 library. It parses exactly the shapes these
- * two encodings produce and refuses everything else, because a permissive parser
- * on untrusted input is a liability and every caller here has one narrow need.
+ * Node validates RSA keys and exposes their modulus and PSS parameters.
+ * The small DER adapter preserves the SDK's public CryptoKey return type:
+ * WebCrypto cannot import id-RSASSA-PSS, and Node cannot export it as JWK.
+ * Only the SPKI envelope is changed; token key IDs use the published bytes.
  */
+import { Buffer } from 'node:buffer';
+import { createPublicKey } from 'node:crypto';
 
-/** 1.2.840.113549.1.1.1 */
-const OID_RSA_ENCRYPTION = [
-  0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01,
-];
-/** 1.2.840.113549.1.1.10 */
-const OID_RSASSA_PSS = [0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0a];
-/** 1.2.840.113549.1.1.8 */
-const OID_MGF1 = [0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x08];
-
-const HASH_OIDS: ReadonlyArray<readonly [string, readonly number[]]> = [
-  ['SHA-256', [0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01]],
-  ['SHA-384', [0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02]],
-  ['SHA-512', [0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03]],
-];
-
-const TAG_INTEGER = 0x02;
 const TAG_BIT_STRING = 0x03;
-const TAG_NULL = 0x05;
-const TAG_OID = 0x06;
 const TAG_SEQUENCE = 0x30;
 
 /** Hard ceiling on any parsed structure. A published key is a few hundred bytes. */
@@ -53,7 +25,7 @@ export interface ParsedRsaSpki {
   encoding: SpkiEncoding;
   /** The RSAPublicKey DER, i.e. the contents of the SPKI BIT STRING. */
   rsaPublicKey: Uint8Array;
-  /** Modulus length in bits, read from the INTEGER. */
+  /** Modulus length in bits, reported by Node. */
   modulusBits: number;
   /** Present only for `id-RSASSA-PSS`, which carries explicit parameters. */
   pssParams?: PssParams | undefined;
@@ -62,19 +34,16 @@ export interface ParsedRsaSpki {
 interface Tlv {
   tag: number;
   contents: Uint8Array;
-  /** Offset just past this element in its parent. */
   end: number;
 }
 
-class DerError extends Error {}
-
-function fail(message: string): never {
-  throw new DerError(message);
+function throwDer(message: string): never {
+  throw new Error(message);
 }
 
 /** Reads one tag-length-value at `offset`. */
 function readTlv(input: Uint8Array, offset: number): Tlv {
-  if (offset + 2 > input.length) fail('truncated DER element');
+  if (offset + 2 > input.length) throwDer('truncated DER element');
   const tag = input[offset] as number;
   const first = input[offset + 1] as number;
   let length: number;
@@ -87,8 +56,8 @@ function readTlv(input: Uint8Array, offset: number): Tlv {
     // Indefinite length is BER, not DER, and 4+ length bytes exceeds anything
     // legitimate here.
     if (byteCount === 0 || byteCount > 3)
-      fail('unsupported DER length encoding');
-    if (cursor + byteCount > input.length) fail('truncated DER length');
+      throwDer('unsupported DER length encoding');
+    if (cursor + byteCount > input.length) throwDer('truncated DER length');
     length = 0;
     for (let i = 0; i < byteCount; i++) {
       length = (length << 8) | (input[cursor + i] as number);
@@ -96,14 +65,14 @@ function readTlv(input: Uint8Array, offset: number): Tlv {
     // DER requires the minimal encoding: the long form must be necessary, and its
     // first byte must be non-zero. `0x82 0x00 0x80` encodes 128 in two bytes and
     // would otherwise pass.
-    if (input[cursor] === 0) fail('non-minimal DER length');
+    if (input[cursor] === 0) throwDer('non-minimal DER length');
     cursor += byteCount;
-    if (length < 0x80) fail('non-minimal DER length');
+    if (length < 0x80) throwDer('non-minimal DER length');
   }
 
-  if (length > MAX_SPKI_BYTES) fail('DER element is implausibly large');
+  if (length > MAX_SPKI_BYTES) throwDer('DER element is implausibly large');
   if (cursor + length > input.length)
-    fail('DER element runs past the end of input');
+    throwDer('DER element runs past the end of input');
   return {
     tag,
     contents: input.subarray(cursor, cursor + length),
@@ -119,191 +88,110 @@ function expect(
 ): Tlv {
   const tlv = readTlv(input, offset);
   if (tlv.tag !== tag) {
-    fail(
+    throwDer(
       `expected ${what} (tag 0x${tag.toString(16)}), got tag 0x${tlv.tag.toString(16)}`,
     );
   }
   return tlv;
 }
 
-function bytesEqual(a: Uint8Array, b: readonly number[]): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-  return true;
-}
-
-function hashFromOid(oid: Uint8Array): string | undefined {
-  for (const [name, bytes] of HASH_OIDS)
-    if (bytesEqual(oid, bytes)) return name;
-  return undefined;
-}
-
-/**
- * Parses an RSA SubjectPublicKeyInfo in either the `rsaEncryption` or the
- * `id-RSASSA-PSS` encoding.
- *
- * Returns a string describing the problem rather than throwing, because the
- * input is a document fetched from a remote issuer and a malformed one is an
- * ordinary outcome rather than a bug.
- */
+/** Validates the key with Node and extracts the RSA bytes for envelope conversion. */
 export function parseRsaSpki(der: Uint8Array): ParsedRsaSpki | string {
   try {
     if (der.length > MAX_SPKI_BYTES) return 'SPKI is implausibly large';
-
     const outer = expect(der, 0, TAG_SEQUENCE, 'SubjectPublicKeyInfo');
     if (outer.end !== der.length) return 'SPKI has trailing bytes';
-    const body = outer.contents;
-
-    const algId = expect(body, 0, TAG_SEQUENCE, 'AlgorithmIdentifier');
-    const oid = expect(algId.contents, 0, TAG_OID, 'algorithm OID');
-
-    let encoding: SpkiEncoding;
-    let pssParams: PssParams | undefined;
-    if (bytesEqual(oid.contents, OID_RSASSA_PSS)) {
-      encoding = 'id-RSASSA-PSS';
-      const parsed = parsePssParams(algId.contents, oid.end);
-      if (typeof parsed === 'string') return parsed;
-      pssParams = parsed;
-    } else if (bytesEqual(oid.contents, OID_RSA_ENCRYPTION)) {
-      encoding = 'rsaEncryption';
-      // rsaEncryption requires an explicit NULL parameters field.
-      if (oid.end < algId.contents.length) {
-        const params = readTlv(algId.contents, oid.end);
-        if (params.tag !== TAG_NULL)
-          return 'rsaEncryption parameters are not NULL';
-      }
-    } else {
-      return 'SPKI algorithm is neither rsaEncryption nor id-RSASSA-PSS';
-    }
-
-    const bitString = expect(
-      body,
-      algId.end,
+    const algorithm = expect(
+      outer.contents,
+      0,
+      TAG_SEQUENCE,
+      'AlgorithmIdentifier',
+    );
+    const bits = expect(
+      outer.contents,
+      algorithm.end,
       TAG_BIT_STRING,
       'subjectPublicKey',
     );
-    if (bitString.end !== body.length)
+    if (bits.end !== outer.contents.length)
       return 'SubjectPublicKeyInfo has trailing bytes';
-    if (bitString.contents.length < 1) return 'subjectPublicKey is empty';
-    if (bitString.contents[0] !== 0) return 'subjectPublicKey has unused bits';
-    const rsaPublicKey = bitString.contents.subarray(1);
+    if (bits.contents[0] !== 0) return 'subjectPublicKey has unused bits';
 
-    // Read the modulus so a caller can enforce a size floor, and so a structure
-    // that is not actually an RSAPublicKey is rejected here rather than by
-    // WebCrypto with a less useful message.
-    const rsaSeq = expect(rsaPublicKey, 0, TAG_SEQUENCE, 'RSAPublicKey');
-    const modulus = expect(rsaSeq.contents, 0, TAG_INTEGER, 'RSA modulus');
-    // DER signs INTEGERs, so a single leading zero byte is padding for a positive
-    // value. More than one is not something DER emits.
-    let modulusBytes = modulus.contents;
-    if (modulusBytes.length > 1 && modulusBytes[0] === 0) {
-      modulusBytes = modulusBytes.subarray(1);
+    const key = createPublicKey({
+      key: Buffer.from(der),
+      format: 'der',
+      type: 'spki',
+    });
+    if (
+      key.asymmetricKeyType !== 'rsa' &&
+      key.asymmetricKeyType !== 'rsa-pss'
+    ) {
+      return 'SPKI algorithm is neither rsaEncryption nor id-RSASSA-PSS';
     }
-    if (modulusBytes.length === 0 || modulusBytes[0] === 0) {
-      return 'RSA modulus is not a minimally-encoded positive integer';
+    const details = key.asymmetricKeyDetails;
+    if (
+      details?.modulusLength === undefined ||
+      details.publicExponent === undefined
+    ) {
+      return 'RSA key has no modulus or exponent';
     }
-
-    // Bit length, not byte length times eight: a 2041-bit modulus occupies 256 bytes
-    // and would otherwise be reported as 2048 and clear a 2048-bit floor.
-    const topByte = modulusBytes[0] as number;
-    const modulusBits =
-      (modulusBytes.length - 1) * 8 + (32 - Math.clz32(topByte));
-
-    // SEC-7: e must be odd and at least 3. With e = 1, "verification" is the identity
-    // and anyone who can encode a PSS block can forge.
-    const exponent = expect(
-      rsaSeq.contents,
-      modulus.end,
-      TAG_INTEGER,
-      'RSA public exponent',
-    );
-    let exponentValue = 0;
-    for (const byte of exponent.contents)
-      exponentValue = exponentValue * 256 + byte;
-    if (exponentValue < 3 || exponentValue % 2 === 0) {
-      return `RSA public exponent ${exponentValue} is not a valid odd exponent`;
+    if (details.publicExponent < 3n || details.publicExponent % 2n === 0n) {
+      return `RSA public exponent ${details.publicExponent} is not a valid odd exponent`;
     }
-
+    let pssParams: PssParams | undefined;
+    if (key.asymmetricKeyType === 'rsa-pss') {
+      // Node exposes hash/MGF1/salt, but omits the trailer field and accepts
+      // values WebCrypto would silently replace with its fixed trailer 0xBC.
+      const oid = readTlv(algorithm.contents, 0);
+      const params = expect(
+        algorithm.contents,
+        oid.end,
+        TAG_SEQUENCE,
+        'RSASSA-PSS-params',
+      );
+      const fields = new Set<number>();
+      for (let cursor = 0; cursor < params.contents.length; ) {
+        const field = readTlv(params.contents, cursor);
+        cursor = field.end;
+        if (fields.has(field.tag) || field.tag < 0xa0 || field.tag > 0xa3)
+          return 'unexpected PSS parameter';
+        fields.add(field.tag);
+        if (
+          field.tag === 0xa3 &&
+          !Buffer.from(field.contents).equals(Buffer.from([0x02, 0x01, 0x01]))
+        ) {
+          return 'RSASSA-PSS-params trailerField is not 1';
+        }
+      }
+      if (![0xa0, 0xa1, 0xa2].every((tag) => fields.has(tag)))
+        return 'RSASSA-PSS-params omits hash, MGF1, or salt length';
+      if (
+        details.hashAlgorithm === undefined ||
+        details.mgf1HashAlgorithm === undefined ||
+        details.saltLength === undefined
+      ) {
+        return 'id-RSASSA-PSS key carries no parameters';
+      }
+      pssParams = {
+        hash: hashName(details.hashAlgorithm),
+        mgf1Hash: hashName(details.mgf1HashAlgorithm),
+        saltLength: details.saltLength,
+      };
+    }
     return {
-      encoding,
-      rsaPublicKey,
-      modulusBits,
+      encoding:
+        key.asymmetricKeyType === 'rsa-pss' ? 'id-RSASSA-PSS' : 'rsaEncryption',
+      rsaPublicKey: bits.contents.subarray(1),
+      modulusBits: details.modulusLength,
       pssParams,
     };
   } catch (error) {
-    if (error instanceof DerError) return `malformed SPKI: ${error.message}`;
-    throw error;
+    return `malformed SPKI: ${error instanceof Error ? error.message : 'key could not be parsed'}`;
   }
 }
 
-/**
- * RSASSA-PSS-params, per RFC 4055 section 3.1. Every field is DEFAULTed and
- * therefore context-tagged and optional, but RFC 9578 section 6.5 requires
- * hashAlgorithm, maskGenAlgorithm, and saltLength to be present explicitly, so
- * an absent field is a conformance failure rather than a default to apply.
- */
-function parsePssParams(
-  algIdBody: Uint8Array,
-  offset: number,
-): PssParams | string {
-  if (offset >= algIdBody.length)
-    return 'id-RSASSA-PSS key carries no parameters';
-  const params = expect(algIdBody, offset, TAG_SEQUENCE, 'RSASSA-PSS-params');
-
-  let hash: string | undefined;
-  let mgf1Hash: string | undefined;
-  let saltLength: number | undefined;
-
-  let cursor = 0;
-  while (cursor < params.contents.length) {
-    const field = readTlv(params.contents, cursor);
-    cursor = field.end;
-    switch (field.tag) {
-      case 0xa0: {
-        const alg = expect(field.contents, 0, TAG_SEQUENCE, 'hashAlgorithm');
-        const oid = expect(alg.contents, 0, TAG_OID, 'hashAlgorithm OID');
-        hash = hashFromOid(oid.contents);
-        if (hash === undefined) return 'unrecognized PSS hash algorithm';
-        break;
-      }
-      case 0xa1: {
-        const alg = expect(field.contents, 0, TAG_SEQUENCE, 'maskGenAlgorithm');
-        const oid = expect(alg.contents, 0, TAG_OID, 'maskGenAlgorithm OID');
-        if (!bytesEqual(oid.contents, OID_MGF1))
-          return 'mask generation function is not MGF1';
-        const inner = expect(alg.contents, oid.end, TAG_SEQUENCE, 'MGF1 hash');
-        const innerOid = expect(inner.contents, 0, TAG_OID, 'MGF1 hash OID');
-        mgf1Hash = hashFromOid(innerOid.contents);
-        if (mgf1Hash === undefined) return 'unrecognized MGF1 hash algorithm';
-        break;
-      }
-      case 0xa2: {
-        const int = expect(field.contents, 0, TAG_INTEGER, 'saltLength');
-        // Salt lengths in use are small; refuse anything that is not one byte.
-        if (int.contents.length !== 1) return 'implausible PSS salt length';
-        saltLength = int.contents[0] as number;
-        break;
-      }
-      case 0xa3: {
-        // RFC 4055 section 3.1: "The value MUST be 1... Other trailer fields are not
-        // supported." WebCrypto always uses 0xBC, so accepting any other value would
-        // verify a key under a scheme its own SPKI says it does not use, which is the
-        // same defect the hash and salt checks exist to prevent.
-        const int = expect(field.contents, 0, TAG_INTEGER, 'trailerField');
-        if (int.contents.length !== 1 || int.contents[0] !== 1) {
-          return 'RSASSA-PSS-params trailerField is not 1';
-        }
-        break;
-      }
-      default:
-        return `unexpected field in RSASSA-PSS-params (tag 0x${field.tag.toString(16)})`;
-    }
-  }
-
-  if (hash === undefined) return 'RSASSA-PSS-params omits hashAlgorithm';
-  if (mgf1Hash === undefined) return 'RSASSA-PSS-params omits maskGenAlgorithm';
-  if (saltLength === undefined) return 'RSASSA-PSS-params omits saltLength';
-  return { hash, mgf1Hash, saltLength };
+function hashName(name: string): string {
+  return name.toUpperCase().replace(/^SHA(\d+)$/, 'SHA-$1');
 }
 
 function encodeLength(length: number): Uint8Array {

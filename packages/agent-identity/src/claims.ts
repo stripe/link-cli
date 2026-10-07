@@ -318,16 +318,14 @@ export async function verifyClaimsPresentation(
       'could not resolve a Link credential signing key',
     );
   }
-  let issuerSignature: Uint8Array;
   try {
-    issuerSignature = fromBase64(issuerSigSeg);
+    fromBase64(issuerSigSeg);
   } catch {
     return fail('issuer JWT signature segment is not valid base64url');
   }
-  const signingInput = utf8(`${issuerHeaderSeg}.${issuerPayloadSeg}`);
   let issuerOk = false;
   for (const candidate of issuerKeys) {
-    if (await verifyJws(candidate, issuerAlg, issuerSignature, signingInput)) {
+    if (await verifyJws(candidate, issuerAlg, issuerJwt)) {
       issuerOk = true;
       break;
     }
@@ -505,18 +503,12 @@ export async function verifyClaimsPresentation(
   } catch (error) {
     return fail(`cnf.jwk could not be imported: ${(error as Error).message}`);
   }
-  let kbSignature: Uint8Array;
   try {
-    kbSignature = fromBase64(kbSigSeg);
+    fromBase64(kbSigSeg);
   } catch {
     return fail('KB-JWT signature segment is not valid base64url');
   }
-  const kbOk = await verifyJws(
-    holderKey,
-    kbAlg,
-    kbSignature,
-    utf8(`${kbHeaderSeg}.${kbPayloadSeg}`),
-  );
+  const kbOk = await verifyJws(holderKey, kbAlg, kbJwt);
   if (!kbOk) return fail('KB-JWT signature does not verify under cnf.jwk');
 
   // 4. Everything asked for was actually disclosed.

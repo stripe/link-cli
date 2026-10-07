@@ -6,7 +6,7 @@ export default defineConfig(
     entry: ['src/**/*.ts', '!src/**/__tests__/**'],
     format: [format],
     bundle: false,
-    platform: 'neutral',
+    platform: 'node',
     target: 'es2022',
     outDir: `dist/${format}`,
     outExtension: () => ({ js: '.js' }),

@@ -1,12 +1,12 @@
-/**
- * WebCrypto wrappers. Everything here is available in Node, Deno, Bun and the
- * major edge runtimes, which is what keeps the verifier deployable at the edge
- * as well as in an origin server.
- */
-import { asBufferSource, fromBase64, toBase64url, utf8 } from './bytes.js';
+/** Native hashing and RSA verification, with JOSE operations delegated to jose. */
+import { constants, createHash, KeyObject, verify } from 'node:crypto';
+import { promisify } from 'node:util';
+import type { JWK } from 'jose';
+import { asBufferSource, fromBase64 } from './bytes.js';
 import { parseRsaSpki, wrapRsaEncryptionSpki } from './der.js';
 
 const subtle = globalThis.crypto.subtle;
+const verifySignature = promisify(verify);
 
 /**
  * RFC 9578 section 6.4 fixes the signature parameters for token type 0x0002.
@@ -20,15 +20,15 @@ const REQUIRED_PSS_SALT_LENGTH = 48;
 const MIN_MODULUS_BITS = 2048;
 
 export async function sha256(data: Uint8Array): Promise<Uint8Array> {
-  return new Uint8Array(await subtle.digest('SHA-256', asBufferSource(data)));
+  return new Uint8Array(createHash('sha256').update(data).digest());
 }
 
 export async function sha512(data: Uint8Array): Promise<Uint8Array> {
-  return new Uint8Array(await subtle.digest('SHA-512', asBufferSource(data)));
+  return new Uint8Array(createHash('sha512').update(data).digest());
 }
 
 export async function sha384(data: Uint8Array): Promise<Uint8Array> {
-  return new Uint8Array(await subtle.digest('SHA-384', asBufferSource(data)));
+  return new Uint8Array(createHash('sha384').update(data).digest());
 }
 
 /**
@@ -98,22 +98,20 @@ export async function verifyRsaPss(
   signature: Uint8Array,
   message: Uint8Array,
 ): Promise<boolean> {
-  return subtle.verify(
-    { name: 'RSA-PSS', saltLength: 48 },
-    key,
-    asBufferSource(signature),
-    asBufferSource(message),
+  return verifySignature(
+    'sha384',
+    message,
+    {
+      key: KeyObject.from(key),
+      padding: constants.RSA_PKCS1_PSS_PADDING,
+      saltLength: REQUIRED_PSS_SALT_LENGTH,
+    },
+    signature,
   );
 }
 
-export interface Jwk {
+export interface Jwk extends JWK {
   kty: string;
-  crv?: string;
-  x?: string;
-  y?: string;
-  n?: string;
-  e?: string;
-  [key: string]: unknown;
 }
 
 /** JOSE algorithms this verifier accepts. `none` is never accepted. */
@@ -123,74 +121,60 @@ export async function importJwkForVerify(
   jwk: Jwk,
   alg: JwsAlg,
 ): Promise<CryptoKey> {
-  if (alg === 'EdDSA') {
-    if (jwk.kty !== 'OKP' || jwk.crv !== 'Ed25519') {
-      throw new Error('EdDSA requires an OKP/Ed25519 key');
-    }
-    return subtle.importKey(
-      'jwk',
-      jwk as JsonWebKey,
-      { name: 'Ed25519' },
-      false,
-      ['verify'],
-    );
+  if (alg === 'EdDSA' && (jwk.kty !== 'OKP' || jwk.crv !== 'Ed25519')) {
+    throw new Error('EdDSA requires an OKP/Ed25519 key');
   }
-  if (jwk.kty !== 'EC' || jwk.crv !== 'P-256') {
+  if (alg === 'ES256' && (jwk.kty !== 'EC' || jwk.crv !== 'P-256')) {
     throw new Error('ES256 requires an EC/P-256 key');
   }
-  return subtle.importKey(
-    'jwk',
-    jwk as JsonWebKey,
-    { name: 'ECDSA', namedCurve: 'P-256' },
-    false,
-    ['verify'],
-  );
+  if (jwk.d !== undefined)
+    throw new Error('verification requires a public JWK');
+  // jose's importJWK intentionally ignores alg/use; retain the restrictions
+  // enforced by our previous direct WebCrypto import.
+  if (
+    jwk.alg !== undefined &&
+    jwk.alg !== alg &&
+    !(alg === 'EdDSA' && jwk.alg === 'Ed25519')
+  ) {
+    throw new Error('JWK alg does not match the signature algorithm');
+  }
+  if (jwk.use !== undefined && jwk.use !== 'sig')
+    throw new Error('JWK use must be sig');
+  if (
+    jwk.key_ops !== undefined &&
+    (!Array.isArray(jwk.key_ops) || !jwk.key_ops.includes('verify'))
+  ) {
+    throw new Error('JWK key_ops must allow verify');
+  }
+  // jose v6 is ESM-only. Dynamic imports also work from our CommonJS export on
+  // Node 22.0, before require(esm) became available without a flag.
+  const { importJWK } = await import('jose');
+  const key = await importJWK(jwk, alg, { extractable: false });
+  if (key instanceof Uint8Array)
+    throw new Error('verification requires an asymmetric key');
+  return key;
 }
 
+/** Verifies the complete compact JWS, including protected-header semantics. */
 export async function verifyJws(
   key: CryptoKey,
   alg: JwsAlg,
-  signature: Uint8Array,
-  signingInput: Uint8Array,
+  jws: string,
 ): Promise<boolean> {
-  const params: AlgorithmIdentifier | EcdsaParams =
-    alg === 'EdDSA' ? { name: 'Ed25519' } : { name: 'ECDSA', hash: 'SHA-256' };
-  return subtle.verify(
-    params,
-    key,
-    asBufferSource(signature),
-    asBufferSource(signingInput),
-  );
+  const { compactVerify } = await import('jose');
+  try {
+    const result = await compactVerify(jws, key, { algorithms: [alg] });
+    // JWTs require encoded payloads; the unencoded JWS extension is not supported.
+    return result.protectedHeader.b64 !== false;
+  } catch {
+    return false;
+  }
 }
 
-/**
- * RFC 7638 JWK thumbprint (SHA-256, base64url).
- *
- * The required members differ per key type and the lexicographic ordering is
- * part of the definition. RFC 8037 §2 adds `crv`, `kty`, `x` for OKP; those are
- * not in RFC 7638 itself, which only enumerates RSA and EC.
- */
+/** RFC 7638 public-key thumbprint; jose selects and orders the required members. */
 export async function jwkThumbprint(jwk: Jwk): Promise<string> {
-  let canonical: string;
-  switch (jwk.kty) {
-    case 'OKP':
-      canonical = JSON.stringify({ crv: jwk.crv, kty: jwk.kty, x: jwk.x });
-      break;
-    case 'EC':
-      canonical = JSON.stringify({
-        crv: jwk.crv,
-        kty: jwk.kty,
-        x: jwk.x,
-        y: jwk.y,
-      });
-      break;
-    case 'RSA':
-      canonical = JSON.stringify({ e: jwk.e, kty: jwk.kty, n: jwk.n });
-      break;
-    default:
-      throw new Error(`unsupported kty for thumbprint: ${jwk.kty}`);
-  }
-  return toBase64url(await sha256(utf8(canonical)));
+  const { calculateJwkThumbprint } = await import('jose');
+  return calculateJwkThumbprint(jwk, 'sha256');
 }
 
 /** JWT headers and payloads must be JSON objects, not null, arrays or primitives. */

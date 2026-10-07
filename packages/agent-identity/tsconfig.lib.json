@@ -1,8 +1,5 @@
 {
-  // Keep Node built-ins out of the library while allowing them in tests.
+  // Emit library declarations without test files.
   "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "types": []
-  },
   "exclude": ["node_modules", "dist", "src/**/__tests__"]
 }
