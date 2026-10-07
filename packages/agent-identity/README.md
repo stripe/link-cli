@@ -1,6 +1,6 @@
 # @stripe/agent-identity
 
-Agent Identity is the service-side verification SDK for [Link Agent Wallet](https://github.com/stripe/link-cli#identity-experimental). Agents use the wallet to obtain Link credentials and present them to websites and APIs. Your service uses `@stripe/agent-identity` to check those credentials and decide what access to allow.
+Agent Identity is the service-side verification SDK for [Link Agent Wallet](https://github.com/stripe/link-cli#identity-beta). Agents use the wallet to obtain Link credentials and present them to websites and APIs. Your service uses `@stripe/agent-identity` to check those credentials and decide what access to allow.
 
 An agent booking an event might need access to the event list before it needs to share an email. An anonymous Link attestation can satisfy the first check. A separate identity presentation can disclose a verified email for registration. Your service chooses when each check is needed and what a successful result permits.
 
@@ -9,7 +9,7 @@ An agent booking an event might need access to the event list before it needs to
 | Proof from Link without personal details | A bearer Agent Attestation Token (AAT), built on Privacy Pass. It proves Link issuance without identifying the person or agent presenting it. |
 | An email or another supported personal detail | A selectively disclosed identity presentation (SD-JWT-VC), signed by Link and the credential holder. For verified email, require `email` and `email_verified` and check that `email_verified === true`. |
 
-The SDK uses Link's public metadata and verification keys. It needs neither the agent's Link access token nor a Stripe secret key. Link is the supported issuer. The wallet commands remain **Unlisted** and require `LINK_IDENTITY_COMMANDS=1`; live issuance also requires access on the Link account.
+The SDK uses Link's public metadata and verification keys. It needs neither the agent's Link access token nor a Stripe secret key. Link is the supported issuer. The wallet identity commands are in **beta**; live issuance requires access on the Link account.
 
 ## Scope
 

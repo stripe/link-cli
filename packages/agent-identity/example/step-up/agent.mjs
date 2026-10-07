@@ -153,7 +153,7 @@ async function walletJson(args) {
     return JSON.parse(stdout);
   } catch {
     throw new ClientError(
-      'Wallet command failed. Check LINK_IDENTITY_COMMANDS=1, the executable in LINK_WALLET_BIN (or link-cli on PATH), wallet version, sign-in, attestation pool, and credential expiry.',
+      'Wallet command failed. Check the executable in LINK_WALLET_BIN (or link-cli on PATH), wallet version, sign-in, attestation pool, and credential expiry.',
     );
   }
 }

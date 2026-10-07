@@ -24,6 +24,6 @@ Wrong-audience presentation: rejected
 
 For a real HTTP service with live public-key discovery and an agent using Link Agent Wallet, follow the [event-registration instructions](step-up/README.md#run-with-link-agent-wallet). The same service also runs with fixtures. It handles duplicate credential headers, JSON size limits, issuer failures, application sessions, and interaction expiry. Use its HTTP boundary as the reference when adapting the SDK to a framework.
 
-Keep tokens and presentations in program memory or protected files. Parse wallet JSON output and send the proof directly through your HTTP client; do not manually transcribe proofs or put them in an agent transcript. The wallet identity commands are Unlisted and require `LINK_IDENTITY_COMMANDS=1`.
+Keep tokens and presentations in program memory or protected files. Parse wallet JSON output and send the proof directly through your HTTP client; do not manually transcribe proofs or put them in an agent transcript. The wallet identity commands are in beta.
 
 The examples use the singular `example/` convention shared by the other integrations in this repository. For test fixtures and negative cases, see [testing your integration](../test/README.md).

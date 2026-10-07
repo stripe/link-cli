@@ -58,10 +58,9 @@ chmod +x packages/cli/dist/cli.js
 export LINK_WALLET_BIN="$PWD/packages/cli/dist/cli.js"
 ```
 
-For an installed wallet, use `export LINK_WALLET_BIN="$(command -v link-cli)"` instead. Use the same executable for sign-in, issuance, and the demo client. Authenticate it using the wallet's [sign-in instructions](../../../../README.md#authentication-1), invoking `"$LINK_WALLET_BIN"` wherever those instructions use `link-cli`. These commands are Unlisted; enable them before preparing the wallet:
+For an installed wallet, use `export LINK_WALLET_BIN="$(command -v link-cli)"` instead. Use the same executable for sign-in, issuance, and the demo client. Authenticate it using the wallet's [sign-in instructions](../../../../README.md#authentication-1), invoking `"$LINK_WALLET_BIN"` wherever those instructions use `link-cli`. Prepare the wallet using the beta identity commands:
 
 ```sh
-export LINK_IDENTITY_COMMANDS=1
 "$LINK_WALLET_BIN" identity attestations request --count 10 --format json
 "$LINK_WALLET_BIN" identity credentials request --format json
 ```
@@ -72,10 +71,9 @@ Those commands save credentials and return metadata. From `packages/agent-identi
 node example/step-up/server.mjs
 ```
 
-From the same directory in another terminal, enable identity and select the same wallet executable again before running the client:
+From the same directory in another terminal, select the same wallet executable again before running the client:
 
 ```sh
-export LINK_IDENTITY_COMMANDS=1
 export LINK_WALLET_BIN="$(cd ../cli && pwd)/dist/cli.js"
 # For an installed wallet instead: export LINK_WALLET_BIN="$(command -v link-cli)"
 node example/step-up/agent.mjs http://127.0.0.1:3000 --share-email
