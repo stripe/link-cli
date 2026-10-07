@@ -42,9 +42,11 @@ npm install /path/to/link-cli/packages/agent-identity/stripe-agent-identity-0.2.
 
 The built package supports Node 22+, ESM and CommonJS. It uses Node’s built-in byte and cryptography APIs and `jose` for JWS verification, JWK import, and key thumbprints. Runtimes without the required Node APIs are unsupported. Licensed under the [MIT license](LICENSE).
 
-- [Examples](example/README.md): local credential verification and an HTTP event-registration flow with a wallet client.
-- [MCP integration](example/mcp/README.md): HTTP challenges, client retries, and application access policy.
-- [Integration tests](test/README.md): fixtures, failure cases, clocks, and application replay tests.
+The `src/`, `example/`, and `test/` directories are kept in this repository and are not included in the npm package. The package includes compiled ESM and CommonJS builds, type declarations, source maps, and integration guidance.
+
+- [Examples](https://github.com/stripe/link-cli/tree/main/packages/agent-identity/example/README.md): local credential verification and an HTTP event-registration flow with a wallet client.
+- [MCP integration](https://github.com/stripe/link-cli/tree/main/packages/agent-identity/example/mcp/README.md): HTTP challenges, client retries, and application access policy.
+- [Integration tests](https://github.com/stripe/link-cli/tree/main/packages/agent-identity/test/README.md): fixtures, failure cases, clocks, and application replay tests.
 - [Agent instructions](AGENTS.md): concise integration guidance for coding agents.
 
 ## How it works
@@ -68,7 +70,7 @@ sequenceDiagram
     Service-->>Agent: Registration confirmation
 ```
 
-The [step-up example](example/step-up/README.md) implements this flow, including session isolation and retry recovery. Identity checks and payment authorization are separate; if your service also uses HTTP `402` payments, verify payment credentials through that integration.
+The [step-up example](https://github.com/stripe/link-cli/tree/main/packages/agent-identity/example/step-up/README.md) implements this flow, including session isolation and retry recovery. Identity checks and payment authorization are separate; if your service also uses HTTP `402` payments, verify payment credentials through that integration.
 
 ## Quickstart
 
@@ -149,7 +151,7 @@ For lower-level composition, `verifyAttestation(authorization, { issuer })` take
 
 Your application can request identity claims directly without first requiring an attestation. Each check has its own verification API and access policy.
 
-Start with the runnable [credential verification example](example/verify.mjs) for a fixture-based verified-email check, or the [event-registration example](example/step-up/README.md) for a complete HTTP service. The excerpts below assume an existing handler and application-owned interaction store; `interactions` and `interactionId` are placeholders for that application code.
+Start with the runnable [credential verification example](https://github.com/stripe/link-cli/tree/main/packages/agent-identity/example/verify.mjs) for a fixture-based verified-email check, or the [event-registration example](https://github.com/stripe/link-cli/tree/main/packages/agent-identity/example/step-up/README.md) for a complete HTTP service. The excerpts below assume an existing handler and application-owned interaction store; `interactions` and `interactionId` are placeholders for that application code.
 
 ```ts
 const challenge = await verifier.claimsChallenge({
@@ -185,7 +187,7 @@ The SDK's `challenge.body` contains the fields below. Send it with HTTP `401`, `
 
 `purpose` is optional. The SDK returns `expiresAt` separately, in Unix seconds. The event-registration example adds `expires_at` and `interaction_id` to its response body and accepts the interaction ID in `X-Registration-Interaction` on retry. Those fields and that header are application conventions; they are not part of the SDK's challenge body.
 
-If your application has no session, create an opaque interaction ID and store the challenge, expiry, and intended operation on the server. Have the client echo that ID on retry, validate the operation and caller context against the stored record, and pass the stored nonce to `verifyClaims`. Do not derive the expected nonce from the unverified presentation. If your policy requires single use, atomically mark the application interaction complete before authorizing the operation. Share this state across replicas. See the [MCP guide](example/mcp/README.md#associate-the-nonce-with-an-operation) for interaction state and bearer continuation policies.
+If your application has no session, create an opaque interaction ID and store the challenge, expiry, and intended operation on the server. Have the client echo that ID on retry, validate the operation and caller context against the stored record, and pass the stored nonce to `verifyClaims`. Do not derive the expected nonce from the unverified presentation. If your policy requires single use, atomically mark the application interaction complete before authorizing the operation. Share this state across replicas. See the [MCP guide](https://github.com/stripe/link-cli/tree/main/packages/agent-identity/example/mcp/README.md#associate-the-nonce-with-an-operation) for interaction state and bearer continuation policies.
 
 ```ts
 const result = await verifier.verifyClaims(request.headers.get('Identity-Presentation'), {
@@ -201,7 +203,7 @@ if (result.valid) {
 
 `requiredClaims` is explicit; write `[]` to require none. Verification does not mutate nonce or interaction state on success or failure. The same valid presentation can verify again when the caller supplies the same expected nonce. Applications that require replay prevention must enforce it in their own stack.
 
-Decide whether successful verification permits one operation, one resource, or an application session. Subsequent requests can authenticate using your application's session credential; they do not need another identity presentation unless your policy requires one. Retain the verified disclosed claims with that session if needed, and make a separate decision about the permissions they grant. The [event-registration example](example/step-up/README.md#what-happens) demonstrates a session with a separate disclosure for each registration.
+Decide whether successful verification permits one operation, one resource, or an application session. Subsequent requests can authenticate using your application's session credential; they do not need another identity presentation unless your policy requires one. Retain the verified disclosed claims with that session if needed, and make a separate decision about the permissions they grant. The [event-registration example](https://github.com/stripe/link-cli/tree/main/packages/agent-identity/example/step-up/README.md#what-happens) demonstrates a session with a separate disclosure for each registration.
 
 Reject expired or completed interactions according to your policy before authorizing an operation, and recheck after asynchronous verification before completing it. Bound pending records and coordinate interaction completion, side effects, and idempotency. Invalid or incomplete presentations can leave an unexpired interaction pending so the caller can correct them.
 
@@ -211,7 +213,7 @@ The credential must carry `exp`; there is no skew allowance past credential expi
 
 ## MCP client challenge handling
 
-Link's `PrivateToken` and `Identity-Presentation` challenges are a custom exchange over MCP's HTTP transport, outside MCP's standard OAuth authorization flow. They require an explicitly integrated client or companion. The MCP TypeScript client's OAuth support does not answer them and can start OAuth discovery on a `401` unless your handler intercepts it. Integrate credential handling at the HTTP transport layer: preserve the challenge, validate the identity audience and association with the pending operation, obtain disclosure permission, and retry with the required credentials and your application's interaction identifier. Preserve MCP headers and successful response streams, restrict credentials to the intended endpoint, and bound retries. Credential issuance and disclosure permission belong to the caller; they are not SDK APIs. See the [MCP guide](example/mcp/README.md) for MCP version compatibility and the server and client requirements.
+Link's `PrivateToken` and `Identity-Presentation` challenges are a custom exchange over MCP's HTTP transport, outside MCP's standard OAuth authorization flow. They require an explicitly integrated client or companion. The MCP TypeScript client's OAuth support does not answer them and can start OAuth discovery on a `401` unless your handler intercepts it. Integrate credential handling at the HTTP transport layer: preserve the challenge, validate the identity audience and association with the pending operation, obtain disclosure permission, and retry with the required credentials and your application's interaction identifier. Preserve MCP headers and successful response streams, restrict credentials to the intended endpoint, and bound retries. Credential issuance and disclosure permission belong to the caller; they are not SDK APIs. See the [MCP guide](https://github.com/stripe/link-cli/tree/main/packages/agent-identity/example/mcp/README.md) for MCP version compatibility and the server and client requirements.
 
 ## Results and errors
 
@@ -324,7 +326,7 @@ pnpm test
 
 `pnpm test` runs the library tests with Vitest. Tests live alongside the source in `src/**/__tests__` and use `@/` imports, matching the wallet SDK. `typecheck` checks source and tests, then checks the library separately for declaration generation. Tests and test helpers are excluded from builds and the published package.
 
-Workspace `build`, `typecheck`, and `test` include this package. CI also runs the HTTP example tests, checks documentation references and links, and installs a packed archive into an isolated consumer to check ESM/CommonJS imports and both fixture examples. Run these checks locally after building:
+Workspace `build`, `typecheck`, and `test` include this package. CI also runs the HTTP example tests, checks documentation references and links, and installs a packed archive into an isolated consumer to check ESM/CommonJS imports and package contents. The fixture examples are copied from the repository into that consumer and checked against the installed package. Run these checks locally after building:
 
 ```sh
 node --test example/step-up/server.test.mjs

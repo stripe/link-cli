@@ -33,13 +33,9 @@
   "types": "./dist/esm/index.d.ts",
   "files": [
     "dist",
-    "src",
-    "!src/**/__tests__/**",
     "README.md",
     "AGENTS.md",
-    "LICENSE",
-    "example",
-    "test/README.md"
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsup && tsc -p tsconfig.lib.json --noEmit false --emitDeclarationOnly --outDir dist/esm && tsc -p tsconfig.lib.json --noEmit false --emitDeclarationOnly --outDir dist/cjs && node scripts/finish-cjs.mjs",
