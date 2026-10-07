@@ -10,7 +10,7 @@ A bearer AAT proves issuance by Link. It does not identify the presenter or bind
 
 ## Integration
 
-1. Follow [build and install from source](README.md#build-and-install-from-source); this package name is not published to npm yet. Workspace builds require Node 24+; the built package supports Node 22+, ESM and CommonJS. It uses Node built-ins and `jose`; runtimes without the required Node APIs are unsupported.
+1. Install with `npm install @stripe/agent-identity`. The package supports Node 22+, ESM and CommonJS. It uses Node built-ins and `jose`; runtimes without the required Node APIs are unsupported. For local SDK development, follow [build and install from source](README.md#build-and-install-from-source), which requires Node 24+ and pnpm.
 2. Create one `LinkVerifier` per process. Set `origin` from the service's configuration; it is the audience for identity claims. Use an explicit HTTP origin such as `http://localhost:3000` for local servers; bare authorities default to HTTPS.
 3. Extract the `Authorization` or `Identity-Presentation` field value and pass the string directly. Reject duplicate credential fields if your framework would otherwise discard them. In Node or Express, use `req.headersDistinct`; the SDK cannot recover fields your framework dropped.
 4. Inspect `result.valid`, or use the `OrThrow` variants and handle `VerificationError`. The result object itself is truthy even when verification fails.
