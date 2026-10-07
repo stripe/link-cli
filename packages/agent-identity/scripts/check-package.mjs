@@ -6,7 +6,13 @@
 // node_modules. A package can pass typecheck, build, and the full test suite and
 // still be impossible for a consumer to import. That happened, so it is checked.
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,9 +33,17 @@ try {
     root,
   );
   const archive = JSON.parse(packed)[0];
-  if (archive.files.some(({ path }) => path.includes('/__tests__/'))) {
+  if (
+    archive.files.some(
+      ({ path }) =>
+        path.startsWith('example/') ||
+        path.startsWith('test/') ||
+        path.startsWith('src/') ||
+        path.includes('/__tests__/'),
+    )
+  ) {
     throw new Error(
-      'the published package must not include tests or test helpers',
+      'the published package must not include source files, examples, or tests',
     );
   }
   const tarball = join(dir, archive.filename);
@@ -55,10 +69,6 @@ try {
   );
   if (!instructions.includes('LinkVerifier'))
     throw new Error('packaged agent instructions are missing');
-  readFileSync(
-    join(dir, 'node_modules/@stripe/agent-identity/src/index.ts'),
-    'utf8',
-  );
 
   writeFileSync(
     join(dir, 'esm.mjs'),
@@ -107,21 +117,11 @@ try {
 
   process.stdout.write(run('node', ['esm.mjs'], dir));
   process.stdout.write(run('node', ['cjs.cjs'], dir));
+  // Examples stay in the repository; exercise them against the installed package.
+  cpSync(join(root, 'example'), join(dir, 'example'), { recursive: true });
   for (const example of ['verify.mjs', 'step-up/demo.mjs']) {
-    process.stdout.write(
-      run(
-        'node',
-        [join('node_modules/@stripe/agent-identity/example', example)],
-        dir,
-      ),
-    );
+    process.stdout.write(run('node', [join('example', example)], dir));
   }
-  const testingGuide = readFileSync(
-    join(dir, 'node_modules/@stripe/agent-identity/test/README.md'),
-    'utf8',
-  );
-  if (!testingGuide.includes('CredentialFixture'))
-    throw new Error('packaged testing guide is missing');
   console.log(
     'package and examples work from an isolated installation in both module systems',
   );
