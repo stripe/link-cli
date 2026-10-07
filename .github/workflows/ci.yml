@@ -53,7 +53,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --filter @stripe/agent-identity...
       - run: pnpm --filter @stripe/agent-identity build
-      - run: pnpm --filter @stripe/agent-identity build:test
       # Build on the workspace runtime; test the SDK's supported consumer runtime.
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -61,7 +60,7 @@ jobs:
       - name: Verify Agent Identity on Node 22
         working-directory: packages/agent-identity
         run: |
-          node scripts/run-tests.mjs
+          node node_modules/vitest/vitest.mjs run
           node --test example/step-up/server.test.mjs
           node scripts/check-package.mjs
           node scripts/check-docs.mjs

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import { createClaimsChallenge } from '../src/challenge.js';
 import { clearJwksCache, verifyClaimsPresentation } from '../src/claims.js';
 import { LinkIssuer } from '../src/issuer.js';

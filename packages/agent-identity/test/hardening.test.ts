@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import { parsePrivateTokenCredential } from '../src/attestation.js';
 import { createAttestationChallenge } from '../src/challenge.js';
 import { LinkIssuer } from '../src/issuer.js';

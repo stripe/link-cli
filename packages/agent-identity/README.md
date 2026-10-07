@@ -40,7 +40,7 @@ pnpm pack
 npm install /path/to/link-cli/packages/agent-identity/stripe-agent-identity-0.2.0.tgz
 ```
 
-The built package supports Node 22+, ESM and CommonJS, with zero runtime dependencies. The library uses WebCrypto, Fetch, URL, and TextEncoder; its typecheck excludes Node types. Deno, Bun, and edge runtimes are untested. This package has its own [Apache-2.0 license](LICENSE).
+The built package supports Node 22+, ESM and CommonJS, with zero runtime dependencies. The library uses WebCrypto, Fetch, URL, and TextEncoder; its typecheck excludes Node types. Deno, Bun, and edge runtimes are untested. Licensed under the [MIT license](LICENSE).
 
 - [Examples](example/README.md): local credential verification and an HTTP event-registration flow with a wallet client.
 - [MCP integration](example/mcp/README.md): HTTP challenges, client retries, and application access policy.
@@ -276,7 +276,7 @@ The fixtures use real cryptography and can produce deliberately invalid inputs. 
 
 ```ts
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { test } from 'vitest';
 import { LinkVerifier } from '@stripe/agent-identity';
 import { LinkFixture } from '@stripe/agent-identity/testing';
 
@@ -318,7 +318,7 @@ From `packages/agent-identity`, after installing workspace dependencies:
 pnpm run verify
 ```
 
-`verify` checks library types without Node built-ins, builds ESM and CommonJS, runs the SDK and HTTP example tests, checks documentation references and links, installs a packed archive into an isolated consumer, and runs both fixture examples. Workspace `build`, `typecheck`, and `test` include this package; the HTTP example tests are part of its default test command. CI also exercises the built package on Node 22.
+`verify` checks library types without Node built-ins, builds ESM and CommonJS, runs the SDK tests with Vitest and the HTTP example tests, checks documentation references and links, installs a packed archive into an isolated consumer, and runs both fixture examples. Workspace `build`, `typecheck`, and `test` include this package; the HTTP example tests are part of its default test command. CI also exercises the built package on Node 22.
 
 The separate wallet integration test runs the built Link Agent Wallet through JSON issuance, private storage, `pop`, and `present`, and runs the event-registration client against the example service. It uses synthetic credentials and a local issuer with real signatures. Wallet storage is isolated in a temporary directory, and issuer requests cannot reach Link. Run it on macOS or Linux with Node 24+ after `verify`:
 

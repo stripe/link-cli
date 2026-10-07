@@ -71,7 +71,7 @@ for (const method of readme.matchAll(/verifier\.(\w+)\(/g)) {
 // can reference only real names and still not work.
 const readmeTest = [...readme.matchAll(/```ts\n([\s\S]*?)```/g)]
   .map((m) => m[1])
-  .find((b) => b.includes('node:test'));
+  .find((b) => b.includes("from 'vitest'"));
 if (readmeTest === undefined) {
   problems.push('README.md no longer contains a runnable test example');
 } else {
