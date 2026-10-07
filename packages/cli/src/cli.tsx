@@ -105,19 +105,13 @@ if (!isAgent && process.stdout.isTTY) {
   }
 }
 
-const identityCommandsEnabled =
-  process.env.LINK_IDENTITY_COMMANDS === '1' ||
-  process.env.LINK_IDENTITY_COMMANDS === 'true';
-
-if (identityCommandsEnabled) {
-  cli.command(
-    createIdentityCli({
-      createAttestationsResource: () => factory.createAttestationsResource(),
-      createIdentityCredentialsResource: () =>
-        factory.createIdentityCredentialsResource(),
-    }),
-  );
-}
+cli.command(
+  createIdentityCli({
+    createAttestationsResource: () => factory.createAttestationsResource(),
+    createIdentityCredentialsResource: () =>
+      factory.createIdentityCredentialsResource(),
+  }),
+);
 cli.command(
   createAuthCli(authRepo, getUpdateInfo, authStorage, envAccessToken),
 );
