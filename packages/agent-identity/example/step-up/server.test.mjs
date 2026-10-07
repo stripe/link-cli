@@ -176,6 +176,35 @@ test('wrong audience, wrong nonce, and missing claims can be corrected without c
   );
 });
 
+test('malformed credentials return 401 and leave the interaction usable', async (t) => {
+  const app = await setup(t);
+  const malformedToken = await app.call('/events', {
+    headers: { Authorization: `PrivateToken token="${'='.repeat(7000)}A"` },
+  });
+  assert.equal(malformedToken.status, 401);
+  assert.equal(malformedToken.body.session_token, undefined);
+
+  const session = await app.enter();
+  const challenge = await app.challenge(session);
+  const presentation = await app.present(challenge);
+  for (const jwt of ['issuer', 'holder']) {
+    for (const segmentIndex of [0, 1]) {
+      const parts = presentation.split('~');
+      const index = jwt === 'issuer' ? 0 : parts.length - 1;
+      const segments = parts[index].split('.');
+      segments[segmentIndex] = Buffer.from('null').toString('base64url');
+      parts[index] = segments.join('.');
+      const rejected = await app.submit(session, challenge, parts.join('~'));
+      assert.equal(rejected.status, 401);
+      assert.equal(rejected.body.registration_id, undefined);
+    }
+  }
+  assert.equal(
+    (await app.submit(session, challenge, presentation)).status,
+    201,
+  );
+});
+
 test('an expired credential cannot authorize registration', async (t) => {
   const app = await setup(t, { credentialOptions: { expiresInSeconds: -1 } });
   const session = await app.enter();

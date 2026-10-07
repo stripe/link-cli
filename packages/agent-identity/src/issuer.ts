@@ -12,6 +12,7 @@ import {
 } from './internal/bytes.js';
 import { importTokenKey, sha256 } from './internal/crypto.js';
 import { boundedGet, parseJson } from './internal/http.js';
+import { trimTrailingSlashes } from './internal/strings.js';
 
 /** Link's production issuer. */
 export const LINK_ISSUER = 'https://api.link.com';
@@ -155,7 +156,7 @@ export class LinkIssuer {
   private readonly unusableKeys = new Map<string, string>();
 
   constructor(options: IssuerOptions = {}) {
-    this.issuer = (options.issuer ?? LINK_ISSUER).replace(/\/+$/, '');
+    this.issuer = trimTrailingSlashes(options.issuer ?? LINK_ISSUER);
     this.minRefreshSeconds = options.minRefreshSeconds ?? 300;
     this.maxKeyAgeSeconds = options.maxKeyAgeSeconds ?? 900;
     this.refreshFailureBackoffSeconds =
@@ -399,7 +400,7 @@ export class LinkIssuer {
 
     // Refuse a metadata document that claims to be a different issuer: this is
     // the only place the pinned trust anchor is enforced.
-    if (metadata.issuer.replace(/\/+$/, '') !== this.issuer) {
+    if (trimTrailingSlashes(metadata.issuer) !== this.issuer) {
       throw new Error(
         `issuer metadata declares ${quoteForMessage(metadata.issuer)}, expected ${this.issuer}`,
       );

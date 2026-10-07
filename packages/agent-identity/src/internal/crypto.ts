@@ -193,7 +193,13 @@ export async function jwkThumbprint(jwk: Jwk): Promise<string> {
   return toBase64url(await sha256(utf8(canonical)));
 }
 
-/** Decodes a JWS compact segment as JSON. */
-export function decodeJwsSegment(segment: string): unknown {
-  return JSON.parse(new TextDecoder().decode(fromBase64(segment)));
+/** JWT headers and payloads must be JSON objects, not null, arrays or primitives. */
+export function decodeJwsObject(segment: string): Record<string, unknown> {
+  const value: unknown = JSON.parse(
+    new TextDecoder().decode(fromBase64(segment)),
+  );
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('JWT segment must be a JSON object');
+  }
+  return value as Record<string, unknown>;
 }

@@ -73,10 +73,15 @@ for (let i = 0; i < B64_STD_ALPHABET.length; i++) {
  * reaches here, and an uncaught throw at a front door is a denial of service.
  */
 export function fromBase64(input: string): Uint8Array {
-  const normalized = input
-    .replace(/-/g, '+')
-    .replace(/_/g, '/')
-    .replace(/=+$/, '');
+  // Scan once from the end; an unanchored suffix regex can backtrack over
+  // every '=' in malformed input such as a long padding run followed by 'A'.
+  let end = input.length;
+  while (end > 0 && input[end - 1] === '=') end--;
+  const padding = input.length - end;
+  if (end % 4 === 1 || padding > 2 || (padding > 0 && input.length % 4 !== 0)) {
+    throw new Error('invalid base64 padding');
+  }
+  const normalized = input.slice(0, end).replace(/-/g, '+').replace(/_/g, '/');
 
   const out: number[] = [];
   let acc = 0;

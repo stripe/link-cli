@@ -262,6 +262,8 @@ Credential signing keys are cached process-wide for one hour by JWKS URI. `clear
 
 ## Limitations
 
+Credential parsing is bounded: `Authorization` values may contain up to 8,192 characters and identity presentations up to 65,536 characters. Larger values return verification failures before parsing or issuer requests. Keep your HTTP server’s header limits enabled; those may be smaller.
+
 **AAT single use is not enforced.** Anyone holding a valid bearer token can present it again, including to another service. There is no request-signature time window or per-token expiry check. A token remains verifiable while its signing key is trusted. Challenge `max-age` does not bound token lifetime because the challenge is stable.
 
 AAT double-spend detection and replay prevention belong to adopters. The SDK does not provide a spent-token store or enforcement. If your service requires AAT single use, implement and operate that policy in your own stack.

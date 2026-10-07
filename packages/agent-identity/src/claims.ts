@@ -9,7 +9,7 @@ import {
   utf8,
 } from './internal/bytes.js';
 import {
-  decodeJwsSegment,
+  decodeJwsObject,
   importJwkForVerify,
   type Jwk,
   type JwsAlg,
@@ -18,10 +18,13 @@ import {
   verifyJws,
 } from './internal/crypto.js';
 import { boundedGet, parseJson } from './internal/http.js';
+import { trimTrailingSlashes } from './internal/strings.js';
 import type { LinkIssuer } from './issuer.js';
 import type { ClaimsResult, Failure } from './types.js';
 
 const KB_JWT_TYP = 'kb+jwt';
+/** Bound splitting, JSON parsing, disclosure hashing and signature work. */
+const MAX_PRESENTATION_LENGTH = 64 * 1024;
 
 /**
  * Credential media types this verifier accepts in the issuer JWT `typ` header.
@@ -177,6 +180,10 @@ export async function verifyClaimsPresentation(
   const now = (options.now ?? (() => Math.floor(Date.now() / 1000)))();
   const skew = options.clockSkewSeconds ?? 60;
 
+  if (options.presentation.length > MAX_PRESENTATION_LENGTH) {
+    return fail('presentation exceeds the 65536-character limit');
+  }
+
   const parts = options.presentation.split('~');
   if (parts.length < 2) {
     return fail('presentation is not a tilde-separated SD-JWT');
@@ -201,13 +208,13 @@ export async function verifyClaimsPresentation(
     string,
     string,
   ];
-  let issuerHeader: { alg?: string; kid?: string; typ?: string };
+  let issuerHeader: Record<string, unknown>;
   let payload: IssuerJwtPayload;
   try {
-    issuerHeader = decodeJwsSegment(issuerHeaderSeg) as typeof issuerHeader;
-    payload = decodeJwsSegment(issuerPayloadSeg) as IssuerJwtPayload;
+    issuerHeader = decodeJwsObject(issuerHeaderSeg);
+    payload = decodeJwsObject(issuerPayloadSeg);
   } catch {
-    return fail('issuer JWT segments are not valid base64url JSON');
+    return fail('issuer JWT segments must be base64url JSON objects');
   }
 
   // SD-JWT-VC section 2.2.1 requires `typ`. Checking it prevents a different
@@ -215,18 +222,18 @@ export async function verifyClaimsPresentation(
   // credential just because it carries credential-shaped members. The challenge
   // advertises `dc+sd-jwt`, and the verifier checks the returned credential type.
   if (
-    issuerHeader.typ === undefined ||
+    typeof issuerHeader.typ !== 'string' ||
     !ACCEPTED_CREDENTIAL_TYPES.has(issuerHeader.typ)
   ) {
     return fail(
-      `issuer JWT typ is ${quoteForMessage(String(issuerHeader.typ))}, expected one of ${[...ACCEPTED_CREDENTIAL_TYPES].join(', ')}`,
+      `issuer JWT typ is ${describeHeaderValue(issuerHeader.typ)}, expected one of ${[...ACCEPTED_CREDENTIAL_TYPES].join(', ')}`,
     );
   }
 
   const issuerAlg = acceptedAlg(issuerHeader.alg);
   if (!issuerAlg) {
     return fail(
-      `issuer JWT alg ${quoteForMessage(String(issuerHeader.alg))} is not accepted`,
+      `issuer JWT alg ${describeHeaderValue(issuerHeader.alg)} is not accepted`,
     );
   }
 
@@ -240,7 +247,7 @@ export async function verifyClaimsPresentation(
   if (typeof payload.vct !== 'string' || payload.vct === '') {
     return fail('credential vct is missing or not a string');
   }
-  if (payload.iss.replace(/\/+$/, '') !== options.issuer.issuer) {
+  if (trimTrailingSlashes(payload.iss) !== options.issuer.issuer) {
     return fail(
       `credential issuer ${quoteForMessage(String(payload.iss))} is not ${options.issuer.issuer}`,
     );
@@ -297,7 +304,11 @@ export async function verifyClaimsPresentation(
   // arrives as a throw.
   let issuerKeys: CryptoKey[];
   try {
-    issuerKeys = await resolveIssuerKeys(options, issuerHeader.kid, issuerAlg);
+    issuerKeys = await resolveIssuerKeys(
+      options,
+      typeof issuerHeader.kid === 'string' ? issuerHeader.kid : undefined,
+      issuerAlg,
+    );
   } catch (error) {
     return failWith('issuer_unavailable', describeError(error));
   }
@@ -440,29 +451,24 @@ export async function verifyClaimsPresentation(
     string,
     string,
   ];
-  let kbHeader: { alg?: string; typ?: string };
-  let kbPayload: {
-    aud?: string;
-    nonce?: string;
-    iat?: number;
-    sd_hash?: string;
-  };
+  let kbHeader: Record<string, unknown>;
+  let kbPayload: Record<string, unknown>;
   try {
-    kbHeader = decodeJwsSegment(kbHeaderSeg) as typeof kbHeader;
-    kbPayload = decodeJwsSegment(kbPayloadSeg) as typeof kbPayload;
+    kbHeader = decodeJwsObject(kbHeaderSeg);
+    kbPayload = decodeJwsObject(kbPayloadSeg);
   } catch {
-    return fail('KB-JWT segments are not valid base64url JSON');
+    return fail('KB-JWT segments must be base64url JSON objects');
   }
 
   if (kbHeader.typ !== KB_JWT_TYP) {
     return fail(
-      `KB-JWT typ is ${quoteForMessage(String(kbHeader.typ))}, expected "${KB_JWT_TYP}"`,
+      `KB-JWT typ is ${describeHeaderValue(kbHeader.typ)}, expected "${KB_JWT_TYP}"`,
     );
   }
   const kbAlg = acceptedAlg(kbHeader.alg);
   if (!kbAlg) {
     return fail(
-      `KB-JWT alg ${quoteForMessage(String(kbHeader.alg))} is not accepted`,
+      `KB-JWT alg ${describeHeaderValue(kbHeader.alg)} is not accepted`,
     );
   }
 
@@ -537,7 +543,14 @@ export async function verifyClaimsPresentation(
   };
 }
 
-function acceptedAlg(alg: string | undefined): JwsAlg | undefined {
+// Avoid invoking attacker-supplied toString properties while reporting bad fields.
+function describeHeaderValue(value: unknown): string {
+  return typeof value === 'string' || value === undefined
+    ? quoteForMessage(String(value))
+    : 'not a string';
+}
+
+function acceptedAlg(alg: unknown): JwsAlg | undefined {
   if (alg === 'EdDSA') return 'EdDSA';
   if (alg === 'ES256') return 'ES256';
   // `none` and everything else is refused rather than defaulted.

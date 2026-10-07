@@ -13,6 +13,7 @@ import {
 import { sha256, verifyRsaPss } from './internal/crypto.js';
 import { type ResolvedTokenKey, TOKEN_TYPE_BLIND_RSA } from './issuer.js';
 
+const MAX_AUTHORIZATION_LENGTH = 8 * 1024;
 const NONCE_SIZE = 32;
 const DIGEST_SIZE = 32;
 const KEY_ID_SIZE = 32;
@@ -113,9 +114,16 @@ export function parseToken(raw: Uint8Array): ParsedToken | string {
 export function parsePrivateTokenCredential(
   authorization: string,
 ): Uint8Array | string {
-  const match = /^\s*PrivateToken\s+(.+)$/i.exec(authorization);
-  if (!match) return 'Authorization is not a PrivateToken credential';
-  const params = match[1] ?? '';
+  if (authorization.length > MAX_AUTHORIZATION_LENGTH) {
+    return 'Authorization exceeds the 8192-character limit';
+  }
+  if (/[\r\n]/.test(authorization)) {
+    return 'Authorization contains a line break';
+  }
+  const field = authorization.trim();
+  const scheme = /^PrivateToken[ \t]+/i.exec(field);
+  if (!scheme) return 'Authorization is not a PrivateToken credential';
+  const params = field.slice(scheme[0].length);
 
   // Auth-params are comma-separated `name=value` pairs, and RFC 9577 section 2.2.2
   // requires unknown ones to be ignored. Substring-matching `token=` instead read
@@ -142,20 +150,28 @@ export function parsePrivateTokenCredential(
   parts.push(params.slice(start));
 
   for (const part of parts) {
-    const pair = /^\s*([A-Za-z0-9!#$%&'*+\-.^_`|~]+)\s*=\s*(.*?)\s*$/.exec(
-      part,
-    );
-    if (pair === null)
+    const separator = part.indexOf('=');
+    if (separator === -1)
       return 'PrivateToken credential has malformed auth parameters';
-    if ((pair[1] ?? '').toLowerCase() !== 'token') continue;
+    const name = part.slice(0, separator).trim();
+    if (!/^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$/.test(name))
+      return 'PrivateToken credential has malformed auth parameters';
+    if (name.toLowerCase() !== 'token') continue;
     seen++;
-    value = (pair[2] ?? '').replace(/^"(.*)"$/, '$1');
+    const rawValue = part.slice(separator + 1).trim();
+    value =
+      rawValue.startsWith('"') && rawValue.endsWith('"')
+        ? rawValue.slice(1, -1)
+        : rawValue;
   }
 
   if (value === undefined)
     return 'PrivateToken credential has no token parameter';
   if (seen > 1)
     return 'PrivateToken credential has more than one token parameter';
+  if (value.length > Math.ceil(TOKEN_SIZE / 3) * 4) {
+    return 'PrivateToken token exceeds the encoded token size';
+  }
   if (!/^[A-Za-z0-9\-_=]+$/.test(value)) {
     return 'PrivateToken token is not base64url';
   }
