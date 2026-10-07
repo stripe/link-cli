@@ -11,7 +11,9 @@ import {
 } from '@/index';
 import { LinkFixture } from '@/testing/index';
 
-const CLI_URL = 'https://github.com/stripe/link-cli';
+const EXPECTED_GUIDANCE =
+  'Use the Link Agent Wallet (https://github.com/stripe/link-cli) to obtain a Link bearer ' +
+  'Agent Attestation Token (AAT), then retry with Authorization: PrivateToken token="...".';
 
 describe('attestation recovery guidance', () => {
   it('preserves rejection codes and reasons and includes CLI guidance without echoing credentials', async () => {
@@ -23,51 +25,51 @@ describe('attestation recovery guidance', () => {
       agentKeyThumbprint: new Uint8Array(32).fill(7),
     });
     const unknown = await other.mint();
-    const cases: [string | null | undefined, FailureCode, RegExp][] = [
+    const cases: [string | null | undefined, FailureCode, string][] = [
       [
         null,
         'incomplete_protocol_request',
-        /no Authorization credential supplied/,
+        'no Authorization credential supplied',
       ],
       [
         undefined,
         'incomplete_protocol_request',
-        /no Authorization credential supplied/,
+        'no Authorization credential supplied',
       ],
       [
         '',
         'incomplete_protocol_request',
-        /no Authorization credential supplied/,
+        'no Authorization credential supplied',
       ],
       [
         'Bearer secret-attestation-input',
         'malformed_protocol_input',
-        /not a PrivateToken credential/,
+        'Authorization is not a PrivateToken credential',
       ],
       [
         'PrivateToken token="not%base64"',
         'malformed_protocol_input',
-        /token is not base64url/,
+        'PrivateToken token is not base64url',
       ],
       [
         'PrivateToken token="AA=="',
         'malformed_protocol_input',
-        /token is 1 bytes/,
+        'token is 1 bytes, expected 354',
       ],
       [
         forged.authorization,
         'invalid_private_token',
-        /token authenticator does not verify/,
+        'token authenticator does not verify',
       ],
       [
         keyBound.authorization,
         'challenge_mismatch',
-        /key-bound tokens are not supported/,
+        'token does not match the stable Link bearer challenge; key-bound tokens are not supported',
       ],
       [
         unknown.authorization,
         'unknown_issuer',
-        /token_key_id does not resolve/,
+        `token_key_id does not resolve to a key published by ${link.issuer}`,
       ],
     ];
 
@@ -76,13 +78,7 @@ describe('attestation recovery guidance', () => {
         await verifyAttestation(authorization, { issuer }),
         code,
       );
-      assert.match(failure.message, reason);
-      assert.ok(failure.message.includes(CLI_URL));
-      assert.match(
-        failure.message,
-        /obtain a Link bearer Agent Attestation Token/,
-      );
-      assert.match(failure.message, /retry with Authorization: PrivateToken/);
+      assert.equal(failure.message, `${reason}. ${EXPECTED_GUIDANCE}`);
       if (authorization) assert.ok(!failure.message.includes(authorization));
     }
   });
@@ -90,7 +86,10 @@ describe('attestation recovery guidance', () => {
   it('provides the same guidance through the facade and throwing APIs', async () => {
     const verifier = new LinkVerifier({ origin: 'https://service.example' });
     const failure = firstFailure(await verifier.verifyAttestation(null));
-    assert.ok(failure.message.includes(CLI_URL));
+    assert.equal(
+      failure.message,
+      `no Authorization credential supplied. ${EXPECTED_GUIDANCE}`,
+    );
 
     for (const verify of [
       () => verifier.verifyAttestationOrThrow(null),
@@ -119,15 +118,25 @@ describe('attestation recovery guidance', () => {
       await verifier.verifyAttestation(token.authorization),
       'issuer_unavailable',
     );
-    assert.match(failure.message, /issuer unavailable for this test/);
-    assert.ok(!failure.message.includes(CLI_URL));
+    assert.equal(
+      failure.message,
+      'fetch failed: issuer unavailable for this test',
+    );
   });
 
   it('does not suggest an AAT as a replacement for an identity presentation', async () => {
     const verifier = new LinkVerifier({ origin: 'https://service.example' });
-    for (const [presentation, code] of [
-      [null, 'incomplete_protocol_request'],
-      ['not-an-identity-presentation', 'invalid_claims_presentation'],
+    for (const [presentation, code, message] of [
+      [
+        null,
+        'incomplete_protocol_request',
+        'no Identity-Presentation credential supplied',
+      ],
+      [
+        'not-an-identity-presentation',
+        'invalid_claims_presentation',
+        'presentation is not a tilde-separated SD-JWT',
+      ],
     ] as const) {
       const failure = assertFailed(
         await verifier.verifyClaims(presentation, {
@@ -136,7 +145,7 @@ describe('attestation recovery guidance', () => {
         }),
         code,
       );
-      assert.ok(!failure.message.includes(CLI_URL));
+      assert.equal(failure.message, message);
     }
   });
 });
