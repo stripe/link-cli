@@ -52,19 +52,19 @@ The built package supports Node 22+, ESM and CommonJS, with zero runtime depende
 ```mermaid
 sequenceDiagram
     participant Agent as Agent using Link Agent Wallet
-    participant Link
+    participant LinkIssuer as Link
     participant Service as Your service + Agent Identity SDK
-    Agent->>Link: Obtain attestations and an identity credential
-    Link-->>Agent: Anonymous tokens and a holder-bound credential
+    Agent->>LinkIssuer: Obtain attestations and an identity credential
+    LinkIssuer-->>Agent: Anonymous tokens and a holder-bound credential
     Agent->>Service: Browse events
     Service-->>Agent: 401: Request a Link attestation
     Agent->>Service: Retry with a bearer attestation
-    Service->>Link: Discover and cache public verification keys
+    Service->>LinkIssuer: Discover and cache public verification keys
     Service-->>Agent: Grant an application session after verification
     Agent->>Service: Register using the application session
     Service-->>Agent: 401: Request verified email for this audience and nonce
     Agent->>Service: Present selected claims using the holder key
-    Note over Service: Verify claims; enforce interaction expiry and complete registration atomically
+    Note over Service: Verify claims, enforce interaction expiry,<br/>and complete registration atomically
     Service-->>Agent: Registration confirmation
 ```
 
