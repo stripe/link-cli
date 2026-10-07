@@ -92,6 +92,8 @@ jobs:
       - run: pnpm turbo run typecheck
       - run: pnpm biome check .
       - run: pnpm turbo run test
+      - run: pnpm --filter @stripe/agent-identity test:step-up
+      - run: pnpm --filter @stripe/agent-identity test:docs
       - run: pnpm --filter @stripe/agent-identity test:package
       - name: Test wallet and verifier integration
         run: pnpm --filter @stripe/agent-identity test:wallet

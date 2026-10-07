@@ -318,7 +318,9 @@ From `packages/agent-identity`, after installing workspace dependencies:
 pnpm run verify
 ```
 
-`verify` checks library types without Node built-ins, builds ESM and CommonJS, runs the SDK tests with Vitest and the HTTP example tests, checks documentation references and links, installs a packed archive into an isolated consumer, and runs both fixture examples. Workspace `build`, `typecheck`, and `test` include this package; the HTTP example tests are part of its default test command. CI also exercises the built package on Node 22.
+`pnpm test` runs the library tests with Vitest. Tests live alongside the source in `src/**/__tests__` and use `@/` imports, matching the wallet SDK. `typecheck` checks source and tests, then checks the library separately without Node built-ins. Tests and test helpers are excluded from builds and the published package.
+
+`verify` runs those checks, builds ESM and CommonJS, runs the HTTP example tests, checks documentation references and links, installs a packed archive into an isolated consumer, and runs both fixture examples. Workspace `build`, `typecheck`, and `test` include this package. CI runs the HTTP example and documentation checks separately and also exercises the built package on Node 22.
 
 The separate wallet integration test runs the built Link Agent Wallet through JSON issuance, private storage, `pop`, and `present`, and runs the event-registration client against the example service. It uses synthetic credentials and a local issuer with real signatures. Wallet storage is isolated in a temporary directory, and issuer requests cannot reach Link. Run it on macOS or Linux with Node 24+ after `verify`:
 

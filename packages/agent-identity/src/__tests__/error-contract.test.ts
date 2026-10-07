@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vitest';
-import { createClaimsChallenge } from '../src/challenge.js';
-import { clearJwksCache } from '../src/claims.js';
+import { assertFailed } from '@/__tests__/helpers';
+import { createClaimsChallenge } from '@/challenge';
+import { clearJwksCache } from '@/claims';
 import {
   FAILURE_CODES,
   isRejection,
@@ -10,14 +11,9 @@ import {
   verifyAttestation,
   verifyAttestationOrThrow,
   verifyClaimsPresentationOrThrow,
-} from '../src/index.js';
-import { LinkIssuer } from '../src/issuer.js';
-import {
-  CredentialFixture,
-  combineFetch,
-  LinkFixture,
-} from '../src/testing/index.js';
-import { assertFailed } from './helpers.js';
+} from '@/index';
+import { LinkIssuer } from '@/issuer';
+import { CredentialFixture, combineFetch, LinkFixture } from '@/testing/index';
 
 const AUD = 'https://merchant.example';
 

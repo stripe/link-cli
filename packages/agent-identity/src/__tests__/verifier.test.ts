@@ -1,13 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vitest';
-import { clearJwksCache } from '../src/claims.js';
-import { LinkVerifier, VerificationError } from '../src/index.js';
-import {
-  CredentialFixture,
-  combineFetch,
-  LinkFixture,
-} from '../src/testing/index.js';
-import { assertFailed, firstFailure } from './helpers.js';
+import { assertFailed, firstFailure } from '@/__tests__/helpers';
+import { clearJwksCache } from '@/claims';
+import { LinkVerifier, VerificationError } from '@/index';
+import { CredentialFixture, combineFetch, LinkFixture } from '@/testing/index';
 
 const MERCHANT = 'https://shop.example';
 

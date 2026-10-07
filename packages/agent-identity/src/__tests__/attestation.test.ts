@@ -6,12 +6,12 @@ import {
   parseToken,
   TOKEN_SIZE,
   verifyTokenSignature,
-} from '../src/attestation.js';
-import { createAttestationChallenge } from '../src/challenge.js';
-import { fromBase64, toBase64url } from '../src/internal/bytes.js';
-import { sha256 } from '../src/internal/crypto.js';
-import { LinkIssuer } from '../src/issuer.js';
-import { LinkFixture } from '../src/testing/index.js';
+} from '@/attestation';
+import { createAttestationChallenge } from '@/challenge';
+import { fromBase64, toBase64url } from '@/internal/bytes';
+import { sha256 } from '@/internal/crypto';
+import { LinkIssuer } from '@/issuer';
+import { LinkFixture } from '@/testing/index';
 
 async function setup(keyCount = 1) {
   const fixture = await LinkFixture.create('https://api.link.com', keyCount);
@@ -182,7 +182,7 @@ describe('challenge digest binding', () => {
     // test passed while proving nothing about the conformant case. Both forms are
     // checked now, so neither can pass by accident.
     const { fixture, issuer } = await setup();
-    const { encodeTokenChallenge } = await import('../src/attestation.js');
+    const { encodeTokenChallenge } = await import('@/attestation');
 
     for (const originInfo of [
       'merchant.example', // conformant: a server name

@@ -26,7 +26,13 @@ try {
     ['pack', '--ignore-scripts', '--json', '--pack-destination', dir],
     root,
   );
-  const tarball = join(dir, JSON.parse(packed)[0].filename);
+  const archive = JSON.parse(packed)[0];
+  if (archive.files.some(({ path }) => path.includes('/__tests__/'))) {
+    throw new Error(
+      'the published package must not include tests or test helpers',
+    );
+  }
+  const tarball = join(dir, archive.filename);
   writeFileSync(
     join(dir, 'package.json'),
     JSON.stringify({ name: 'c', private: true }),

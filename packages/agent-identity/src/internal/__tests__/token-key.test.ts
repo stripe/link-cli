@@ -1,20 +1,20 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vitest';
-import { createAttestationChallenge } from '../src/challenge.js';
+import { createAttestationChallenge } from '@/challenge';
 import {
   asBufferSource,
   fromBase64,
   toBase64url,
   toHex,
-} from '../src/internal/bytes.js';
-import { importTokenKey, sha256 } from '../src/internal/crypto.js';
+} from '@/internal/bytes';
+import { importTokenKey, sha256 } from '@/internal/crypto';
 import {
   parseRsaSpki,
   wrapRsaEncryptionSpki,
   wrapRsaSsaPssSpki,
-} from '../src/internal/der.js';
-import { LinkIssuer } from '../src/issuer.js';
-import { LinkFixture } from '../src/testing/index.js';
+} from '@/internal/der';
+import { LinkIssuer } from '@/issuer';
+import { LinkFixture } from '@/testing/index';
 
 /**
  * Link's production token key, captured verbatim from

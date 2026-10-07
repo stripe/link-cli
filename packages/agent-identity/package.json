@@ -34,6 +34,7 @@
   "files": [
     "dist",
     "src",
+    "!src/**/__tests__/**",
     "README.md",
     "AGENTS.md",
     "LICENSE",
@@ -43,15 +44,15 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build": "tsup && tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json && node scripts/finish-cjs.mjs",
-    "typecheck": "tsc && tsc -p tsconfig.test.json",
-    "test": "vitest run && pnpm run test:step-up && pnpm run test:docs",
+    "typecheck": "tsc && tsc -p tsconfig.lib.json",
+    "test": "vitest run",
     "test:step-up": "node --test example/step-up/server.test.mjs",
     "test:wallet": "node --test test/wallet.test.mjs",
     "test:docs": "node scripts/check-docs.mjs",
     "test:package": "node scripts/check-package.mjs",
     "example:verify": "node example/verify.mjs",
     "example:step-up": "node example/step-up/demo.mjs",
-    "verify": "pnpm run typecheck && pnpm run build && pnpm test && pnpm run test:package && pnpm run example:verify && pnpm run example:step-up",
+    "verify": "pnpm run typecheck && pnpm run build && pnpm test && pnpm run test:step-up && pnpm run test:docs && pnpm run test:package && pnpm run example:verify && pnpm run example:step-up",
     "prepack": "pnpm run clean && pnpm run build"
   },
   "devDependencies": {

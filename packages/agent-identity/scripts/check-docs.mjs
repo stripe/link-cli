@@ -76,21 +76,21 @@ if (readmeTest === undefined) {
   problems.push('README.md no longer contains a runnable test example');
 } else {
   const live = readFileSync(
-    new URL('test/readme-example.test.ts', root),
+    new URL('src/__tests__/readme-example.test.ts', root),
     'utf8',
   );
   const normalize = (text) =>
     text
-      .replace(/from '(\.\.\/src\/index\.js|@stripe\/agent-identity)'/g, 'PKG')
+      .replace(/from '(@\/index|@stripe\/agent-identity)'/g, 'PKG')
       .replace(
-        /from '(\.\.\/src\/testing\/index\.js|@stripe\/agent-identity\/testing)'/g,
+        /from '(@\/testing\/index|@stripe\/agent-identity\/testing)'/g,
         'PKG_TESTING',
       )
       .replace(/\s+/g, ' ')
       .trim();
   if (!normalize(live).includes(normalize(readmeTest))) {
     problems.push(
-      'the README.md test example no longer matches test/readme-example.test.ts, so it is ' +
+      'the README.md test example no longer matches src/__tests__/readme-example.test.ts, so it is ' +
         'not the code that actually runs',
     );
   }

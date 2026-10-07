@@ -36,7 +36,7 @@
     {
       "includes": [
         "**/packages/sdk/src/**/*.test.ts",
-        "**/packages/agent-identity/test/**/*.test.ts"
+        "**/packages/agent-identity/src/**/*.test.ts"
       ],
       "linter": {
         "rules": {
