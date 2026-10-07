@@ -13,11 +13,11 @@ metadata:
 
 # Link identity
 
-These commands are in **beta**. Use them when a service accepts Link attestations or signed user claims.
+These commands are in **beta** and appear in `link-cli identity --help` without a preview flag. Use them when a service accepts Link attestations or signed user claims.
 
 | Service requests | Command | JSON field → HTTP header |
 |---|---|---|
-| A Link Agent Attestation Token (AAT), often via `WWW-Authenticate: PrivateToken` | `identity attestations take` | `authorization` → `Authorization` |
+| A Link Agent Attestation Token (AAT), often via `WWW-Authenticate: PrivateToken` | `identity attestations pop` | `authorization` → `Authorization` |
 | Signed claims, often via `WWW-Authenticate: Identity-Presentation` | `identity credentials present` | `presentation` → `Identity-Presentation` |
 
 An AAT proves issuance by Link without disclosing user claims. A presentation discloses selected claims and proves possession of the credential's holder key for an audience and nonce. If the service requires both, send both headers.
@@ -27,7 +27,7 @@ An AAT proves issuance by Link without disclosing user claims. A presentation di
 For installation and authentication, reuse the [create-payment-credential skill](https://github.com/stripe/link-cli/blob/main/skills/create-payment-credential/SKILL.md)'s shared guidance.
 
 - Identity commands are available through the CLI, not its MCP tools.
-- Only `request` needs Link authentication. `list`, `take`, and `present` use local files. Requests return paths and metadata; `take` and `present` return proofs.
+- Only `request` needs Link authentication. `list`, `pop`, and `present` use local files. Requests return paths and metadata; `pop` and `present` return proofs.
 - Capture stdout with `--format json`, parse it programmatically with a JSON parser or `jq`, and pass the exact proof to the HTTP client or browser automation. **Never manually transcribe, reconstruct, or re-encode tokens or presentations.** Keep proofs, private keys, and claim values out of transcripts and logs; use restrictive permissions for handoff files.
 - Cached identity files belong to the home directory. Changing `--auth` or logging in as another user does not switch the cached identity. Use separate home directories for different users.
 
@@ -40,13 +40,13 @@ link-cli identity attestations list --format json
 # Refill only when needed. Count is required: 1–100.
 link-cli identity attestations request --count 10 --format json
 
-# Take a token when ready to use it.
-link-cli identity attestations take --format json
+# Pop a token when ready to use it.
+link-cli identity attestations pop --format json
 ```
 
-Check `errors` and `attestations`. Only entries with `storage: "pool"` are available to `take`; `total_token_count` also includes exports. Requests append to `~/.link-cli/attestations/pool.json`.
+Check `errors` and `attestations`. Only entries with `storage: "pool"` are available to `pop`; `total_token_count` also includes exports. Requests append to `~/.link-cli/identity/attestations/pool.json`.
 
-Example `take` output:
+Example `pop` output:
 
 ```json
 {
@@ -57,7 +57,7 @@ Example `take` output:
 }
 ```
 
-Use `authorization` verbatim, including its scheme and quoting. `take` removes the token locally; server reuse rules belong to the service. Keep the same AAT for retries tied to an existing interaction, and use a fresh one for a new service. Do not return taken tokens to the pool.
+Use `authorization` verbatim, including its scheme and quoting. `pop` removes the token locally; server reuse rules belong to the service. Keep the same AAT for retries tied to an existing interaction, and use a fresh one for a new service. Do not return popped tokens to the pool.
 
 For agent-managed allocation, export a batch instead:
 
@@ -65,7 +65,7 @@ For agent-managed allocation, export a batch instead:
 link-cli identity attestations request --count 10 --output-file ./aats.json --format json
 ```
 
-Use a new file outside `~/.link-cli/attestations`. Read its `tokens` array and each entry's `authorization` programmatically. Exported tokens never enter the CLI pool; the caller owns allocation, concurrency, and cleanup.
+Use a new file outside `~/.link-cli/identity/attestations`. Read its `tokens` array and each entry's `authorization` programmatically. Exported tokens never enter the CLI pool; the caller owns allocation, concurrency, and cleanup.
 
 ## Credentials and presentations
 
@@ -77,7 +77,7 @@ link-cli identity credentials list --format json
 link-cli identity credentials request --format json
 ```
 
-Issuance replaces `~/.link-cli/credentials/current.json` and creates or reuses `~/.link/holder-key.jwk`. Keep both local. Choose claims with `present`:
+Issuance replaces `~/.link-cli/identity/credentials/current.json` and creates or reuses `~/.link-cli/identity/holder-key.jwk`. Keep both local. Choose claims with `present`:
 
 ```bash
 link-cli identity credentials present \
@@ -101,7 +101,7 @@ Example output:
 
 Set headers only for the intended endpoint. Preserve the challenged operation's method, body, session, interaction identifiers, and any required AAT. Avoid global browser headers or redirects that forward proofs to another origin. Report success only after the service accepts the request.
 
-- `ATTESTATION_POOL_EMPTY`: request a batch, then take a token.
+- `ATTESTATION_POOL_EMPTY`: request a batch, then pop a token.
 - Errors in `list`: inspect the reported file/error instead of treating storage as empty.
 - Unavailable claim: check `claim_names`; do not disclose extra claims or the raw credential.
 - Missing or mismatched holder key: preserve the files and restore the correct key or explicitly obtain a new credential.
