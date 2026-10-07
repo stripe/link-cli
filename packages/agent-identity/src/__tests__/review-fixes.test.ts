@@ -1,18 +1,14 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
-import { createClaimsChallenge } from '../src/challenge.js';
-import { clearJwksCache, verifyClaimsPresentation } from '../src/claims.js';
-import { fromBase64 } from '../src/internal/bytes.js';
-import { importTokenKey } from '../src/internal/crypto.js';
-import { parseRsaSpki } from '../src/internal/der.js';
-import { boundedGet } from '../src/internal/http.js';
-import { LinkIssuer } from '../src/issuer.js';
-import {
-  CredentialFixture,
-  combineFetch,
-  LinkFixture,
-} from '../src/testing/index.js';
-import { firstFailure } from './helpers.js';
+import { describe, it } from 'vitest';
+import { firstFailure } from '@/__tests__/helpers';
+import { createClaimsChallenge } from '@/challenge';
+import { clearJwksCache, verifyClaimsPresentation } from '@/claims';
+import { fromBase64 } from '@/internal/bytes';
+import { importTokenKey } from '@/internal/crypto';
+import { parseRsaSpki } from '@/internal/der';
+import { boundedGet } from '@/internal/http';
+import { LinkIssuer } from '@/issuer';
+import { CredentialFixture, combineFetch, LinkFixture } from '@/testing/index';
 
 const AUD = 'https://merchant.example';
 
@@ -254,7 +250,7 @@ describe('claims lane robustness', () => {
     // The cache is process-global and keyed on the URI alone, so without an exported
     // way to clear it a second CredentialFixture in one process failed with
     // "issuer JWT signature does not verify" and nothing a consumer could do about it.
-    const { clearJwksCache: exported } = await import('../src/index.js');
+    const { clearJwksCache: exported } = await import('@/index');
     assert.equal(typeof exported, 'function');
   });
 });

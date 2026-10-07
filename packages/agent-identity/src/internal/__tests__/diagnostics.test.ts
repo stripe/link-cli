@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
-import { quoteForMessage } from '../src/internal/bytes.js';
+import { describe, it } from 'vitest';
+import { quoteForMessage } from '@/internal/bytes';
 
 describe('failure messages', () => {
   it('quotes and truncates untrusted values', () => {

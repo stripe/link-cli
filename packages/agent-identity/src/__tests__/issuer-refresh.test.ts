@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
-import { parseToken } from '../src/attestation.js';
-import { LinkIssuer } from '../src/issuer.js';
-import { LinkFixture } from '../src/testing/index.js';
+import { describe, it } from 'vitest';
+import { parseToken } from '@/attestation';
+import { LinkIssuer } from '@/issuer';
+import { LinkFixture } from '@/testing/index';
 
 /**
  * A fetch wrapper that counts calls and can be made to fail or to serve

@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
-import { clearJwksCache, LinkVerifier } from '../src/index.js';
-import {
-  CredentialFixture,
-  combineFetch,
-  LinkFixture,
-} from '../src/testing/index.js';
+import { test } from 'vitest';
+import { clearJwksCache, LinkVerifier } from '@/index';
+import { CredentialFixture, combineFetch, LinkFixture } from '@/testing/index';
 
 // All credentials and issuer responses in these regressions are local fixtures.
 test('concurrent first verifications await the same issuer discovery', async () => {

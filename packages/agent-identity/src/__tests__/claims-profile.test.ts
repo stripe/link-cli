@@ -1,14 +1,10 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
-import { createClaimsChallenge } from '../src/challenge.js';
-import { clearJwksCache, verifyClaimsPresentation } from '../src/claims.js';
-import { LinkIssuer } from '../src/issuer.js';
-import {
-  CredentialFixture,
-  combineFetch,
-  LinkFixture,
-} from '../src/testing/index.js';
-import { firstFailure } from './helpers.js';
+import { describe, it } from 'vitest';
+import { firstFailure } from '@/__tests__/helpers';
+import { createClaimsChallenge } from '@/challenge';
+import { clearJwksCache, verifyClaimsPresentation } from '@/claims';
+import { LinkIssuer } from '@/issuer';
+import { CredentialFixture, combineFetch, LinkFixture } from '@/testing/index';
 
 const AUD = 'https://merchant.example';
 

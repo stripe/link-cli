@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
-import { LinkVerifier } from '../src/index.js';
-import { LinkFixture } from '../src/testing/index.js';
+import { test } from 'vitest';
+import { LinkVerifier } from '@/index';
+import { LinkFixture } from '@/testing/index';
 
 test('accepts a Link token and rejects a forged token without WBA', async () => {
   const link = await LinkFixture.create();

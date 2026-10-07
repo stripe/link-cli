@@ -6,7 +6,7 @@
  * call site or would silently pass `undefined` into a comparison.
  */
 import assert from 'node:assert/strict';
-import type { Failure } from '../src/types.js';
+import type { Failure } from '@/types';
 
 export function firstFailure(result: {
   valid: boolean;

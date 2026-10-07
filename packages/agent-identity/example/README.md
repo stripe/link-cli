@@ -9,11 +9,11 @@ pnpm --filter @stripe/agent-identity build
 
 | Example | What it demonstrates | Run from the repository root |
 | --- | --- | --- |
-| [Credential verification](verify.mjs) | Verify an attestation and a verified-email presentation; reject a forgery and a wrong audience | `pnpm --filter @stripe/agent-identity example:verify` |
-| [Event registration](step-up/README.md) | Attestation for site access, an application session, verified email for registration, and safe retries | `pnpm --filter @stripe/agent-identity example:step-up` |
+| [Credential verification](verify.mjs) | Verify an attestation and a verified-email presentation; reject a forgery and a wrong audience | `node packages/agent-identity/example/verify.mjs` |
+| [Event registration](step-up/README.md) | Attestation for site access, an application session, verified email for registration, and safe retries | `node packages/agent-identity/example/step-up/demo.mjs` |
 | [MCP integration guide](mcp/README.md) | Where to check credentials and handle challenges in an MCP HTTP transport | Integration guidance, not an executable server |
 
-The fixture examples make no calls to Link and require no account. They print status messages without credentials or personal information. Expected output from `example:verify`:
+The fixture examples make no calls to Link and require no account. They print status messages without credentials or personal information. Expected output from `verify.mjs`:
 
 ```text
 Valid Link attestation: accepted

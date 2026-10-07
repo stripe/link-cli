@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
+import { assertFailed, firstFailure } from '@/__tests__/helpers';
 import {
   type FailureCode,
   LinkIssuer,
@@ -7,9 +8,8 @@ import {
   VerificationError,
   verifyAttestation,
   verifyAttestationOrThrow,
-} from '../src/index.js';
-import { LinkFixture } from '../src/testing/index.js';
-import { assertFailed, firstFailure } from './helpers.js';
+} from '@/index';
+import { LinkFixture } from '@/testing/index';
 
 const CLI_URL = 'https://github.com/stripe/link-cli';
 

@@ -1,20 +1,16 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
-import { clearJwksCache } from '../src/claims.js';
+import { describe, it } from 'vitest';
+import { assertFailed, firstFailure } from '@/__tests__/helpers';
+import { clearJwksCache } from '@/claims';
 import {
   createAttestationChallenge,
   createClaimsChallenge,
   LinkIssuer,
   verifyAttestation,
   verifyClaimsPresentation,
-} from '../src/index.js';
-import { toBase64url } from '../src/internal/bytes.js';
-import {
-  CredentialFixture,
-  combineFetch,
-  LinkFixture,
-} from '../src/testing/index.js';
-import { assertFailed, firstFailure } from './helpers.js';
+} from '@/index';
+import { toBase64url } from '@/internal/bytes';
+import { CredentialFixture, combineFetch, LinkFixture } from '@/testing/index';
 
 async function setup() {
   const link = await LinkFixture.create();

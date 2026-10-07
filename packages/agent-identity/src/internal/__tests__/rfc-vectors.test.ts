@@ -1,8 +1,8 @@
 /** RFC 7638 Section 3.1: independent vectors for credential holder thumbprints. */
 
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
-import { type Jwk, jwkThumbprint } from '../src/internal/crypto.js';
+import { describe, it } from 'vitest';
+import { type Jwk, jwkThumbprint } from '@/internal/crypto';
 
 describe('RFC 7638 Section 3.1, JWK thumbprint', () => {
   /** The example RSA key from Section 3.1, `kid` 2011-04-29. */

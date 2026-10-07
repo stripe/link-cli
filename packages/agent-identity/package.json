@@ -2,16 +2,14 @@
   "name": "@stripe/agent-identity",
   "version": "0.2.0",
   "description": "Verify Link agent attestations and selectively disclosed identity claims.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/stripe/link-cli.git",
+    "url": "https://github.com/stripe/link-cli.git",
     "directory": "packages/agent-identity"
   },
   "homepage": "https://github.com/stripe/link-cli/tree/main/packages/agent-identity#readme",
-  "bugs": {
-    "url": "https://github.com/stripe/link-cli/issues"
-  },
+  "bugs": "https://github.com/stripe/link-cli/issues",
   "type": "module",
   "engines": {
     "node": ">=22.0.0"
@@ -36,6 +34,7 @@
   "files": [
     "dist",
     "src",
+    "!src/**/__tests__/**",
     "README.md",
     "AGENTS.md",
     "LICENSE",
@@ -43,27 +42,20 @@
     "test/README.md"
   ],
   "scripts": {
-    "clean": "rm -rf dist dist-test",
-    "build": "pnpm run build:esm && pnpm run build:cjs",
-    "build:esm": "tsc -p tsconfig.esm.json",
-    "build:cjs": "tsc -p tsconfig.cjs.json && node scripts/finish-cjs.mjs",
-    "typecheck": "tsc -p tsconfig.json",
-    "build:test": "tsc -p tsconfig.test.json",
-    "test": "pnpm run build:test && node scripts/run-tests.mjs && pnpm run test:step-up && pnpm run test:docs",
-    "test:step-up": "node --test example/step-up/server.test.mjs",
-    "test:wallet": "node --test test/wallet.test.mjs",
-    "test:docs": "node scripts/check-docs.mjs",
-    "test:package": "node scripts/check-package.mjs",
-    "example:verify": "node example/verify.mjs",
-    "example:step-up": "node example/step-up/demo.mjs",
-    "verify": "pnpm run typecheck && pnpm run build && pnpm test && pnpm run test:package && pnpm run example:verify && pnpm run example:step-up",
-    "prepack": "pnpm run clean && pnpm run build"
+    "build": "tsup && tsc -p tsconfig.lib.json --noEmit false --emitDeclarationOnly --outDir dist/esm && tsc -p tsconfig.lib.json --noEmit false --emitDeclarationOnly --outDir dist/cjs && node scripts/finish-cjs.mjs",
+    "prepack": "pnpm run build",
+    "typecheck": "tsc && tsc -p tsconfig.lib.json",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "@types/node": "^22.10.2",
-    "typescript": "^5.7.2"
+    "@stripe/link-typescript-config": "workspace:*",
+    "@types/node": "^26.4.1",
+    "tsup": "^8.5.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
   },
   "keywords": [
+    "stripe",
     "link",
     "agent",
     "attestation",

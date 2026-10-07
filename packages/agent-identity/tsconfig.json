@@ -1,9 +1,21 @@
 {
-  // Typechecks the library alone, without Node types, so a stray `Buffer` or
-  // `node:crypto` import is a compile error rather than a portability surprise.
-  "extends": "./tsconfig.base.json",
+  "extends": "@stripe/link-typescript-config/base.json",
   "compilerOptions": {
-    "noEmit": true
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noEmit": true,
+    "outDir": "dist",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "rootDir": "src",
+    "types": ["node"],
+    "verbatimModuleSyntax": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
 }

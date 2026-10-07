@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
-import { parsePrivateTokenCredential } from '../src/attestation.js';
-import { createAttestationChallenge } from '../src/challenge.js';
-import { LinkIssuer } from '../src/issuer.js';
-import { LinkFixture } from '../src/testing/index.js';
+import { describe, it } from 'vitest';
+import { parsePrivateTokenCredential } from '@/attestation';
+import { createAttestationChallenge } from '@/challenge';
+import { LinkIssuer } from '@/issuer';
+import { LinkFixture } from '@/testing/index';
 
 describe('issuer fetches are bounded and same-origin', () => {
   it('refuses metadata naming an off-origin token_keys', async () => {
