@@ -1,0 +1,71 @@
+{
+  "name": "@stripe/agent-identity",
+  "version": "0.2.0",
+  "description": "Verify Link agent attestations and selectively disclosed identity claims.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stripe/link-cli.git",
+    "directory": "packages/agent-identity"
+  },
+  "homepage": "https://github.com/stripe/link-cli/tree/main/packages/agent-identity#readme",
+  "bugs": "https://github.com/stripe/link-cli/issues",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    },
+    "./testing": {
+      "types": "./dist/esm/testing/index.d.ts",
+      "import": "./dist/esm/testing/index.js",
+      "require": "./dist/cjs/testing/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "!src/**/__tests__/**",
+    "README.md",
+    "AGENTS.md",
+    "LICENSE",
+    "example",
+    "test/README.md"
+  ],
+  "scripts": {
+    "build": "tsup && tsc -p tsconfig.lib.json --noEmit false --emitDeclarationOnly --outDir dist/esm && tsc -p tsconfig.lib.json --noEmit false --emitDeclarationOnly --outDir dist/cjs && node scripts/finish-cjs.mjs",
+    "prepack": "pnpm run build",
+    "typecheck": "tsc && tsc -p tsconfig.lib.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@stripe/link-typescript-config": "workspace:*",
+    "@types/node": "^26.4.1",
+    "tsup": "^8.5.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
+  },
+  "keywords": [
+    "stripe",
+    "link",
+    "agent",
+    "attestation",
+    "privacy-pass",
+    "sd-jwt-vc"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "jose": "^6.2.12"
+  }
+}

@@ -7,6 +7,8 @@ The SDK does not perform login, persist credentials, or own refresh tokens.
 Authentication state and user-facing authorization flows belong to the CLI or
 application embedding the SDK.
 
+For services verifying credentials presented by agents, use the separate [Agent Identity SDK](../agent-identity/README.md). This package calls Link APIs on behalf of an agent.
+
 ## Install
 
 ```bash

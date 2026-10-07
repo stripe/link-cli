@@ -384,11 +384,13 @@ All commands accept `--auth <path>` to store auth credentials in a specific file
 
 ### Identity (beta)
 
+Services can verify these credentials with [Agent Identity](packages/agent-identity/README.md), a separate SDK in this repository. The [event-registration example](packages/agent-identity/example/step-up/README.md) shows site access using an attestation and registration using a verified email.
+
 Identity commands are available in `--help` and `--llms`, but remain excluded from MCP.
 
 Both identity `request` commands save their artifacts to disk and return only the file path and metadata. This applies to every output format, including JSON, piped output, and `--full-output`. Request output never includes credentials, tokens, or claim values.
 
-**Privacy-preserving tokens** that show Link attests to your agent:
+**Privacy-preserving attestations** that let a service verify Link issued the token, without disclosing personal details or identifying the agent:
 
 ```bash
 link-cli identity attestations request --count 10
@@ -418,7 +420,7 @@ Pool updates are serialized and saved atomically. A crash after removal can lose
 link-cli identity credentials request
 ```
 
-`identity credentials request` saves a signed credential to `~/.link-cli/identity/credentials/current.json`, bound to the CLI-managed holder key at `~/.link-cli/identity/holder-key.jwk`. Structured output includes `output_file`, issuer, expiry, holder-key path/thumbprint, and claim names. A script can read the saved credential and holder key to sign a presentation and send it through browser automation or an HTTP client without printing their contents into the agent transcript.
+`identity credentials request` saves a signed credential to `~/.link-cli/identity/credentials/current.json`, bound to the CLI-managed holder key at `~/.link-cli/identity/holder-key.jwk`. Structured output includes `output_file`, issuer, expiry, holder-key path/thumbprint, and claim names. Use `identity credentials present` to sign selected claims, capture its JSON output programmatically, and send the presentation through browser automation or an HTTP client without printing it into the agent transcript.
 
 **Presentations** disclose selected claims to a verifier using the saved credential and holder key:
 
@@ -438,7 +440,7 @@ Use the verifier challenge's exact audience and nonce. Repeat `--claim` to discl
 
 Send the returned `presentation` as the `Identity-Presentation` HTTP header.
 
-The verifier still validates the issuer signature, holder signature, audience, nonce, expiry, and required claims. Presentations include a fresh signing time and should be sent promptly; a verifier that has consumed the nonce requires a new challenge.
+The verifier still validates the issuer signature, holder signature, audience, nonce, expiry, and required claims. Presentations include a fresh signing time and should be sent promptly. Follow the service's retry instructions. Completed interactions may return a saved result; a new operation or expired interaction may require a fresh challenge. The Agent Identity SDK verifies nonce equality; the service manages interaction state and replay policy.
 
 **Local inspection** uses the same MCP exclusion:
 
@@ -664,6 +666,8 @@ If you are building an agent and want to offer Link as a native experience to yo
 please look at our [documentation and steps for integrating](https://docs.stripe.com/agentic-commerce/link-agent-wallet). We can support higher limits, more embedded approval flows, and additional capabilities.
 
 ## SDKs
+
+For services accepting agents, [Agent Identity](packages/agent-identity/README.md) verifies Link attestations and identity presentations. The wallet API clients below obtain credentials and call Link APIs.
 
 Applications can use the credential-only Link client directly in
 [TypeScript](packages/sdk/README.md), [Go](packages/sdk-go/README.md), or

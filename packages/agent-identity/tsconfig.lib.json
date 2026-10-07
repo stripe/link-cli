@@ -1,0 +1,5 @@
+{
+  // Emit library declarations without test files.
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "dist", "src/**/__tests__"]
+}

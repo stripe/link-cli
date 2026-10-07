@@ -24,6 +24,28 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  packages/agent-identity:
+    dependencies:
+      jose:
+        specifier: ^6.2.12
+        version: 6.2.12
+    devDependencies:
+      '@stripe/link-typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^26.4.1
+        version: 26.4.1
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(postcss@8.5.28)(tsx@4.23.13)(typescript@7.0.2)(yaml@2.9.0)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.0
+        version: 5.0.0(@types/node@26.4.1)(vite@8.2.0(@types/node@26.4.1)(esbuild@0.27.7)(tsx@4.23.13)(yaml@2.9.0))
+
   packages/cli:
     dependencies:
       conf:
