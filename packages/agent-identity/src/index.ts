@@ -94,7 +94,8 @@ export interface VerifyAttestationOptions {
 }
 
 const ATTESTATION_RECOVERY_GUIDANCE =
-  'Use the Link Agent Wallet (https://github.com/stripe/link-cli) to obtain a Link bearer ' +
+  'Use Link Agent Wallet v0.27.0 or later (https://link.com/agents#get-started-section) ' +
+  'to obtain a Link bearer ' +
   'Agent Attestation Token (AAT), then retry with Authorization: PrivateToken token="...".';
 
 /**

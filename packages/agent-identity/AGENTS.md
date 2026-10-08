@@ -10,6 +10,8 @@ A bearer AAT proves issuance by Link. It does not identify the presenter or bind
 
 ## Integration
 
+For agents responding through Link Agent Wallet, require v0.27.0 or later in your setup instructions. Point them to [wallet setup](https://link.com/agents#get-started-section) and the [identity skill](https://github.com/stripe/link-cli/blob/main/skills/use-link-identity/SKILL.md). The verifier validates proofs, not client versions.
+
 1. Install with `npm install @stripe/agent-identity`. The package supports Node 22+, ESM and CommonJS. It uses Node built-ins and `jose`; runtimes without the required Node APIs are unsupported. For local SDK development, follow [build and install from source](README.md#build-and-install-from-source), which requires Node 24+ and pnpm.
 2. Create one `LinkVerifier` per process. Set `origin` from the service's configuration; it is the audience for identity claims. Use an explicit HTTP origin such as `http://localhost:3000` for local servers; bare authorities default to HTTPS.
 3. Extract the `Authorization` or `Identity-Presentation` field value and pass the string directly. Reject duplicate credential fields if your framework would otherwise discard them. In Node or Express, use `req.headersDistinct`; the SDK cannot recover fields your framework dropped.

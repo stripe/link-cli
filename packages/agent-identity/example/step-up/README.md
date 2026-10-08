@@ -49,7 +49,9 @@ Completed results remain available until session expiry. Retrying requires the s
 
 ## Run with Link Agent Wallet
 
-Use Link Agent Wallet with identity issuance access on your Link account. The example uses `identity attestations pop` and `identity credentials present`. Choose an installed wallet that supports both, or build the wallet from this checkout before preparing credentials:
+Use **Link Agent Wallet v0.27.0 or later** with identity issuance access on your Link account. Check `link-cli --version`; install or update with `npm install -g @stripe/link-cli@latest`. See [wallet setup](https://link.com/agents#get-started-section) and the [identity skill](https://github.com/stripe/link-cli/blob/main/skills/use-link-identity/SKILL.md) for the commands used to answer attestation and claims challenges.
+
+The example uses `identity attestations pop` and `identity credentials present`. To build the wallet from this checkout instead:
 
 ```sh
 # From the repository root:
