@@ -1,5 +1,11 @@
 # @stripe/link-sdk
 
+## 0.13.0
+
+### Minor Changes
+
+- f64a291: Ungating identity commands, now in beta.
+
 ## 0.12.0
 
 ### Minor Changes
