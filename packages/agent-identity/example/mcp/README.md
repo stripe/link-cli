@@ -57,6 +57,8 @@ The application interaction record is the nonce state. Bound pending records, ex
 
 ## Handle challenges in the client
 
+If the client uses Link Agent Wallet to obtain attestations and presentations, use v0.27.0 or later. Follow the [wallet setup and identity instructions](../../README.md#installation); identity commands are invoked through the CLI and remain excluded from its MCP tools.
+
 In `@modelcontextprotocol/sdk` 1.30.0, `StreamableHTTPClientTransport` surfaces a `401` as a transport error when no `authProvider` is configured. With an `authProvider`, it can start OAuth discovery even when the challenge uses `PrivateToken` or `Identity-Presentation`. Integrate Link credential handling through the transport's `fetch` option, before either behavior consumes the response. For an endpoint using only this custom exchange, omit the OAuth `authProvider`. If you support both flows, explicitly route challenges by scheme and stop a declined or failed Link exchange from falling through into OAuth.
 
 The handler must:

@@ -130,6 +130,12 @@ test('missing and forged AATs cannot create a session; registration requires a s
     });
     assert.equal(result.status, 401);
     assert.match(result.headers.get('www-authenticate'), /^PrivateToken /);
+    assert.match(result.body.message, /Link Agent Wallet v0\.27\.0 or later/);
+    assert.ok(
+      result.body.message.includes(
+        'https://link.com/agents#get-started-section',
+      ),
+    );
     assert.equal(result.body.session_token, undefined);
     assert.equal(result.headers.get('cache-control'), 'no-store');
   }

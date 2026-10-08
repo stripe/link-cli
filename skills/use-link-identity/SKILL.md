@@ -24,7 +24,7 @@ An AAT proves issuance by Link without disclosing user claims. A presentation di
 
 ## Setup and handling
 
-For installation and authentication, reuse the [create-payment-credential skill](https://github.com/stripe/link-cli/blob/main/skills/create-payment-credential/SKILL.md)'s shared guidance.
+Use **Link Agent Wallet v0.27.0 or later**. Check `link-cli --version`; if older or missing, install or update with `npm install -g @stripe/link-cli@latest`. No `LINK_IDENTITY_COMMANDS` flag is needed. See [wallet setup](https://link.com/agents#get-started-section); reuse the [create-payment-credential skill](https://github.com/stripe/link-cli/blob/main/skills/create-payment-credential/SKILL.md)'s authentication guidance.
 
 - Identity commands are available through the CLI, not its MCP tools.
 - Only `request` needs Link authentication. `list`, `pop`, and `present` use local files. Requests return paths and metadata; `pop` and `present` return proofs.

@@ -386,7 +386,7 @@ All commands accept `--auth <path>` to store auth credentials in a specific file
 
 Services can verify these credentials with [Agent Identity](packages/agent-identity/README.md), a separate SDK in this repository. The [event-registration example](packages/agent-identity/example/step-up/README.md) shows site access using an attestation and registration using a verified email.
 
-Identity commands are available in `--help` and `--llms`, but remain excluded from MCP.
+Identity commands require Link Agent Wallet v0.27.0 or later for the flow documented here. Check `link-cli --version`; install or update with `npm install -g @stripe/link-cli@latest`. They are available in `--help` and `--llms` without a preview flag, but remain excluded from MCP. See [wallet setup](https://link.com/agents#get-started-section) and the [identity skill](skills/use-link-identity/SKILL.md).
 
 Both identity `request` commands save their artifacts to disk and return only the file path and metadata. This applies to every output format, including JSON, piped output, and `--full-output`. Request output never includes credentials, tokens, or claim values.
 

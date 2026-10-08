@@ -1,6 +1,6 @@
 # @stripe/agent-identity
 
-Agent Identity is the service-side verification SDK for [Link Agent Wallet](https://github.com/stripe/link-cli#identity-beta). Agents use the wallet to obtain Link credentials and present them to websites and APIs. Your service uses `@stripe/agent-identity` to check those credentials and decide what access to allow.
+Agent Identity is the service-side verification SDK for [Link Agent Wallet](https://link.com/agents). Agents use the wallet to obtain Link credentials and present them to websites and APIs. Your service uses `@stripe/agent-identity` to check those credentials and decide what access to allow.
 
 An agent booking an event might need access to the event list before it needs to share an email. An anonymous Link attestation can satisfy the first check. A separate identity presentation can disclose a verified email for registration. Your service chooses when each check is needed and what a successful result permits.
 
@@ -27,6 +27,8 @@ npm install @stripe/agent-identity
 ```
 
 The package supports Node 22+, ESM and CommonJS. It uses Node’s built-in byte and cryptography APIs and `jose` for JWS verification, JWK import, and key thumbprints. Runtimes without the required Node APIs are unsupported. Licensed under the [MIT license](LICENSE).
+
+Agents using Link Agent Wallet to answer your service's challenges should use **v0.27.0 or later**, which includes the ungated identity commands and current issuance API support. Check with `link-cli --version`; install or update with `npm install -g @stripe/link-cli@latest`. See [wallet setup](https://link.com/agents#get-started-section) and the [identity skill](https://github.com/stripe/link-cli/blob/main/skills/use-link-identity/SKILL.md) for attestation and presentation instructions. This minimum applies to the documented wallet flow; the verifier validates proofs and does not inspect client versions.
 
 The `src/`, `example/`, and `test/` directories are kept in this repository and are not included in the npm package. The package includes compiled ESM and CommonJS builds, type declarations, source maps, and integration guidance.
 
@@ -217,7 +219,7 @@ Inspect `result.valid`, because the result object itself is truthy on failure. `
 
 `FAILURE_CODES` exports the full list. `isRejection(failure)` distinguishes credential rejections, typically HTTP 401, from issuer availability failures, typically HTTP 503. Challenge builders and `warm()` throw on failure; handle these failures in your application. Warming is optional and should not prevent startup unless that is your application's intended policy.
 
-Attestation rejection messages include a link to the [Link Agent Wallet](https://github.com/stripe/link-cli) and instructions to obtain a bearer AAT and retry. Return `failure.message` alongside the error code and `WWW-Authenticate` challenge so agents can act on that guidance. `VerificationError.message` includes the same guidance for attestation rejections. Issuer availability errors and identity-presentation errors do not include this AAT recovery guidance.
+Attestation rejection messages direct agents to [Link Agent Wallet setup](https://link.com/agents#get-started-section), specify v0.27.0 or later, and explain how to retry with a bearer AAT. Return `failure.message` alongside the error code and `WWW-Authenticate` challenge so agents can act on that guidance. `VerificationError.message` includes the same guidance for attestation rejections. Issuer availability errors and identity-presentation errors do not include this AAT recovery guidance.
 
 ## API reference
 

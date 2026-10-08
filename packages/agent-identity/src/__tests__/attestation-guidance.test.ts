@@ -11,7 +11,7 @@ import {
 } from '@/index';
 import { LinkFixture } from '@/testing/index';
 
-const CLI_URL = 'https://github.com/stripe/link-cli';
+const WALLET_SETUP_URL = 'https://link.com/agents#get-started-section';
 
 describe('attestation recovery guidance', () => {
   it('preserves rejection codes and reasons and includes CLI guidance without echoing credentials', async () => {
@@ -77,7 +77,8 @@ describe('attestation recovery guidance', () => {
         code,
       );
       assert.match(failure.message, reason);
-      assert.ok(failure.message.includes(CLI_URL));
+      assert.ok(failure.message.includes(WALLET_SETUP_URL));
+      assert.match(failure.message, /Link Agent Wallet v0\.27\.0 or later/);
       assert.match(
         failure.message,
         /obtain a Link bearer Agent Attestation Token/,
@@ -90,7 +91,8 @@ describe('attestation recovery guidance', () => {
   it('provides the same guidance through the facade and throwing APIs', async () => {
     const verifier = new LinkVerifier({ origin: 'https://service.example' });
     const failure = firstFailure(await verifier.verifyAttestation(null));
-    assert.ok(failure.message.includes(CLI_URL));
+    assert.ok(failure.message.includes(WALLET_SETUP_URL));
+    assert.match(failure.message, /Link Agent Wallet v0\.27\.0 or later/);
 
     for (const verify of [
       () => verifier.verifyAttestationOrThrow(null),
@@ -120,7 +122,7 @@ describe('attestation recovery guidance', () => {
       'issuer_unavailable',
     );
     assert.match(failure.message, /issuer unavailable for this test/);
-    assert.ok(!failure.message.includes(CLI_URL));
+    assert.ok(!failure.message.includes(WALLET_SETUP_URL));
   });
 
   it('does not suggest an AAT as a replacement for an identity presentation', async () => {
@@ -136,7 +138,7 @@ describe('attestation recovery guidance', () => {
         }),
         code,
       );
-      assert.ok(!failure.message.includes(CLI_URL));
+      assert.ok(!failure.message.includes(WALLET_SETUP_URL));
     }
   });
 });
