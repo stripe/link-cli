@@ -17,7 +17,6 @@ import { createSpendRequestCli } from './commands/spend-request';
 import { createTransactionsCli } from './commands/transactions';
 import { createUcpCli } from './commands/ucp';
 import { createUserInfoCli } from './commands/user-info';
-import { detectAIAgent } from './utils/ai-agent';
 import { buildMcpCommand } from './utils/package-runner';
 import { stripRemovedFlag } from './utils/removed-flags';
 import { ResourceFactory } from './utils/resource-factory';
@@ -26,15 +25,15 @@ import {
   createInteractiveUpdateInfoProvider,
   renderInteractiveUpdateNotice,
 } from './utils/update-info';
+import { buildUserAgent } from './utils/user-agent';
 
 declare const __CLI_VERSION__: string;
 declare const __CLI_NAME__: string;
 
 const cliVersion = __CLI_VERSION__;
 const cliName = __CLI_NAME__;
-const agent = detectAIAgent(process.env);
 const defaultHeaders = {
-  'User-Agent': `link-cli/${cliVersion}${agent ? ` AIAgent/${agent}` : ''}`,
+  'User-Agent': buildUserAgent(cliVersion, process.env),
 };
 
 const verboseIndex = process.argv.indexOf('--verbose');

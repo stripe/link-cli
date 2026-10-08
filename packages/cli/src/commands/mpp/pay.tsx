@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import { openUrl } from '../../utils/open-url';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
 import { sanitizeDeep } from '../../utils/sanitize-text';
+import { buildUserAgent } from '../../utils/user-agent';
 import {
   decodeStripeChallenge,
   getStripeChargeChallengeFromHeader,
@@ -48,7 +49,7 @@ export function buildHeaders(
     if (key) result[key] = value;
   }
   if (!Object.keys(result).some((key) => key.toLowerCase() === 'user-agent')) {
-    result['User-Agent'] = `link-cli/${__CLI_VERSION__}`;
+    result['User-Agent'] = buildUserAgent(__CLI_VERSION__, process.env);
   }
   return result;
 }
