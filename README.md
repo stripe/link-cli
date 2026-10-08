@@ -520,7 +520,7 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
 
 Some Stripe payment surfaces expose an AI-agent steering block that supports a
 Link Pay Token (LPT). Inspect the checkout in a browser before creating the
-SpendRequest: enable the agent checkbox, then verify that both
+SpendRequest: find the `.AiAgentPaymentSteering` block and verify that both
 `input[name="link_pay_token"]` and
 `data-stripe-merchant-account="acct_..."` are present in the same Stripe
 frame.
