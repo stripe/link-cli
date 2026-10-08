@@ -123,15 +123,15 @@ Optionally, before a purchase, run `link-cli user-info retrieve` to inspect bala
 **Determine how the merchant accepts payment:**
 
 1. **Navigate to the merchant page** — browse it, read the page content, and understand how the site accepts payment.
-2. **If the checkout page includes the AI-agent steering block** (find the "I am an AI agent" checkbox, or the `.AiAgentPaymentSteering` container — visually hidden but present in the DOM, typically inside a Stripe iframe) — it may support the **Link Pay Token flow** (Step 5, "Link Pay Token" section). **Requires browser automation.** Before creating an LPT request, check the checkbox and verify that both `input[name="link_pay_token"]` and `data-stripe-merchant-account` appear in the same frame. Read the account ID from that attribute. If either marker does **not** appear, follow the block's on-page instructions and use `card` instead. Without browser automation, use `card`.
-3. **If the page has a credit-card form and no AI-agent steering block** (no "I am an AI agent" checkbox / `.AiAgentPaymentSteering`) — use `card`.
+2. **If the checkout page includes the AI-agent steering block** (find the `.AiAgentPaymentSteering` container — visually hidden but present in the DOM, typically inside a Stripe iframe) — it may support the **Link Pay Token flow** (Step 5, "Link Pay Token" section). **Requires browser automation.** Before creating an LPT request, verify that both `input[name="link_pay_token"]` and `data-stripe-merchant-account` appear in the same frame. Read the account ID from that attribute. If either marker does **not** appear, use `card` instead. Without browser automation, use `card`.
+3. **If the page has a credit-card form and no AI-agent steering block** (no `.AiAgentPaymentSteering`) — use `card`.
 4. **If the page describes an API or programmatic payment flow** — make a request to the relevant endpoint. If it returns **HTTP 402** with a `www-authenticate` header, use `shared_payment_token`.
 
 What you find determines which credential type to use:
 
 | What you see | Credential type | What to request |
 |---|---|---|
-| `.AiAgentPaymentSteering` block / "I am an AI agent" checkbox, and ticking it reveals both `input[name="link_pay_token"]` and `data-stripe-merchant-account` | `link_pay_token` | Link Pay Token (else `card`) |
+| `.AiAgentPaymentSteering` block containing both `input[name="link_pay_token"]` and `data-stripe-merchant-account` | `link_pay_token` | Link Pay Token (else `card`) |
 | Credit-card form, no AI-agent steering block | `card` (default) | Card |
 | HTTP 402 with `method="stripe"` in `www-authenticate` | `shared_payment_token` | Shared payment token (SPT) |
 | HTTP 402 without `method="stripe"` in `www-authenticate` | not supported | Do not continue |
@@ -247,22 +247,15 @@ requires browser automation.
 
 The block is visually hidden and may be inside a Stripe frame. Do not assume a
 fixed location: search the top document and Stripe frames for
-`.AiAgentPaymentSteering` or the "I am an AI agent" checkbox, and run the
-following steps in the frame that contains it.
+`.AiAgentPaymentSteering`, and run the following steps in the frame that
+contains it.
 
 1. Open the merchant checkout page and locate the steering block.
 
-2. **Check the "I am an AI agent" checkbox** to reveal the block. Use a
-   DOM-level `click()` because the control is keyboard-hidden:
-
-   ```javascript
-   document.querySelector('.AiAgentPaymentSteering input[type="checkbox"]').click();
-   ```
-
-3. **Confirm the bound token path is available before creating a
-   SpendRequest.** Within a few seconds, the same frame must contain both
-   `input[name="link_pay_token"]` and a
-   `data-stripe-merchant-account="acct_..."` attribute on the steering block.
+2. **Confirm the bound token path is available before creating a
+   SpendRequest.** The frame must contain both `input[name="link_pay_token"]`
+   and a `data-stripe-merchant-account="acct_..."` attribute on the steering
+   block.
 
    ```javascript
    const merchantAccountId = document
@@ -275,7 +268,7 @@ following steps in the frame that contains it.
    If either marker is absent or `merchantAccountId` is empty, do **not**
    create an LPT request. Use the normal `card` flow instead.
 
-4. **Create the merchant-bound SpendRequest.** Use the DOM-derived account ID;
+3. **Create the merchant-bound SpendRequest.** Use the DOM-derived account ID;
    do not send `--merchant-name` or `--merchant-url`. Link resolves the
    canonical merchant identity before the consumer approves.
 
@@ -294,14 +287,14 @@ following steps in the frame that contains it.
    Do not set `--network-id` or `--test` for an LPT request. Present the
    approval URL and wait for approval before retrieving a token.
 
-5. **Retrieve the token immediately before injecting it.** Each returned LPT
+4. **Retrieve the token immediately before injecting it.** Each returned LPT
    is valid for up to 30 minutes, or until the SpendRequest expires:
 
    ```bash
    link-cli spend-request retrieve <id> --include link_pay_token --format json
    ```
 
-6. **Inject the token** into `input[name="link_pay_token"]` with the native
+5. **Inject the token** into `input[name="link_pay_token"]` with the native
    value setter. Do not type it character by character:
 
    ```javascript
@@ -311,7 +304,7 @@ following steps in the frame that contains it.
    input.dispatchEvent(new Event('input', { bubbles: true }));
    ```
 
-7. **Wait for the exchange and login to complete.** The card form is replaced
+6. **Wait for the exchange and login to complete.** The card form is replaced
    by a single saved card showing the consumer's email in the header. Then
    click the Pay/Submit button.
 
@@ -328,9 +321,10 @@ report `blocked`. Do not reuse the LPT at a different checkout surface.
   operate them programmatically in the frame that contains the block.
 - Card numbers are not needed -- the token authorizes payment directly using
   the consumer's saved card on file.
-- The agent pays with the token, not an interactive Link login. If the checkbox
-  is missing, a signed-in Link session may be showing the Link wallet instead
-  of the card form; retry in a context not signed in to Link.
+- The agent pays with the token, not an interactive Link login. If the
+  steering block's markers are missing, a signed-in Link session may be
+  showing the Link wallet instead of the card form; retry in a context not
+  signed in to Link.
 - A bound LPT request is not the fallback virtual-card request. If the marker
   is missing before creation, create a normal card SpendRequest instead.
 
