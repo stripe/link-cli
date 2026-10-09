@@ -1,0 +1,11 @@
+{
+  "extends": "@stripe/link-typescript-config/base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src"]
+}
