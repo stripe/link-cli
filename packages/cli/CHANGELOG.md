@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.27.1
+
+### Patch Changes
+
+- 5d7a130: Use the standard agent-aware User-Agent for merchant requests made by `mpp pay`.
+
 ## 0.27.0
 
 ### Minor Changes
