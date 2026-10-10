@@ -41,7 +41,7 @@ describe('Link tools', () => {
   it('resolves a fresh client for each caller of a shared tool', async () => {
     const { tools, getClient, fetch } = fixture();
     fetch.mockImplementation(async () =>
-      Response.json({ payment_details: [] }),
+      Response.json({ payment_details: [], unavailable_count: 0 }),
     );
     await Promise.all([
       tools.list_payment_methods.execute({}, { userId: 'alice' }),

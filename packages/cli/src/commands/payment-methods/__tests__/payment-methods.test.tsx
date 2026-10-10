@@ -13,17 +13,20 @@ describe('payment-methods', () => {
   describe('list', () => {
     it('renders Link balance details without a last-four placeholder', async () => {
       const resource = {
-        list: vi.fn(async () => [
-          {
-            id: 'csmrpd_balance',
-            type: 'BALANCE',
-            name: 'Link balance',
-            is_default: false,
-            balance_details: {
-              available_balance: { amount: 1250, currency: 'usd' },
+        listWithMetadata: vi.fn(async () => ({
+          payment_details: [
+            {
+              id: 'csmrpd_balance',
+              type: 'BALANCE',
+              name: 'Link balance',
+              is_default: false,
+              balance_details: {
+                available_balance: { amount: 1250, currency: 'usd' },
+              },
             },
-          },
-        ]),
+          ],
+          unavailable_count: 2,
+        })),
       } as unknown as IPaymentMethodsResource;
 
       const { lastFrame } = render(
@@ -33,21 +36,25 @@ describe('payment-methods', () => {
       await vi.waitFor(() => {
         const frame = lastFrame();
         expect(frame).toContain('Link balance $12.50 available');
+        expect(frame).toContain('2 payment methods are unavailable for use.');
         expect(frame).not.toContain('undefined');
       });
     });
 
     it('renders a balance with an unknown available amount', async () => {
       const resource = {
-        list: vi.fn(async () => [
-          {
-            id: 'csmrpd_balance',
-            type: 'BALANCE',
-            name: 'Link balance',
-            is_default: false,
-            balance_details: {},
-          },
-        ]),
+        listWithMetadata: vi.fn(async () => ({
+          payment_details: [
+            {
+              id: 'csmrpd_balance',
+              type: 'BALANCE',
+              name: 'Link balance',
+              is_default: false,
+              balance_details: {},
+            },
+          ],
+          unavailable_count: 0,
+        })),
       } as unknown as IPaymentMethodsResource;
 
       const { lastFrame } = render(
@@ -57,9 +64,34 @@ describe('payment-methods', () => {
       await vi.waitFor(() => {
         const frame = lastFrame();
         expect(frame).toContain('Link balance');
+        expect(frame).not.toContain('unavailable for use');
         expect(frame).not.toContain('undefined');
       });
     });
+
+    it.each([
+      [1, '1 payment method is unavailable for use.'],
+      [3, '3 payment methods are unavailable for use.'],
+    ])(
+      'shows the unavailable count when no payment methods are available (%i)',
+      async (unavailableCount, message) => {
+        const resource = {
+          listWithMetadata: vi.fn(async () => ({
+            payment_details: [],
+            unavailable_count: unavailableCount,
+          })),
+        } as unknown as IPaymentMethodsResource;
+
+        const { lastFrame } = render(
+          <PaymentMethodsList resource={resource} onComplete={() => {}} />,
+        );
+
+        await vi.waitFor(() => {
+          expect(lastFrame()).toContain('No payment methods found');
+          expect(lastFrame()).toContain(message);
+        });
+      },
+    );
   });
 
   describe('retrieve', () => {
@@ -235,15 +267,18 @@ describe('payment-methods', () => {
   describe('sanitization', () => {
     it('sanitizes brand and nickname in payment method list', async () => {
       const resource = sanitizeResource({
-        list: vi.fn(async () => [
-          {
-            id: 'pm_1',
-            card_details: { brand: ESCAPE_PAYLOAD, last4: '4242' },
-            bank_account_details: null,
-            nickname: ESCAPE_PAYLOAD,
-            is_default: false,
-          },
-        ]),
+        listWithMetadata: vi.fn(async () => ({
+          payment_details: [
+            {
+              id: 'pm_1',
+              card_details: { brand: ESCAPE_PAYLOAD, last4: '4242' },
+              bank_account_details: null,
+              nickname: ESCAPE_PAYLOAD,
+              is_default: false,
+            },
+          ],
+          unavailable_count: 0,
+        })),
       } as unknown as IPaymentMethodsResource);
 
       const { lastFrame } = render(

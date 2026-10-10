@@ -43,6 +43,7 @@ describe('PaymentMethodsResource', () => {
           nickname: 'Home Credit',
         },
       ],
+      unavailable_count: 2,
     });
 
     const result = await repo.list();
@@ -67,6 +68,18 @@ describe('PaymentMethodsResource', () => {
         nickname: 'Home Credit',
       },
     ]);
+  });
+
+  it('returns the unavailable count with payment methods', async () => {
+    mockFetchResponse(200, {
+      payment_details: [],
+      unavailable_count: 3,
+    });
+
+    await expect(repo.listWithMetadata()).resolves.toEqual({
+      payment_details: [],
+      unavailable_count: 3,
+    });
   });
 
   it('lists Link balance details when available', async () => {
@@ -300,7 +313,8 @@ describe('PaymentMethodsResource', () => {
       })
       .mockResolvedValueOnce({
         status: 200,
-        text: async () => JSON.stringify({ payment_details: [] }),
+        text: async () =>
+          JSON.stringify({ payment_details: [], unavailable_count: 0 }),
       });
     getAccessToken
       .mockResolvedValueOnce('test_token')
@@ -344,6 +358,7 @@ describe('PaymentMethodsResource', () => {
           nickname: 'Home Credit',
         },
       ],
+      unavailable_count: 0,
     });
 
     await repo.list();
@@ -367,6 +382,16 @@ describe('PaymentMethodsResource', () => {
     });
 
     const error = await repo.list().catch((cause) => cause);
+    expect(error.code).toBe('invalid_response');
+  });
+
+  it('rejects a non-integer unavailable count', async () => {
+    mockFetchResponse(200, {
+      payment_details: [],
+      unavailable_count: 1.5,
+    });
+
+    const error = await repo.listWithMetadata().catch((cause) => cause);
     expect(error.code).toBe('invalid_response');
   });
 

@@ -289,6 +289,11 @@ export interface PaymentMethod {
   capabilities?: Record<string, ProductCapability> | null;
 }
 
+export interface PaymentMethodsListResponse {
+  payment_details: PaymentMethod[];
+  unavailable_count: number;
+}
+
 export interface ShippingAddress {
   name: string | null;
   line_1: string | null;

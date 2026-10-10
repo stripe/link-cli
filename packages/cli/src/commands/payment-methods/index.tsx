@@ -1,4 +1,8 @@
-import type { IPaymentMethodsResource, PaymentMethod } from '@stripe/link-sdk';
+import type {
+  IPaymentMethodsResource,
+  PaymentMethod,
+  PaymentMethodsListResponse,
+} from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import type { CliAuthStorage } from '../../auth/storage';
 import { renderInteractive } from '../../utils/render-interactive';
@@ -26,13 +30,24 @@ export function createPaymentMethodsCli(
       const resource = createResource();
 
       if (!c.agent && !c.formatExplicit) {
+        let capturedResult: PaymentMethodsListResponse | null = null;
         return renderInteractive(
-          <PaymentMethodsList resource={resource} onComplete={() => {}} />,
-          () => resource.list(),
+          <PaymentMethodsList
+            resource={resource}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => {
+            if (capturedResult === null) {
+              throw new Error('Component exited without producing a result');
+            }
+            return capturedResult;
+          },
         );
       }
 
-      return resource.list();
+      return resource.listWithMetadata();
     },
   });
 

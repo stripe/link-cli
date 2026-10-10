@@ -178,6 +178,8 @@ Returns the cards and bank accounts saved to your Link account. Use the `id` fie
 
 The list can also include a Link balance payment method with its available
 balance when that amount is available.
+JSON output includes `payment_details` and the API's integer
+`unavailable_count` for unavailable methods.
 
 Retrieve one payment method by ID:
 

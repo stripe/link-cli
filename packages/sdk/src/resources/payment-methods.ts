@@ -5,7 +5,7 @@ import type {
   IPaymentMethodsResource,
   UpdatePaymentMethodParams,
 } from '@/resources/interfaces';
-import type { PaymentMethod } from '@/types/index';
+import type { PaymentMethod, PaymentMethodsListResponse } from '@/types/index';
 
 const balanceDetailsSchema = z.looseObject({
   available_balance: z
@@ -26,6 +26,7 @@ const paymentMethodSchema = z.looseObject({
 });
 const paymentMethodsResponseSchema = z.looseObject({
   payment_details: z.array(paymentMethodSchema),
+  unavailable_count: z.number().int().nonnegative(),
 });
 
 export class PaymentMethodsResource
@@ -37,6 +38,10 @@ export class PaymentMethodsResource
   }
 
   async list(): Promise<PaymentMethod[]> {
+    return (await this.listWithMetadata()).payment_details;
+  }
+
+  async listWithMetadata(): Promise<PaymentMethodsListResponse> {
     const { status, data, rawBody } = await this.apiFetch({
       method: 'GET',
       url: this.endpoint,
@@ -46,13 +51,13 @@ export class PaymentMethodsResource
       this.throwApiError('list payment methods', status, data, rawBody);
     }
 
-    return this.parseResponse(
-      'list payment methods',
-      status,
-      () =>
-        paymentMethodsResponseSchema.parse(data)
-          .payment_details as PaymentMethod[],
-    );
+    return this.parseResponse('list payment methods', status, () => {
+      const response = paymentMethodsResponseSchema.parse(data);
+      return {
+        payment_details: response.payment_details as PaymentMethod[],
+        unavailable_count: response.unavailable_count,
+      };
+    });
   }
 
   async retrieve(id: string): Promise<PaymentMethod | null> {

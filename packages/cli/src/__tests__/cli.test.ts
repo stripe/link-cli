@@ -3142,7 +3142,10 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     });
 
     it('allows payment-methods list with no stored auth', async () => {
-      setResponseForUrl('/payment-details', 200, { payment_details: [] });
+      setResponseForUrl('/payment-details', 200, {
+        payment_details: [],
+        unavailable_count: 3,
+      });
 
       const result = await runProdCliWithEnv(
         { LINK_ACCESS_TOKEN: ENV_TOKEN },
@@ -3152,6 +3155,10 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       );
 
       expect(result.exitCode).toBe(0);
+      expect(parseJson(result.stdout)).toEqual({
+        payment_details: [],
+        unavailable_count: 3,
+      });
       const pmRequest = requests.find((r) => r.url === '/payment-details');
       expect(pmRequest).toBeDefined();
       expect(pmRequest?.headers.authorization).toBe(`Bearer ${ENV_TOKEN}`);

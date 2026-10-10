@@ -7,6 +7,7 @@ import type {
   InsightsPage,
   LineItem,
   PaymentMethod,
+  PaymentMethodsListResponse,
   RequestApprovalResponse,
   ShippingAddressRecord,
   SourcesPage,
@@ -106,6 +107,7 @@ export interface ISpendRequestResource {
 
 export interface IPaymentMethodsResource {
   list(): Promise<PaymentMethod[]>;
+  listWithMetadata(): Promise<PaymentMethodsListResponse>;
   retrieve(id: string): Promise<PaymentMethod | null>;
   update(id: string, params: UpdatePaymentMethodParams): Promise<PaymentMethod>;
 }

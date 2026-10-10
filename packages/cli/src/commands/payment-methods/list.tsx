@@ -1,4 +1,7 @@
-import type { IPaymentMethodsResource, PaymentMethod } from '@stripe/link-sdk';
+import type {
+  IPaymentMethodsResource,
+  PaymentMethodsListResponse,
+} from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
@@ -8,15 +11,21 @@ import { formatAmount } from '../../utils/format-amount';
 
 interface PaymentMethodsListProps {
   resource: IPaymentMethodsResource;
-  onComplete: (result: PaymentMethod[] | null) => void;
+  onComplete: (result: PaymentMethodsListResponse | null) => void;
 }
 
 export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
   resource,
   onComplete,
 }) => {
-  const action = useCallback(() => resource.list(), [resource]);
-  const { status, data: methods, error } = useAsyncAction(action, onComplete);
+  const action = useCallback(() => resource.listWithMetadata(), [resource]);
+  const { status, data: response, error } = useAsyncAction(action, onComplete);
+  const methods = response?.payment_details;
+  const unavailableCount = response?.unavailable_count ?? 0;
+  const unavailableMessage =
+    unavailableCount > 0
+      ? `${unavailableCount} payment method${unavailableCount === 1 ? '' : 's'} ${unavailableCount === 1 ? 'is' : 'are'} unavailable for use.`
+      : null;
 
   if (status === 'loading') {
     return (
@@ -39,8 +48,9 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
 
   if (!methods || methods.length === 0) {
     return (
-      <Box>
+      <Box flexDirection="column">
         <Text dimColor>No payment methods found</Text>
+        {unavailableMessage && <Text dimColor>{unavailableMessage}</Text>}
       </Box>
     );
   }
@@ -48,6 +58,7 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
   return (
     <Box flexDirection="column">
       <Text bold>Payment Methods</Text>
+      {unavailableMessage && <Text dimColor>{unavailableMessage}</Text>}
       <Box flexDirection="column" marginTop={1}>
         {methods.map((pm) => {
           const label =
