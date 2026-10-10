@@ -3311,8 +3311,12 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       expect(linkRequest?.headers['user-agent']).toBe(
         `${CLI_USER_AGENT} AIAgent/codex_cli`,
       );
-      expect(merchantRequests[0].headers['user-agent']).toBe(CLI_USER_AGENT);
-      expect(merchantRequests[1].headers['user-agent']).toBe(CLI_USER_AGENT);
+      expect(merchantRequests[0].headers['user-agent']).toBe(
+        `${CLI_USER_AGENT} AIAgent/codex_cli`,
+      );
+      expect(merchantRequests[1].headers['user-agent']).toBe(
+        `${CLI_USER_AGENT} AIAgent/codex_cli`,
+      );
       expect(merchantRequests[1].headers.authorization).toMatch(/^Payment /);
     });
 
