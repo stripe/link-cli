@@ -1,0 +1,21 @@
+{
+  "name": "@stripe/link-validate",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@stripe/cli": "^1.52.1",
+    "smol-toml": "^1.9.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@stripe/link-typescript-config": "workspace:*",
+    "@types/node": "^26.4.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
+  }
+}

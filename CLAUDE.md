@@ -13,6 +13,7 @@ Link CLI — lets agents get secure, one-time-use payment credentials from a Lin
 - **`@stripe/link-integrations-eve`** (`packages/integrations/eve`): Native Eve extension built with `eve extension build`. Static tool files wrap `@stripe/link-sdk/tools` and accept exactly one of `accessToken` or an Eve `auth` provider. OAuth tools use `ctx.getToken` and map Link 401s to `ctx.requireAuth`. The consuming application owns its OAuth provider, including token exchange, storage, refresh, and callback routing; this package supplies no OAuth client or storage abstraction. Static-token mode does not refresh. Interactive OAuth requires an authenticated Eve user. `create_spend_request` defaults to Eve approval via `always()`, which consumers can override; `request_approval: false` defers Link approval for a draft and does not authorize spending. Its `extension/skills/create-payment-credential/SKILL.md` and `extension/skills/financial-insights/SKILL.md` adapt the root skills to native tool calls and Eve auth; maintain these copies alongside shared wallet behavior and tool changes. Workspace development and CI require Node 24+.
 - **`@stripe/agent-identity`** (`packages/agent-identity`): Service-side verification of Link bearer attestations and selectively disclosed identity presentations. Independent of the wallet client, using Node built-ins and `jose`, with ESM/CommonJS exports and a `/testing` entry point. Consumers require Node 22+; workspace development uses Node 24+. Uses tsup, TypeScript, and Vitest. Run `pnpm build`, `pnpm typecheck`, and `pnpm test` from `packages/agent-identity`; follow its README for package, documentation, and HTTP example checks. Guides live in READMEs; runnable examples use `example/`. Read its scoped `AGENTS.md` before changing verification behavior.
 - **`@stripe/link-cli`** (`packages/cli`): Commander.js + Ink/React CLI that consumes `@stripe/link-sdk`. Entry: `src/cli.tsx`.
+- **`@stripe/link-validate`** (`packages/validate`): Private developer tooling for buyer-side payment validation. Run from the repo with `pnpm validate`; it is not part of the published CLI or MCP surface.
 
 ## Commands
 
@@ -25,6 +26,7 @@ pnpm run test:go                # run the Go SDK tests
 pnpm run test:python            # run the Python SDK tests via uv
 pnpm run check:python           # Python Ruff lint/format checks and ty type checking
 pnpm run typecheck              # type-check all packages
+pnpm validate                   # start a local test-payment seller
 pnpm biome check .              # lint + format check (CI)
 pnpm run check                  # lint + format with auto-fix
 ```
@@ -42,6 +44,12 @@ node packages/cli/dist/cli.js <command>
 ```
 
 ## Architecture
+
+### Developer payment validation
+
+- `pnpm validate` starts a local test seller (`packages/validate`) that checks whether a buyer agent can pay with a test-mode SPT. It is repo tooling, not part of the published CLI. Keep `packages/validate/README.md`, the guide for coding agents, aligned with its behavior.
+- Claimable sandbox keys (`rkcs_`) are rejected because they can't accept SPTs.
+- Never echo seller keys or SPTs in output or errors.
 
 ### SDK Resources
 

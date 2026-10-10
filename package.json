@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "validate": "node packages/validate/src/index.ts",
     "build": "turbo run build && node scripts/sync-skill-version.js",
     "sync-skill-version": "node scripts/sync-skill-version.js",
     "dev": "turbo watch build",
