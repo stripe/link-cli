@@ -62,6 +62,36 @@ afterEach(() => {
 });
 
 describe('payWithSpt', () => {
+  it('includes the challenge externalId in the SPT credential', async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        challengeResponse(
+          challengeWith({
+            request: { ...STRIPE_REQUEST, externalId: 'order_123' },
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(new Response('paid'));
+    vi.stubGlobal('fetch', fetcher);
+
+    await payWithSpt(
+      'https://merchant.example/challenge',
+      'spt_test_123',
+      undefined,
+      undefined,
+      undefined,
+    );
+
+    const credential = Credential.deserialize(
+      new Headers(fetcher.mock.calls[1][1]?.headers).get('authorization') ?? '',
+    );
+    expect(credential.payload).toEqual({
+      spt: 'spt_test_123',
+      externalId: 'order_123',
+    });
+  });
+
   it('rejects a redirect before using an approved credential', async () => {
     const fetcher = vi.fn().mockResolvedValue(
       new Response(null, {
