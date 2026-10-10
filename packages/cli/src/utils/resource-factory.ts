@@ -81,7 +81,7 @@ function createProxyFetch(
 ): typeof globalThis.fetch {
   let dispatcherPromise: Promise<unknown> | null = null;
   return ((input: RequestInfo | URL, init?: RequestInit) => {
-    const moduleName = 'undici';
+    const moduleName = process.env.LINK_UNDICI_MODULE || 'undici';
     dispatcherPromise ??= (
       import(moduleName) as Promise<{
         ProxyAgent: new (url: string) => unknown;

@@ -659,6 +659,7 @@ In MCP/agent mode, pass `metadata` as a structured `{ key: value }` object.
 | `LINK_API_BASE_URL` | Override the API base URL |
 | `LINK_AUTH_BASE_URL` | Override the auth base URL |
 | `LINK_HTTP_PROXY` | Route all requests through an HTTP proxy (requires `undici`) |
+| `LINK_UNDICI_MODULE` | Override the `undici` module path used for proxy requests |
 
 ## Integrating into agents
 
