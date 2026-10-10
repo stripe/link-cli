@@ -76,7 +76,12 @@ function createStripePaymentClient(
       if (!spt) throw new Error('A shared payment token is required to pay');
       return Credential.serialize({
         challenge,
-        payload: { spt },
+        payload: {
+          spt,
+          ...(typeof challenge.request.externalId === 'string'
+            ? { externalId: challenge.request.externalId }
+            : {}),
+        },
       });
     },
   });
