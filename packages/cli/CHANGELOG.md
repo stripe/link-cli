@@ -1,5 +1,12 @@
 # @stripe/link-cli
 
+## 0.27.1
+
+### Patch Changes
+
+- f0647a8: Omit dynamic shell command continuations on Windows and provide structured arguments for MPP, UCP, and spend-request polling. Retain explicitly POSIX-only compatibility strings elsewhere, quote UCP templates, and render Windows terminal suggestions as argument data. Consumers should invoke their trusted CLI entrypoint directly without a shell.
+- 5d7a130: Use the standard agent-aware User-Agent for merchant requests made by `mpp pay`.
+
 ## 0.27.0
 
 ### Minor Changes
