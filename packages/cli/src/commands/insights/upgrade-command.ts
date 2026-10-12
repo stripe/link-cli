@@ -1,6 +1,6 @@
 import type { InsightAuthorizationRemediation } from '@stripe/link-sdk';
 import { SOURCE_ACTIONS } from '../../auth/types';
-import { shellCommand } from '../../utils/shell-quote';
+import { posixShellCommand as shellCommand } from '../../utils/shell-quote';
 
 const supportedSourceActions = new Set<string>(SOURCE_ACTIONS);
 
