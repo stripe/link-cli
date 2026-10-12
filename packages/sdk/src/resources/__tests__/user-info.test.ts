@@ -239,6 +239,40 @@ describe('UserInfoResource', () => {
     });
   });
 
+  it.each([
+    {},
+    { country: 'ZZ' },
+    { country: 'ZZ', line2: null },
+    { city: 'San Francisco', line1: null },
+  ])('preserves sparse address components: %j', async (address) => {
+    mockFetchResponse(200, { address });
+
+    const result = await resource.retrieve();
+
+    expect(result.address).toStrictEqual(address);
+  });
+
+  it.each(['line1', 'line2', 'city', 'state', 'postal_code', 'country'])(
+    'rejects a non-string address component: %s',
+    async (field) => {
+      mockFetchResponse(200, {
+        address: {
+          line1: null,
+          line2: null,
+          city: null,
+          state: null,
+          postal_code: null,
+          country: null,
+          [field]: 123,
+        },
+      });
+
+      await expect(resource.retrieve()).rejects.toThrow(
+        'Invalid response while attempting to retrieve user info (200)',
+      );
+    },
+  );
+
   it('preserves a null address with false balance eligibility', async () => {
     mockFetchResponse(200, {
       address: null,

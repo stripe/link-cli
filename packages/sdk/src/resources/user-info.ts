@@ -34,16 +34,20 @@ const agentWalletVerificationRequirementSchema = z.object({
 
 const userInfoAddressSchema = z
   .object({
-    line1: z.string().nullable(),
+    line1: z.string().nullable().optional(),
     line2: z.string().nullable().optional(),
-    city: z.string().nullable(),
-    state: z.string().nullable(),
-    postal_code: z.string().nullable(),
-    country: z.string().nullable(),
+    city: z.string().nullable().optional(),
+    state: z.string().nullable().optional(),
+    postal_code: z.string().nullable().optional(),
+    country: z.string().nullable().optional(),
   })
-  .transform(({ line2, ...address }) => ({
-    ...address,
+  .transform(({ line1, line2, city, state, postal_code, country }) => ({
+    ...(line1 === undefined ? {} : { line1 }),
     ...(line2 === undefined ? {} : { line2 }),
+    ...(city === undefined ? {} : { city }),
+    ...(state === undefined ? {} : { state }),
+    ...(postal_code === undefined ? {} : { postal_code }),
+    ...(country === undefined ? {} : { country }),
   }));
 
 const userInfoSchema = z
