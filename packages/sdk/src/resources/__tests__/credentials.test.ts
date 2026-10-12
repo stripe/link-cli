@@ -27,10 +27,10 @@ describe('IdentityCredentialsResource', () => {
           });
           return jsonResponse({
             issuer: 'https://api.link.com',
-            credential_endpoint: 'https://api.link.com/credential',
+            credential_endpoint: 'https://api.link.com/identity/credentials',
           });
         }
-        expect(url).toBe('https://api.link.com/credential');
+        expect(url).toBe('https://api.link.com/identity/credentials');
         expect(init?.redirect).toBe('manual');
         expect(init?.headers).toMatchObject({
           Authorization: 'Bearer access-token',
@@ -66,7 +66,7 @@ describe('IdentityCredentialsResource', () => {
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
         jsonResponse({
           issuer: 'https://attacker.example',
-          credential_endpoint: 'https://api.link.com/credential',
+          credential_endpoint: 'https://api.link.com/identity/credentials',
         }),
     );
     const resource = new IdentityCredentialsResource({
@@ -127,7 +127,7 @@ describe('IdentityCredentialsResource', () => {
         String(input).endsWith('/.well-known/aap-issuer')
           ? jsonResponse({
               issuer: 'https://api.link.com',
-              credential_endpoint: 'https://api.link.com/credential',
+              credential_endpoint: 'https://api.link.com/identity/credentials',
             })
           : jsonResponse({ credential: 42 }),
     );
@@ -147,7 +147,7 @@ describe('IdentityCredentialsResource', () => {
         String(input).endsWith('/.well-known/aap-issuer')
           ? jsonResponse({
               issuer: 'https://api.link.com',
-              credential_endpoint: 'https://api.link.com/credential',
+              credential_endpoint: 'https://api.link.com/identity/credentials',
             })
           : jsonResponse({
               credential: 'issuer-jwt~',
@@ -171,7 +171,7 @@ describe('IdentityCredentialsResource', () => {
         if (String(input).endsWith('/.well-known/aap-issuer')) {
           return jsonResponse({
             issuer: 'https://api.link.com',
-            credential_endpoint: 'https://api.link.com/credential',
+            credential_endpoint: 'https://api.link.com/identity/credentials',
           });
         }
         expect(JSON.parse(String(init?.body))).toEqual({
@@ -203,7 +203,7 @@ describe('IdentityCredentialsResource', () => {
         String(input).endsWith('/.well-known/aap-issuer')
           ? jsonResponse({
               issuer: 'https://api.link.com',
-              credential_endpoint: 'https://api.link.com/credential',
+              credential_endpoint: 'https://api.link.com/identity/credentials',
             })
           : jsonResponse({ error: 'unauthorized' }, 401),
     );

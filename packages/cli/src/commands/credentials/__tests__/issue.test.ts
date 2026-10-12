@@ -1,6 +1,6 @@
 import { generateKeyPairSync } from 'node:crypto';
 import { existsSync, mkdtempSync, statSync, symlinkSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type {
   HolderPublicJwk,
@@ -8,7 +8,11 @@ import type {
 } from '@stripe/link-sdk';
 import { holderJwkThumbprint } from '@stripe/link-sdk';
 import { describe, expect, it, vi } from 'vitest';
-import { loadHolderKey, loadOrCreateHolderKey } from '../holder-key';
+import {
+  DEFAULT_HOLDER_KEY_PATH,
+  loadHolderKey,
+  loadOrCreateHolderKey,
+} from '../holder-key';
 import { issueIdentityCredential } from '../issue';
 
 function publicJwkFromPrivate(): HolderPublicJwk {
@@ -42,6 +46,12 @@ function tempDir(): string {
 }
 
 describe('issueIdentityCredential', () => {
+  it('keeps the default holder key under the identity namespace', () => {
+    expect(DEFAULT_HOLDER_KEY_PATH).toBe(
+      join(homedir(), '.link-cli', 'identity', 'holder-key.jwk'),
+    );
+  });
+
   it('issues a managed credential and records the local key path', async () => {
     const dir = tempDir();
     const keyFile = join(dir, 'holder-key.jwk');

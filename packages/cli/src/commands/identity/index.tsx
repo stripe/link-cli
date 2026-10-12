@@ -11,7 +11,7 @@ export function createIdentityCli(options: {
   createIdentityCredentialsResource: () => IIdentityCredentialsResource;
 }) {
   const cli = Cli.create('identity', {
-    description: 'Prove your agent and user identity with Link.',
+    description: '[beta] Prove your agent and user identity with Link.',
   });
 
   cli.command(createAttestationsCli(options.createAttestationsResource));

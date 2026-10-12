@@ -382,48 +382,50 @@ Set `NO_UPDATE_NOTIFIER=1` to suppress update checks (for example, in CI).
 
 All commands accept `--auth <path>` to store auth credentials in a specific file instead of the default location. `auth login` writes to this file; all other commands read from it. Useful for running multiple sessions with separate identities.
 
-### Identity (experimental)
+### Identity (beta)
 
-Unlisted commands: set `LINK_IDENTITY_COMMANDS=1` to enable them in `--help` and `--llms`. Identity commands remain excluded from MCP even when enabled.
+Services can verify these credentials with [Agent Identity](packages/agent-identity/README.md), a separate SDK in this repository. The [event-registration example](packages/agent-identity/example/step-up/README.md) shows site access using an attestation and registration using a verified email.
+
+Identity commands require Link Agent Wallet v0.27.0 or later for the flow documented here. Check `link-cli --version`; install or update with `npm install -g @stripe/link-cli@latest`. They are available in `--help` and `--llms` without a preview flag, but remain excluded from MCP. See [wallet setup](https://link.com/agents#get-started-section) and the [identity skill](skills/use-link-identity/SKILL.md).
 
 Both identity `request` commands save their artifacts to disk and return only the file path and metadata. This applies to every output format, including JSON, piped output, and `--full-output`. Request output never includes credentials, tokens, or claim values.
 
-**Privacy-preserving tokens** that show Link attests to your agent:
+**Privacy-preserving attestations** that let a service verify Link issued the token, without disclosing personal details or identifying the agent:
 
 ```bash
-LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10
+link-cli identity attestations request --count 10
 ```
 
-Each request adds tokens to the CLI-managed pool at `~/.link-cli/attestations/pool.json`. Take one token when you need to answer an attestation challenge:
+Each request adds tokens to the CLI-managed pool at `~/.link-cli/identity/attestations/pool.json`. Pop one token when you need to answer an attestation challenge:
 
 ```bash
-LINK_IDENTITY_COMMANDS=1 link-cli identity attestations take --format json
+link-cli identity attestations pop --format json
 ```
 
-`take` removes one token before returning its `token`, ready-to-use `authorization` header, issuer, and issuer-key ID. Pass `authorization` as the `Authorization` header in your browser automation or HTTP client. An empty pool returns `ATTESTATION_POOL_EMPTY`; refill it with `request --count 10`.
+`pop` removes one token before returning its `token`, ready-to-use `authorization` header, issuer, and issuer-key ID. Pass `authorization` as the `Authorization` header in your browser automation or HTTP client. An empty pool returns `ATTESTATION_POOL_EMPTY`; refill it with `request --count 10`.
 
 For agent-managed tokens, export a batch to a new file outside the CLI storage directory:
 
 ```bash
-LINK_IDENTITY_COMMANDS=1 link-cli identity attestations request --count 10 --output-file ./aats.json
+link-cli identity attestations request --count 10 --output-file ./aats.json
 ```
 
 Exported tokens never enter the CLI pool. The agent owns their consumption and cleanup. Existing exports remain separate and are never automatically imported. Wallet credentials keep their existing storage and behavior.
 
-Pool updates are serialized and saved atomically. A crash after removal can lose a token; `take` never returns it to the pool. If a crash leaves `pool.json.lock`, ensure no attestation commands are running before removing that lock directory.
+Pool updates are serialized and saved atomically. A crash after removal can lose a token; `pop` never returns it to the pool. If a crash leaves `pool.json.lock`, ensure no attestation commands are running before removing that lock directory.
 
 **User info that has been signed, proving it comes from Link**:
 
 ```bash
-LINK_IDENTITY_COMMANDS=1 link-cli identity credentials request
+link-cli identity credentials request
 ```
 
-`identity credentials request` saves a signed credential to `~/.link-cli/credentials/current.json`, bound to the CLI-managed holder key at `~/.link/holder-key.jwk`. Structured output includes `output_file`, issuer, expiry, holder-key path/thumbprint, and claim names. A script can read the saved credential and holder key to sign a presentation and send it through browser automation or an HTTP client without printing their contents into the agent transcript.
+`identity credentials request` saves a signed credential to `~/.link-cli/identity/credentials/current.json`, bound to the CLI-managed holder key at `~/.link-cli/identity/holder-key.jwk`. Structured output includes `output_file`, issuer, expiry, holder-key path/thumbprint, and claim names. Use `identity credentials present` to sign selected claims, capture its JSON output programmatically, and send the presentation through browser automation or an HTTP client without printing it into the agent transcript.
 
-**Unlisted presentations** disclose selected claims to a verifier using the saved credential and holder key:
+**Presentations** disclose selected claims to a verifier using the saved credential and holder key:
 
 ```bash
-LINK_IDENTITY_COMMANDS=1 link-cli identity credentials present \
+link-cli identity credentials present \
   --aud https://directory.example \
   --nonce '<nonce-from-challenge>' \
   --claim email \
@@ -434,22 +436,22 @@ LINK_IDENTITY_COMMANDS=1 link-cli identity credentials present \
 {"presentation":"<issuer-jwt>~<email-disclosure>~<key-binding-jwt>"}
 ```
 
-Use the verifier challenge's exact audience and nonce. Repeat `--claim` to disclose additional claims, such as `--claim email --claim email_verified`; at least one claim is required. The command reads `~/.link-cli/credentials/current.json`, signs with its saved holder key, and returns only the presentation. It works without login or network access and does not modify the saved credential or key. Missing claims, expired credentials, mismatched keys, and unsupported disclosure formats fail instead of producing a presentation. It supports Link's flat SHA-256 disclosures; credentials with plaintext user claims or nested selective disclosures are rejected.
+Use the verifier challenge's exact audience and nonce. Repeat `--claim` to disclose additional claims, such as `--claim email --claim email_verified`; at least one claim is required. The command reads `~/.link-cli/identity/credentials/current.json`, signs with its saved holder key, and returns only the presentation. It works without login or network access and does not modify the saved credential or key. Missing claims, expired credentials, mismatched keys, and unsupported disclosure formats fail instead of producing a presentation. It supports Link's flat SHA-256 disclosures; credentials with plaintext user claims or nested selective disclosures are rejected.
 
 Send the returned `presentation` as the `Identity-Presentation` HTTP header.
 
-The verifier still validates the issuer signature, holder signature, audience, nonce, expiry, and required claims. Presentations include a fresh signing time and should be sent promptly; a verifier that has consumed the nonce requires a new challenge.
+The verifier still validates the issuer signature, holder signature, audience, nonce, expiry, and required claims. Presentations include a fresh signing time and should be sent promptly. Follow the service's retry instructions. Completed interactions may return a saved result; a new operation or expired interaction may require a fresh challenge. The Agent Identity SDK verifies nonce equality; the service manages interaction state and replay policy.
 
-**Unlisted local inspection** uses the same feature flag and MCP exclusion:
+**Local inspection** uses the same MCP exclusion:
 
 ```bash
-LINK_IDENTITY_COMMANDS=1 link-cli identity credentials list --format json
-LINK_IDENTITY_COMMANDS=1 link-cli identity attestations list --format json
+link-cli identity credentials list --format json
+link-cli identity attestations list --format json
 ```
 
-These commands inspect local files without login or Link API calls and display metadata in both terminal and structured output. Credential inspection reports the saved `~/.link-cli/credentials/current.json` path, issuer, cached expiry/`expired` status, holder-key path/thumbprint, and claim names. Private keys are never opened; credentials, tokens, and claim values are never printed. Inspection does not modify files, verify signatures, or filter artifacts by the active account.
+These commands inspect local files without login or Link API calls and display metadata in both terminal and structured output. Credential inspection reports the saved `~/.link-cli/identity/credentials/current.json` path, issuer, cached expiry/`expired` status, holder-key path/thumbprint, and claim names. Private keys are never opened; credentials, tokens, and claim values are never printed. Inspection does not modify files, verify signatures, or filter artifacts by the active account.
 
-Attestation inspection reports paths, issuer/key identifiers, per-batch `stored_token_count`, aggregate `total_token_count`, and `storage` (`pool` or `export`) for JSON batches in `~/.link-cli/attestations`. Counts describe stored tokens; external usage is untracked and AATs have no embedded expiry. Empty stores return empty lists. Lists include per-file `errors` alongside valid entries.
+Attestation inspection reports paths, issuer/key identifiers, per-batch `stored_token_count`, aggregate `total_token_count`, and `storage` (`pool` or `export`) for JSON batches in `~/.link-cli/identity/attestations`. Counts describe stored tokens; external usage is untracked and AATs have no embedded expiry. Empty stores return empty lists. Lists include per-file `errors` alongside valid entries.
 
 ### Spend request lifecycle
 
@@ -463,7 +465,7 @@ Link Pay Token requests require `credential_type=link_pay_token` and the
 DOM-derived `merchant_account_id`, and Link supplies their canonical merchant
 identity.
 
-**Constraints:** `context` must be at least 100 characters; `amount` must not exceed 50000 (cents); `currency` must be a 3-letter ISO code. The user has 30 minutes from when approval is requested to approve. Approved credentials (card or SPT) are valid for 12 hours from spend request creation.
+**Constraints:** `context` must be at least 100 characters; `amount` is an integer in the currency's smallest unit (e.g. cents) and must not exceed 50000 USD cents equivalent; `currency` can be any supported 3-letter ISO code. The user has 30 minutes from when approval is requested to approve. Approved credentials (card or SPT) are valid for 12 hours from spend request creation.
 **Test mode:** Pass `--test` to create a testmode SpendRequest. A testmode SpendRequest will return test payment credentials (e.g test card `4000009990001984`) rather than a real payment credential. Testmode SpendRequests will not charge the underlying payment method of the SpendRequest. This is useful for development and integration testing without real payment methods.
 
 ```bash
@@ -518,7 +520,7 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
 
 Some Stripe payment surfaces expose an AI-agent steering block that supports a
 Link Pay Token (LPT). Inspect the checkout in a browser before creating the
-SpendRequest: enable the agent checkbox, then verify that both
+SpendRequest: find the `.AiAgentPaymentSteering` block and verify that both
 `input[name="link_pay_token"]` and
 `data-stripe-merchant-account="acct_..."` are present in the same Stripe
 frame.
@@ -559,6 +561,7 @@ request.
 | Hourly creation rate | 50 per hour |
 | Rolling creation rate | 200 per 60 days |
 
+Dollar limits are enforced as the USD equivalent for spend requests in other currencies.
 
 Use `mpp pay` to complete purchases on merchants that use the [Machine Payments Protocol](https://mpp.dev). The spend request must use `credential_type: "shared_payment_token"` and you must approve it before paying. The SPT is one-time-use — if payment fails, create a new spend request.
 
@@ -677,6 +680,8 @@ If you are building an agent and want to offer Link as a native experience to yo
 please look at our [documentation and steps for integrating](https://docs.stripe.com/agentic-commerce/link-agent-wallet). We can support higher limits, more embedded approval flows, and additional capabilities.
 
 ## SDKs
+
+For services accepting agents, [Agent Identity](packages/agent-identity/README.md) verifies Link attestations and identity presentations. The wallet API clients below obtain credentials and call Link APIs.
 
 Applications can use the credential-only Link client directly in
 [TypeScript](packages/sdk/README.md), [Go](packages/sdk-go/README.md), or

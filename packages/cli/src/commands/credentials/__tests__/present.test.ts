@@ -46,10 +46,10 @@ beforeEach(async () => {
   directory = await fs.mkdtemp(path.join(os.tmpdir(), 'link-present-'));
   vi.spyOn(os, 'homedir').mockReturnValue(directory);
   vi.spyOn(Date, 'now').mockReturnValue(now * 1000);
-  const store = path.join(directory, '.link-cli', 'credentials');
+  const store = path.join(directory, '.link-cli', 'identity', 'credentials');
   await fs.mkdir(store, { recursive: true });
   file = path.join(store, 'current.json');
-  keyFile = path.join(directory, '.link', 'holder-key.jwk');
+  keyFile = path.join(directory, '.link-cli', 'identity', 'holder-key.jwk');
   const holder = loadOrCreateHolderKey(keyFile);
   disclosures = [
     encode(['email-salt', 'email', 'private@example.test']),

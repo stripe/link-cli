@@ -20,17 +20,17 @@ func (r *UserInfoResource) Retrieve(ctx context.Context) (*UserInfo, error) {
 		return nil, newAPIError("retrieve user info", response.status, response.data, response.rawBody)
 	}
 	var wire struct {
-		ID                     *string                             `json:"id"`
-		Email                  *string                             `json:"email"`
-		Name                   *string                             `json:"name"`
-		FirstName              *string                             `json:"first_name"`
-		LastName               *string                             `json:"last_name"`
-		Phone                  *string                             `json:"phone"`
-		Address                *UserInfoAddress                    `json:"address,omitempty"`
-		EligibleForBalance     *bool                               `json:"eligible_for_balance,omitempty"`
-		DefaultSpendRequestCurrency *string                        `json:"default_spend_request_currency,omitempty"`
-		AgentWalletSpendLimits *AgentWalletSpendLimits             `json:"agent_wallet_spend_limits,omitempty"`
-		AgentWalletStepUp      *AgentWalletVerificationRequirement `json:"agent_wallet_step_up,omitempty"`
+		ID                          *string                             `json:"id"`
+		Email                       *string                             `json:"email"`
+		Name                        *string                             `json:"name"`
+		FirstName                   *string                             `json:"first_name"`
+		LastName                    *string                             `json:"last_name"`
+		Phone                       *string                             `json:"phone"`
+		Address                     *UserInfoAddress                    `json:"address,omitempty"`
+		EligibleForBalance          *bool                               `json:"eligible_for_balance,omitempty"`
+		DefaultSpendRequestCurrency *string                             `json:"default_spend_request_currency,omitempty"`
+		AgentWalletSpendLimits      *AgentWalletSpendLimits             `json:"agent_wallet_spend_limits,omitempty"`
+		AgentWalletStepUp           *AgentWalletVerificationRequirement `json:"agent_wallet_step_up,omitempty"`
 	}
 	if err := decodeResponse("retrieve user info", response, &wire); err != nil {
 		return nil, err

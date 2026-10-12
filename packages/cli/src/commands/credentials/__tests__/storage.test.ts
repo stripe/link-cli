@@ -32,7 +32,7 @@ describe('identity credential artifact storage', () => {
   });
 
   it('atomically replaces the current artifact in a private directory', async () => {
-    const directory = path.join(tmpDir, '.link-cli', 'credentials');
+    const directory = path.join(tmpDir, '.link-cli', 'identity', 'credentials');
     const first = await writeIdentityCredentialArtifact(artifact);
     const replacement = { ...artifact, credential: 'replacement' };
     const second = await writeIdentityCredentialArtifact(replacement);
@@ -48,9 +48,9 @@ describe('identity credential artifact storage', () => {
 
   it('rejects a symbolic-link output directory', async () => {
     const target = path.join(tmpDir, 'target');
-    const directory = path.join(tmpDir, '.link-cli', 'credentials');
+    const directory = path.join(tmpDir, '.link-cli', 'identity', 'credentials');
     await fs.mkdir(target);
-    await fs.mkdir(path.dirname(directory));
+    await fs.mkdir(path.dirname(directory), { recursive: true });
     await fs.symlink(target, directory);
 
     await expect(writeIdentityCredentialArtifact(artifact)).rejects.toThrow(

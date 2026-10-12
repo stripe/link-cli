@@ -85,10 +85,19 @@ For a normal card checkout, call `create_spend_request` with arguments like:
 }
 ```
 
-Replace the example values with the verified checkout details. Amounts are in
-cents. `line_items` and `totals` are arrays; use the discovered schema for their
-supported fields. For an SPT, provide `network_id` and omit `merchant_name` and
-`merchant_url`. For LPT, use the bound-request inputs above.
+Replace the example values with the verified checkout details. `line_items` and
+`totals` are arrays; use the discovered schema for their supported fields. For
+an SPT, provide `network_id` and omit `merchant_name` and `merchant_url`. For
+LPT, use the bound-request inputs above.
+
+**Currency:** Spend requests can be in any supported currency. Pass `currency`
+as a 3-letter ISO 4217 code (e.g. `usd`, `eur`, `gbp`); it defaults to `usd`.
+Use the currency the merchant's checkout charges in rather than converting
+prices yourself. If the currency is not supported, the API rejects the request.
+
+**Amounts** (`amount`, `unit_amount`, and `totals` amounts) are integers in the
+currency's smallest unit (e.g. cents): `4200` is $42.00 USD or €42.00 EUR. Some
+currencies have no minor unit, so `4200` in `jpy` is ¥4,200.
 
 By default, Eve asks for user approval before `create_spend_request`; follow the
 application's configured approval policy. Link's purchase authorization is

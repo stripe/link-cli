@@ -5,7 +5,7 @@ import Conf from 'conf';
 import type { IdentityCredentialIssueResult } from './issue';
 
 export function getOutputDirectory(): string {
-  return path.join(os.homedir(), '.link-cli', 'credentials');
+  return path.join(os.homedir(), '.link-cli', 'identity', 'credentials');
 }
 
 async function prepareOutputDirectory(): Promise<string> {

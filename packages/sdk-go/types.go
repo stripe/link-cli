@@ -380,6 +380,7 @@ type UserInfo struct {
 	Phone                              *string                             `json:"phone,omitempty"`
 	Address                            *UserInfoAddress                    `json:"address,omitempty"`
 	EligibleForBalance                 *bool                               `json:"eligible_for_balance,omitempty"`
+	DefaultSpendRequestCurrency        *string                             `json:"default_spend_request_currency,omitempty"`
 	AgentWalletSpendLimits             *AgentWalletSpendLimits             `json:"agent_wallet_spend_limits,omitempty"`
 	AgentWalletVerificationRequirement *AgentWalletVerificationRequirement `json:"agent_wallet_verification_requirement,omitempty"`
 }
