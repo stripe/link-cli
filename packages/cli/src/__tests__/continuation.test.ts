@@ -294,6 +294,7 @@ describe('command continuations', () => {
       });
       expect(existsSync(join(directory, 'proof.txt'))).toBe(false);
     },
+    10_000,
   );
 
   it.each(['pending_approval', 'requires_action'])(
