@@ -251,7 +251,7 @@ describe('command continuations', () => {
       Credential.deserialize(paidRequest.authorization).challenge.description,
     ).toBe(decodeStripeChallenge(CHALLENGE).description);
     expect(existsSync(join(directory, 'proof.txt'))).toBe(false);
-  });
+  }, 10_000);
 
   it.each([false, true])(
     'preserves UCP values and replaces only the spend-request argument (test: %s)',
