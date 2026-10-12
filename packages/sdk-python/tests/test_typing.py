@@ -12,12 +12,15 @@ from typing import assert_type
 from types import MappingProxyType
 from link import AsyncClient, Client, LineItemParams, SpendRequest, PaymentMethod
 from link import JsonPrimitive, JsonValue, SpendRequestStatus
+from link import UserInfoAddress
 
 future_status: SpendRequestStatus = "future_status"
 primitive: JsonPrimitive = None
 json_value: JsonValue = {"items": [primitive, {"active": True}], "amount": 1.25}
 
 def valid(client: Client) -> None:
+    assert_type(client.user_info.retrieve().address, UserInfoAddress | None)
+    assert_type(UserInfoAddress(country="ZZ").city, str | None)
     item: LineItemParams = {"name": "Item", "totals": ()}
     result = client.spend_requests.create(
         context="The user requested this purchase.",
@@ -47,6 +50,8 @@ def valid(client: Client) -> None:
     )
 
 async def valid_async(client: AsyncClient) -> None:
+    user = await client.user_info.retrieve()
+    assert_type(user.address, UserInfoAddress | None)
     result = await client.spend_requests.create(
         context="Purchase", credential_type="card"
     )

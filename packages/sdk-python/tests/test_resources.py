@@ -18,6 +18,7 @@ from link import (
     SourcesPage,
     SpendRequest,
     TransactionsPage,
+    UserInfoAddress,
 )
 
 CONTEXT = (
@@ -415,6 +416,72 @@ async def test_user_info_enrichment(api: API) -> None:
             assert user.agent_wallet_verification_requirement is None
             assert "agent_wallet_spend_limits" not in user.model_fields_set
             assert "agent_wallet_verification_requirement" not in user.model_fields_set
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {},
+        {"address": None},
+        {"address": {}},
+        {"address": {"country": "ZZ"}},
+        {"address": {"country": "ZZ", "line2": None}},
+        {"address": {"city": "San Francisco", "line1": None}},
+        {
+            "address": {
+                "line1": "510 Townsend St",
+                "line2": "Suite 100",
+                "city": "San Francisco",
+                "state": "CA",
+                "postal_code": "94103",
+                "country": "US",
+            }
+        },
+        {
+            "address": {
+                "line1": None,
+                "line2": None,
+                "city": None,
+                "state": None,
+                "postal_code": None,
+                "country": None,
+            }
+        },
+    ],
+)
+async def test_user_info_address(api: API, data: dict[str, Any]) -> None:
+    api.respond(data)
+
+    user = await api.call("user_info", "retrieve")
+
+    assert user.model_dump(exclude_unset=True) == data
+    if isinstance(data.get("address"), dict):
+        assert isinstance(user.address, UserInfoAddress)
+        assert user.address.model_fields_set == set(data["address"])
+        assert user.address.country == data["address"].get("country")
+    else:
+        assert user.address is None
+
+
+@pytest.mark.parametrize(
+    "field", ["line1", "line2", "city", "state", "postal_code", "country"]
+)
+@pytest.mark.parametrize("value", [123, True, [], {}])
+async def test_user_info_rejects_invalid_address_component(
+    api: API, field: str, value: object
+) -> None:
+    api.respond({"address": {field: value}})
+
+    with pytest.raises(LinkResponseError):
+        await api.call("user_info", "retrieve")
+
+
+@pytest.mark.parametrize("address", ["ZZ", 123, True, []])
+async def test_user_info_rejects_invalid_address(api: API, address: object) -> None:
+    api.respond({"address": address})
+
+    with pytest.raises(LinkResponseError):
+        await api.call("user_info", "retrieve")
 
 
 async def test_legacy_transactions_and_tokens(api: API) -> None:

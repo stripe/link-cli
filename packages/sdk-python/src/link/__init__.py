@@ -67,6 +67,7 @@ from .models import (
     Transaction,
     TransactionsPage,
     UserInfo,
+    UserInfoAddress,
     WebBotAuthBlock,
 )
 from .params import (
@@ -127,6 +128,7 @@ __all__ = [
     "AgentWalletSpendLimits",
     "AgentWalletVerificationRequirement",
     "UserInfo",
+    "UserInfoAddress",
     "ProductCapability",
     "PaymentMethod",
     "ShippingAddress",

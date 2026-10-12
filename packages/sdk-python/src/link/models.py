@@ -203,12 +203,22 @@ class AgentWalletVerificationRequirement(LinkModel):
     action_url: str | None
 
 
+class UserInfoAddress(LinkModel):
+    line1: str | None = None
+    line2: str | None = None
+    city: str | None = None
+    state: str | None = None
+    postal_code: str | None = None
+    country: str | None = None
+
+
 class UserInfo(LinkModel):
     email: str | None = None
     name: str | None = None
     first_name: str | None = None
     last_name: str | None = None
     phone: str | None = None
+    address: UserInfoAddress | None = None
     default_spend_request_currency: str | None = None
     agent_wallet_spend_limits: AgentWalletSpendLimits | None = None
     agent_wallet_verification_requirement: AgentWalletVerificationRequirement | None = (
