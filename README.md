@@ -570,7 +570,21 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
   --header "X-Custom: value"
 ```
 
-In agent mode (`--format json`), the full flow returns the payment continuation twice: as `_next.pay_argv` (`{ "command": "mpp", "args": [...] }`) and as `_next.pay_command`. Prefer `pay_argv` and invoke it directly, passing each `args` entry as its own process argument. The URL, body and headers can carry merchant-controlled text, so `pay_command` is shell-quoted for callers that must go through a shell — pass it to the shell verbatim, without unquoting or re-splitting it.
+In agent mode (`--format json`), the full flow returns `_next.pay_argv` (`{ "command": "mpp", "args": [...] }`) and `_next.poll_argv` for payment and approval polling. Invoke these directly without a shell. `command` is a Link CLI subcommand, not an executable; pass it and each `args` entry as separate arguments to your trusted CLI entrypoint:
+
+```js
+import { execFile } from 'node:child_process';
+
+const { command, args } = result._next.pay_argv;
+// cliScript is the trusted path to the installed CLI's dist/cli.js.
+execFile(process.execPath, [cliScript, command, ...args], { shell: false });
+```
+
+For the standalone Windows executable, use `execFile(cliExecutable, [command, ...args], { shell: false })`. Avoid npm `.cmd` shims, which require a command shell. Never join, unquote, or re-split an argv array to construct a shell string: URLs, request bodies, and headers can contain merchant-controlled text.
+
+Outside Windows, `_next.pay_command` and `_next.poll_command` remain available with `_next.shell: "posix"`. These strings are quoted **only for POSIX-compatible shells**; pass them verbatim only to such a shell, regardless of where the output was generated. They are unsafe for `cmd.exe` and PowerShell and are omitted on Windows.
+
+Spend-request approval and automatic-resume polling similarly return `_next.argv`. UCP checkout creation returns `_next.argv` as a completion template: after approval, replace only the `<spend_request_id>` argument with the approved ID, preserve the original business argument, and invoke the CLI directly. Do not execute the template before replacement or edit its compatibility string. These flows retain `_next.command` with `_next.shell: "posix"` outside Windows and omit the string on Windows.
 
 Use `mpp decode` to validate a raw `WWW-Authenticate` header and extract the `network_id` needed for `shared_payment_token` spend requests:
 
