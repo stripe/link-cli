@@ -1,11 +1,15 @@
 import type { InsightAuthorizationRemediation } from '@stripe/link-sdk';
 import { SOURCE_ACTIONS } from '../../auth/types';
-import { shellCommand } from '../../utils/shell-quote';
+import {
+  buildCommandContinuation,
+  formatCommandSuggestion,
+} from '../../utils/command-continuation';
 
 const supportedSourceActions = new Set<string>(SOURCE_ACTIONS);
 
 export function upgradeCommand(
   remediations: readonly (InsightAuthorizationRemediation | null | undefined)[],
+  platform: NodeJS.Platform = process.platform,
 ): string | null {
   const scopes = new Set<string>();
   const actionsByType = new Map<string, Set<string>>();
@@ -25,7 +29,7 @@ export function upgradeCommand(
     }
   }
 
-  const args = ['link-cli', 'auth', 'upgrade'];
+  const args = ['upgrade'];
   if (scopes.size > 0) args.push('--scope', [...scopes].join(' '));
   for (const [type, actions] of actionsByType) {
     if (actions.size === 0) continue;
@@ -42,5 +46,9 @@ export function upgradeCommand(
     }
   }
 
-  return args.length > 3 ? shellCommand(args) : null;
+  if (args.length === 1) return null;
+  const continuation = buildCommandContinuation('auth', args, platform);
+  return continuation.command !== undefined
+    ? `link-cli ${continuation.command}`
+    : formatCommandSuggestion(continuation);
 }

@@ -217,7 +217,7 @@ describe('ucp checkout create component', () => {
       expect(frame).toContain('both --spend-request-id and');
       expect(frame).toContain('--business are required');
       expect(frame).toContain('ucp checkout complete dcs_1');
-      expect(frame).toContain('--spend-request-id <SPEND_REQUEST_ID>');
+      expect(frame).toContain("--spend-request-id '<spend_request_id>'");
       expect(frame).toContain('--business np_1');
     });
   });

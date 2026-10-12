@@ -1699,6 +1699,18 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         expect(output[2]._next).toEqual({
           command:
             'spend-request retrieve lsrq_prod_001 --interval 2 --max-attempts 300',
+          argv: {
+            command: 'spend-request',
+            args: [
+              'retrieve',
+              'lsrq_prod_001',
+              '--interval',
+              '2',
+              '--max-attempts',
+              '300',
+            ],
+          },
+          shell: 'posix',
           until: 'status changes from requires_action',
         });
       }
@@ -3997,7 +4009,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         );
         // Agent mode includes a _next hint to complete the checkout.
         expect((output._next as Record<string, unknown>).command).toBe(
-          'ucp checkout complete dcs_1 --spend-request-id <spend_request_id> --business np_1',
+          "ucp checkout complete dcs_1 --spend-request-id '<spend_request_id>' --business np_1",
         );
       });
 

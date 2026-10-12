@@ -8,6 +8,10 @@ import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback } from 'react';
 import { useAsyncAction } from '../../hooks/use-async-action';
+import {
+  buildCommandContinuation,
+  formatCommandSuggestion,
+} from '../../utils/command-continuation';
 import { CheckoutSummary } from './checkout-summary';
 
 interface CheckoutCreateProps {
@@ -54,6 +58,26 @@ export const CheckoutCreate: React.FC<CheckoutCreateProps> = ({
     );
   }
 
+  const spendRequest = buildCommandContinuation('spend-request', [
+    'create',
+    '--credential-type',
+    'shared_payment_token',
+    '--network-id',
+    params.profile_id,
+  ]);
+  const completion = data
+    ? buildCommandContinuation('ucp', [
+        'checkout',
+        'complete',
+        data.id,
+        '--spend-request-id',
+        '<spend_request_id>',
+        '--business',
+        params.profile_id,
+        ...(params.test ? ['--test'] : []),
+      ])
+    : undefined;
+
   return (
     <Box flexDirection="column">
       <Text color="green">✓ Checkout created</Text>
@@ -61,16 +85,12 @@ export const CheckoutCreate: React.FC<CheckoutCreateProps> = ({
       <Box marginTop={1}>
         <Text dimColor>
           Create and approve a spend request using this business as the network
-          ID:{' '}
+          ID: <Text color="cyan">{formatCommandSuggestion(spendRequest)}</Text>.
+          Then complete (both --spend-request-id and --business are required):{' '}
           <Text color="cyan">
-            spend-request create --credential-type shared_payment_token
-            --network-id {params.profile_id}
+            {completion && formatCommandSuggestion(completion)}
           </Text>
-          . Then complete (both --spend-request-id and --business are required):{' '}
-          <Text color="cyan">
-            ucp checkout complete {data?.id} --spend-request-id
-            &lt;SPEND_REQUEST_ID&gt; --business {params.profile_id}
-          </Text>
+          . Replace only the &lt;spend_request_id&gt; argument after approval.
         </Text>
       </Box>
     </Box>

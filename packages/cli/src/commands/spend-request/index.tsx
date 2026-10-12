@@ -8,6 +8,7 @@ import type {
 import { getDuplicateSpendRequest, LinkApiError } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import type { CliAuthStorage } from '../../auth/storage';
+import { buildCommandContinuation } from '../../utils/command-continuation';
 import { writeCredentialFile } from '../../utils/credential-output';
 import {
   parseKvString,
@@ -17,7 +18,6 @@ import {
 import { pollUntil } from '../../utils/poll-until';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth, requireAuthGuard } from '../../utils/require-auth';
-import { shellQuote } from '../../utils/shell-quote';
 import { shouldPollSpendRequest } from '../../utils/should-poll-spend-request';
 import { CancelSpendRequest } from './cancel';
 import { CreateSpendRequest } from './create';
@@ -32,18 +32,30 @@ import {
 } from './schema';
 import { UpdateSpendRequest } from './update';
 
+function buildPollContinuation(id: string) {
+  return buildCommandContinuation('spend-request', [
+    'retrieve',
+    id,
+    '--interval',
+    '2',
+    '--max-attempts',
+    '300',
+  ]);
+}
+
 function buildRequiresActionResult(request: SpendRequest) {
   const nextAction = request.status_details?.requires_action?.next_action;
   const isAutoResume = nextAction?.resolution === 'auto_resume';
+  const poll = buildPollContinuation(request.id);
 
   return {
     ...request,
     instruction: isAutoResume
-      ? `The spend request requires 3D Secure verification. Present action_url (${nextAction?.action_url}) to the user, then call \`spend-request retrieve ${shellQuote(request.id)} --interval 2 --max-attempts 300\` to poll until it resolves. Do not create a new spend request — this one resumes automatically once the challenge is completed.`
+      ? `The spend request requires 3D Secure verification. Present action_url (${nextAction?.action_url}) to the user, then invoke _next.argv directly without a shell to poll until it resolves. Do not create a new spend request — this one resumes automatically once the challenge is completed.`
       : `The spend request requires action (${nextAction?.type}): ${nextAction?.display_message}${nextAction?.action_url ? ` URL: ${nextAction.action_url}` : ''} Have the user complete this, then create a new spend request.`,
     _next: isAutoResume
       ? {
-          command: `spend-request retrieve ${shellQuote(request.id)} --interval 2 --max-attempts 300`,
+          ...poll,
           until: 'status changes from requires_action',
         }
       : undefined,
@@ -343,20 +355,27 @@ export function createSpendRequestCli(
           }
           const duplicate = getDuplicateSpendRequest(err);
           if (duplicate) {
+            const retrieve = buildCommandContinuation('spend-request', [
+              'retrieve',
+              duplicate.id,
+            ]);
             return c.error({
               code: apiErr?.error?.code ?? 'spend_request_rate_limited',
-              message: `${err.message} A matching spend request already exists: ${duplicate.id} (status: ${duplicate.status}). Retrieve it to resume instead of creating a new one.`,
-              cta: {
-                description:
-                  'Retrieve the conflicting spend request to inspect its status and resume it if valid.',
-                commands: [
-                  {
-                    command: `spend-request retrieve ${duplicate.id}`,
-                    description:
-                      'Retrieve the conflicting spend request to resume it',
-                  },
-                ],
-              },
+              message: `${err.message} A matching spend request already exists: ${duplicate.id} (status: ${duplicate.status}). Retrieve it to resume instead of creating a new one.${retrieve.command === undefined ? ` Invoke Link CLI directly without a shell using ${JSON.stringify(retrieve.argv)}.` : ''}`,
+              cta:
+                retrieve.command === undefined
+                  ? undefined
+                  : {
+                      description:
+                        'Retrieve the conflicting spend request to inspect its status and resume it if valid.',
+                      commands: [
+                        {
+                          command: retrieve.command,
+                          description:
+                            'Retrieve the conflicting spend request to resume it',
+                        },
+                      ],
+                    },
             });
           }
         }
@@ -378,11 +397,13 @@ export function createSpendRequestCli(
         }
         return;
       }
+      const poll = buildPollContinuation(created.id);
       yield {
         ...created,
-        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${shellQuote(created.id)} --interval 2 --max-attempts 300\` to wait for a status change and inspect the returned status. Do not wait for the user to reply — start polling immediately.`,
+        instruction:
+          'Present the approval_url to the user and ask them to approve in the Link app. Then invoke _next.argv directly without a shell to wait for a status change and inspect the returned status. Do not wait for the user to reply — start polling immediately.',
         _next: {
-          command: `spend-request retrieve ${shellQuote(created.id)} --interval 2 --max-attempts 300`,
+          ...poll,
           until: `status changes from ${created.status}`,
         },
       };
@@ -504,11 +525,13 @@ export function createSpendRequestCli(
         }
         throw err;
       }
+      const poll = buildPollContinuation(id);
       yield {
         ...approval,
-        instruction: `Present the approval_url to the user and ask them to approve in the Link app. Then call \`spend-request retrieve ${shellQuote(id)} --interval 2 --max-attempts 300\` to wait for a status change and inspect the returned status. Do not wait for the user to reply — start polling immediately.`,
+        instruction:
+          'Present the approval_url to the user and ask them to approve in the Link app. Then invoke _next.argv directly without a shell to wait for a status change and inspect the returned status. Do not wait for the user to reply — start polling immediately.',
         _next: {
-          command: `spend-request retrieve ${shellQuote(id)} --interval 2 --max-attempts 300`,
+          ...poll,
           until: 'status changes from pending_approval',
         },
       };

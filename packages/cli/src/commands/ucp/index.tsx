@@ -8,6 +8,10 @@ import type {
 } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import type { CliAuthStorage } from '../../auth/storage';
+import {
+  buildCommandContinuation,
+  formatCommandSuggestion,
+} from '../../utils/command-continuation';
 import { parseKvString } from '../../utils/line-item-parser';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
@@ -185,12 +189,28 @@ export function createUcpCli(
       }
 
       const created = await repository.createCheckout(params);
-      const testFlag = opts.test ? ' --test' : '';
+      const completion = buildCommandContinuation('ucp', [
+        'checkout',
+        'complete',
+        created.id,
+        '--spend-request-id',
+        '<spend_request_id>',
+        '--business',
+        opts.business,
+        ...(opts.test ? ['--test'] : []),
+      ]);
+      const spendRequest = buildCommandContinuation('spend-request', [
+        'create',
+        '--credential-type',
+        'shared_payment_token',
+        '--network-id',
+        opts.business,
+      ]);
       return {
         ...created,
-        instruction: `Checkout ${created.id} needs payment of ${created.amount_total ?? 'the total'} ${created.currency ?? ''}. Create a spend request for this amount with \`spend-request create --credential-type shared_payment_token --network-id ${opts.business}\`; spend-request calls the UCP business value a network ID. Get it approved, then complete the checkout. Both \`--spend-request-id\` and \`--business\` are required; pass the approved spend request ID and the same business (${opts.business}).`,
+        instruction: `Checkout ${created.id} needs payment of ${created.amount_total ?? 'the total'} ${created.currency ?? ''}. Create a spend request for this amount using ${formatCommandSuggestion(spendRequest)}; spend-request calls the UCP business value a network ID. Get it approved, then complete the checkout. Both \`--spend-request-id\` and \`--business\` are required. Replace only the <spend_request_id> argument in _next.argv with the approved spend request ID, preserving the original business argument, then invoke it directly without a shell.`,
         _next: {
-          command: `ucp checkout complete ${created.id} --spend-request-id <spend_request_id> --business ${opts.business}${testFlag}`,
+          ...completion,
           until: 'checkout status becomes completed',
         },
       };
