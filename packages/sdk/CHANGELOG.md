@@ -1,5 +1,11 @@
 # @stripe/link-sdk
 
+## 0.13.1
+
+### Patch Changes
+
+- 979d2d8: Handle sparse addresses across link-cli and python sdk from userinfo command
+
 ## 0.13.0
 
 ### Minor Changes
