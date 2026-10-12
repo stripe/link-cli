@@ -12,10 +12,9 @@
 const SAFE_RE = /^[A-Za-z0-9_@%+=:,./-]+$/;
 
 /**
- * Encodes a single value for safe interpolation into a shell command string.
- *
- * Ensure that command strings the CLI emits for an agent to run (`instruction`,
- * `_next.command`, `_next.pay_command`) are shell-safe.
+ * Encodes a single value for safe interpolation into a POSIX shell command.
+ * This quoting is not safe for cmd.exe or PowerShell. Use structured argv
+ * when the target shell is not known to be POSIX-compatible.
  *
  * Values made only of shell-inert characters (see `SAFE_RE`) are returned
  * as-is, purely so ordinary URLs and IDs stay readable. Everything else is
@@ -26,7 +25,7 @@ const SAFE_RE = /^[A-Za-z0-9_@%+=:,./-]+$/;
  * Beware that naive `'${value}'` wrapping is NOT equivalent; it is the bug
  * this function exists to prevent.
  */
-export function shellQuote(value: string): string {
+export function posixShellQuote(value: string): string {
   if (value === '') {
     return "''";
   }
@@ -39,14 +38,14 @@ export function shellQuote(value: string): string {
 }
 
 /**
- * Joins an argv list into a single shell-safe command string, quoting each
- * entry independently via {@link shellQuote}.
+ * Joins an argv list into a POSIX shell command string, quoting each
+ * entry independently via {@link posixShellQuote}.
  *
  * Prefer handing callers the argv array itself (e.g. `_next.pay_argv`) so it
  * can be invoked without a shell at all — a list of arguments has no seam to
  * smuggle syntax through, while a string always does. Use this only for the
  * compatibility string alongside it.
  */
-export function shellCommand(parts: readonly string[]): string {
-  return parts.map(shellQuote).join(' ');
+export function posixShellCommand(parts: readonly string[]): string {
+  return parts.map(posixShellQuote).join(' ');
 }
