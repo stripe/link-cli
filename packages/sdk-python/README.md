@@ -229,6 +229,11 @@ Malformed scalar types are rejected without coercion. `TransactionsPage`,
 in `model_extra` and include them in serialized output. Use
 `model_dump(exclude_unset=True)` to preserve response field presence.
 
+User info includes an optional `address` of type `UserInfoAddress`. All address
+components are optional nullable strings, so sparse addresses such as
+`{"country": "ZZ"}` are accepted. Use `model_dump(exclude_unset=True)` to preserve
+omitted components and explicit nulls.
+
 In user info, absent wallet enrichment means unavailable. Within present spend
 limits, a null limit or remaining amount means unlimited; these are distinct
 states.
