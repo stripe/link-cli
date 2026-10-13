@@ -267,6 +267,31 @@ importers:
 
   packages/typescript-config: {}
 
+  packages/validate:
+    dependencies:
+      '@stripe/cli':
+        specifier: ^1.52.1
+        version: 1.52.1
+      smol-toml:
+        specifier: ^1.9.0
+        version: 1.9.0
+      zod:
+        specifier: ^4.5.4
+        version: 4.5.4
+    devDependencies:
+      '@stripe/link-typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^26.4.1
+        version: 26.4.1
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.0
+        version: 5.0.0(@types/node@26.4.1)(vite@8.2.0(@types/node@26.4.1)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.0))
+
 packages:
 
   '@adraffy/ens-normalize@1.11.1':
@@ -1485,6 +1510,36 @@ packages:
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
+
+  '@stripe/cli-darwin-arm64@1.52.1':
+    resolution: {integrity: sha512-ZG3TroML1fgFydPYlixPDsbeREGmrFcF/IdqXPwaWysfcLDt7vaEViLK8MJN/bTAtA5FTG623ypsfLHEUdHcdA==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@stripe/cli-darwin-x64@1.52.1':
+    resolution: {integrity: sha512-YYUBj/OB6cZXob9tR/rotraXH3Czob45egFP4QwNhReUYwDd/DcRa6Puwvd6UJbNHmnyDHTrDQrKNgkpNK9AMg==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@stripe/cli-linux-arm64@1.52.1':
+    resolution: {integrity: sha512-rZiVcxvqCwd9u+sqI9W7okHPZspRONNnFpUZcyXhrZVXKSdnEOKc6KHljK85CParNI3QM3RGkykEIyl3xhZCPg==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@stripe/cli-linux-x64@1.52.1':
+    resolution: {integrity: sha512-/8L08ANuuUtN1HN4dVsOLNWpwvwlPe0QHqRY6LyymXcqSZJvvPQJkmm9/MDmJwvUomwn+l8hLtYhvLzg3VK+pg==}
+    cpu: [x64]
+    os: [linux]
+
+  '@stripe/cli-win32-x64@1.52.1':
+    resolution: {integrity: sha512-CSFjlCf9ApfgRXrmY1YlnMAjYABwCpK0xhd+jyrSHQxjifXA1YThJs3pkexTOax8WbLnQgyyS8jSOhu1J835bA==}
+    cpu: [x64]
+    os: [win32]
+
+  '@stripe/cli@1.52.1':
+    resolution: {integrity: sha512-qIg/w1QJlgVQoLOWl9VoUYoJ55nFeP+sMMtpNNU6TgDC1RPOTr1sOr9AGLjS2jG+YY2WkiuT0hMROzD6929Jkw==}
+    engines: {node: '>=18.0.0'}
+    hasBin: true
 
   '@stripe/stripe-js@9.13.0':
     resolution: {integrity: sha512-/0c72BUgzzVkVTlsw5uBn8x3waTdVJ/PZGfQ6jY1eu6K7olUPf4d9lgDPA9/0sIdsR8j7o3QIG8fOCO6ItcL7A==}
@@ -3016,6 +3071,10 @@ packages:
     resolution: {integrity: sha512-SO/3iYL5S3W57LLEniscOGPZgOqZUPCx6d3dB+52B80yJ0XstzsC/eV8gnA4tM3MHDrKz+OCFSLNjswdSC+/bA==}
     engines: {node: '>=22'}
 
+  smol-toml@1.9.0:
+    resolution: {integrity: sha512-hpd+HLON7HdZXqYchMM/+LaTTbdK0AU3NngIJ4KVyWbY9bfQqdL9cD+4yf6dUoU2Ap4VsU0JkQi6FxAI1B2mXQ==}
+    engines: {node: '>= 18'}
+
   source-map-js@1.2.2:
     resolution: {integrity: sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==}
     engines: {node: '>=0.10.0'}
@@ -4258,6 +4317,29 @@ snapshots:
       '@scure/base': 1.2.6
 
   '@standard-schema/spec@1.1.0': {}
+
+  '@stripe/cli-darwin-arm64@1.52.1':
+    optional: true
+
+  '@stripe/cli-darwin-x64@1.52.1':
+    optional: true
+
+  '@stripe/cli-linux-arm64@1.52.1':
+    optional: true
+
+  '@stripe/cli-linux-x64@1.52.1':
+    optional: true
+
+  '@stripe/cli-win32-x64@1.52.1':
+    optional: true
+
+  '@stripe/cli@1.52.1':
+    optionalDependencies:
+      '@stripe/cli-darwin-arm64': 1.52.1
+      '@stripe/cli-darwin-x64': 1.52.1
+      '@stripe/cli-linux-arm64': 1.52.1
+      '@stripe/cli-linux-x64': 1.52.1
+      '@stripe/cli-win32-x64': 1.52.1
 
   '@stripe/stripe-js@9.13.0': {}
 
@@ -5755,6 +5837,8 @@ snapshots:
     dependencies:
       ansi-styles: 6.2.3
       is-fullwidth-code-point: 5.1.0
+
+  smol-toml@1.9.0: {}
 
   source-map-js@1.2.2: {}
 
