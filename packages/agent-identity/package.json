@@ -49,10 +49,10 @@
   },
   "devDependencies": {
     "@stripe/link-typescript-config": "workspace:*",
-    "@types/node": "^26.4.1",
+    "@types/node": "^26.6.4",
     "tsup": "^8.5.1",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.3"
   },
   "keywords": [
     "stripe",

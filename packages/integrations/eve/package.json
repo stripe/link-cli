@@ -29,14 +29,14 @@
   },
   "dependencies": {
     "@stripe/link-sdk": "workspace:^",
-    "zod": "^4.5.4"
+    "zod": "^4.6.5"
   },
   "peerDependencies": { "eve": "*" },
   "devDependencies": {
     "@stripe/link-typescript-config": "workspace:*",
-    "@types/node": "^26.4.1",
-    "eve": "0.66.3",
+    "@types/node": "^26.6.4",
+    "eve": "0.71.2",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.3"
   }
 }

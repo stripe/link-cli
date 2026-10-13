@@ -28,6 +28,7 @@ function context(): ToolContext {
     },
     callId: 'call-one',
     toolName: 'link__create_spend_request',
+    messages: [],
     abortSignal: new AbortController().signal,
     getSandbox: vi.fn(),
     getToken: vi.fn(),
