@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.27.3
+
+### Patch Changes
+
+- a7b9528: Upgrade runtime dependencies to the latest compatible releases allowed by the workspace's seven-day release-age policy.
+
 ## 0.27.2
 
 ### Patch Changes

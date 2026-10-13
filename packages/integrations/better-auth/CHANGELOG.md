@@ -1,5 +1,11 @@
 # @stripe/link-integrations-better-auth
 
+## 0.3.1
+
+### Patch Changes
+
+- a7b9528: Upgrade runtime dependencies to the latest compatible releases allowed by the workspace's seven-day release-age policy.
+
 ## 0.3.0
 
 ### Minor Changes

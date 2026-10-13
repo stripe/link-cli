@@ -1,5 +1,11 @@
 # @stripe/link-sdk
 
+## 0.13.2
+
+### Patch Changes
+
+- a7b9528: Upgrade runtime dependencies to the latest compatible releases allowed by the workspace's seven-day release-age policy.
+
 ## 0.13.1
 
 ### Patch Changes

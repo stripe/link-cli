@@ -1,5 +1,13 @@
 # @stripe/link-integrations-eve
 
+## 0.3.2
+
+### Patch Changes
+
+- a7b9528: Upgrade runtime dependencies to the latest compatible releases allowed by the workspace's seven-day release-age policy.
+- Updated dependencies [a7b9528]
+  - @stripe/link-sdk@0.13.2
+
 ## 0.3.1
 
 ### Patch Changes
