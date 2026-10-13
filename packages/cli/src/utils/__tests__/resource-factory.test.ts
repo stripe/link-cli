@@ -1,4 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LinkAuthResource } from '../../auth/auth-resource';
 import { LinkAuthenticationError } from '../../auth/errors';
 import type { IAuthResource } from '../../auth/types';
@@ -21,6 +24,11 @@ function createMockAuthResource(
 }
 
 describe('ResourceFactory', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
   it('caches resource instances', () => {
     const factory = new ResourceFactory();
 
@@ -52,6 +60,38 @@ describe('ResourceFactory', () => {
     expect(factory.createPaymentMethodsResource().list).toBeTypeOf('function');
     expect(factory.createBalancesResource().list).toBeTypeOf('function');
     expect(factory.createWebBotAuthResource().signUrl).toBeTypeOf('function');
+  });
+
+  it('loads the configured module for proxy requests', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'link-cli-proxy-'));
+    const modulePath = join(directory, 'undici.cjs');
+    writeFileSync(
+      modulePath,
+      'exports.ProxyAgent = class { constructor(url) { this.url = url; } };',
+    );
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(Response.json({ payment_details: [] }));
+    vi.stubGlobal('fetch', fetch);
+    vi.stubEnv('LINK_HTTP_PROXY', 'http://proxy.test:8080');
+    vi.stubEnv('LINK_UNDICI_MODULE', modulePath);
+    vi.stubEnv('LINK_API_BASE_URL', 'https://api.example.test');
+
+    try {
+      const factory = new ResourceFactory({ envAccessToken: 'at_env' });
+      await expect(
+        factory.createPaymentMethodsResource().list(),
+      ).resolves.toEqual([]);
+      const dispatcher = expect.objectContaining({
+        url: 'http://proxy.test:8080',
+      });
+      expect(fetch).toHaveBeenCalledExactlyOnceWith(
+        'https://api.example.test/payment-details',
+        expect.objectContaining({ dispatcher }),
+      );
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 
   describe('env-based token provider', () => {
