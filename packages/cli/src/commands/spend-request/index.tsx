@@ -201,13 +201,6 @@ export function createSpendRequestCli(
           },
         });
       }
-      if (networkId && credentialType !== 'shared_payment_token') {
-        return c.error({
-          code: 'INVALID_INPUT',
-          message:
-            'network-id can only be used when credential-type is shared_payment_token',
-        });
-      }
       if (
         !lptRequested &&
         credentialType !== 'shared_payment_token' &&

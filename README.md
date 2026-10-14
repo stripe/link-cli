@@ -463,7 +463,8 @@ your default payment method will be used, or the first eligible one if no
 default is set. Shared Payment Token requests instead require `network_id`;
 Link Pay Token requests require `credential_type=link_pay_token` and the
 DOM-derived `merchant_account_id`, and Link supplies their canonical merchant
-identity.
+identity. Card requests may also include `--network-id` to identify the merchant's
+network profile.
 
 **Constraints:** `context` must be at least 100 characters; `amount` is an integer in the currency's smallest unit (e.g. cents) and must not exceed 50000 USD cents equivalent; `currency` can be any supported 3-letter ISO code. The user has 30 minutes from when approval is requested to approve. Approved credentials (card or SPT) are valid for 12 hours from spend request creation.
 **Test mode:** Pass `--test` to create a testmode SpendRequest. A testmode SpendRequest will return test payment credentials (e.g test card `4000009990001984`) rather than a real payment credential. Testmode SpendRequests will not charge the underlying payment method of the SpendRequest. This is useful for development and integration testing without real payment methods.

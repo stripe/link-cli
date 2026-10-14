@@ -503,6 +503,68 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       expect(output[0].id).toBe('lsrq_from_api');
     });
 
+    it.each([
+      { explicitCard: false, approve: false },
+      { explicitCard: true, approve: false },
+      { explicitCard: false, approve: true },
+      { explicitCard: true, approve: true },
+    ])(
+      'sends network_id for card creation with explicitCard=$explicitCard, approve=$approve',
+      async ({ explicitCard, approve }) => {
+        const result = await runProdCli(
+          'spend-request',
+          'create',
+          '--merchant-name',
+          'Test Merchant',
+          '--merchant-url',
+          'https://example.com',
+          '--context',
+          VALID_CONTEXT,
+          '--amount',
+          '5000',
+          '--network-id',
+          'net_prod_abc',
+          ...(explicitCard ? ['--credential-type', 'card'] : []),
+          ...(approve ? ['--approve'] : []),
+          '--no-request-approval',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(lastRequest.method).toBe('POST');
+        expect(lastRequest.url).toBe(
+          approve ? '/spend_requests/create_delegated' : '/spend_requests',
+        );
+        expect(JSON.parse(lastRequest.body)).toMatchObject({
+          credential_type: 'card',
+          network_id: 'net_prod_abc',
+          merchant_name: 'Test Merchant',
+          merchant_url: 'https://example.com',
+        });
+      },
+    );
+
+    it('requires network_id for shared payment token creation', async () => {
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--credential-type',
+        'shared_payment_token',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--no-request-approval',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout + result.stderr).toContain(
+        'network-id is required when credential-type is shared_payment_token',
+      );
+      expect(requests).toHaveLength(0);
+    });
+
     it('sends credential_type and network_id in HTTP POST body', async () => {
       setNextResponse(200, {
         ...BASE_REQUEST,

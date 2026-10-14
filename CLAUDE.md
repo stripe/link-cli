@@ -111,6 +111,7 @@ CLI command is `spend-request` (user-facing). Implemented in `packages/cli/src/c
 
 Key input field notes:
 - CLI input uses `payment_method_id`; mapped to `payment_details` when calling the SDK
+- `--network-id` is optional for card requests and required for shared_payment_token. It is sent as the top-level `network_id` regardless of whether card credentials are selected explicitly or by default.
 - `--credential-type link_pay_token` and `--merchant-account-id acct_...` are a create-only pair for Link Pay Token requests. The agent reads the account ID from `data-stripe-merchant-account` in the AI-agent steering DOM before creating the request; Link resolves the canonical merchant identity. The former `--execution-method link_pay_token` shape has been removed from the CLI and SDKs; `--merchant-account-id` without `--credential-type link_pay_token` is rejected. LPT cannot use `--test` or `--network-id`, and must not accept agent-provided merchant name or URL. Never add the target fields to the update path.
 - `context` requires min 100 characters; `amount` is in cents with max 500000
 - `--metadata` (create only) is a repeatable `key:value` flag (CLI) or a `{ key: value }` object (MCP/agent), merged into a single `metadata` string→string map. Max 50 keys, key ≤ 40 chars, value ≤ 500 chars. Reuses `parseKvString` from `line-item-parser.ts`.

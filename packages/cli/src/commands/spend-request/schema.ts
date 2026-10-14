@@ -22,7 +22,7 @@ export const createOptions = z.object({
     .string()
     .optional()
     .describe(
-      'Network ID (required for shared_payment_token) — use `link-cli mpp decode` to extract',
+      'Merchant network ID (optional for card, required for shared_payment_token) — use `link-cli mpp decode` to extract for machine payments',
     ),
   merchantAccountId: z
     .string()

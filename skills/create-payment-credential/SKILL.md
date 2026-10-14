@@ -180,6 +180,9 @@ link-cli spend-request create \
   --total "type:total,display_text:Total,amount:<amount>"
 ```
 
+Card requests may also include `--network-id <network_id>` to identify the
+merchant's network profile. Keep the card's merchant name and URL parameters.
+
 **Currency:** Spend requests can be in any supported currency. Pass `--currency` as a 3-letter ISO 4217 code (e.g. `usd`, `eur`, `gbp`); it defaults to `usd`. Use the currency the merchant's checkout charges in rather than converting prices yourself. If the currency is not supported, the API rejects the request.
 
 **Amounts** (`--amount`, `unit_amount`, and `--total` amounts) are integers in the currency's smallest unit (e.g. cents): `1999` is $19.99 USD or €19.99 EUR. Some currencies have no minor unit, so `1999` in `jpy` is ¥1,999.
