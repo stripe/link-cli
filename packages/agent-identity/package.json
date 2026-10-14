@@ -1,6 +1,6 @@
 {
   "name": "@stripe/agent-identity",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Verify Link agent attestations and selectively disclosed identity claims.",
   "license": "MIT",
   "repository": {

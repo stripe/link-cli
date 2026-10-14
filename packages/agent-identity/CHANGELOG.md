@@ -1,5 +1,11 @@
 # @stripe/agent-identity
 
+## 0.3.0
+
+### Minor Changes
+
+- 443880e: Expose `emailVerifiedAt` and `phoneVerifiedAt` on successful claims results when a credential discloses `email_verified_at` or `phone_verified_at`, and advertise both claims in `LinkFixture`.
+
 ## 0.2.2
 
 ### Patch Changes
