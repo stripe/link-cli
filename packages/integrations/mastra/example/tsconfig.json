@@ -1,0 +1,5 @@
+{
+  "extends": "@stripe/link-typescript-config/base.json",
+  "compilerOptions": { "noEmit": true, "types": ["node"] },
+  "include": ["src"]
+}
