@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.27.4
+
+### Patch Changes
+
+- e1846c7: Allow `spend-request create --network-id` with card credentials, including the default credential type.
+
 ## 0.27.3
 
 ### Patch Changes
