@@ -49,12 +49,13 @@ export interface ClaimsSuccess {
   /** RFC 7638 thumbprint of the credential's cnf.jwk holder key. */
   holderKeyThumbprint: string;
   /**
-   * When Link last verified the email, rounded down to the UTC day. Present only
-   * when the credential discloses a valid `email_verified_at`; credentials from
-   * before that claim existed never carry it.
+   * When Link last verified the email, rounded down to the UTC day. Set only
+   * when the credential includes an email verification time. Credentials issued
+   * before Link added that time do not have it, so this field is missing for
+   * them.
    */
   emailVerifiedAt?: Date;
-  /** The same for `phone_verified_at`. */
+  /** The same for the phone verification time (`phone_verified_at`). */
   phoneVerifiedAt?: Date;
 }
 
