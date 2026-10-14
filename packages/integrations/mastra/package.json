@@ -1,0 +1,43 @@
+{
+  "name": "@stripe/link-integrations-mastra",
+  "version": "0.1.0",
+  "description": "Link wallet tools for Mastra agents",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "files": ["dist", "skills", "README.md", "LICENSE"],
+  "sideEffects": false,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stripe/link-cli.git",
+    "directory": "packages/integrations/mastra"
+  },
+  "homepage": "https://github.com/stripe/link-cli/tree/main/packages/integrations/mastra#readme",
+  "bugs": "https://github.com/stripe/link-cli/issues",
+  "engines": { "node": ">=24" },
+  "publishConfig": { "access": "public" },
+  "scripts": {
+    "build": "tsup && tsc --noEmit false --emitDeclarationOnly",
+    "prepack": "pnpm run build",
+    "typecheck": "tsc && tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@stripe/link-sdk": "workspace:^",
+    "zod": "^4.6.5"
+  },
+  "peerDependencies": { "@mastra/core": "^1.74.0" },
+  "devDependencies": {
+    "@mastra/core": "1.74.0",
+    "@mastra/libsql": "1.25.0",
+    "@stripe/link-typescript-config": "workspace:*",
+    "@types/node": "^26.6.4",
+    "tsup": "^8.5.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

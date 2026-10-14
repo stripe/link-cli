@@ -1,0 +1,13 @@
+{
+  "extends": "@stripe/link-typescript-config/base.json",
+  "compilerOptions": {
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node"],
+    "verbatimModuleSyntax": true
+  },
+  "include": ["src"]
+}

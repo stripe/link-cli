@@ -791,6 +791,10 @@ Use the [Eve extension](packages/integrations/eve/README.md) to mount them in an
 Eve agent with a static access token or an application-provided Eve auth provider,
 plus a wallet skill.
 
+Use the [Mastra integration](packages/integrations/mastra/README.md) for native
+wallet tools, per-call token resolution, and spend confirmation. The
+[Mastra Studio example](packages/integrations/mastra/example/README.md) runs locally.
+
 ## Onboarding and Demos
 
 Run the guided setup flow — authenticates, checks payment methods, shows the app download QR, and runs both demo flows:
@@ -850,7 +854,8 @@ pnpm biome check .
 ## Releasing
 
 This project uses [Changesets](https://github.com/changesets/changesets) to
-version and publish `@stripe/link-cli`, `@stripe/link-sdk`, and `@stripe/link-integrations-eve`.
+version and publish the CLI, SDK, and integration packages, including
+`@stripe/link-integrations-mastra`.
 `@stripe/link-typescript-config` is private and is not published.
 
 ### Add a changeset
@@ -880,7 +885,7 @@ To inspect the packages without publishing them:
 
 ```bash
 pnpm turbo run build
-pnpm --filter @stripe/link-cli --filter @stripe/link-sdk --filter @stripe/link-integrations-better-auth --filter @stripe/link-integrations-eve publish --dry-run --no-git-checks
+pnpm --filter @stripe/link-cli --filter @stripe/link-sdk --filter @stripe/link-integrations-better-auth --filter @stripe/link-integrations-eve --filter @stripe/link-integrations-mastra --filter @stripe/agent-identity publish --dry-run --no-git-checks
 ```
 
 CI runs the same publish dry-run for every pull request.
