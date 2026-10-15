@@ -30,8 +30,18 @@ export const createOptions = z.object({
     .describe(
       'Stripe account ID from data-stripe-merchant-account; required for link_pay_token requests',
     ),
-  amount: z.coerce.number().int().positive().describe('Amount in cents'),
-  currency: z.string().length(3).default('usd').describe('Currency code'),
+  amount: z.coerce
+    .number()
+    .int()
+    .positive()
+    .describe('Amount in the currency’s minor units'),
+  currency: z
+    .string()
+    .length(3)
+    .optional()
+    .describe(
+      'Currency code. Omit to use the consumer’s default spend-request currency. Specify explicitly when the amount comes from a checkout with a known currency.',
+    ),
   merchantName: z
     .string()
     .optional()
@@ -54,13 +64,13 @@ export const createOptions = z.object({
     .array(z.union([z.string(), z.record(z.string(), z.unknown())]))
     .default([])
     .describe(
-      'Line item (repeatable, key:value format). Keys: name (required), quantity, unit_amount, description, sku, url, image_url, product_url. Example: "name:Shoes,unit_amount:5000,quantity:2"',
+      'Line item (repeatable, key:value format). unit_amount uses the currency’s minor units. Keys: name (required), quantity, unit_amount, description, sku, url, image_url, product_url. Example: "name:Shoes,unit_amount:5000,quantity:2"',
     ),
   total: z
     .array(z.union([z.string(), z.record(z.string(), z.unknown())]))
     .default([])
     .describe(
-      'Total (repeatable, key:value format). Keys: type (required; one of: subtotal, tax, total, items_base_amount, items_discount, discount, fulfillment, shipping, fee, gift_wrap, tip, store_credit), display_text (required), amount (required). Example: "type:total,display_text:Total,amount:5000"',
+      'Total (repeatable, key:value format). amount uses the currency’s minor units. Keys: type (required; one of: subtotal, tax, total, items_base_amount, items_discount, discount, fulfillment, shipping, fee, gift_wrap, tip, store_credit), display_text (required), amount (required). Example: "type:total,display_text:Total,amount:5000"',
     ),
   requestApproval: z
     .boolean()
@@ -160,7 +170,10 @@ export const retrieveOptions = z.object({
 
 export const updateOptions = z.object({
   paymentMethodId: z.string().optional().describe('Payment method ID'),
-  amount: z.coerce.number().optional().describe('Amount in cents'),
+  amount: z.coerce
+    .number()
+    .optional()
+    .describe('Amount in the currency’s minor units'),
   merchantUrl: z.string().optional().describe('Merchant URL'),
   profileId: z.string().optional().describe('Profile ID'),
   merchantId: z.string().optional().describe('Merchant ID'),
@@ -169,13 +182,13 @@ export const updateOptions = z.object({
     .array(z.union([z.string(), z.record(z.string(), z.unknown())]))
     .default([])
     .describe(
-      'Line item (repeatable, key:value format). Keys: name (required), quantity, unit_amount, description, sku, url, image_url, product_url. Example: "name:Shoes,unit_amount:5000,quantity:2"',
+      'Line item (repeatable, key:value format). unit_amount uses the currency’s minor units. Keys: name (required), quantity, unit_amount, description, sku, url, image_url, product_url. Example: "name:Shoes,unit_amount:5000,quantity:2"',
     ),
   total: z
     .array(z.union([z.string(), z.record(z.string(), z.unknown())]))
     .default([])
     .describe(
-      'Total (repeatable, key:value format). Keys: type (required; one of: subtotal, tax, total, items_base_amount, items_discount, discount, fulfillment, shipping, fee, gift_wrap, tip, store_credit), display_text (required), amount (required). Example: "type:total,display_text:Total,amount:5000"',
+      'Total (repeatable, key:value format). amount uses the currency’s minor units. Keys: type (required; one of: subtotal, tax, total, items_base_amount, items_discount, discount, fulfillment, shipping, fee, gift_wrap, tip, store_credit), display_text (required), amount (required). Example: "type:total,display_text:Total,amount:5000"',
     ),
   approve: z
     .boolean()

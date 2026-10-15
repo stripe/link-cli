@@ -99,6 +99,16 @@ For native Eve discovery, namespacing, access-token configuration, and replay ha
 ## User-approved purchase flow
 
 Amounts are expressed in the currency's minor unit, such as cents for USD.
+
+Omitting currency uses the consumer's default spend-request currency, reported by
+`userinfo.default_spend_request_currency` (`user-info retrieve` in the CLI).
+Specify currency explicitly when using an amount from a checkout with a known
+currency. Amounts, line-item `unit_amount` values, and total `amount` values use
+the selected currency's minor units: `100` means ¥100 in JPY or $1 in USD.
+The client passes amounts through unchanged and performs no FX conversion.
+This default applies to newly created requests; existing requests retain their
+stored currency.
+
 `context` must be at least 100 characters and should tell the user what the
 agent is buying and why.
 

@@ -378,6 +378,72 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
   });
 
   describe('spend-request create', () => {
+    it.each([
+      { currency: undefined, approve: false },
+      { currency: undefined, approve: true },
+      { currency: 'jpy', approve: false },
+      { currency: 'usd', approve: false },
+    ])(
+      'serializes currency $currency with delegated approval=$approve',
+      async ({ currency, approve }) => {
+        const result = await runProdCli(
+          'spend-request',
+          'create',
+          '--merchant-name',
+          'Test Merchant',
+          '--merchant-url',
+          'https://example.com',
+          '--context',
+          VALID_CONTEXT,
+          '--amount',
+          '100',
+          '--line-item',
+          'name:Widget,unit_amount:100,quantity:1',
+          '--total',
+          'type:total,display_text:Total,amount:100',
+          ...(currency === undefined ? [] : ['--currency', currency]),
+          ...(approve ? ['--approve'] : []),
+          '--no-request-approval',
+          '--json',
+        );
+        expect(result.exitCode).toBe(0);
+        expect(lastRequest.url).toBe(
+          approve ? '/spend_requests/create_delegated' : '/spend_requests',
+        );
+        const body = JSON.parse(lastRequest.body);
+        if (currency === undefined) expect(body).not.toHaveProperty('currency');
+        else expect(body.currency).toBe(currency);
+        expect(body.amount).toBe(100);
+        expect(body.line_items[0].unit_amount).toBe(100);
+        expect(body.totals[0].amount).toBe(100);
+        expect(requests).toHaveLength(1);
+      },
+    );
+
+    it.each(['jp', 'usdd'])(
+      'rejects explicit currency with invalid length: %s',
+      async (currency) => {
+        const result = await runProdCli(
+          'spend-request',
+          'create',
+          '--merchant-name',
+          'Test Merchant',
+          '--merchant-url',
+          'https://example.com',
+          '--context',
+          VALID_CONTEXT,
+          '--amount',
+          '100',
+          '--currency',
+          currency,
+          '--json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout + result.stderr).toContain('3');
+        expect(requests).toHaveLength(0);
+      },
+    );
+
     it('sends POST to /spend_requests with correct headers and body', async () => {
       const result = await runProdCli(
         'spend-request',
@@ -416,6 +482,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         '550e8400-e29b-41d4-a716-446655440000',
       );
       expect(sentBody.amount).toBe(5000);
+      expect(sentBody).not.toHaveProperty('currency');
       expect(sentBody.merchant_name).toBe('Test Merchant');
       expect(sentBody.line_items).toEqual([
         { name: 'Widget', unit_amount: 5000, quantity: 1 },

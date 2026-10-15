@@ -2,7 +2,10 @@ import { z } from 'zod';
 import { REPORT_OUTCOMES, REPORT_TAGS } from '../resources/interfaces';
 
 const id = z.string().min(1);
-const money = z.number().int();
+const money = z
+  .number()
+  .int()
+  .describe('Amount in the currency’s minor units.');
 const total = z.strictObject({
   type: z.string(),
   display_text: z.string(),
@@ -92,8 +95,17 @@ export const linkToolSchemas = {
           .describe(
             'For link_pay_token, read data-stripe-merchant-account from the checkout DOM.',
           ),
-        amount: money.positive().max(500000).describe('Amount in cents.'),
-        currency: z.string().length(3).default('usd'),
+        amount: money
+          .positive()
+          .max(500000)
+          .describe('Amount in the currency’s minor units.'),
+        currency: z
+          .string()
+          .length(3)
+          .optional()
+          .describe(
+            'Currency code. Omit to use the consumer’s default spend-request currency. Specify explicitly when the amount comes from a checkout with a known currency.',
+          ),
         merchant_name: z.string().min(1).optional(),
         merchant_url: z.url().optional(),
         context: z

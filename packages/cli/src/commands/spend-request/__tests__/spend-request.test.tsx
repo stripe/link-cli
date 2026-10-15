@@ -7,6 +7,7 @@ import { render } from 'ink-testing-library';
 import { describe, expect, it, vi } from 'vitest';
 import { sanitizeResource } from '../../../utils/resource-factory';
 import { CreateSpendRequest } from '../create';
+import { SpendRequestList } from '../list';
 import { RequestApproval } from '../request-approval';
 import { RetrieveSpendRequest } from '../retrieve';
 import { UpdateSpendRequest } from '../update';
@@ -73,6 +74,27 @@ function makeSequentialMockRepo(
 }
 
 describe('spend-request', () => {
+  it.each([
+    { currency: 'jpy', formatted: '¥100' },
+    { currency: 'usd', formatted: '$1.00' },
+  ])(
+    'lists 100 minor units in $currency as $formatted',
+    async ({ currency, formatted }) => {
+      const request = makeSpendRequest({ amount: 100, currency });
+      const repository = sanitizeResource({
+        list: vi.fn(async () => [request]),
+      } as unknown as ISpendRequestResource);
+      const { lastFrame, unmount } = render(
+        <SpendRequestList repository={repository} onComplete={vi.fn()} />,
+      );
+      try {
+        await vi.waitFor(() => expect(lastFrame()).toContain(formatted));
+      } finally {
+        unmount();
+      }
+    },
+  );
+
   describe('status change polling', () => {
     it.each(['submitted', 'future_status'])(
       'RetrieveSpendRequest completes immediately for %s',

@@ -86,12 +86,59 @@ describe('Link tools', () => {
       ...purchase,
       idempotency_key: 'same-purchase',
       credential_type: 'card',
-      currency: 'usd',
       request_approval: true,
       test: false,
       line_items: [{ name: 'Book', quantity: 1 }],
     });
     expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it.each([undefined, 'jpy', 'usd'])(
+    'serializes currency %s and preserves minor-unit amounts',
+    async (currency) => {
+      const { tools, fetch } = fixture();
+      await tools.create_spend_request.execute(
+        {
+          ...purchase,
+          amount: 100,
+          ...(currency === undefined ? {} : { currency }),
+          line_items: [{ name: 'Book', unit_amount: 100 }],
+          totals: [{ type: 'total', display_text: 'Total', amount: 100 }],
+        },
+        context,
+      );
+      const body = JSON.parse(String(fetch.mock.calls[0]![1]?.body));
+      if (currency === undefined) expect(body).not.toHaveProperty('currency');
+      else expect(body.currency).toBe(currency);
+      expect(body.amount).toBe(100);
+      expect(body.line_items[0].unit_amount).toBe(100);
+      expect(body.totals[0].amount).toBe(100);
+      expect(fetch).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each(['', 'jp', 'usdd'])(
+    'rejects explicit currency with invalid length: %s',
+    async (currency) => {
+      const { tools, getClient, fetch } = fixture();
+      await expect(
+        tools.create_spend_request.execute({ ...purchase, currency }, context),
+      ).rejects.toThrow();
+      expect(getClient).not.toHaveBeenCalled();
+      expect(fetch).not.toHaveBeenCalled();
+    },
+  );
+
+  it('exposes optional currency without a default in the agent-tool JSON schema', () => {
+    const { tools } = fixture();
+    const schema = z.toJSONSchema(tools.create_spend_request.inputSchema);
+    expect(schema.required).not.toContain('currency');
+    expect(schema.properties?.currency).toMatchObject({
+      type: 'string',
+      minLength: 3,
+      maxLength: 3,
+    });
+    expect(schema.properties?.currency).not.toHaveProperty('default');
   });
 
   it('enforces Link Pay Token targeting without exposing delegated approval', () => {
