@@ -55,6 +55,12 @@ Install the skills:
 npx skills add stripe/link-cli
 ```
 
+Or install them in Neotask:
+
+```bash
+neotask construct install stripe-link
+```
+
 By default when called from an agent (non-TTY), all commands use `toon` output — a compact, LLM-friendly text format. All commands accept `--format [format]` for structured output. Other formats: `json`, `yaml`, `md`, `jsonl`.
 
 List available commands:
