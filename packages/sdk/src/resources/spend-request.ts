@@ -8,7 +8,6 @@ import type {
   UpdateSpendRequestParams,
 } from '@/resources/interfaces';
 import type {
-  ApproveTestRequestResponse,
   RecurringInterval,
   RequestApprovalResponse,
   SpendRequest,
@@ -51,11 +50,6 @@ const requestApprovalResponseSchema = z
     ...response,
     approval_url: approval_link,
   }));
-
-const approveTestRequestResponseSchema = z.looseObject({
-  id: z.string(),
-  status: z.string(),
-});
 
 const duplicateSpendRequestErrorSchema = z.looseObject({
   error: z.looseObject({
@@ -188,8 +182,7 @@ export class SpendRequestResource
     );
   }
 
-  /** Approves an existing Demo request for automated integration tests. */
-  async approveTestRequest(id: string): Promise<ApproveTestRequestResponse> {
+  async approveTestRequest(id: string): Promise<SpendRequest> {
     const { status, data, rawBody } = await this.apiFetch({
       method: 'POST',
       url: `${this.endpoint}/${id}/approve_test_request`,
@@ -199,7 +192,7 @@ export class SpendRequestResource
       this.throwApiError('approve test request', status, data, rawBody);
     }
     return this.parseResponse('approve test request', status, () =>
-      approveTestRequestResponseSchema.parse(data),
+      parseSpendRequest(data),
     );
   }
 

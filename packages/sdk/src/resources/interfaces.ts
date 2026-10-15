@@ -1,7 +1,6 @@
 import type {
   ApprovalDetail,
   ApprovalPolicy,
-  ApproveTestRequestResponse,
   AvailableInsightTypesPage,
   BalancesPage,
   CredentialType,
@@ -98,7 +97,7 @@ export interface ISpendRequestResource {
   create(params: CreateSpendRequestParams): Promise<SpendRequest>;
   update(id: string, params: UpdateSpendRequestParams): Promise<SpendRequest>;
   requestApproval(id: string): Promise<RequestApprovalResponse>;
-  approveTestRequest(id: string): Promise<ApproveTestRequestResponse>;
+  approveTestRequest(id: string): Promise<SpendRequest>;
   cancel(id: string): Promise<SpendRequest>;
   retrieve(
     id: string,

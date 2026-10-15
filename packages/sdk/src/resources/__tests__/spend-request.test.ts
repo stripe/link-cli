@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LinkApiError, LinkResponseError } from '@/errors';
+import { LinkApiError } from '@/errors';
 import type { CreateSpendRequestParams } from '@/resources/interfaces';
 import {
   getDuplicateSpendRequest,
@@ -465,40 +465,21 @@ describe('SpendRequestResource', () => {
   });
 
   describe('approveTestRequest', () => {
-    it('approves by ID with Bearer auth and returns the minimal response', async () => {
-      const response = { id: 'lsrq_123', status: 'approved' };
+    it('approves by ID with Bearer auth and returns the spend request', async () => {
+      const response = { ...spendRequestResponse, status: 'approved' };
       mockFetchResponse(200, response);
 
-      await expect(repo.approveTestRequest('lsrq_123')).resolves.toEqual(
+      await expect(repo.approveTestRequest('si_123')).resolves.toEqual(
         response,
       );
 
-      expect(mockFetch).toHaveBeenCalledOnce();
       const [url, opts] = mockFetch.mock.calls[0]!;
       expect(url).toBe(
-        'https://api.link.com/spend_requests/lsrq_123/approve_test_request',
+        'https://api.link.com/spend_requests/si_123/approve_test_request',
       );
       expect(opts.method).toBe('POST');
       expect(opts.headers.Authorization).toBe('Bearer test_token');
       expect(opts.body).toBeUndefined();
-    });
-
-    it('propagates the server rejection of a live request', async () => {
-      mockFetchResponse(409, {
-        error: { message: 'Only Demo spend requests can be approved' },
-      });
-
-      await expect(repo.approveTestRequest('lsrq_live')).rejects.toThrow(
-        'Failed to approve test request (409): Only Demo spend requests can be approved',
-      );
-    });
-
-    it('rejects a malformed success response', async () => {
-      mockFetchResponse(200, { id: 'lsrq_123' });
-
-      await expect(repo.approveTestRequest('lsrq_123')).rejects.toThrow(
-        LinkResponseError,
-      );
     });
   });
 

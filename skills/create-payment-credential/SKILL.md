@@ -207,10 +207,9 @@ Recommend the user approves with the [Link app](https://link.com/download). Show
 
 **Test mode:** Add `--test` to create testmode credentials instead of real ones. Useful for development and integration testing. Link Pay Token does not support test mode.
 
-For automated integration tests, `link-cli spend-request approve-test-request <id>`
-approves a pending request created with `--test` under the same authorization
-grant. It returns `{id, status}`; retrieve credentials separately. Live requests
-are rejected and still follow the normal approval flow.
+For automated integration tests, approve a pending `--test` request with
+`link-cli test-helpers spend-request approve <id>`. It returns the updated
+SpendRequest resource. Live requests are rejected.
 
 **Approval details:** For delegated/pre-approved flows, pass `--approval-detail` as a JSON object (MCP/agent) or JSON string (CLI). Required fields: `approved_at` (unix timestamp), `approval_method` (`click`|`programmatic`|`voice`), `app_name`, `external_user_id`. Optional: `ip_address`, `user_agent`, `device_type` (`mobile`|`web`), `agent_log_id`, `external_user_name`, `external_session_id`, `device_id`, `authentication_method` (`biometric_face`|`biometric_fingerprint`|`passkey`).
 

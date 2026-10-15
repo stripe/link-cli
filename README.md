@@ -469,11 +469,9 @@ network profile.
 **Constraints:** `context` must be at least 100 characters; `amount` is an integer in the currency's smallest unit (e.g. cents) and must not exceed 50000 USD cents equivalent; `currency` can be any supported 3-letter ISO code. The user has 30 minutes from when approval is requested to approve. Approved credentials (card or SPT) are valid for 12 hours from spend request creation.
 **Test mode:** Pass `--test` to create a testmode SpendRequest. A testmode SpendRequest will return test payment credentials (e.g test card `4000009990001984`) rather than a real payment credential. Testmode SpendRequests will not charge the underlying payment method of the SpendRequest. This is useful for development and integration testing without real payment methods.
 
-For automated integration tests, approve a pending request created with
-`--test` using `link-cli spend-request approve-test-request <id>`. This returns
-`{id, status}`; retrieve credentials separately. The request must belong to the
-same authorization grant. Live requests are rejected; live approval still
-follows the normal approval flow.
+For automated integration tests, approve a pending `--test` request with
+`link-cli test-helpers spend-request approve <id>`. It returns the updated
+SpendRequest resource. Live requests are rejected.
 
 ```bash
 # Update before approval

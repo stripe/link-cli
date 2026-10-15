@@ -531,19 +531,6 @@ export function createSpendRequestCli(
     },
   });
 
-  cli.command('approve-test-request', {
-    description:
-      'Approve an existing test-mode spend request for integration testing. Live requests are rejected. Retrieve credentials separately.',
-    args: z.object({
-      id: z.string().describe('ID of a spend request created with --test'),
-    }),
-    outputPolicy: 'agent-only' as const,
-    middleware: [requireAuth(authStorage, envAccessToken)],
-    async run(c) {
-      return repository.approveTestRequest(c.args.id);
-    },
-  });
-
   cli.command('retrieve', {
     description: 'Retrieve a spend request',
     args: z.object({

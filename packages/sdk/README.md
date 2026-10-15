@@ -96,14 +96,6 @@ be replayed.
 For native Eve discovery, namespacing, access-token configuration, and replay handling, use
 [`@stripe/link-integrations-eve`](../integrations/eve/README.md).
 
-## Test approval
-
-For automated integration tests, approve a pending request created with
-`test: true, request_approval: true` using `await link.spendRequests.approveTestRequest(id)`. This returns
-`{id, status}`; retrieve credentials separately. The request must belong to the
-same authorization grant. Live requests are rejected and still follow the
-normal approval flow.
-
 ## User-approved purchase flow
 
 Amounts are expressed in the currency's minor unit, such as cents for USD.
