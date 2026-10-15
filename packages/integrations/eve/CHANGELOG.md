@@ -1,5 +1,11 @@
 # @stripe/link-integrations-eve
 
+## 0.3.3
+
+### Patch Changes
+
+- 3b1340f: Update eve to 0.79.0 and the AI SDK dependency to ^7.0.137 in the extension and terminal OAuth example.
+
 ## 0.3.2
 
 ### Patch Changes
