@@ -3713,6 +3713,40 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       );
     });
 
+    it('uses delegated spend-request creation when --approve is set', async () => {
+      setNextResponse(200, {
+        ...BASE_REQUEST,
+        id: 'lsrq_spt_delegated',
+        status: 'approved',
+        credential_type: 'shared_payment_token',
+        network_id: 'net_001',
+      });
+      setMerchantResponse(402, '{"error":"payment required"}', {
+        'www-authenticate': WWW_AUTHENTICATE_STRIPE,
+      });
+
+      const result = await runProdCli(
+        'mpp',
+        'pay',
+        `http://127.0.0.1:${merchantPort}/api/charge`,
+        '--context',
+        VALID_CONTEXT,
+        '--payment-method-id',
+        'pd_prod_test',
+        '--approve',
+        '--format',
+        'json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const createRequest = requests.find(
+        (request) => request.url === '/spend_requests/create_delegated',
+      );
+      expect(createRequest).toBeDefined();
+      if (!createRequest) throw new Error('Expected delegated create request');
+      expect(JSON.parse(createRequest.body).approve).toBeUndefined();
+    });
+
     it('rejects an amount that conflicts with the MPP challenge', async () => {
       setMerchantResponse(402, '{"error":"payment required"}', {
         'www-authenticate': WWW_AUTHENTICATE_STRIPE,
