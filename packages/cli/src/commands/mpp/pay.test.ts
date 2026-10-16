@@ -214,6 +214,7 @@ describe('payWithSpt', () => {
         amountOverride: 1000,
         paymentMethodId: 'pd_test_123',
         test: true,
+        approve: false,
         repository,
         paymentMethodsFactory: vi.fn(),
       }),
@@ -253,6 +254,22 @@ describe('payWithSpt', () => {
       new Headers(fetcher.mock.calls[2][1]?.headers).get('authorization') ?? '',
     );
     expect(credential.challenge.id).toBe('ch_002');
+  });
+
+  it('passes delegated approval through when creating the spend request', async () => {
+    const repository = approvedRepository();
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(challengeResponse())
+      .mockResolvedValueOnce(challengeResponse())
+      .mockResolvedValueOnce(new Response('paid'));
+    vi.stubGlobal('fetch', fetcher);
+
+    await runFullFlow(repository, 1000, true);
+
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ approve: true }),
+    );
   });
 
   it('accepts semantically identical request objects regardless of key order', async () => {
@@ -522,7 +539,11 @@ function approvedRepository() {
   } as unknown as ISpendRequestResource;
 }
 
-function runFullFlow(repository: ISpendRequestResource, amountOverride = 1000) {
+function runFullFlow(
+  repository: ISpendRequestResource,
+  amountOverride = 1000,
+  approve = false,
+) {
   return runMppPayFullFlow({
     url: 'https://merchant.example/challenge',
     method: 'GET',
@@ -533,6 +554,7 @@ function runFullFlow(repository: ISpendRequestResource, amountOverride = 1000) {
     amountOverride,
     paymentMethodId: 'pd_test_123',
     test: true,
+    approve,
     repository,
     paymentMethodsFactory: vi.fn(),
   });

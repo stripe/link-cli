@@ -73,6 +73,7 @@ export function createMppCli(
             amountOverride={opts.amount}
             paymentMethodId={opts.paymentMethodId}
             test={opts.test}
+            approve={opts.approve}
             repository={repository}
             paymentMethodsFactory={paymentMethodsFactory}
             onComplete={(result) => {
@@ -170,16 +171,18 @@ export function createMppCli(
         pmId = methods[0].id;
       }
 
-      const spendRequest = await repository.create({
+      const createParams = {
         payment_details: pmId,
-        credential_type: 'shared_payment_token',
+        credential_type: 'shared_payment_token' as const,
         network_id: networkId,
         amount,
         currency: challengeCurrency,
         context: opts.context,
         request_approval: true,
         test: opts.test || undefined,
-      });
+        approve: opts.approve || undefined,
+      };
+      const spendRequest = await repository.create(createParams);
 
       // Continue from the request that actually returned the challenge. Redirects
       // may have changed its URL, method, body, or safe-to-forward headers.
