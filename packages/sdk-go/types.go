@@ -137,6 +137,8 @@ const (
 type RecurringInterval string
 
 const (
+	// RecurringIntervalHour is reserved for internal testing with server-side enablement.
+	RecurringIntervalHour  RecurringInterval = "hour"
 	RecurringIntervalDay   RecurringInterval = "day"
 	RecurringIntervalWeek  RecurringInterval = "week"
 	RecurringIntervalMonth RecurringInterval = "month"

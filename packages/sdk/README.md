@@ -191,6 +191,40 @@ const link = new Link({
 Verbose logging includes request methods, URLs, and response status codes. It
 does not include authorization headers or request and response bodies.
 
+## Recurring payments
+
+Pass `recurring` to `spendRequests.create` when the user has agreed to recurring
+spending. For example, this requests a $20 monthly limit:
+
+```ts
+const request = await link.spendRequests.create({
+  credential_type: 'card',
+  merchant_name: 'Example Pro',
+  merchant_url: 'https://example.com/subscribe',
+  amount: 2000,
+  currency: 'usd',
+  context:
+    'Monthly access to Example Pro requested by the user, with a spending limit of $20 per month including all taxes.',
+  recurring: { interval: 'month' },
+  request_approval: true,
+});
+```
+
+Intervals are `day`, `week`, `month`, and `year`. Optional `interval_count` must
+be a positive integer and defaults to `1` on the server; `{ interval: 'week',
+interval_count: 2 }` resets the spending limit every two weeks. `amount` is the
+limit per period. Omit `recurring` for a one-time purchase. The exported
+`SpendRequestRecurringParams` type and `create_spend_request` agent tool use the
+same input shape. Existing credential-type and merchant requirements still apply.
+
+Follow the normal approval and retrieval flow. The merchant schedules charges.
+Recurring card requests stay active after individual charges, so do not wait
+for `succeeded` after each payment or create a new request each period. Respect
+returned `expires_at` and credential expiry values; confirm payments from the
+merchant or transaction records. `update` cannot change the interval or count.
+`cancel` revokes the payment credential but does not cancel the merchant's
+subscription.
+
 ## Errors
 
 The SDK throws typed errors:

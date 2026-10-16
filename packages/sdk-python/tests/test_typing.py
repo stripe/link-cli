@@ -27,6 +27,7 @@ def valid(client: Client) -> None:
         credential_type="card",
         line_items=(item,),
         metadata=MappingProxyType({"order": "123"}),
+        recurring={"interval": "month"},
     )
     assert_type(result, SpendRequest)
     client.spend_requests.create(
@@ -53,7 +54,8 @@ async def valid_async(client: AsyncClient) -> None:
     user = await client.user_info.retrieve()
     assert_type(user.address, UserInfoAddress | None)
     result = await client.spend_requests.create(
-        context="Purchase", credential_type="card"
+        context="Purchase", credential_type="card",
+        recurring={"interval": "week", "interval_count": 2},
     )
     assert_type(result, SpendRequest)
     assert_type(
@@ -82,6 +84,10 @@ async def valid_async(client: AsyncClient) -> None:
     # `str` would otherwise mask misspelled values from consumers' type checkers.
     invalid_calls = [
         'client.spend_requests.create(context="Purchase", credential_type="typo")',
+        (
+            'client.spend_requests.create(context="Purchase", '
+            'recurring={"interval": "typo"})'
+        ),
         'client.transactions.list(origin="typo")',
         (
             'client.reports.create(domain="example.com", outcome="typo", '

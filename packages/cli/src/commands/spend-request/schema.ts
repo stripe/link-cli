@@ -34,7 +34,9 @@ export const createOptions = z.object({
     .number()
     .int()
     .positive()
-    .describe('Amount in the currency’s minor units'),
+    .describe(
+      'Amount in the currency’s minor units. For recurring requests, the spending limit per period',
+    ),
   currency: z
     .string()
     .length(3)
@@ -111,17 +113,31 @@ export const createOptions = z.object({
     .number()
     .int()
     .optional()
-    .describe('Unix timestamp (seconds).'),
+    .describe(
+      'Request expiry as a Unix timestamp (seconds). Omit to use Link’s default; maximum expiry depends on the request and consumer country',
+    ),
   recurringInterval: z
-    .enum(['day', 'week', 'month', 'year'])
+    .string()
+    // The server gates hour for internal testing. Keep it out of generated
+    // help, completions, and JSON schemas while accepting it at runtime.
+    .pipe(
+      z.enum(['hour', 'day', 'week', 'month', 'year'], {
+        error: 'Recurring interval must be day, week, month, or year.',
+      }),
+    )
+    .meta({ type: 'string', enum: ['day', 'week', 'month', 'year'] })
     .optional()
-    .describe('Recurring interval.'),
+    .describe(
+      'Reset the spending limit every day, week, month, or year. Omit for a one-time purchase',
+    ),
   recurringIntervalCount: z.coerce
     .number()
     .int()
     .positive()
     .optional()
-    .describe('Recurring interval count.'),
+    .describe(
+      'Number of intervals per recurring period (positive integer; defaults to 1). Requires --recurring-interval',
+    ),
 });
 
 export const listOptions = z.object({

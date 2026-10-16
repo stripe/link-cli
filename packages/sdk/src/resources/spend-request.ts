@@ -7,11 +7,7 @@ import type {
   ISpendRequestResource,
   UpdateSpendRequestParams,
 } from '@/resources/interfaces';
-import type {
-  RecurringInterval,
-  RequestApprovalResponse,
-  SpendRequest,
-} from '@/types/index';
+import type { RequestApprovalResponse, SpendRequest } from '@/types/index';
 
 const sharedPaymentTokenSchema = z.union([
   z.string().transform((id) => ({ id })),
@@ -60,7 +56,6 @@ const duplicateSpendRequestErrorSchema = z.looseObject({
 type InternalCreateSpendRequestParams = CreateSpendRequestParams & {
   approve?: boolean;
   expires_at?: number;
-  recurring?: { interval: RecurringInterval; interval_count?: number };
 };
 
 type InternalUpdateSpendRequestParams = UpdateSpendRequestParams & {

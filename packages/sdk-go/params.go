@@ -5,24 +5,32 @@ type GetAccessTokenOptions struct {
 	ForceRefresh bool
 }
 
+// SpendRequestRecurringParams defines the spending-limit reset period.
+type SpendRequestRecurringParams struct {
+	Interval RecurringInterval `json:"interval"`
+	// IntervalCount must be positive when set. Omit to use the server default of 1.
+	IntervalCount *int64 `json:"interval_count,omitempty"`
+}
+
 // CreateSpendRequestParams contains fields accepted when creating a spend request.
 type CreateSpendRequestParams struct {
-	IdempotencyKey    *string           `json:"idempotency_key,omitempty"`
-	PaymentDetails    *string           `json:"payment_details,omitempty"`
-	CredentialType    *CredentialType   `json:"credential_type,omitempty"`
-	NetworkID         *string           `json:"network_id,omitempty"`
-	MerchantAccountID *string           `json:"merchant_account_id,omitempty"`
-	Amount            *int64            `json:"amount,omitempty"`
-	Currency          *string           `json:"currency,omitempty"`
-	MerchantName      *string           `json:"merchant_name,omitempty"`
-	MerchantURL       *string           `json:"merchant_url,omitempty"`
-	Context           string            `json:"context"`
-	LineItems         []LineItem        `json:"line_items,omitempty"`
-	Totals            []Total           `json:"totals,omitempty"`
-	RequestApproval   *bool             `json:"request_approval,omitempty"`
-	Test              *bool             `json:"test,omitempty"`
-	ApprovalDetails   *ApprovalDetail   `json:"approval_details,omitempty"`
-	Metadata          map[string]string `json:"metadata,omitempty"`
+	IdempotencyKey    *string                      `json:"idempotency_key,omitempty"`
+	PaymentDetails    *string                      `json:"payment_details,omitempty"`
+	CredentialType    *CredentialType              `json:"credential_type,omitempty"`
+	NetworkID         *string                      `json:"network_id,omitempty"`
+	MerchantAccountID *string                      `json:"merchant_account_id,omitempty"`
+	Amount            *int64                       `json:"amount,omitempty"`
+	Currency          *string                      `json:"currency,omitempty"`
+	MerchantName      *string                      `json:"merchant_name,omitempty"`
+	MerchantURL       *string                      `json:"merchant_url,omitempty"`
+	Context           string                       `json:"context"`
+	LineItems         []LineItem                   `json:"line_items,omitempty"`
+	Totals            []Total                      `json:"totals,omitempty"`
+	RequestApproval   *bool                        `json:"request_approval,omitempty"`
+	Test              *bool                        `json:"test,omitempty"`
+	ApprovalDetails   *ApprovalDetail              `json:"approval_details,omitempty"`
+	Metadata          map[string]string            `json:"metadata,omitempty"`
+	Recurring         *SpendRequestRecurringParams `json:"recurring,omitempty"`
 }
 
 func (params CreateSpendRequestParams) MarshalJSON() ([]byte, error) {

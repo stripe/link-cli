@@ -1,6 +1,6 @@
 ---
 name: create-payment-credential
-description: Creates and manages Link spend requests and retrieves approved one-time-use payment credentials. Use when the user asks for a card, payment token, or purchase authorization.
+description: Creates and manages Link spend requests and retrieves approved payment credentials for one-time purchases and recurring payments. Use when the user asks for a card, payment token, purchase authorization, or subscription.
 license: MIT
 metadata:
   author: stripe
@@ -9,7 +9,7 @@ metadata:
 
 # Create Payment Credential
 
-Use Link to get one-time-use payment credentials for the user's purchase.
+Use Link to get payment credentials for the user's one-time or recurring purchase.
 Call this extension's native tools with their discovered mount prefix, such as
 `link__create_spend_request`. Tool schemas are the reference for input names and
 constraints. Pass structured arguments, not command strings.
@@ -91,13 +91,30 @@ an SPT, provide `network_id` and omit `merchant_name` and `merchant_url`. For
 LPT, use the bound-request inputs above.
 
 **Currency:** Spend requests can be in any supported currency. Pass `currency`
-as a 3-letter ISO 4217 code (e.g. `usd`, `eur`, `gbp`); it defaults to `usd`.
+as a 3-letter ISO 4217 code (e.g. `usd`, `eur`, `gbp`). If omitted, Link uses
+the consumer's default spend-request currency.
 Use the currency the merchant's checkout charges in rather than converting
 prices yourself. If the currency is not supported, the API rejects the request.
 
 **Amounts** (`amount`, `unit_amount`, and `totals` amounts) are integers in the
 currency's smallest unit (e.g. cents): `4200` is $42.00 USD or €42.00 EUR. Some
 currencies have no minor unit, so `4200` in `jpy` is ¥4,200.
+
+For recurring purchases, confirm the user's spending limit, currency, and
+cadence from their request or existing context. Add
+`"recurring": { "interval": "month" }` for a monthly limit. Supported intervals
+are `day`, `week`, `month`, and `year`; optional `interval_count` is a positive
+integer that defaults to `1`. For example,
+`"recurring": { "interval": "week", "interval_count": 2 }` resets the limit every
+two weeks. `amount` is the spending limit per period. Include those terms in
+`context` for approval. Omit `recurring` for one-time purchases.
+
+The merchant schedules recurring charges. Recurring card requests remain
+active after individual charges: do not wait for `succeeded` after each payment
+or create a new request each period. Confirm payment through the merchant's
+result or transaction records. `update_spend_request` cannot change the cadence.
+`cancel_spend_request` revokes the credential; it does not cancel the merchant
+subscription. Complete the merchant's cancellation flow if the user requests it.
 
 By default, Eve asks for user approval before `create_spend_request`; follow the
 application's configured approval policy. Link's purchase authorization is
@@ -148,8 +165,10 @@ Choose `include` to match the approved request:
 | Shared Payment Token | `["shared_payment_token"]` |
 | Link Pay Token | `["link_pay_token"]` |
 
-Respect the returned expiry and the approved merchant and amount. SPTs are
-one-time use; retrieving the same request does not create a replacement token.
+Respect the returned request and credential expiries, the approved merchant,
+and the amount limit. SPTs for one-time requests are single use; retrieving
+the same request does not create a replacement token. Recurring credentials
+remain subject to the approved period and spending limit.
 Do not include credentials in conversational replies or purchase reports.
 Credential issuance does not establish that a purchase succeeded.
 

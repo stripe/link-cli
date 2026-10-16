@@ -98,7 +98,9 @@ export const linkToolSchemas = {
         amount: money
           .positive()
           .max(500000)
-          .describe('Amount in the currency’s minor units.'),
+          .describe(
+            'Amount in the currency’s minor units. For recurring requests, the spending limit per period.',
+          ),
         currency: z
           .string()
           .length(3)
@@ -133,6 +135,20 @@ export const linkToolSchemas = {
             'At most 50 metadata entries',
           )
           .optional(),
+        recurring: z
+          .strictObject({
+            interval: z.enum(['day', 'week', 'month', 'year']),
+            interval_count: z
+              .number()
+              .int()
+              .positive()
+              .optional()
+              .describe('Number of intervals per period. Defaults to 1.'),
+          })
+          .optional()
+          .describe(
+            'Recurring spending terms approved by the user. Omit for a one-time purchase.',
+          ),
       },
       removedExecutionMethodError,
     )

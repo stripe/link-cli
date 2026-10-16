@@ -1,6 +1,6 @@
 # Link CLI
 
-Link CLI lets agents get secure, one-time-use payment credentials from a Link wallet to complete purchases on your behalf — without storing your real card details.
+Link CLI lets agents get secure payment credentials from a Link wallet for one-time purchases and recurring payments — without storing your real card details.
 
 The CLI can produce one of three credential types:
 
@@ -18,6 +18,7 @@ Documentation:
 - [Advanced usage](#advanced)
   - [Authentication](#authentication)
   - [The spend request lifecycle](#spend-request-lifecycle)
+  - [Recurring payments](#recurring-payments)
   - [Credential type: Shared Payment Token](#shared-payment-token)
   - [Credential type: Link Pay Token](#link-pay-token)
   - [Limits](#limits)
@@ -466,7 +467,7 @@ DOM-derived `merchant_account_id`, and Link supplies their canonical merchant
 identity. Card requests may also include `--network-id` to identify the merchant's
 network profile.
 
-**Constraints:** `context` must be at least 100 characters; `amount` is an integer in the currency's smallest unit (e.g. cents) and must not exceed 50000 USD cents equivalent; `currency` can be any supported 3-letter ISO code. The user has 30 minutes from when approval is requested to approve. Approved credentials (card or SPT) are valid for 12 hours from spend request creation.
+**Constraints:** `context` must be at least 100 characters; `amount` is an integer in the currency's smallest unit (e.g. cents) and is subject to the user's spend limits; `currency` can be any supported 3-letter ISO code. Approval has a separate time window. Use the returned request `expires_at` and credential expiry (such as `card.valid_until`) to determine validity; expiry depends on the request and consumer country.
 
 Omitting currency uses the consumer's default spend-request currency, reported by
 `userinfo.default_spend_request_currency` (`user-info retrieve` in the CLI).
@@ -502,13 +503,56 @@ waiting status also returns; inspect the result and retrieve again as needed.
 If `--timeout` or `--max-attempts` is reached without a change, the command exits
 non-zero with `POLLING_TIMEOUT`.
 
+### Recurring payments
+
+For a subscription or other recurring purchase, confirm the spending limit and
+cadence with the user, then add `--recurring-interval` when creating the request:
+
+```bash
+link-cli spend-request create \
+  --credential-type card \
+  --merchant-name "Example Pro" \
+  --merchant-url "https://example.com/subscribe" \
+  --amount 2000 \
+  --currency usd \
+  --recurring-interval month \
+  --context "Monthly access to Example Pro requested by the user, with a spending limit of $20 per month including all taxes."
+```
+
+Supported intervals are `day`, `week`, `month`, and `year`.
+`--recurring-interval-count` is a positive integer and defaults to `1` on the
+server. For example, `--recurring-interval week --recurring-interval-count 2`
+resets the limit every two weeks. The count requires an interval. Omit both
+flags for a one-time purchase.
+
+For recurring requests, `--amount` is the spending limit per period, in the
+currency's minor units. It is not the total budget for the subscription's
+lifetime. The merchant controls billing; the CLI does not schedule charges.
+The same recurring options are available with `card`, `shared_payment_token`,
+and `link_pay_token`; each credential type keeps its merchant targeting and
+checkout requirements. Link enforces availability and applicable limits.
+
+Approval and credential retrieval use the normal flow. Responses include
+`recurring.interval` and `recurring.interval_count`; `spend-request list` also
+shows the cadence. Recurring card requests remain active after individual
+charges. Do not wait for the request to become `succeeded` after each payment
+or create a new request for each period. Confirm each payment from the
+merchant's result or transaction records.
+
+Recurring terms are set at creation; `spend-request update` does not change
+the interval or count. Respect the returned request and credential expiries.
+To stop future use of the payment credential, run
+`link-cli spend-request cancel <id>` and check the result. This revokes the
+credential; it does not cancel the subscription with the merchant. Complete
+the merchant's cancellation flow when the user asks to cancel the subscription.
+
 ### Credential types
 
 By default, a spend request provisions a virtual card. Link can also provide a shared payment token (SPT) for use with the Machine Payment Protocol (MPP) or a Link Pay Token (LPT) for supported Stripe payment surfaces. LPT is a distinct credential type.
 
 ### Shared Payment Token
 
-For merchants that support the [Machine Payments Protocol](https://mpp.dev) (HTTP 402) and the Stripe payment method, instead pass `--credential-type "shared_payment_token"` when creating the spend request. The SPT is one-time-use — if payment fails, create a new spend request.
+For merchants that support the [Machine Payments Protocol](https://mpp.dev) (HTTP 402) and the Stripe payment method, instead pass `--credential-type "shared_payment_token"` when creating the spend request. SPTs for one-time requests are single use; a consumed token requires a new spend request.
 
 Use `mpp decode` to validate a raw `WWW-Authenticate` header and extract the `network_id` needed for `shared_payment_token` spend requests:
 
@@ -562,9 +606,9 @@ request.
 
 | Limit | Value |
 |-------|-------|
-| Max amount per spend request | $500 (50,000 cents) |
+| Amount limit | Use the user's current limits from `user-info retrieve`; recurring `amount` is the limit per period |
 | Approval window | 30 minutes — user must approve within 30 min of `request-approval` |
-| Card / SPT validity | 12 hours from spend request creation |
+| Request / credential validity | Use returned `expires_at` and credential expiry; limits depend on the request and consumer country |
 | Daily spend | $500 |
 | Monthly spend (30 days) | $20,000 |
 | Concurrent active requests (created + approved) | 30 |
@@ -574,7 +618,7 @@ request.
 
 Dollar limits are enforced as the USD equivalent for spend requests in other currencies.
 
-Use `mpp pay` to complete purchases on merchants that use the [Machine Payments Protocol](https://mpp.dev). The spend request must use `credential_type: "shared_payment_token"` and you must approve it before paying. The SPT is one-time-use — if payment fails, create a new spend request.
+Use `mpp pay` to complete purchases on merchants that use the [Machine Payments Protocol](https://mpp.dev). The spend request must use `credential_type: "shared_payment_token"` and you must approve it before paying. Requests created by `mpp pay` are for one-time payments; consumed SPTs require a new spend request.
 
 ```bash
 link-cli mpp pay https://climate.stripe.dev/api/contribute \

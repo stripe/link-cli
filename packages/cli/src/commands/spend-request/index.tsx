@@ -120,7 +120,7 @@ export function createSpendRequestCli(
   });
 
   cli.command('create', {
-    description: 'Create a new spend request',
+    description: 'Create a one-time or recurring spend request',
     options: createOptions,
     alias: { merchantName: 'm' },
     outputPolicy: 'agent-only' as const,
@@ -635,7 +635,8 @@ export function createSpendRequestCli(
   });
 
   cli.command('cancel', {
-    description: 'Cancel a spend request',
+    description:
+      'Cancel a spend request and revoke its payment credentials. This does not cancel a subscription with the merchant',
     args: z.object({
       id: z.string().describe('Spend request ID'),
     }),

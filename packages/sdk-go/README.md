@@ -54,6 +54,30 @@ func main() {
 Use a fixed token for a short-lived job or when the caller replaces the entire
 client as credentials change.
 
+## Recurring payments
+
+Set `Recurring` on `CreateSpendRequestParams` for a recurring purchase approved
+by the user. For example, add this field to a card request with `Amount` set to
+`2000` and `Currency` set to `"usd"` for a $20 monthly spending limit:
+
+```go
+Recurring: &link.SpendRequestRecurringParams{
+	Interval: link.RecurringIntervalMonth,
+},
+```
+
+Supported intervals are `day`, `week`, `month`, and `year`. `IntervalCount` is an
+optional `*int64`; nil uses the server default of `1`. Set it to a positive
+integer for multiple intervals per period. `Amount` is the spending limit per
+period. A nil `Recurring` keeps the one-time purchase flow.
+
+Use normal approval and credential retrieval. The merchant schedules charges;
+recurring card requests stay active after individual charges. Do not wait for
+`succeeded` after each payment or create a new request each period. Confirm
+payments from the merchant or transaction records and respect returned request
+and credential expiries. `Update` cannot change the cadence. `Cancel` revokes
+the credential but does not cancel the subscription with the merchant.
+
 ## Credentials
 
 Exactly one credential option is required.
