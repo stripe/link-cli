@@ -84,15 +84,17 @@ const (
 type NextActionType string
 
 const (
-	NextActionTypeSSNVerification      NextActionType = "ssn_verification"
-	NextActionTypeIdentityVerification NextActionType = "identity_verification"
-	NextActionTypeContactSupport       NextActionType = "contact_support"
-	NextActionTypeSelectPaymentMethod  NextActionType = "select_payment_method"
-	NextActionTypeAddPaymentMethod     NextActionType = "add_payment_method"
-	NextActionTypeUpdatePaymentMethod  NextActionType = "update_payment_method"
-	NextActionTypeReauthorize          NextActionType = "re_authorize"
-	NextActionTypeThreeDSecure         NextActionType = "three_d_secure"
-	NextActionTypeThreeDSecureRetry    NextActionType = "three_d_secure_retry"
+	NextActionTypeSSNVerification           NextActionType = "ssn_verification"
+	NextActionTypeIdentityVerification      NextActionType = "identity_verification"
+	NextActionTypeContactSupport            NextActionType = "contact_support"
+	NextActionTypeSelectPaymentMethod       NextActionType = "select_payment_method"
+	NextActionTypeAddPaymentMethod          NextActionType = "add_payment_method"
+	NextActionTypeUpdatePaymentMethod       NextActionType = "update_payment_method"
+	NextActionTypeReauthorize               NextActionType = "re_authorize"
+	NextActionTypeThreeDSecure              NextActionType = "three_d_secure"
+	NextActionTypeThreeDSecureRetry         NextActionType = "three_d_secure_retry"
+	NextActionTypePartnerAuthChallenge      NextActionType = "partner_auth_challenge"
+	NextActionTypePartnerAuthChallengeRetry NextActionType = "partner_auth_challenge_retry"
 )
 
 // NextActionResolution describes how an agent should proceed after an action.

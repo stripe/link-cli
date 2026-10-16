@@ -12,6 +12,7 @@ import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { formatRecurring } from '../../utils/format-recurring';
 import { openUrl } from '../../utils/open-url';
 import { ApprovalWaitingView } from './approval-waiting-view';
+import { ResumingView } from './resuming-view';
 import { useApprovalPolling } from './use-approval-polling';
 
 interface RequestApprovalProps {
@@ -44,6 +45,8 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
     | 'verification_required'
     | 'opened'
     | 'requires_action'
+    | 'resuming'
+    | 'resume_timeout'
   >('requesting');
   const [approvalUrl, setApprovalUrl] = useState<string>('');
   const [result, setResult] = useState<SpendRequest | null>(null);
@@ -181,7 +184,22 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
             </Text>
           )}
         </Box>
+        <Box marginTop={1}>
+          <Text dimColor>
+            Complete this step, then create a new spend request.
+          </Text>
+        </Box>
       </Box>
+    );
+  }
+
+  if (status === 'resuming' || status === 'resume_timeout') {
+    return (
+      <ResumingView
+        nextAction={nextAction}
+        requestId={result?.id ?? id}
+        timedOut={status === 'resume_timeout'}
+      />
     );
   }
 

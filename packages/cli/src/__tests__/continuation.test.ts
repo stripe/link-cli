@@ -323,6 +323,35 @@ describe('command continuations', () => {
     },
   );
 
+  it('tells the agent to keep polling through partner_auth_challenge', async () => {
+    createResponse = {
+      ...SPEND_REQUEST,
+      status: 'requires_action',
+      status_details: {
+        requires_action: {
+          next_action: {
+            type: 'partner_auth_challenge',
+            resolution: 'auto_resume',
+            display_message: 'Complete verification in the Link app.',
+            action_url: 'https://link.example/verify',
+          },
+        },
+      },
+    };
+    const output = await runCli(createArgs);
+    expect(output[0]._next.argv.args).toEqual(
+      expect.arrayContaining(['retrieve', SPEND_REQUEST.id, '--interval']),
+    );
+    expect(output[0].instruction).toContain(
+      'requires additional verification (partner_auth_challenge): Complete verification in the Link app.',
+    );
+    expect(output[0].instruction).toContain('https://link.example/verify');
+    expect(output[0].instruction).toContain(
+      'Do not create a new spend request',
+    );
+    expect(output[0].instruction).not.toContain('3D Secure');
+  });
+
   it('returns structured polling after explicitly requesting approval', async () => {
     const output = await runCli([
       'spend-request',

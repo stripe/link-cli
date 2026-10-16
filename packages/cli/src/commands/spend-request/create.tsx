@@ -9,11 +9,7 @@ import { Box, Text, useApp, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  DISPLAY_DELAY_MS,
-  RESUME_POLL_INTERVAL_MS,
-  RESUME_TIMEOUT_MS,
-} from '../../utils/constants';
+import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { writeCredentialFile } from '../../utils/credential-output';
 import { formatAmount } from '../../utils/format-amount';
 import { formatRecurring } from '../../utils/format-recurring';
@@ -22,6 +18,7 @@ import { sanitizeDeep } from '../../utils/sanitize-text';
 import { shouldPollSpendRequest } from '../../utils/should-poll-spend-request';
 import { AppDownloadQrCodes } from './app-download-qr-codes';
 import { ApprovalWaitingView } from './approval-waiting-view';
+import { ResumingView } from './resuming-view';
 import { useApprovalPolling } from './use-approval-polling';
 
 interface CreateSpendRequestProps {
@@ -115,65 +112,6 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
     },
   );
 
-  useEffect(() => {
-    if (status !== 'requires_action') return;
-    if (nextAction?.resolution === 'auto_resume') {
-      setStatus('resuming');
-    }
-  }, [status, nextAction]);
-
-  useEffect(() => {
-    if (status !== 'resuming' || !request?.id) return;
-
-    let cancelled = false;
-    const requestId = request.id;
-    const deadline = Date.now() + RESUME_TIMEOUT_MS;
-
-    const poll = async () => {
-      while (!cancelled) {
-        if (Date.now() > deadline) {
-          setStatus('resume_timeout');
-          setTimeout(() => completeAndExit(request), DISPLAY_DELAY_MS);
-          return;
-        }
-
-        await new Promise((r) => setTimeout(r, RESUME_POLL_INTERVAL_MS));
-        if (cancelled) return;
-
-        let latest: SpendRequest | null;
-        try {
-          latest = await repository.retrieve(requestId);
-        } catch {
-          continue;
-        }
-        if (cancelled || !latest) continue;
-
-        setRequest(latest);
-        if (latest.status === 'requires_action') continue;
-
-        if (
-          latest.status === 'approved' ||
-          latest.status === 'submitted' ||
-          latest.status === 'succeeded'
-        ) {
-          setStatus('success');
-        } else {
-          setError(
-            `Spend request did not resolve after 3D Secure (status: ${latest.status})`,
-          );
-          setStatus('error');
-        }
-        setTimeout(() => completeAndExit(latest), DISPLAY_DELAY_MS);
-        return;
-      }
-    };
-
-    poll();
-    return () => {
-      cancelled = true;
-    };
-  }, [status, request, repository, completeAndExit]);
-
   useInput((_, key) => {
     if (
       key.return &&
@@ -214,10 +152,14 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
         setRequest(result);
 
         if (result.status === 'requires_action') {
-          setNextAction(
-            result.status_details?.requires_action?.next_action ?? null,
+          const action =
+            result.status_details?.requires_action?.next_action ?? null;
+          setNextAction(action);
+          setStatus(
+            action?.resolution === 'auto_resume'
+              ? 'resuming'
+              : 'requires_action',
           );
-          setStatus('requires_action');
         } else if (requestApproval && shouldPollSpendRequest(result)) {
           setStatus('waiting');
         } else {
@@ -346,36 +288,13 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
     );
   }
 
-  if (status === 'resuming') {
+  if (status === 'resuming' || status === 'resume_timeout') {
     return (
-      <Box flexDirection="column">
-        <Text color="cyan">
-          <Spinner type="dots" /> Waiting for 3D Secure verification to
-          complete...
-        </Text>
-        <Box flexDirection="column" marginTop={1} paddingX={2}>
-          <Text>{nextAction?.display_message}</Text>
-          {nextAction?.action_url && (
-            <Text dimColor>
-              URL: <Text color="cyan">{nextAction.action_url}</Text>
-            </Text>
-          )}
-        </Box>
-      </Box>
-    );
-  }
-
-  if (status === 'resume_timeout') {
-    return (
-      <Box flexDirection="column">
-        <Text color="yellow">
-          ✗ Timed out waiting for 3D Secure verification to resolve
-        </Text>
-        <Text dimColor>
-          Run `spend-request retrieve {request?.id}` to check the current
-          status.
-        </Text>
-      </Box>
+      <ResumingView
+        nextAction={nextAction}
+        requestId={request?.id}
+        timedOut={status === 'resume_timeout'}
+      />
     );
   }
 

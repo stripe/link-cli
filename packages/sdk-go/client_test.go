@@ -372,6 +372,35 @@ func TestRetrieveDecodesRecurringTerms(t *testing.T) {
 	}
 }
 
+func TestRetrieveDecodesPartnerAuthChallengeNextActions(t *testing.T) {
+	for name, tc := range map[string]struct {
+		nextAction     string
+		wantType       NextActionType
+		wantResolution NextActionResolution
+	}{
+		"challenge": {`{"type":"partner_auth_challenge","resolution":"auto_resume","display_message":"Verify in Link","action_url":"https://app.link.com/verify"}`, NextActionTypePartnerAuthChallenge, NextActionResolutionAutoResume},
+		"retry":     {`{"type":"partner_auth_challenge_retry","resolution":"create_new_spend_request","display_message":"Try again","action_url":null}`, NextActionTypePartnerAuthChallengeRetry, NextActionResolutionCreateNewSpendRequest},
+	} {
+		t.Run(name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+				_, _ = response.Write([]byte(`{"id":"lsrq_123","status":"requires_action","status_details":{"requires_action":{"next_action":` + tc.nextAction + `}},"created_at":"now","updated_at":"now"}`))
+			}))
+			defer server.Close()
+			client, err := NewClient(Options{AccessToken: "token", SpendRequestBaseURL: server.URL})
+			assertNoError(t, err)
+			result, err := client.SpendRequests.Retrieve(context.Background(), "lsrq_123", nil)
+			assertNoError(t, err)
+			if result.StatusDetails == nil || result.StatusDetails.RequiresAction == nil {
+				t.Fatalf("missing requires_action details: %#v", result.StatusDetails)
+			}
+			got := result.StatusDetails.RequiresAction.NextAction
+			if got.Type != tc.wantType || got.Resolution != tc.wantResolution {
+				t.Fatalf("got next action %#v, want type %q resolution %q", got, tc.wantType, tc.wantResolution)
+			}
+		})
+	}
+}
+
 func TestWebBotAuthCachesByAuthority(t *testing.T) {
 	requestCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {

@@ -176,6 +176,39 @@ def test_missing_limits_are_not_interpreted_as_unlimited() -> None:
         UserInfo.model_validate({"agent_wallet_spend_limits": {}})
 
 
+@pytest.mark.parametrize(
+    "next_action_type, resolution",
+    [
+        ("partner_auth_challenge", "auto_resume"),
+        ("partner_auth_challenge_retry", "create_new_spend_request"),
+    ],
+)
+def test_partner_auth_challenge_next_actions(
+    next_action_type: str, resolution: str
+) -> None:
+    request = SpendRequest.model_validate(
+        {
+            **SPEND,
+            "status": "requires_action",
+            "status_details": {
+                "requires_action": {
+                    "next_action": {
+                        "type": next_action_type,
+                        "resolution": resolution,
+                        "display_message": "Verify in Link",
+                        "action_url": None,
+                    }
+                }
+            },
+        }
+    )
+    assert request.status_details is not None
+    assert request.status_details.requires_action is not None
+    next_action = request.status_details.requires_action.next_action
+    assert next_action.type == next_action_type
+    assert next_action.resolution == resolution
+
+
 def test_optional_field_presence_and_future_status_are_preserved() -> None:
     omitted = SpendRequest.model_validate({**SPEND, "status": "future_status"})
     explicit = SpendRequest.model_validate({**SPEND, "amount": None})

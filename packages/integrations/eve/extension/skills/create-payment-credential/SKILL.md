@@ -117,10 +117,13 @@ For `requires_action`, read
 `status_details.requires_action.next_action`. Show its `display_message` and
 `action_url`, then follow `resolution`:
 
-- `auto_resume`: let the user complete the action and retrieve the same request
-  again. Do not create a replacement just because an action is pending.
-- `create_new_spend_request` or `create_new_spend_request_after_completion`:
-  have the user complete the indicated action, then create a new request.
+- `auto_resume` (`three_d_secure`, `partner_auth_challenge`): let the user
+  complete the action and retrieve the same request again. For
+  `partner_auth_challenge`, the user completes verification in the Link app. Do
+  not create a replacement just because an action is pending.
+- `create_new_spend_request` or `create_new_spend_request_after_completion`
+  (including `three_d_secure_retry` and `partner_auth_challenge_retry`): have
+  the user complete the indicated action, then create a new request.
 
 Use `list_spend_requests` to find existing requests; `include_history: true`
 includes expired and terminal requests. Use `update_spend_request` with its `id`

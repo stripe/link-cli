@@ -9,6 +9,7 @@ import { sanitizeResource } from '../../../utils/resource-factory';
 import { CreateSpendRequest } from '../create';
 import { SpendRequestList } from '../list';
 import { RequestApproval } from '../request-approval';
+import { ResumingView } from '../resuming-view';
 import { RetrieveSpendRequest } from '../retrieve';
 import { UpdateSpendRequest } from '../update';
 
@@ -721,9 +722,7 @@ describe('spend-request', () => {
         await vi.waitFor(
           () => {
             const frame = lastFrame();
-            expect(frame).toContain(
-              'Waiting for 3D Secure verification to complete',
-            );
+            expect(frame).toContain('Waiting for verification to complete');
           },
           { timeout: 3000 },
         );
@@ -822,6 +821,155 @@ describe('spend-request', () => {
         },
         { timeout: 3000 },
       );
+    });
+
+    describe('partner_auth_challenge via approval polling', () => {
+      const created = makeSpendRequest({
+        status: 'created',
+        approval_url: 'https://app.link.com/approve/sr_test',
+      });
+      const challenge = makeSpendRequest({
+        status: 'requires_action',
+        status_details: {
+          requires_action: {
+            next_action: {
+              type: 'partner_auth_challenge',
+              resolution: 'auto_resume',
+              display_message: 'Complete verification in the Link app.',
+              action_url: 'https://app.link.com/verify/sr_test',
+            },
+          },
+        },
+      });
+      const retry = makeSpendRequest({
+        status: 'requires_action',
+        status_details: {
+          requires_action: {
+            next_action: {
+              type: 'partner_auth_challenge_retry',
+              resolution: 'create_new_spend_request',
+              display_message: 'Verification failed.',
+              action_url: null,
+            },
+          },
+        },
+      });
+
+      const renderers = {
+        CreateSpendRequest: (
+          repo: ISpendRequestResource,
+          onComplete: (r: SpendRequest | null) => void,
+        ) => (
+          <CreateSpendRequest
+            repository={repo}
+            params={{
+              payment_details: 'pm_1',
+              amount: 1000,
+              currency: 'usd',
+              merchant_name: 'Acme',
+              merchant_url: 'https://example.com',
+              context: 'x'.repeat(100),
+            }}
+            requestApproval
+            onComplete={onComplete}
+          />
+        ),
+        RequestApproval: (
+          repo: ISpendRequestResource,
+          onComplete: (r: SpendRequest | null) => void,
+        ) => (
+          <RequestApproval
+            repository={repo}
+            id="sr_test"
+            onComplete={onComplete}
+          />
+        ),
+      };
+
+      it.each([
+        ['CreateSpendRequest', 'Spend request created'],
+        ['RequestApproval', 'Approval completed'],
+      ] as const)(
+        '%s keeps polling through the challenge until approved',
+        async (component, successText) => {
+          const approved = makeSpendRequest({ status: 'approved' });
+          const repo = makeSequentialMockRepo(created, [challenge, approved]);
+          const onComplete = vi.fn();
+
+          const { lastFrame, unmount } = render(
+            renderers[component](repo, onComplete),
+          );
+          try {
+            await vi.waitFor(
+              () => {
+                const frame = lastFrame();
+                expect(frame).toContain('Waiting for verification to complete');
+                expect(frame).toContain(
+                  'Complete verification in the Link app.',
+                );
+                expect(frame).toContain('https://app.link.com/verify/sr_test');
+              },
+              { timeout: 3000 },
+            );
+            expect(onComplete).not.toHaveBeenCalled();
+
+            await vi.waitFor(() => expect(lastFrame()).toContain(successText), {
+              timeout: 6000,
+            });
+            await vi.waitFor(
+              () =>
+                expect(onComplete).toHaveBeenCalledWith(
+                  expect.objectContaining({ status: 'approved' }),
+                ),
+              { timeout: 3000 },
+            );
+          } finally {
+            unmount();
+          }
+        },
+        10_000,
+      );
+
+      it.each(['CreateSpendRequest', 'RequestApproval'] as const)(
+        '%s tells the user to create a new spend request after partner_auth_challenge_retry',
+        async (component) => {
+          const repo = makeSequentialMockRepo(created, [challenge, retry]);
+          const onComplete = vi.fn();
+
+          const { lastFrame, unmount } = render(
+            renderers[component](repo, onComplete),
+          );
+          try {
+            await vi.waitFor(
+              () => {
+                const frame = lastFrame();
+                expect(frame).toContain(
+                  'Action required before payment can proceed',
+                );
+                expect(frame).toContain('Verification failed.');
+                expect(frame).toContain(
+                  'Complete this step, then create a new spend request.',
+                );
+                expect(frame).not.toContain('Press Enter to open in browser');
+              },
+              { timeout: 6000 },
+            );
+          } finally {
+            unmount();
+          }
+        },
+        10_000,
+      );
+
+      it('ResumingView shows generic copy on timeout', () => {
+        const { lastFrame } = render(
+          <ResumingView nextAction={null} requestId="sr_test" timedOut />,
+        );
+        expect(lastFrame()).toContain(
+          'Timed out waiting for verification to resolve',
+        );
+        expect(lastFrame()).toContain('spend-request retrieve sr_test');
+      });
     });
 
     it('RetrieveSpendRequest shows the requires_action phase for a non-auto_resume type', async () => {
