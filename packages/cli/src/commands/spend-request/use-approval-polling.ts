@@ -1,6 +1,6 @@
 import type { ISpendRequestResource, SpendRequest } from '@stripe/link-sdk';
 import { useInput } from 'ink';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { openUrl } from '../../utils/open-url';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
@@ -21,6 +21,12 @@ interface UseApprovalPollingOptions {
   approvalUrl: string;
   repository: ISpendRequestResource;
   requestId: string | null;
+  /**
+   * The caller's latest copy of the request. Passed to `onComplete` when
+   * resuming times out without a successful retrieve, so the result (and the
+   * command's exit code) doesn't depend on whether a poll got through.
+   */
+  lastKnownRequest?: SpendRequest | null;
   onComplete: (result: SpendRequest | null) => void;
   onSuccess: (result: SpendRequest) => void;
   onError: (msg: string) => void;
@@ -33,11 +39,17 @@ export function useApprovalPolling({
   approvalUrl,
   repository,
   requestId,
+  lastKnownRequest = null,
   onComplete,
   onSuccess,
   onError,
   onRequiresAction,
 }: UseApprovalPollingOptions): void {
+  // Read through a ref so updates don't restart the resume poll (and its
+  // deadline).
+  const lastKnownRequestRef = useRef(lastKnownRequest);
+  lastKnownRequestRef.current = lastKnownRequest;
+
   const isWaiting = status === 'waiting' || status === 'polling';
 
   useInput(
@@ -131,8 +143,9 @@ export function useApprovalPolling({
       );
       if (cancelled) return;
       if (timedOut || !request) {
+        const result = request ?? lastKnownRequestRef.current;
         setStatus('resume_timeout');
-        setTimeout(() => onComplete(request), DISPLAY_DELAY_MS);
+        setTimeout(() => onComplete(result), DISPLAY_DELAY_MS);
         return;
       }
       if (

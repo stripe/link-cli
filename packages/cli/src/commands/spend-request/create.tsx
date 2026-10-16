@@ -92,6 +92,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
     approvalUrl,
     repository,
     requestId: request?.id ?? null,
+    lastKnownRequest: request,
     onComplete: completeAndExit,
     onSuccess,
     onError,

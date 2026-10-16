@@ -43,6 +43,10 @@ function buildPollContinuation(id: string) {
   ]);
 }
 
+function withTerminalPunctuation(text: string): string {
+  return /[.!?]$/.test(text.trim()) ? text.trim() : `${text.trim()}.`;
+}
+
 function buildRequiresActionResult(request: SpendRequest) {
   const nextAction = request.status_details?.requires_action?.next_action;
   const isAutoResume = nextAction?.resolution === 'auto_resume';
@@ -51,7 +55,7 @@ function buildRequiresActionResult(request: SpendRequest) {
   return {
     ...request,
     instruction: isAutoResume
-      ? `The spend request requires additional verification (${nextAction?.type}): ${nextAction?.display_message} Present action_url (${nextAction?.action_url}) to the user so they can complete it, then invoke _next.argv directly without a shell to keep polling until it resolves. Do not create a new spend request — this one resumes automatically once verification is completed.`
+      ? `The spend request requires additional verification (${nextAction?.type}).${nextAction?.display_message ? ` ${withTerminalPunctuation(nextAction.display_message)}` : ''}${nextAction?.action_url ? ` Present action_url (${nextAction.action_url}) to the user so they can complete it, then invoke` : ' Have the user complete it, then invoke'} _next.argv directly without a shell to keep polling until it resolves. Do not create a new spend request — this one resumes automatically once verification is completed.`
       : `The spend request requires action (${nextAction?.type}): ${nextAction?.display_message}${nextAction?.action_url ? ` URL: ${nextAction.action_url}` : ''} Have the user complete this, then create a new spend request.`,
     _next: isAutoResume
       ? {

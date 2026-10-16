@@ -69,6 +69,7 @@ export const RequestApproval: React.FC<RequestApprovalProps> = ({
     approvalUrl,
     repository,
     requestId: id,
+    lastKnownRequest: result,
     onComplete: completeAndExit,
     onSuccess,
     onError,
