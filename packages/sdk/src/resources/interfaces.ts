@@ -11,6 +11,7 @@ import type {
   ShippingAddressRecord,
   SourcesPage,
   SpendRequest,
+  SpendRequestDecisionResponse,
   Total,
   TransactionOrigin,
   TransactionsPage,
@@ -97,7 +98,8 @@ export interface ISpendRequestResource {
   create(params: CreateSpendRequestParams): Promise<SpendRequest>;
   update(id: string, params: UpdateSpendRequestParams): Promise<SpendRequest>;
   requestApproval(id: string): Promise<RequestApprovalResponse>;
-  approveTestRequest(id: string): Promise<SpendRequest>;
+  approveTestRequest(id: string): Promise<SpendRequestDecisionResponse>;
+  denyTestRequest(id: string): Promise<SpendRequestDecisionResponse>;
   cancel(id: string): Promise<SpendRequest>;
   retrieve(
     id: string,

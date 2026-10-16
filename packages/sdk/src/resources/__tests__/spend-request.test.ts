@@ -465,8 +465,8 @@ describe('SpendRequestResource', () => {
   });
 
   describe('approveTestRequest', () => {
-    it('approves by ID with Bearer auth and returns the spend request', async () => {
-      const response = { ...spendRequestResponse, status: 'approved' };
+    it('approves by ID with Bearer auth and returns the actual decision status', async () => {
+      const response = { id: 'si_123', status: 'requires_action' };
       mockFetchResponse(200, response);
 
       await expect(repo.approveTestRequest('si_123')).resolves.toEqual(
@@ -475,7 +475,28 @@ describe('SpendRequestResource', () => {
 
       const [url, opts] = mockFetch.mock.calls[0]!;
       expect(url).toBe(
-        'https://api.link.com/spend_requests/si_123/approve_test_request',
+        'https://api.link.com/api/test_helper/spend_requests/si_123/approve',
+      );
+      expect(opts.method).toBe('POST');
+      expect(opts.headers.Authorization).toBe('Bearer test_token');
+      expect(opts.body).toBeUndefined();
+    });
+  });
+
+  describe('denyTestRequest', () => {
+    it('denies by ID with Bearer auth and preserves the spend request base URL', async () => {
+      const repo = new SpendRequestResource({
+        getAccessToken,
+        spendRequestBaseUrl: 'https://custom.link.com/prefix',
+      });
+      const response = { id: 'si_123', status: 'denied' };
+      mockFetchResponse(200, response);
+
+      await expect(repo.denyTestRequest('si_123')).resolves.toEqual(response);
+
+      const [url, opts] = mockFetch.mock.calls[0]!;
+      expect(url).toBe(
+        'https://custom.link.com/prefix/api/test_helper/spend_requests/si_123/deny',
       );
       expect(opts.method).toBe('POST');
       expect(opts.headers.Authorization).toBe('Bearer test_token');
