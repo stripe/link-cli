@@ -135,6 +135,7 @@ What you find determines which credential type to use:
 | Credit-card form, no AI-agent steering block | `card` (default) | Card |
 | HTTP 402 with `method="stripe"` in `www-authenticate` | `shared_payment_token` | Shared payment token (SPT) |
 | HTTP 402 without `method="stripe"` in `www-authenticate` | not supported | Do not continue |
+| Seller API that asks for a Stripe Shared Payment Token and publishes a network ID (for example an ACP checkout) | `shared_payment_token` | SPT, sent directly to the seller's API (Step 5) |
 
 **For 402 responses:** Use `mpp pay` — it handles the entire flow automatically (probes URL, parses challenge, picks payment method, creates spend request, gets approval, and pays). See Step 5.
 
@@ -242,6 +243,15 @@ The SPT is **one-time use** — if the payment fails, run `mpp pay` again (it wi
 ```bash
 link-cli mpp pay <url> --spend-request-id <id> [-X POST] [-d '<body>'] [-H 'Name: Value']
 ```
+
+**SPT sent directly to a seller's API (no 402):** Some sellers take a Shared Payment Token in their own API request instead of an MPP 402 challenge, for example an [Agentic Commerce Protocol](https://agenticcommerce.dev) checkout whose payment handler is a Stripe SPT. Create the spend request with `--credential-type shared_payment_token` and the seller's `--network-id` (the seller publishes it, for example in its payment handler config). Omit `--merchant-name` and `--merchant-url`; SPT requests identify the seller by network ID. Once the request is approved, retrieve it with `--include shared_payment_token` and send `shared_payment_token.id` in the seller's payment request once. The token can take a few seconds to appear after approval; if `shared_payment_token` is `null`, wait and retrieve again.
+
+```bash
+link-cli spend-request retrieve <id> --include shared_payment_token --format json
+# [{ ..., "status": "approved", "shared_payment_token": { "id": "spt_...", "valid_until": ... } }]
+```
+
+Read the token inside the command that sends it, for example `SPT=$(link-cli spend-request retrieve <id> --include shared_payment_token --format json | jq -r '.[-1].shared_payment_token.id')`, so it does not end up in transcripts or logs. The SPT is **one-time use**: if the payment fails, create a new spend request.
 
 **Link Pay Token:** Some checkout pages embed an AI-agent steering block (the
 `AiAgentPaymentSteering` component) that lets an agent pay with a Link Pay
