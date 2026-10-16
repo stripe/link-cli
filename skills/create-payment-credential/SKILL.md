@@ -2,7 +2,7 @@
 version: 0.27.0
 name: create-payment-credential
 description: |
-  Gets secure, one-time-use payment credentials (cards, tokens) from a Link wallet so agents can complete purchases on behalf of users. Use when the user says "get me a card", "buy something", "pay for X", "make a purchase", "I need to pay", "complete checkout", or asks to transact on any merchant site. Use when the user asks to connect or log in to or sign up for their Link account.
+  Gets secure payment credentials (cards, tokens) from a Link wallet for one-time purchases and recurring payments. Use when the user says "get me a card", "buy something", "pay for X", "make a purchase", "I need to pay", "complete checkout", or asks to set up a subscription or transact on a merchant site. Use when the user asks to connect or log in to or sign up for their Link account.
 allowed-tools:
  - Bash(link-cli:*)
  - Bash(npx --yes @stripe/link-cli:*)
@@ -27,7 +27,7 @@ user-invocable: true
 
 # Create Payment Credential
 
-Use [Link](https://link.com) to get secure, one-time-use payment credentials from a Link wallet to complete purchases.
+Use [Link](https://link.com) to get secure payment credentials from a Link wallet for one-time purchases and recurring payments.
 
 The CLI can produce three credential types:
 - A virtual card (PAN) for use with a standard web checkout form. The issued card works anywhere.
@@ -183,9 +183,36 @@ link-cli spend-request create \
 Card requests may also include `--network-id <network_id>` to identify the
 merchant's network profile. Keep the card's merchant name and URL parameters.
 
-**Currency:** Spend requests can be in any supported currency. Pass `--currency` as a 3-letter ISO 4217 code (e.g. `usd`, `eur`, `gbp`); it defaults to `usd`. Use the currency the merchant's checkout charges in rather than converting prices yourself. If the currency is not supported, the API rejects the request.
+**Currency:** Pass the merchant's checkout currency with `--currency` as a 3-letter ISO 4217 code (e.g. `usd`, `eur`, `gbp`). If omitted, Link uses the consumer's default spend-request currency. Do not convert prices yourself. If the currency is not supported, the API rejects the request.
 
 **Amounts** (`--amount`, `unit_amount`, and `--total` amounts) are integers in the currency's smallest unit (e.g. cents): `1999` is $19.99 USD or €19.99 EUR. Some currencies have no minor unit, so `1999` in `jpy` is ¥1,999.
+
+**Recurring payments:** Use recurring terms only when the user's request covers
+the subscription or recurring purchase. Confirm the spending limit, currency,
+and cadence from the user or existing task context. Describe these terms in
+`context` so the user can review them during approval.
+
+Add `--recurring-interval day|week|month|year` to `spend-request create`.
+`--recurring-interval-count` is an optional positive integer; the server defaults
+it to `1`. For a $20 monthly limit, use `--amount 2000 --currency usd
+--recurring-interval month`. For every two weeks, use
+`--recurring-interval week --recurring-interval-count 2`. The amount is the
+spending limit for each period, not a lifetime total. The merchant schedules
+charges. Keep the credential type and merchant targeting required by checkout;
+recurring terms do not replace those inputs. Omit recurring flags for one-time
+purchases.
+
+Follow normal approval and credential retrieval. Recurring card requests stay
+active after individual charges. Do not poll for `succeeded` after each payment
+or create a replacement each period. Confirm payment from the merchant's result
+or transaction records. Respect request `expires_at` and credential expiry,
+including `card.valid_until`; do not assume a fixed lifetime.
+
+`spend-request update` cannot change the interval or count. To stop future use
+of a credential, call `spend-request cancel <id>` and check the result.
+Canceling a spend request revokes its credential but does not cancel the
+merchant subscription. Complete the merchant's cancellation flow when that is
+what the user requested.
 
 **`--line-item` keys:** `name` (required), `quantity`, `unit_amount`, `description`, `sku`, `url`, `image_url`, `product_url`. Repeatable for multiple items.
 
@@ -227,7 +254,7 @@ This same `requires_action` status can also appear later from `spend-request ret
 link-cli spend-request retrieve <id> --include card --output-file /tmp/link-card.json --format json
 ```
 
-**SPT with 402 flow:** `mpp pay` handles the entire machine payment flow end-to-end. It probes the URL for a 402 challenge, parses the `www-authenticate` header to extract the network ID and amount, creates a spend request, gets user approval, retrieves the SPT, and pays. SPTs are one-time use.
+**SPT with 402 flow:** `mpp pay` handles the entire machine payment flow end-to-end. It probes the URL for a 402 challenge, parses the `www-authenticate` header to extract the network ID and amount, creates a one-time spend request, gets user approval, retrieves the SPT, and pays. SPTs created by this flow are single use.
 
 ```bash
 link-cli mpp pay <url> --context "<description>" [-X POST] [-d '<body>'] [-H 'Name: Value'] [--test]
@@ -235,7 +262,7 @@ link-cli mpp pay <url> --context "<description>" [-X POST] [-d '<body>'] [-H 'Na
 
 The amount and currency are derived from the 402 challenge automatically. Pass `--amount` to override. `--context` is required (min 100 chars) — describe the purchase and rationale so the user understands what they are approving. The default payment method is used unless `--payment-method-id` is specified.
 
-The SPT is **one-time use** — if the payment fails, run `mpp pay` again (it will create a new spend request).
+The SPT created by `mpp pay` is **one-time use** — if it has been consumed, a retry needs a new spend request. Check the payment outcome before retrying.
 
 **Pre-approved spend request:** If you already have an approved spend request with `credential_type: "shared_payment_token"`, pass `--spend-request-id <id>` to skip the creation/approval steps:
 
@@ -449,9 +476,9 @@ Notes:
 
 | Limit | Value |
 |-------|-------|
-| Max amount per spend request | $500 (50,000 cents) |
+| Amount limit | Use the user's current limits from `user-info retrieve`; recurring `amount` is the limit per period |
 | Approval window | 30 minutes — user must approve within 30 min of `spend-request request-approval` |
-| Card / SPT validity (`valid_until`) | 12 hours from spend request creation |
+| Request / credential validity | Use returned `expires_at` and credential expiry; limits depend on the request and consumer country |
 | Daily spend per account | $500 |
 | Monthly spend per account (30 days) | $20,000 |
 | Concurrent active requests (created + approved) | 30 |

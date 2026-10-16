@@ -348,6 +348,38 @@ func TestRetrieveReturnsNilOnNotFound(t *testing.T) {
 	}
 }
 
+func TestCreateSerializesRecurringTerms(t *testing.T) {
+	count := int64(2)
+	for name, tc := range map[string]struct {
+		recurring *SpendRequestRecurringParams
+		want      string
+	}{
+		"one-time":       {nil, ""},
+		"default count":  {&SpendRequestRecurringParams{Interval: RecurringIntervalMonth}, `{"interval":"month"}`},
+		"explicit count": {&SpendRequestRecurringParams{Interval: RecurringIntervalWeek, IntervalCount: &count}, `{"interval":"week","interval_count":2}`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+				var body map[string]json.RawMessage
+				if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+					t.Error(err)
+					response.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				if got := string(body["recurring"]); got != tc.want {
+					t.Errorf("recurring = %s, want %s", got, tc.want)
+				}
+				_, _ = response.Write([]byte(`{"id":"lsrq_123","status":"pending_approval","created_at":"now","updated_at":"now"}`))
+			}))
+			defer server.Close()
+			client, err := NewClient(Options{AccessToken: "token", SpendRequestBaseURL: server.URL})
+			assertNoError(t, err)
+			_, err = client.SpendRequests.Create(context.Background(), CreateSpendRequestParams{Context: "Recurring purchase", Recurring: tc.recurring})
+			assertNoError(t, err)
+		})
+	}
+}
+
 func TestRetrieveDecodesRecurringTerms(t *testing.T) {
 	for name, tc := range map[string]struct {
 		recurring string

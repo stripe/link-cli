@@ -5,6 +5,7 @@ import type React from 'react';
 import { useCallback } from 'react';
 import { useAsyncAction } from '../../hooks/use-async-action';
 import { formatAmount } from '../../utils/format-amount';
+import { formatRecurring } from '../../utils/format-recurring';
 
 interface SpendRequestListProps {
   repository: ISpendRequestResource;
@@ -90,6 +91,7 @@ export const SpendRequestList: React.FC<SpendRequestListProps> = ({
                 <Text color={statusColor}>{sr.status}</Text>
                 {sr.merchant_name ? `  ${sr.merchant_name}` : ''}
                 {amount ? `  ${amount}` : ''}
+                {sr.recurring ? `  ${formatRecurring(sr.recurring)}` : ''}
               </Text>
             </Box>
           );

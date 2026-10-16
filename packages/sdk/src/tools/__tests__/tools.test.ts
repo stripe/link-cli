@@ -117,6 +117,45 @@ describe('Link tools', () => {
     },
   );
 
+  it.each([
+    { interval: 'month' as const },
+    { interval: 'week' as const, interval_count: 2 },
+  ])('passes recurring terms through the SDK: %j', async (recurring) => {
+    const { tools, fetch } = fixture();
+    await tools.create_spend_request.execute(
+      { ...purchase, recurring },
+      context,
+    );
+    const body = JSON.parse(String(fetch.mock.calls[0]![1]?.body));
+    expect(body.recurring).toEqual(recurring);
+    expect(body.request_approval).toBe(true);
+  });
+
+  it('rejects invalid recurring terms before resolving credentials and exposes only public intervals', async () => {
+    const { tools, getClient } = fixture();
+    for (const recurring of [
+      { interval: 'hour' },
+      { interval: 'minute' },
+      { interval_count: 2 },
+      { interval: 'month', interval_count: 0 },
+      { interval: 'month', interval_count: 1.5 },
+    ]) {
+      await expect(
+        tools.create_spend_request.execute(
+          { ...purchase, recurring } as never,
+          context,
+        ),
+      ).rejects.toThrow();
+    }
+    expect(getClient).not.toHaveBeenCalled();
+    const schema = z.toJSONSchema(tools.create_spend_request.inputSchema);
+    expect(schema.properties?.recurring).toMatchObject({
+      properties: { interval: { enum: ['day', 'week', 'month', 'year'] } },
+      required: ['interval'],
+    });
+    expect(JSON.stringify(schema)).not.toContain('hour');
+  });
+
   it.each(['', 'jp', 'usdd'])(
     'rejects explicit currency with invalid length: %s',
     async (currency) => {

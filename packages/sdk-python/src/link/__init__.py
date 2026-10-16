@@ -83,6 +83,7 @@ from .params import (
     ListSpendRequestsParams,
     ListTransactionsParams,
     RetrieveSpendRequestParams,
+    SpendRequestRecurringParams,
     TotalParams,
     UpdateSpendRequestParams,
 )
@@ -150,6 +151,7 @@ __all__ = [
     "LineItemParams",
     "ApprovalDetailParams",
     "CreateSpendRequestParams",
+    "SpendRequestRecurringParams",
     "UpdateSpendRequestParams",
     "ListSpendRequestsParams",
     "RetrieveSpendRequestParams",

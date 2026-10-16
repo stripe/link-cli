@@ -177,6 +177,40 @@ Keep returned card and payment-token credentials out of model context, logs,
 and user-visible messages. Credential fields are omitted from model `repr`,
 but `model_dump()` and `model_dump_json()` include them.
 
+## Recurring payments
+
+Pass `recurring` when the user has agreed to recurring spending:
+
+```python
+request = client.spend_requests.create(
+    credential_type="card",
+    merchant_name="Example Pro",
+    merchant_url="https://example.com/subscribe",
+    amount=2000,
+    currency="usd",
+    context=(
+        "Monthly access to Example Pro requested by the user, with a spending "
+        "limit of $20 per month including all taxes."
+    ),
+    recurring={"interval": "month"},
+    request_approval=True,
+)
+```
+
+This requests a $20 monthly spending limit. Intervals are `day`, `week`, `month`,
+and `year`; optional `interval_count` must be a positive integer and defaults
+to `1` on the server. `{"interval": "week", "interval_count": 2}` resets the
+limit every two weeks. `amount` is the limit per period. Omit `recurring` for
+a one-time purchase. `SpendRequestRecurringParams` is exported for typed callers.
+`AsyncClient` accepts the same arguments with `await`.
+
+Use normal approval and credential retrieval. The merchant schedules charges;
+recurring card requests stay active after individual charges. Do not wait for
+`succeeded` after each payment or create a new request each period. Confirm
+payments from the merchant or transaction records and respect returned request
+and credential expiries. `update` cannot change the cadence. `cancel` revokes
+the credential but does not cancel the subscription with the merchant.
+
 ## Resources
 
 Both client styles expose the following resources. Arguments after a resource

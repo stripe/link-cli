@@ -17,6 +17,7 @@ from link import (
     ShippingAddressRecord,
     SourcesPage,
     SpendRequest,
+    SpendRequestRecurringParams,
     TransactionsPage,
     UserInfoAddress,
 )
@@ -201,6 +202,22 @@ async def test_string_instead_of_sequence_is_rejected(
         else:
             await api.call(resource, "list", sources=value)
     assert not api.requests
+
+
+@pytest.mark.parametrize(
+    "recurring",
+    [None, {"interval": "month"}, {"interval": "week", "interval_count": 2}],
+)
+async def test_create_recurring_terms(
+    api: API, recurring: SpendRequestRecurringParams | None
+) -> None:
+    api.respond(SPEND)
+    await api.call("spend_requests", "create", context=CONTEXT, recurring=recurring)
+    body = json.loads(api.requests[0].content)
+    if recurring is None:
+        assert "recurring" not in body
+    else:
+        assert body["recurring"] == recurring
 
 
 async def test_create_all_fields_and_nested_omission(api: API) -> None:
