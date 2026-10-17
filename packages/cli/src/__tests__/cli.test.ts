@@ -1488,6 +1488,103 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     });
   });
 
+  describe('test-helpers spend-request approve', () => {
+    it('approves the test request by ID and returns its ID and status', async () => {
+      const approved = { id: 'lsrq_prod_001', status: 'approved' };
+      setNextResponse(200, approved);
+
+      const result = await runProdCli(
+        'test-helpers',
+        'spend-request',
+        'approve',
+        'lsrq_prod_001',
+        '--format',
+        'json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(parseJson(result.stdout)).toEqual(approved);
+      expect(lastRequest.method).toBe('POST');
+      expect(lastRequest.url).toBe(
+        '/api/test_helper/spend_requests/lsrq_prod_001/approve',
+      );
+      expect(lastRequest.headers.authorization).toBe(
+        'Bearer prod_test_access_token',
+      );
+      expect(lastRequest.body).toBe('');
+    });
+
+    it('prints the approval result for humans', async () => {
+      setNextResponse(200, { id: 'lsrq_prod_001', status: 'approved' });
+
+      const result = await runProdCliWithEnv(
+        {
+          NODE_OPTIONS:
+            '--import=data:text/javascript,process.stdout.isTTY=true',
+        },
+        'test-helpers',
+        'spend-request',
+        'approve',
+        'lsrq_prod_001',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout.trim()).toBe(
+        '✓ Spend request lsrq_prod_001 approved.',
+      );
+    });
+  });
+
+  describe('test-helpers spend-request deny', () => {
+    it('denies the test request by ID and returns its ID and status', async () => {
+      const denied = { id: 'lsrq_prod_001', status: 'denied' };
+      setNextResponse(200, denied);
+
+      const result = await runProdCli(
+        'test-helpers',
+        'spend-request',
+        'deny',
+        'lsrq_prod_001',
+        '--format',
+        'json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(parseJson(result.stdout)).toEqual(denied);
+      expect(lastRequest.method).toBe('POST');
+      expect(lastRequest.url).toBe(
+        '/api/test_helper/spend_requests/lsrq_prod_001/deny',
+      );
+      expect(lastRequest.headers.authorization).toBe(
+        'Bearer prod_test_access_token',
+      );
+      expect(lastRequest.body).toBe('');
+    });
+
+    it('prints the sanitized denial result for humans', async () => {
+      setNextResponse(200, {
+        id: '\u001b[31mlsrq_prod_001\u001b[0m',
+        status: 'denied',
+      });
+
+      const result = await runProdCliWithEnv(
+        {
+          NODE_OPTIONS:
+            '--import=data:text/javascript,process.stdout.isTTY=true',
+        },
+        'test-helpers',
+        'spend-request',
+        'deny',
+        'lsrq_prod_001',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout.trim()).toBe(
+        '✓ Spend request lsrq_prod_001 denied.',
+      );
+    });
+  });
+
   describe('spend-request cancel', () => {
     it('sends POST to /spend_requests/:id/cancel with auth header and no body', async () => {
       setNextResponse(200, { ...BASE_REQUEST, status: 'canceled' });

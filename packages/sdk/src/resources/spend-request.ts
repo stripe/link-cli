@@ -11,6 +11,7 @@ import type {
   RecurringInterval,
   RequestApprovalResponse,
   SpendRequest,
+  SpendRequestDecisionResponse,
 } from '@/types/index';
 
 const sharedPaymentTokenSchema = z.union([
@@ -39,6 +40,11 @@ const spendRequestSchema = z.looseObject({
 
 const spendRequestsResponseSchema = z.looseObject({
   data: z.array(spendRequestSchema),
+});
+
+const spendRequestDecisionResponseSchema = z.looseObject({
+  id: z.string(),
+  status: z.string(),
 });
 
 const requestApprovalResponseSchema = z
@@ -181,6 +187,40 @@ export class SpendRequestResource
     }
     return this.parseResponse('request approval', status, () =>
       requestApprovalResponseSchema.parse(data),
+    );
+  }
+
+  async approveTestRequest(id: string): Promise<SpendRequestDecisionResponse> {
+    const { status, data, rawBody } = await this.apiFetch({
+      method: 'POST',
+      url: new URL(
+        `../api/test_helper/spend_requests/${id}/approve`,
+        `${this.endpoint}/`,
+      ).toString(),
+    });
+
+    if (status < 200 || status >= 300) {
+      this.throwApiError('approve test request', status, data, rawBody);
+    }
+    return this.parseResponse('approve test request', status, () =>
+      spendRequestDecisionResponseSchema.parse(data),
+    );
+  }
+
+  async denyTestRequest(id: string): Promise<SpendRequestDecisionResponse> {
+    const { status, data, rawBody } = await this.apiFetch({
+      method: 'POST',
+      url: new URL(
+        `../api/test_helper/spend_requests/${id}/deny`,
+        `${this.endpoint}/`,
+      ).toString(),
+    });
+
+    if (status < 200 || status >= 300) {
+      this.throwApiError('deny test request', status, data, rawBody);
+    }
+    return this.parseResponse('deny test request', status, () =>
+      spendRequestDecisionResponseSchema.parse(data),
     );
   }
 

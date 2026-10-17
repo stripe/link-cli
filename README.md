@@ -479,6 +479,12 @@ stored currency.
 
 **Test mode:** Pass `--test` to create a testmode SpendRequest. A testmode SpendRequest will return test payment credentials (e.g test card `4000009990001984`) rather than a real payment credential. Testmode SpendRequests will not charge the underlying payment method of the SpendRequest. This is useful for development and integration testing without real payment methods.
 
+For automated integration tests, approve or deny a pending `--test` request with
+`link-cli test-helpers spend-request approve <id>` or
+`link-cli test-helpers spend-request deny <id>`. Both return `{id, status}` in JSON
+mode. Retrieve the spend request separately for credentials after approval;
+approval does not guarantee credentials are ready. Live requests are rejected.
+
 ```bash
 # Update before approval
 link-cli spend-request update lsrq_001 \

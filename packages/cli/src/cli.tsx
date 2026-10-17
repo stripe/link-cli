@@ -14,6 +14,7 @@ import { createServeCli } from './commands/serve';
 import { createShippingAddressCli } from './commands/shipping-address';
 import { createSourcesCli } from './commands/sources';
 import { createSpendRequestCli } from './commands/spend-request';
+import { createTestHelpersCli } from './commands/test-helpers';
 import { createTransactionsCli } from './commands/transactions';
 import { createUcpCli } from './commands/ucp';
 import { createUserInfoCli } from './commands/user-info';
@@ -118,6 +119,9 @@ cli.command(
   createSpendRequestCli(spendRequestRepo, authStorage, envAccessToken, {
     usedRemovedExecutionMethod,
   }),
+);
+cli.command(
+  createTestHelpersCli(spendRequestRepo, authStorage, envAccessToken),
 );
 cli.command(
   createPaymentMethodsCli(
