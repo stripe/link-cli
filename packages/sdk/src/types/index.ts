@@ -90,7 +90,6 @@ export interface SpendRequestStatusDetails {
 
 export type CredentialType = 'shared_payment_token' | 'card' | 'link_pay_token';
 
-// hour is reserved for internal testing and requires server-side enablement.
 export type RecurringInterval = 'hour' | 'day' | 'week' | 'month' | 'year';
 
 export interface SpendRequestRecurring {

@@ -165,7 +165,7 @@ Choose `include` to match the approved request:
 | Shared Payment Token | `["shared_payment_token"]` |
 | Link Pay Token | `["link_pay_token"]` |
 
-Respect the returned request and credential expiries, the approved merchant,
+Respect the returned credential expiry, the approved merchant,
 and the amount limit. SPTs for one-time requests are single use; retrieving
 the same request does not create a replacement token. Recurring credentials
 remain subject to the approved period and spending limit.

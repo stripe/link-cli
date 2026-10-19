@@ -113,13 +113,9 @@ export const createOptions = z.object({
     .number()
     .int()
     .optional()
-    .describe(
-      'Request expiry as a Unix timestamp (seconds). Omit to use Link’s default; maximum expiry depends on the request and consumer country',
-    ),
+    .describe('Unix timestamp (seconds).'),
   recurringInterval: z
     .string()
-    // The server gates hour for internal testing. Keep it out of generated
-    // help, completions, and JSON schemas while accepting it at runtime.
     .pipe(
       z.enum(['hour', 'day', 'week', 'month', 'year'], {
         error: 'Recurring interval must be day, week, month, or year.',

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createOptions } from '../schema';
 
 describe('recurring interval', () => {
-  it('accepts hourly testing through the CLI parser and rejects unknown intervals', async () => {
+  it('accepts known intervals through the CLI parser and rejects unknown intervals', async () => {
     const cli = Cli.create('test', {
       options: createOptions.pick({ recurringInterval: true }),
       run: (c) => c.options,

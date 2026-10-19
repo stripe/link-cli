@@ -220,7 +220,7 @@ same input shape. Existing credential-type and merchant requirements still apply
 Follow the normal approval and retrieval flow. The merchant schedules charges.
 Recurring card requests stay active after individual charges, so do not wait
 for `succeeded` after each payment or create a new request each period. Respect
-returned `expires_at` and credential expiry values; confirm payments from the
+returned credential expiry values; confirm payments from the
 merchant or transaction records. `update` cannot change the interval or count.
 `cancel` revokes the payment credential but does not cancel the merchant's
 subscription.

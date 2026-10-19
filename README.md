@@ -467,7 +467,7 @@ DOM-derived `merchant_account_id`, and Link supplies their canonical merchant
 identity. Card requests may also include `--network-id` to identify the merchant's
 network profile.
 
-**Constraints:** `context` must be at least 100 characters; `amount` is an integer in the currency's smallest unit (e.g. cents) and is subject to the user's spend limits; `currency` can be any supported 3-letter ISO code. Approval has a separate time window. Use the returned request `expires_at` and credential expiry (such as `card.valid_until`) to determine validity; expiry depends on the request and consumer country.
+**Constraints:** `context` must be at least 100 characters; `amount` is an integer in the currency's smallest unit (e.g. cents) and must not exceed 50000 USD cents equivalent; `currency` can be any supported 3-letter ISO code. The user has 30 minutes from when approval is requested to approve. Approved credentials (card or SPT) are valid for 48 hours from spend request creation.
 
 Omitting currency uses the consumer's default spend-request currency, reported by
 `userinfo.default_spend_request_currency` (`user-info retrieve` in the CLI).
@@ -540,7 +540,7 @@ or create a new request for each period. Confirm each payment from the
 merchant's result or transaction records.
 
 Recurring terms are set at creation; `spend-request update` does not change
-the interval or count. Respect the returned request and credential expiries.
+the interval or count. Respect the returned credential expiry.
 To stop future use of the payment credential, run
 `link-cli spend-request cancel <id>` and check the result. This revokes the
 credential; it does not cancel the subscription with the merchant. Complete
@@ -606,9 +606,9 @@ request.
 
 | Limit | Value |
 |-------|-------|
-| Amount limit | Use the user's current limits from `user-info retrieve`; recurring `amount` is the limit per period |
+| Max amount per spend request | $500 (50,000 cents) |
 | Approval window | 30 minutes — user must approve within 30 min of `request-approval` |
-| Request / credential validity | Use returned `expires_at` and credential expiry; limits depend on the request and consumer country |
+| Card / SPT validity | 48 hours from spend request creation |
 | Daily spend | $500 |
 | Monthly spend (30 days) | $20,000 |
 | Concurrent active requests (created + approved) | 30 |

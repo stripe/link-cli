@@ -207,8 +207,8 @@ a one-time purchase. `SpendRequestRecurringParams` is exported for typed callers
 Use normal approval and credential retrieval. The merchant schedules charges;
 recurring card requests stay active after individual charges. Do not wait for
 `succeeded` after each payment or create a new request each period. Confirm
-payments from the merchant or transaction records and respect returned request
-and credential expiries. `update` cannot change the cadence. `cancel` revokes
+payments from the merchant or transaction records and respect returned
+credential expiries. `update` cannot change the cadence. `cancel` revokes
 the credential but does not cancel the subscription with the merchant.
 
 ## Resources

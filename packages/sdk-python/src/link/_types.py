@@ -38,7 +38,6 @@ NextActionResolution: TypeAlias = Literal[
     "create_new_spend_request_after_completion",
 ]
 CredentialType: TypeAlias = Literal["shared_payment_token", "card", "link_pay_token"]
-# hour is reserved for internal testing and requires server-side enablement.
 RecurringInterval: TypeAlias = Literal["hour", "day", "week", "month", "year"]
 ApprovalMethod: TypeAlias = Literal["click", "programmatic", "voice"]
 DeviceType: TypeAlias = Literal["mobile", "web"]

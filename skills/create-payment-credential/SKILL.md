@@ -205,8 +205,7 @@ purchases.
 Follow normal approval and credential retrieval. Recurring card requests stay
 active after individual charges. Do not poll for `succeeded` after each payment
 or create a replacement each period. Confirm payment from the merchant's result
-or transaction records. Respect request `expires_at` and credential expiry,
-including `card.valid_until`; do not assume a fixed lifetime.
+or transaction records. Respect credential expiry, including `card.valid_until`.
 
 `spend-request update` cannot change the interval or count. To stop future use
 of a credential, call `spend-request cancel <id>` and check the result.
@@ -476,9 +475,9 @@ Notes:
 
 | Limit | Value |
 |-------|-------|
-| Amount limit | Use the user's current limits from `user-info retrieve`; recurring `amount` is the limit per period |
+| Max amount per spend request | $500 (50,000 cents) |
 | Approval window | 30 minutes — user must approve within 30 min of `spend-request request-approval` |
-| Request / credential validity | Use returned `expires_at` and credential expiry; limits depend on the request and consumer country |
+| Card / SPT validity (`valid_until`) | 48 hours from spend request creation |
 | Daily spend per account | $500 |
 | Monthly spend per account (30 days) | $20,000 |
 | Concurrent active requests (created + approved) | 30 |
