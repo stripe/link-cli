@@ -502,8 +502,7 @@ link-cli spend-request create \
 
 Use the returned `approval_url` and `status_details.requires_action.next_action.action_url`
 as-is. When creation-time callback context is supplied, do not manually append
-callback parameters. Contact-support and 3DS URLs are excluded from callback
-context decoration. A callback does not establish approval; retrieve the spend
+callback parameters. A callback does not establish approval; retrieve the spend
 request and check its status before continuing.
 
 **Test mode:** Pass `--test` to create a testmode SpendRequest. A testmode SpendRequest will return test payment credentials (e.g test card `4000009990001984`) rather than a real payment credential. Testmode SpendRequests will not charge the underlying payment method of the SpendRequest. This is useful for development and integration testing without real payment methods.

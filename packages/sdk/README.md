@@ -184,7 +184,6 @@ limited to 2,048 characters and the nonblank nonce to 512 JavaScript/UTF-16 code
 units; the API validates live-mode HTTPS, URL security, and pair validity.
 Use returned `approval_url` and `next_action.action_url` strings as-is. Do not
 manually append callback parameters when creation-time context was supplied.
-Contact-support and 3DS URLs are excluded from callback context decoration.
 Retrieve the request to determine its status after a callback.
 
 ## Configuration
