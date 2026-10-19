@@ -29,7 +29,7 @@ const purchase = {
 };
 
 describe('Link tools', () => {
-  it.each([' opaque+nonce ', 'a'.repeat(512), '😀'.repeat(256)])(
+  it.each([' opaque+nonce ', 'a'.repeat(512), '\u{10000}'.repeat(256)])(
     'passes callback context unchanged through the tool to HTTP %#',
     async (nonce) => {
       const { tools, fetch } = fixture();
@@ -75,7 +75,7 @@ describe('Link tools', () => {
     },
     {
       completion_callback_url: 'https://agent.example.com/link/callback',
-      nonce: `${'😀'.repeat(256)}a`,
+      nonce: `${'\u{10000}'.repeat(256)}a`,
     },
     { completion_callback_url: 'not a URL', nonce: 'nonce' },
     {

@@ -12,7 +12,7 @@ describe('spend-request callback context', () => {
     expect(result.nonce).toBeUndefined();
   });
 
-  it.each([' opaque+nonce ', 'a'.repeat(512), '😀'.repeat(256)])(
+  it.each([' opaque+nonce ', 'a'.repeat(512), '\u{10000}'.repeat(256)])(
     'preserves valid callback context %#',
     (nonce) => {
       const result = createOptions.parse({
@@ -43,7 +43,7 @@ describe('spend-request callback context', () => {
     { completionCallbackUrl: callbackUrl, nonce: '' },
     { completionCallbackUrl: callbackUrl, nonce: ' \t\n' },
     { completionCallbackUrl: callbackUrl, nonce: 'a'.repeat(513) },
-    { completionCallbackUrl: callbackUrl, nonce: `${'😀'.repeat(256)}a` },
+    { completionCallbackUrl: callbackUrl, nonce: `${'\u{10000}'.repeat(256)}a` },
     { completionCallbackUrl: 'not a URL', nonce: 'nonce' },
     {
       completionCallbackUrl: `https://agent.example.com/${'a'.repeat(2023)}`,

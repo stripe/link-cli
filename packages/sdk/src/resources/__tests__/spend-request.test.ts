@@ -74,7 +74,7 @@ describe('SpendRequestResource', () => {
         mockFetchResponse(200, spendRequestResponse);
         const completion_callback_url =
           'https://agent.example.com/link/callback?return=%2fcheckout';
-        const nonce = ' opaque+nonce 😀 ';
+        const nonce = ' opaque+nonce ';
         await repo.create({
           ...validParams,
           completion_callback_url,

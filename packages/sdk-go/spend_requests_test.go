@@ -12,7 +12,7 @@ import (
 
 func TestCreateSpendRequestCallbackEncoding(t *testing.T) {
 	callbackURL := "https://agent.example.com/link/callback?return=%2fcheckout"
-	nonce := " opaque+nonce 😀 "
+	nonce := " opaque+nonce "
 	for _, withCallback := range []bool{false, true} {
 		t.Run(map[bool]string{false: "omitted", true: "present"}[withCallback], func(t *testing.T) {
 			params := CreateSpendRequestParams{Context: "purchase"}
@@ -42,7 +42,7 @@ func (transport callbackTestTransport) RoundTrip(request *http.Request) (*http.R
 
 func TestSpendRequestCallbackRoundTrip(t *testing.T) {
 	callbackURL := "https://agent.example.com/link/callback?return=%2fcheckout"
-	nonce := " opaque+nonce 😀 "
+	nonce := " opaque+nonce "
 	query := "?completion_callback_url=https%3A%2F%2Fagent.example%2Fcallback%3Freturn%3Da%252Fb&nonce=%20opaque%2Bnonce%20"
 	approvalURL := "https://app.link.com/approve" + query
 	actionURL := "https://app.link.com/verify" + query

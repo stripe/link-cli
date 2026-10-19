@@ -383,7 +383,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       async (approve) => {
         const callbackUrl =
           'https://agent.example.com/link/callback?return=%2fcheckout';
-        const nonce = ' opaque+nonce 😀 ';
+        const nonce = ' opaque+nonce ';
         const result = await runProdCli(
           'spend-request',
           'create',

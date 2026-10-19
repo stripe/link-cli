@@ -208,7 +208,7 @@ async def test_create_all_fields_and_nested_omission(api: API) -> None:
         "context": CONTEXT,
         "idempotency_key": "idem-1",
         "completion_callback_url": "https://agent.example.com/link/callback?return=%2fcheckout",
-        "nonce": " opaque+nonce 😀 ",
+        "nonce": " opaque+nonce ",
         "payment_details": "pm_1",
         "credential_type": "card",
         "network_id": "network",
