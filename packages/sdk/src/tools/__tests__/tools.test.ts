@@ -29,6 +29,71 @@ const purchase = {
 };
 
 describe('Link tools', () => {
+  it.each([' opaque+nonce ', 'a'.repeat(512), '\u{10000}'.repeat(256)])(
+    'passes callback context unchanged through the tool to HTTP %#',
+    async (nonce) => {
+      const { tools, fetch } = fixture();
+      const completion_callback_url =
+        'https://agent.example.com/link/callback?return=%2fcheckout';
+      await tools.create_spend_request.execute(
+        { ...purchase, completion_callback_url, nonce },
+        context,
+      );
+      expect(JSON.parse(String(fetch.mock.calls[0]![1]?.body))).toMatchObject({
+        completion_callback_url,
+        nonce,
+      });
+    },
+  );
+
+  it('accepts a callback URL at the length limit without normalization', () => {
+    const completion_callback_url = `https://agent.example.com/${'a'.repeat(2022)}`;
+    expect(completion_callback_url.length).toBe(2048);
+    expect(
+      linkToolSchemas.createSpendRequest.parse({
+        ...purchase,
+        completion_callback_url,
+        nonce: 'n',
+      }).completion_callback_url,
+    ).toBe(completion_callback_url);
+  });
+
+  it.each([
+    { completion_callback_url: 'https://agent.example.com/link/callback' },
+    { nonce: 'nonce' },
+    {
+      completion_callback_url: 'https://agent.example.com/link/callback',
+      nonce: '',
+    },
+    {
+      completion_callback_url: 'https://agent.example.com/link/callback',
+      nonce: ' \t\n',
+    },
+    {
+      completion_callback_url: 'https://agent.example.com/link/callback',
+      nonce: 'a'.repeat(513),
+    },
+    {
+      completion_callback_url: 'https://agent.example.com/link/callback',
+      nonce: `${'\u{10000}'.repeat(256)}a`,
+    },
+    { completion_callback_url: 'not a URL', nonce: 'nonce' },
+    {
+      completion_callback_url: `https://agent.example.com/${'a'.repeat(2023)}`,
+      nonce: 'nonce',
+    },
+  ])(
+    'rejects invalid callback context before resolving a client %#',
+    async (input) => {
+      const { tools, getClient, fetch } = fixture();
+      await expect(
+        tools.create_spend_request.execute({ ...purchase, ...input }, context),
+      ).rejects.toThrow();
+      expect(getClient).not.toHaveBeenCalled();
+      expect(fetch).not.toHaveBeenCalled();
+    },
+  );
+
   it('exposes JSON-Schema-compatible inputs without resolving credentials', () => {
     const { tools, getClient } = fixture();
     for (const tool of Object.values(tools)) {

@@ -68,6 +68,64 @@ describe('SpendRequestResource', () => {
   });
 
   describe('createSpendRequest', () => {
+    it.each([false, true])(
+      'passes callback context unchanged with delegated approval=%s',
+      async (approve) => {
+        mockFetchResponse(200, spendRequestResponse);
+        const completion_callback_url =
+          'https://agent.example.com/link/callback?return=%2fcheckout';
+        const nonce = ' opaque+nonce ';
+        await repo.create({
+          ...validParams,
+          completion_callback_url,
+          nonce,
+          approve,
+        });
+        const [url, opts] = mockFetch.mock.calls[0]!;
+        expect(url).toBe(
+          `https://api.link.com/spend_requests${approve ? '/create_delegated' : ''}`,
+        );
+        expect(JSON.parse(opts.body)).toEqual({
+          ...validParams,
+          completion_callback_url,
+          nonce,
+        });
+      },
+    );
+
+    it.each(['create', 'retrieve'] as const)(
+      'preserves encoded approval and action URLs on %s',
+      async (method) => {
+        const query =
+          '?completion_callback_url=https%3A%2F%2Fagent.example%2Fcallback%3Freturn%3Da%252Fb&nonce=%20opaque%2Bnonce%20';
+        const approval_url = `https://app.link.com/approve${query}`;
+        const action_url = `https://app.link.com/verify${query}`;
+        mockFetchResponse(200, {
+          ...spendRequestResponse,
+          approval_url,
+          status: 'requires_action',
+          status_details: {
+            requires_action: {
+              next_action: {
+                type: 'identity_verification',
+                display_message: 'Verify identity',
+                resolution: 'create_new_spend_request',
+                action_url,
+              },
+            },
+          },
+        });
+        const result =
+          method === 'create'
+            ? await repo.create(validParams)
+            : await repo.retrieve('si_123');
+        expect(result?.approval_url).toBe(approval_url);
+        expect(
+          result?.status_details?.requires_action?.next_action.action_url,
+        ).toBe(action_url);
+      },
+    );
+
     it('sends POST to correct endpoint with JSON body and Bearer auth header', async () => {
       mockFetchResponse(200, spendRequestResponse);
 
@@ -305,7 +363,27 @@ describe('SpendRequestResource', () => {
       expect(url).toBe('https://api.link.com/spend_requests/create_delegated');
       const sentBody = JSON.parse(opts.body);
       expect(sentBody.approve).toBeUndefined();
+      expect(sentBody.use_approval_policy).toBeUndefined();
       expect(sentBody.idempotency_key).toBe('delegated-key');
+    });
+
+    it('includes use_approval_policy in the delegated creation body without the approve routing flag', async () => {
+      mockFetchResponse(200, spendRequestResponse);
+
+      await repo.create({
+        ...validParams,
+        approve: true,
+        use_approval_policy: true,
+        idempotency_key: 'delegated-key',
+      });
+
+      const [url, opts] = mockFetch.mock.calls[0]!;
+      expect(url).toBe('https://api.link.com/spend_requests/create_delegated');
+      expect(JSON.parse(opts.body)).toEqual({
+        ...validParams,
+        use_approval_policy: true,
+        idempotency_key: 'delegated-key',
+      });
     });
 
     it('keeps an incomplete keyed creation 409 as a LinkApiError', async () => {
@@ -369,6 +447,27 @@ describe('SpendRequestResource', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.link.com/spend_requests/si_123/update_delegated',
         expect.objectContaining({ body: JSON.stringify({ amount: 6000 }) }),
+      );
+    });
+
+    it('includes use_approval_policy in the delegated update body without the approve routing flag', async () => {
+      mockFetchResponse(200, {
+        ...spendRequestResponse,
+        amount: 6000,
+        approval_url: 'https://app.link.com/approve/si_123',
+      });
+
+      await repo.update('si_123', {
+        amount: 6000,
+        approve: true,
+        use_approval_policy: true,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.link.com/spend_requests/si_123/update_delegated',
+        expect.objectContaining({
+          body: JSON.stringify({ amount: 6000, use_approval_policy: true }),
+        }),
       );
     });
 

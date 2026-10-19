@@ -478,6 +478,34 @@ The client passes amounts through unchanged and performs no FX conversion.
 This default applies to newly created requests; existing requests retain their
 stored currency.
 
+#### Completion callbacks
+
+For an application-owned return destination, supply `--completion-callback-url`
+and `--nonce` together when creating a request. Both are optional; supplying only
+one is rejected locally. The callback must be a valid URL of at most 2,048
+characters. The nonce must be nonblank and at most 512 JavaScript/UTF-16 code
+units. The API enforces live-mode HTTPS and URL security rules.
+
+Generate an opaque, unpredictable nonce, save it unchanged, and verify an exact
+match when your application receives the callback:
+
+```bash
+NONCE="$(openssl rand -hex 32)"
+link-cli spend-request create \
+  --amount 5000 \
+  --currency usd \
+  --context "The user asked to purchase the selected item from Example Store for $50, including all shipping costs and taxes." \
+  --merchant-name "Example Store" \
+  --merchant-url "https://example.com" \
+  --completion-callback-url "https://agent.example.com/link/callback" \
+  --nonce "$NONCE"
+```
+
+Use the returned `approval_url` and `status_details.requires_action.next_action.action_url`
+as-is. When creation-time callback context is supplied, do not manually append
+callback parameters. A callback does not establish approval; retrieve the spend
+request and check its status before continuing.
+
 **Test mode:** Pass `--test` to create a testmode SpendRequest. A testmode SpendRequest will return test payment credentials (e.g test card `4000009990001984`) rather than a real payment credential. Testmode SpendRequests will not charge the underlying payment method of the SpendRequest. This is useful for development and integration testing without real payment methods.
 
 ```bash

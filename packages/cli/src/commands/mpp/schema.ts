@@ -50,6 +50,7 @@ export const payOptions = z.object({
     .describe(
       'Use test mode (creates testmode credentials from test card data)',
     ),
+  approve: z.boolean().default(false).describe(''),
 });
 
 export const decodeOptions = z.object({

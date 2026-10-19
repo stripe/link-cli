@@ -78,6 +78,25 @@ export const linkToolSchemas = {
           )
           .optional()
           .describe('Reuse only when retrying the same logical creation.'),
+        completion_callback_url: z
+          .url()
+          .max(2048)
+          .optional()
+          .describe(
+            'Callback destination (max 2,048 characters) included in returned approval and supported action URLs. Supply together with nonce. The API validates live-mode HTTPS and URL security.',
+          ),
+        nonce: z
+          .string()
+          .max(512)
+          .refine(
+            (value) => value.length <= 512,
+            'Nonce must be at most 512 UTF-16 code units',
+          )
+          .refine((value) => value.trim().length > 0, 'Must not be blank')
+          .optional()
+          .describe(
+            'Opaque callback nonce (max 512 UTF-16 code units). Supply together with completion_callback_url, save unchanged, and verify an exact match when the callback is received.',
+          ),
         payment_details: id
           .optional()
           .describe('Payment method ID; omit to use the default.'),
@@ -153,6 +172,15 @@ export const linkToolSchemas = {
       removedExecutionMethodError,
     )
     .superRefine((value, ctx) => {
+      const hasCallback = value.completion_callback_url !== undefined;
+      const hasNonce = value.nonce !== undefined;
+      if (hasCallback !== hasNonce) {
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            'completion_callback_url and nonce must be supplied together.',
+        });
+      }
       if (value.credential_type === 'link_pay_token') {
         if (
           !value.merchant_account_id ||

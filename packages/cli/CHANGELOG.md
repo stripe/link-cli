@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 0.28.0
+
+### Minor Changes
+
+- Add the `--use-approval-policy` flag to use the delegated approval flow. This feature is in beta and available only to select OAuth clients.
+
 ## 0.27.5
 
 ### Patch Changes

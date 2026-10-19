@@ -68,6 +68,8 @@ class SpendRequestRecurringParams(TypedDict, total=False):
 class CreateSpendRequestParams(TypedDict, total=False):
     context: Required[str]
     idempotency_key: str | None
+    completion_callback_url: str | None
+    nonce: str | None
     payment_details: str | None
     credential_type: CredentialType | None
     network_id: str | None

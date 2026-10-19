@@ -71,6 +71,16 @@ export interface SpendRequestRecurringParams {
 
 export interface CreateSpendRequestParams {
   idempotency_key?: string;
+  /**
+   * Callback destination included in returned approval and supported action URLs.
+   * Must be supplied together with nonce. The API validates URL security.
+   */
+  completion_callback_url?: string;
+  /**
+   * Opaque callback nonce. Supply together with completion_callback_url,
+   * save unchanged, and verify an exact match when the callback is received.
+   */
+  nonce?: string;
   payment_details?: string;
   credential_type?: CredentialType;
   network_id?: string;

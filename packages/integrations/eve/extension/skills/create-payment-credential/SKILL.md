@@ -90,6 +90,16 @@ Replace the example values with the verified checkout details. `line_items` and
 an SPT, provide `network_id` and omit `merchant_name` and `merchant_url`. For
 LPT, use the bound-request inputs above.
 
+**Completion callbacks (optional):** If your application has a callback destination,
+add `completion_callback_url` and `nonce` together to the create inputs above.
+Generate an opaque, unpredictable nonce with a cryptographic random generator;
+save it unchanged and verify an exact match when the callback is received. The
+URL must be valid and at most 2,048 characters; the nonce must be nonblank and at
+most 512 UTF-16 code units. The API validates live-mode HTTPS and URL security.
+Use the returned `approval_url` or `action_url` as-is; do not manually append
+callback parameters when creation-time context was supplied. Retrieve the request
+to check its status after a callback; a callback does not establish approval.
+
 **Currency:** Spend requests can be in any supported currency. Pass `currency`
 as a 3-letter ISO 4217 code (e.g. `usd`, `eur`, `gbp`). If omitted, Link uses
 the consumer's default spend-request currency.

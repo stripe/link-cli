@@ -224,6 +224,8 @@ async def test_create_all_fields_and_nested_omission(api: API) -> None:
     params = {
         "context": CONTEXT,
         "idempotency_key": "idem-1",
+        "completion_callback_url": "https://agent.example.com/link/callback?return=%2fcheckout",
+        "nonce": " opaque+nonce ",
         "payment_details": "pm_1",
         "credential_type": "card",
         "network_id": "network",
@@ -285,6 +287,8 @@ async def test_minimal_create_and_explicit_empty_collections(api: API) -> None:
                 "context": CONTEXT,
                 "amount": None,
                 "idempotency_key": None,
+                "completion_callback_url": None,
+                "nonce": None,
                 "line_items": [],
                 "totals": [],
                 "metadata": {},
@@ -664,3 +668,36 @@ async def test_read_only_sequences_and_mappings(api: API) -> None:
     api.respond({"data": []})
     await api.call("balances", "list", sources=("source_1", "source_2"))
     assert api.requests[-1].url.params.get_list("sources[]") == ["source_1", "source_2"]
+
+
+@pytest.mark.parametrize("method", ["create", "retrieve"])
+async def test_callback_urls_are_preserved(api: API, method: str) -> None:
+    query = (
+        "?completion_callback_url=https%3A%2F%2Fagent.example%2Fcallback"
+        "%3Freturn%3Da%252Fb&nonce=%20opaque%2Bnonce%20"
+    )
+    approval_url = "https://app.link.com/approve" + query
+    action_url = "https://app.link.com/verify" + query
+    api.respond(
+        {
+            **SPEND,
+            "approval_url": approval_url,
+            "status": "requires_action",
+            "status_details": {
+                "requires_action": {
+                    "next_action": {
+                        "type": "identity_verification",
+                        "display_message": "Verify identity",
+                        "resolution": "create_new_spend_request",
+                        "action_url": action_url,
+                    },
+                },
+            },
+        }
+    )
+    if method == "create":
+        result = await api.call("spend_requests", method, context=CONTEXT)
+    else:
+        result = await api.call("spend_requests", method, "sr_123")
+    assert result.approval_url == approval_url
+    assert result.status_details.requires_action.next_action.action_url == action_url
