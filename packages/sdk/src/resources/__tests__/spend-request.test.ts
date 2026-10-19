@@ -68,6 +68,64 @@ describe('SpendRequestResource', () => {
   });
 
   describe('createSpendRequest', () => {
+    it.each([false, true])(
+      'passes callback context unchanged with delegated approval=%s',
+      async (approve) => {
+        mockFetchResponse(200, spendRequestResponse);
+        const completion_callback_url =
+          'https://agent.example.com/link/callback?return=%2fcheckout';
+        const nonce = ' opaque+nonce 😀 ';
+        await repo.create({
+          ...validParams,
+          completion_callback_url,
+          nonce,
+          approve,
+        });
+        const [url, opts] = mockFetch.mock.calls[0]!;
+        expect(url).toBe(
+          `https://api.link.com/spend_requests${approve ? '/create_delegated' : ''}`,
+        );
+        expect(JSON.parse(opts.body)).toEqual({
+          ...validParams,
+          completion_callback_url,
+          nonce,
+        });
+      },
+    );
+
+    it.each(['create', 'retrieve'] as const)(
+      'preserves encoded approval and action URLs on %s',
+      async (method) => {
+        const query =
+          '?completion_callback_url=https%3A%2F%2Fagent.example%2Fcallback%3Freturn%3Da%252Fb&nonce=%20opaque%2Bnonce%20';
+        const approval_url = `https://app.link.com/approve${query}`;
+        const action_url = `https://app.link.com/verify${query}`;
+        mockFetchResponse(200, {
+          ...spendRequestResponse,
+          approval_url,
+          status: 'requires_action',
+          status_details: {
+            requires_action: {
+              next_action: {
+                type: 'identity_verification',
+                display_message: 'Verify identity',
+                resolution: 'create_new_spend_request',
+                action_url,
+              },
+            },
+          },
+        });
+        const result =
+          method === 'create'
+            ? await repo.create(validParams)
+            : await repo.retrieve('si_123');
+        expect(result?.approval_url).toBe(approval_url);
+        expect(
+          result?.status_details?.requires_action?.next_action.action_url,
+        ).toBe(action_url);
+      },
+    );
+
     it('sends POST to correct endpoint with JSON body and Bearer auth header', async () => {
       mockFetchResponse(200, spendRequestResponse);
 

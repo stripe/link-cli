@@ -101,8 +101,8 @@ Replace `<your-agent-name>` with the name of your agent or application (for exam
 
 The response includes a `_next` command — run it to poll until authenticated. If your environment cannot relay the verification code while a separate polling command blocks I/O, use inline polling instead: `auth login --client-name "<name>" --interval 5 --timeout 300`. This yields the code immediately then polls in the same command.
 
-If the user's email is already known, save them time by adding it as the
-URL-encoded `fromEmail` query parameter to any `app.link.com` verification or
+If the user's email is already known and no creation-time callback context was
+supplied, save them time by adding it as the URL-encoded `fromEmail` query parameter to any `app.link.com` verification or
 action URL; preserve existing query parameters.
 
 DO NOT PROCEED until the user is authenticated with Link.
@@ -182,6 +182,23 @@ link-cli spend-request create \
 
 Card requests may also include `--network-id <network_id>` to identify the
 merchant's network profile. Keep the card's merchant name and URL parameters.
+
+**Completion callbacks (optional):** If your application has a callback destination,
+generate an opaque, unpredictable nonce (for example, `NONCE="$(openssl rand -hex 32)"`)
+and add both flags to the create command above:
+
+```bash
+  --completion-callback-url "https://agent.example.com/link/callback" \
+  --nonce "$NONCE"
+```
+
+Save the nonce unchanged and verify an exact match when the callback is received.
+Both flags must be supplied together. The URL must be valid and at most 2,048
+characters; the nonce must be nonblank and at most 512 UTF-16 code units. The API
+validates live-mode HTTPS and URL security. Use the returned `approval_url` and
+`action_url` as-is; do not manually append callback parameters when creation-time
+context was supplied. Contact-support and 3DS URLs are excluded from callback
+context decoration. Retrieve the request to check its status after a callback.
 
 **Currency:** Spend requests can be in any supported currency. Pass `--currency` as a 3-letter ISO 4217 code (e.g. `usd`, `eur`, `gbp`); it defaults to `usd`. Use the currency the merchant's checkout charges in rather than converting prices yourself. If the currency is not supported, the API rejects the request.
 

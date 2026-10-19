@@ -7,6 +7,12 @@ type GetAccessTokenOptions struct {
 
 // CreateSpendRequestParams contains fields accepted when creating a spend request.
 type CreateSpendRequestParams struct {
+	// CompletionCallbackURL is included in returned approval and supported action URLs.
+	// Supply together with Nonce; the API validates URL security.
+	CompletionCallbackURL *string `json:"completion_callback_url,omitempty"`
+	// Nonce is an opaque callback value. Save unchanged and verify an exact match on callback.
+	// Supply together with CompletionCallbackURL.
+	Nonce             *string           `json:"nonce,omitempty"`
 	IdempotencyKey    *string           `json:"idempotency_key,omitempty"`
 	PaymentDetails    *string           `json:"payment_details,omitempty"`
 	CredentialType    *CredentialType   `json:"credential_type,omitempty"`

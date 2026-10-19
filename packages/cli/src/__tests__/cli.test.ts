@@ -378,6 +378,68 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
   });
 
   describe('spend-request create', () => {
+    it.each([false, true])(
+      'passes callback context unchanged with delegated approval=%s',
+      async (approve) => {
+        const callbackUrl =
+          'https://agent.example.com/link/callback?return=%2fcheckout';
+        const nonce = ' opaque+nonce 😀 ';
+        const result = await runProdCli(
+          'spend-request',
+          'create',
+          '--merchant-name',
+          'Test Merchant',
+          '--merchant-url',
+          'https://example.com',
+          '--context',
+          VALID_CONTEXT,
+          '--amount',
+          '100',
+          '--completion-callback-url',
+          callbackUrl,
+          '--nonce',
+          nonce,
+          ...(approve ? ['--approve'] : []),
+          '--no-request-approval',
+          '--json',
+        );
+        expect(result.exitCode).toBe(0);
+        expect(lastRequest.url).toBe(
+          approve ? '/spend_requests/create_delegated' : '/spend_requests',
+        );
+        expect(JSON.parse(lastRequest.body)).toMatchObject({
+          completion_callback_url: callbackUrl,
+          nonce,
+        });
+        expect(requests).toHaveLength(1);
+      },
+    );
+
+    it.each([
+      ['--completion-callback-url', 'https://agent.example.com/link/callback'],
+      ['--nonce', 'nonce'],
+    ])('rejects an unpaired callback flag %s before HTTP', async (...flags) => {
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--merchant-name',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '100',
+        ...flags,
+        '--json',
+      );
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout + result.stderr).toContain(
+        'must be supplied together',
+      );
+      expect(requests).toHaveLength(0);
+    });
+
     it.each([
       { currency: undefined, approve: false },
       { currency: undefined, approve: true },
@@ -482,6 +544,8 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         '550e8400-e29b-41d4-a716-446655440000',
       );
       expect(sentBody.amount).toBe(5000);
+      expect(sentBody).not.toHaveProperty('completion_callback_url');
+      expect(sentBody).not.toHaveProperty('nonce');
       expect(sentBody.approve).toBeUndefined();
       expect(sentBody.use_approval_policy).toBeUndefined();
       expect(sentBody).not.toHaveProperty('currency');

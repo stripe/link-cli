@@ -177,6 +177,19 @@ Keep returned card and payment-token credentials out of model context, logs,
 and user-visible messages. Credential fields are omitted from model `repr`,
 but `model_dump()` and `model_dump_json()` include them.
 
+## Completion callbacks
+
+Pass optional `completion_callback_url` and `nonce` keyword arguments to `client.spend_requests.create()`; synchronous and asynchronous clients support both.
+
+Supply both fields or neither. Use an opaque, unpredictable nonce, save it
+unchanged, and verify an exact match when the callback is received. The URL is
+limited to 2,048 characters and the nonblank nonce to 512 JavaScript/UTF-16 code
+units; the API validates live-mode HTTPS, URL security, and pair validity.
+Use returned `approval_url` and `next_action.action_url` strings as-is. Do not
+manually append callback parameters when creation-time context was supplied.
+Contact-support and 3DS URLs are excluded from callback context decoration.
+Retrieve the request to determine its status after a callback.
+
 ## Resources
 
 Both client styles expose the following resources. Arguments after a resource
