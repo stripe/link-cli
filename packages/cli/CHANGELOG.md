@@ -1,5 +1,15 @@
 # @stripe/link-cli
 
+## 0.29.0
+
+### Minor Changes
+
+- 5adf7d9: Support recurring spend requests in public SDK inputs and agent tools. Document
+  daily, weekly, monthly, and yearly spending limits, approval, expiry, and
+  cancellation. Show recurring cadence in CLI spend request lists and update
+  payment skills to handle recurring purchases.
+- 88dc127: Add optional completion callback URL and nonce inputs to spend-request creation. CLI and agent tools require both or neither, validate URL and nonce limits, and preserve the supplied values unchanged. Returned approval and supported action URLs carry the backend-provided callback context; response parsing and polling behavior are unchanged.
+
 ## 0.28.0
 
 ### Minor Changes
