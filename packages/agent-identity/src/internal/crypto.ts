@@ -98,8 +98,9 @@ export async function verifyRsaPss(
   signature: Uint8Array,
   message: Uint8Array,
 ): Promise<boolean> {
-  // RSASSA-PSS signatures must be exactly k octets. OpenSSL accepts a shorter
-  // encoding when the removed leading octets are zero, so check the wire form.
+  // RSASSA-PSS signatures must be exactly k octets. Node's crypto verifier
+  // accepts a shorter encoding when the removed leading octets are zero, so
+  // check the wire form.
   const modulusBits = (key.algorithm as RsaHashedKeyAlgorithm).modulusLength;
   if (signature.byteLength !== Math.ceil(modulusBits / 8)) return false;
 
