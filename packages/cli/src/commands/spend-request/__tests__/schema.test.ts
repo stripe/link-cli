@@ -43,7 +43,10 @@ describe('spend-request callback context', () => {
     { completionCallbackUrl: callbackUrl, nonce: '' },
     { completionCallbackUrl: callbackUrl, nonce: ' \t\n' },
     { completionCallbackUrl: callbackUrl, nonce: 'a'.repeat(513) },
-    { completionCallbackUrl: callbackUrl, nonce: `${'\u{10000}'.repeat(256)}a` },
+    {
+      completionCallbackUrl: callbackUrl,
+      nonce: `${'\u{10000}'.repeat(256)}a`,
+    },
     { completionCallbackUrl: 'not a URL', nonce: 'nonce' },
     {
       completionCallbackUrl: `https://agent.example.com/${'a'.repeat(2023)}`,
