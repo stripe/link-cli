@@ -582,6 +582,10 @@ By default, a spend request provisions a virtual card. Link can also provide a s
 
 For merchants that support the [Machine Payments Protocol](https://mpp.dev) (HTTP 402) and the Stripe payment method, instead pass `--credential-type "shared_payment_token"` when creating the spend request. SPTs for one-time requests are single use; a consumed token requires a new spend request.
 
+For recurring SPTs, `usage_limits.max_amount` is the spending limit per period.
+The available spending amount resets to this limit each new period, as defined
+by `recurring.interval` and `recurring.interval_count`.
+
 Use `mpp decode` to validate a raw `WWW-Authenticate` header and extract the `network_id` needed for `shared_payment_token` spend requests:
 
 ```bash

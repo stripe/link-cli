@@ -118,7 +118,7 @@ export const linkToolSchemas = {
           .positive()
           .max(500000)
           .describe(
-            'Amount in the currency’s minor units. For recurring requests, the spending limit per period.',
+            'Amount in the currency’s minor units. For recurring requests, including shared payment tokens, the spending limit per period. The available spending amount resets to this limit each new period.',
           ),
         currency: z
           .string()
