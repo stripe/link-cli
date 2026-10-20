@@ -8,6 +8,7 @@ import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback } from 'react';
 import { useAsyncAction } from '../../hooks/use-async-action';
+import { formatAmount } from '../../utils/format-amount';
 
 interface CatalogSearchProps {
   repository: IUcpResource;
@@ -28,7 +29,7 @@ const TITLE_MAX_WIDTH = 30;
 
 function formatPrice(price?: number, currency?: string): string {
   if (price == null) return '';
-  return `$${(price / 100).toFixed(2)} ${(currency ?? 'usd').toUpperCase()}`;
+  return formatAmount(price, currency ?? 'usd');
 }
 
 function toRow(product: UcpSearchResult['data'][number]): CatalogRow {

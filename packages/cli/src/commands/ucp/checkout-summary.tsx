@@ -1,13 +1,14 @@
 import type { UcpCheckout } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import type React from 'react';
+import { formatAmount as formatCurrencyAmount } from '../../utils/format-amount';
 
 function formatAmount(
   amount?: number | null,
   currency?: string | null,
 ): string {
   if (amount == null) return 'N/A';
-  return `$${(amount / 100).toFixed(2)} ${(currency ?? 'usd').toUpperCase()}`;
+  return formatCurrencyAmount(amount, currency ?? 'usd');
 }
 
 interface CheckoutSummaryProps {
