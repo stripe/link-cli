@@ -75,6 +75,33 @@ function makeSequentialMockRepo(
 }
 
 describe('spend-request', () => {
+  it('lists the recurring spending limit and cadence alongside ordinary purchases', async () => {
+    const repository = sanitizeResource({
+      list: vi.fn(async () => [
+        makeSpendRequest({
+          id: 'sr_recurring',
+          recurring: { interval: 'week', interval_count: 2 },
+        }),
+        makeSpendRequest({ id: 'sr_once' }),
+      ]),
+    } as unknown as ISpendRequestResource);
+    const { lastFrame, unmount } = render(
+      <SpendRequestList repository={repository} onComplete={vi.fn()} />,
+    );
+    try {
+      await vi.waitFor(() => {
+        const frame = lastFrame() ?? '';
+        expect(frame).toMatch(/sr_recurring.*\$10\.00\s+every 2 weeks/);
+        expect(frame).toMatch(/sr_once.*\$10\.00/);
+        expect(
+          frame.split('\n').find((line) => line.includes('sr_once')),
+        ).not.toContain('every');
+      });
+    } finally {
+      unmount();
+    }
+  });
+
   it.each([
     { currency: 'jpy', formatted: '¥100' },
     { currency: 'usd', formatted: '$1.00' },

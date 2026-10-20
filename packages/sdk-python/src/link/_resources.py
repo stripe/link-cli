@@ -32,6 +32,7 @@ from .params import (
     ListBalancesParams,
     ListSourcesParams,
     ListTransactionsParams,
+    SpendRequestRecurringParams,
     TotalParams,
     UpdateSpendRequestParams,
 )
@@ -54,6 +55,8 @@ class SpendRequestsResource:
         *,
         context: str,
         idempotency_key: str | None = None,
+        completion_callback_url: str | None = None,
+        nonce: str | None = None,
         payment_details: str | None = None,
         credential_type: CredentialType | None = None,
         network_id: str | None = None,
@@ -68,11 +71,18 @@ class SpendRequestsResource:
         test: bool | None = None,
         approval_details: ApprovalDetailParams | None = None,
         metadata: Mapping[str, str] | None = None,
+        recurring: SpendRequestRecurringParams | None = None,
     ) -> SpendRequest:
-        """Create a spend request."""
+        """Create a spend request.
+
+        Supply completion_callback_url and nonce together for callback context.
+        Save the nonce unchanged and verify an exact match on callback.
+        """
         params: CreateSpendRequestParams = {
             "context": context,
             "idempotency_key": idempotency_key,
+            "completion_callback_url": completion_callback_url,
+            "nonce": nonce,
             "payment_details": payment_details,
             "credential_type": credential_type,
             "network_id": network_id,
@@ -87,6 +97,7 @@ class SpendRequestsResource:
             "test": test,
             "approval_details": approval_details,
             "metadata": metadata,
+            "recurring": recurring,
         }
         return self._transport.request(op.spend_create(params))
 

@@ -120,7 +120,7 @@ export function createSpendRequestCli(
   });
 
   cli.command('create', {
-    description: 'Create a new spend request',
+    description: 'Create a one-time or recurring spend request',
     options: createOptions,
     alias: { merchantName: 'm' },
     outputPolicy: 'agent-only' as const,
@@ -135,6 +135,7 @@ export function createSpendRequestCli(
       requireAuthGuard(c, authStorage, envAccessToken);
 
       const opts = c.options;
+      const useDelegatedApproval = opts.approve || opts.useApprovalPolicy;
       const requestApproval = !!opts.requestApproval;
       const credentialType = opts.credentialType as CredentialType | undefined;
       const networkId = opts.networkId;
@@ -169,11 +170,13 @@ export function createSpendRequestCli(
             message: 'test cannot be used with Link Pay Token',
           });
         }
-        if (opts.approve && requestApproval) {
+        if (useDelegatedApproval && requestApproval) {
+          const approvalFlag = opts.approve
+            ? '--approve'
+            : '--use-approval-policy';
           return c.error({
             code: 'INVALID_INPUT',
-            message:
-              '--approve with Link Pay Token requires --no-request-approval',
+            message: `${approvalFlag} with Link Pay Token requires --no-request-approval`,
           });
         }
         if (opts.merchantName || opts.merchantUrl) {
@@ -269,6 +272,8 @@ export function createSpendRequestCli(
 
       const createParams = {
         idempotency_key: opts.idempotencyKey,
+        completion_callback_url: opts.completionCallbackUrl,
+        nonce: opts.nonce,
         payment_details: opts.paymentMethodId,
         credential_type: credentialType,
         network_id: networkId,
@@ -282,7 +287,8 @@ export function createSpendRequestCli(
         totals: totals as Total[] | undefined,
         request_approval: requestApproval || undefined,
         test: opts.test ? true : undefined,
-        approve: opts.approve ? true : undefined,
+        approve: useDelegatedApproval ? true : undefined,
+        use_approval_policy: opts.useApprovalPolicy ? true : undefined,
         approval_details: approvalDetails,
         metadata,
         expires_at: opts.expiresAt,
@@ -304,7 +310,7 @@ export function createSpendRequestCli(
             repository={repository}
             params={createParams}
             requestApproval={requestApproval}
-            approve={opts.approve ? true : undefined}
+            approve={useDelegatedApproval ? true : undefined}
             outputFile={outputFile}
             force={forceOverwrite}
             onComplete={(result) => {
@@ -414,6 +420,7 @@ export function createSpendRequestCli(
     async run(c) {
       const id = c.args.id;
       const opts = c.options;
+      const useDelegatedApproval = opts.approve || opts.useApprovalPolicy;
 
       const params: Record<string, unknown> = {};
       if (opts.paymentMethodId !== undefined)
@@ -432,9 +439,8 @@ export function createSpendRequestCli(
         params.totals = opts.total.map((item: unknown) =>
           typeof item === 'string' ? parseTotalFlag(item) : item,
         );
-      if (opts.approve !== undefined) {
-        params.approve = opts.approve;
-      }
+      params.approve = useDelegatedApproval;
+      params.use_approval_policy = opts.useApprovalPolicy ? true : undefined;
 
       if (!c.agent && !c.formatExplicit) {
         let capturedResult: SpendRequest | null = null;
@@ -635,7 +641,8 @@ export function createSpendRequestCli(
   });
 
   cli.command('cancel', {
-    description: 'Cancel a spend request',
+    description:
+      'Cancel a spend request and revoke its payment credentials. This does not cancel a subscription with the merchant',
     args: z.object({
       id: z.string().describe('Spend request ID'),
     }),

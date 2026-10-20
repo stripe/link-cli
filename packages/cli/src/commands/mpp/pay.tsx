@@ -159,6 +159,7 @@ export interface MppPayFullFlowOptions {
   amountOverride: number | undefined;
   paymentMethodId: string | undefined;
   test: boolean;
+  approve: boolean;
   repository: ISpendRequestResource;
   paymentMethodsFactory: () => IPaymentMethodsResource;
   onStep?: (step: Step) => void;
@@ -330,6 +331,7 @@ export async function runMppPayFullFlow(
     amountOverride,
     paymentMethodId,
     test,
+    approve,
     repository,
     paymentMethodsFactory,
     onStep,
@@ -397,16 +399,18 @@ export async function runMppPayFullFlow(
 
   // 4. Create spend request
   onStep?.('creating');
-  const spendRequest = await repository.create({
+  const createParams = {
     payment_details: pmId,
-    credential_type: 'shared_payment_token',
+    credential_type: 'shared_payment_token' as const,
     network_id: networkId,
     amount,
     currency: challengeCurrency,
     context,
     request_approval: true,
     test: test || undefined,
-  });
+    approve: approve || undefined,
+  };
+  const spendRequest = await repository.create(createParams);
 
   // 5. Poll for approval
   onStep?.('approving');
@@ -489,6 +493,7 @@ export function MppPay({
   amountOverride,
   paymentMethodId,
   test,
+  approve,
   repository,
   paymentMethodsFactory,
   onComplete,
@@ -502,6 +507,7 @@ export function MppPay({
   amountOverride?: number;
   paymentMethodId?: string;
   test?: boolean;
+  approve?: boolean;
   repository: ISpendRequestResource;
   paymentMethodsFactory: () => IPaymentMethodsResource;
   onComplete: (result: PayResult | null) => void;
@@ -543,6 +549,7 @@ export function MppPay({
             amountOverride,
             paymentMethodId,
             test: test ?? false,
+            approve: approve ?? false,
             repository,
             paymentMethodsFactory,
             onStep: setStep,
@@ -568,6 +575,7 @@ export function MppPay({
     amountOverride,
     paymentMethodId,
     test,
+    approve,
     repository,
     paymentMethodsFactory,
     onComplete,

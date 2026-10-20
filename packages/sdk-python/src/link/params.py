@@ -9,6 +9,7 @@ from ._types import (
     AuthenticationMethod,
     CredentialType,
     DeviceType,
+    RecurringInterval,
     ReportOutcome,
     ReportTag,
     TransactionOrigin,
@@ -57,9 +58,18 @@ class ApprovalDetailParams(TypedDict, total=False):
     authentication_method: AuthenticationMethod | None
 
 
+class SpendRequestRecurringParams(TypedDict, total=False):
+    """Spending-limit reset period. interval_count defaults to 1 when omitted."""
+
+    interval: Required[RecurringInterval]
+    interval_count: int
+
+
 class CreateSpendRequestParams(TypedDict, total=False):
     context: Required[str]
     idempotency_key: str | None
+    completion_callback_url: str | None
+    nonce: str | None
     payment_details: str | None
     credential_type: CredentialType | None
     network_id: str | None
@@ -74,6 +84,7 @@ class CreateSpendRequestParams(TypedDict, total=False):
     test: bool | None
     approval_details: ApprovalDetailParams | None
     metadata: Mapping[str, str] | None
+    recurring: SpendRequestRecurringParams | None
 
 
 class UpdateSpendRequestParams(TypedDict, total=False):

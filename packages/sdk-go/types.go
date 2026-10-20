@@ -139,6 +139,7 @@ const (
 type RecurringInterval string
 
 const (
+	RecurringIntervalHour  RecurringInterval = "hour"
 	RecurringIntervalDay   RecurringInterval = "day"
 	RecurringIntervalWeek  RecurringInterval = "week"
 	RecurringIntervalMonth RecurringInterval = "month"

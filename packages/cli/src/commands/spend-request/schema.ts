@@ -1,128 +1,179 @@
 import { z } from 'incur';
 
-export const createOptions = z.object({
-  idempotencyKey: z
-    .string()
-    .min(1, 'Idempotency key must not be empty')
-    .refine((key) => new TextEncoder().encode(key).length <= 255, {
-      message: 'Idempotency key must be at most 255 UTF-8 bytes',
-    })
-    .optional()
-    .describe(
-      'Opaque, non-sensitive value to reuse only when retrying the same logical creation',
-    ),
-  paymentMethodId: z.string().optional().describe('Payment method ID'),
-  credentialType: z
-    .enum(['shared_payment_token', 'card', 'link_pay_token'])
-    .default('card')
-    .describe(
-      '"card" for checkout forms, "link_pay_token" for supported Stripe payment surfaces, or "shared_payment_token" for HTTP 402/machine payment flows',
-    ),
-  networkId: z
-    .string()
-    .optional()
-    .describe(
-      'Merchant network ID (optional for card, required for shared_payment_token) — use `link-cli mpp decode` to extract for machine payments',
-    ),
-  merchantAccountId: z
-    .string()
-    .optional()
-    .describe(
-      'Stripe account ID from data-stripe-merchant-account; required for link_pay_token requests',
-    ),
-  amount: z.coerce
-    .number()
-    .int()
-    .positive()
-    .describe('Amount in the currency’s minor units'),
-  currency: z
-    .string()
-    .length(3)
-    .optional()
-    .describe(
-      'Currency code. Omit to use the consumer’s default spend-request currency. Specify explicitly when the amount comes from a checkout with a known currency.',
-    ),
-  merchantName: z
-    .string()
-    .optional()
-    .describe(
-      'Merchant name (required for regular card requests; omit for link_pay_token and shared_payment_token)',
-    ),
-  merchantUrl: z
-    .string()
-    .optional()
-    .describe(
-      'Merchant URL (required for regular card requests; omit for link_pay_token and shared_payment_token)',
-    ),
-  context: z
-    .string()
-    .min(100)
-    .describe(
-      'Min 100 chars — describe the purchase and rationale; the user reads this when approving',
-    ),
-  lineItem: z
-    .array(z.union([z.string(), z.record(z.string(), z.unknown())]))
-    .default([])
-    .describe(
-      'Line item (repeatable, key:value format). unit_amount uses the currency’s minor units. Keys: name (required), quantity, unit_amount, description, sku, url, image_url, product_url. Example: "name:Shoes,unit_amount:5000,quantity:2"',
-    ),
-  total: z
-    .array(z.union([z.string(), z.record(z.string(), z.unknown())]))
-    .default([])
-    .describe(
-      'Total (repeatable, key:value format). amount uses the currency’s minor units. Keys: type (required; one of: subtotal, tax, total, items_base_amount, items_discount, discount, fulfillment, shipping, fee, gift_wrap, tip, store_credit), display_text (required), amount (required). Example: "type:total,display_text:Total,amount:5000"',
-    ),
-  requestApproval: z
-    .boolean()
-    .default(true)
-    .describe(
-      'Request approval and poll until the request leaves the approval waiting states',
-    ),
-  test: z
-    .boolean()
-    .default(false)
-    .describe(
-      'Use test mode (creates testmode credentials from test card data)',
-    ),
-  approve: z.boolean().default(false).describe(''),
-  outputFile: z
-    .string()
-    .optional()
-    .describe(
-      'Write full card credentials to this file path; stdout shows redacted card data only',
-    ),
-  force: z
-    .boolean()
-    .default(false)
-    .describe('Overwrite output file if it already exists'),
-  approvalDetail: z
-    .union([z.string(), z.record(z.string(), z.unknown())])
-    .optional()
-    .describe(
-      'Approval details object (MCP/agent: pass as object; CLI: pass as JSON string). Required fields: approved_at (unix timestamp), approval_method (click|programmatic|voice), app_name, external_user_id. Optional: ip_address, user_agent, device_type (mobile|web), agent_log_id, external_user_name, external_session_id, device_id, authentication_method (biometric_face|biometric_fingerprint|passkey).',
-    ),
-  metadata: z
-    .array(z.union([z.string(), z.record(z.string(), z.string())]))
-    .default([])
-    .describe(
-      'Metadata key:value pair (repeatable). Attaches arbitrary string data to the spend request. Max 50 keys, key <= 40 chars, value <= 500 chars. Example: "order_id:ord_123"',
-    ),
-  expiresAt: z.coerce
-    .number()
-    .int()
-    .optional()
-    .describe('Unix timestamp (seconds).'),
-  recurringInterval: z
-    .enum(['day', 'week', 'month', 'year'])
-    .optional()
-    .describe('Recurring interval.'),
-  recurringIntervalCount: z.coerce
-    .number()
-    .int()
-    .positive()
-    .optional()
-    .describe('Recurring interval count.'),
-});
+export const createOptions = z
+  .object({
+    idempotencyKey: z
+      .string()
+      .min(1, 'Idempotency key must not be empty')
+      .refine((key) => new TextEncoder().encode(key).length <= 255, {
+        message: 'Idempotency key must be at most 255 UTF-8 bytes',
+      })
+      .optional()
+      .describe(
+        'Opaque, non-sensitive value to reuse only when retrying the same logical creation',
+      ),
+    completionCallbackUrl: z
+      .url()
+      .max(2048)
+      .optional()
+      .describe(
+        'Callback destination (max 2,048 characters). Supply together with --nonce. Returned approval and supported action URLs include this callback context; live-mode HTTPS and URL security are validated by the API.',
+      ),
+    nonce: z
+      .string()
+      .max(512)
+      .refine(
+        (value) => value.length <= 512,
+        'Nonce must be at most 512 UTF-16 code units',
+      )
+      .refine((value) => value.trim().length > 0, {
+        message: 'Nonce must not be blank',
+      })
+      .optional()
+      .describe(
+        'Opaque callback nonce (max 512 UTF-16 code units). Supply together with --completion-callback-url, save unchanged, and verify an exact match when the callback is received.',
+      ),
+    paymentMethodId: z.string().optional().describe('Payment method ID'),
+    credentialType: z
+      .enum(['shared_payment_token', 'card', 'link_pay_token'])
+      .default('card')
+      .describe(
+        '"card" for checkout forms, "link_pay_token" for supported Stripe payment surfaces, or "shared_payment_token" for HTTP 402/machine payment flows',
+      ),
+    networkId: z
+      .string()
+      .optional()
+      .describe(
+        'Merchant network ID (optional for card, required for shared_payment_token) — use `link-cli mpp decode` to extract for machine payments',
+      ),
+    merchantAccountId: z
+      .string()
+      .optional()
+      .describe(
+        'Stripe account ID from data-stripe-merchant-account; required for link_pay_token requests',
+      ),
+    amount: z.coerce
+      .number()
+      .int()
+      .positive()
+      .describe(
+        'Amount in the currency’s minor units. For recurring requests, the spending limit per period',
+      ),
+    currency: z
+      .string()
+      .length(3)
+      .optional()
+      .describe(
+        'Currency code. Omit to use the consumer’s default spend-request currency. Specify explicitly when the amount comes from a checkout with a known currency.',
+      ),
+    merchantName: z
+      .string()
+      .optional()
+      .describe(
+        'Merchant name (required for regular card requests; omit for link_pay_token and shared_payment_token)',
+      ),
+    merchantUrl: z
+      .string()
+      .optional()
+      .describe(
+        'Merchant URL (required for regular card requests; omit for link_pay_token and shared_payment_token)',
+      ),
+    context: z
+      .string()
+      .min(100)
+      .describe(
+        'Min 100 chars — describe the purchase and rationale; the user reads this when approving',
+      ),
+    lineItem: z
+      .array(z.union([z.string(), z.record(z.string(), z.unknown())]))
+      .default([])
+      .describe(
+        'Line item (repeatable, key:value format). unit_amount uses the currency’s minor units. Keys: name (required), quantity, unit_amount, description, sku, url, image_url, product_url. Example: "name:Shoes,unit_amount:5000,quantity:2"',
+      ),
+    total: z
+      .array(z.union([z.string(), z.record(z.string(), z.unknown())]))
+      .default([])
+      .describe(
+        'Total (repeatable, key:value format). amount uses the currency’s minor units. Keys: type (required; one of: subtotal, tax, total, items_base_amount, items_discount, discount, fulfillment, shipping, fee, gift_wrap, tip, store_credit), display_text (required), amount (required). Example: "type:total,display_text:Total,amount:5000"',
+      ),
+    requestApproval: z
+      .boolean()
+      .default(true)
+      .describe(
+        'Request approval and poll until the request leaves the approval waiting states',
+      ),
+    test: z
+      .boolean()
+      .default(false)
+      .describe(
+        'Use test mode (creates testmode credentials from test card data)',
+      ),
+    approve: z.boolean().default(false).describe(''),
+    useApprovalPolicy: z
+      .boolean()
+      .default(false)
+      .describe(
+        'Use approval policy through the delegated approval flow (beta, available only to select OAuth clients)',
+      ),
+    outputFile: z
+      .string()
+      .optional()
+      .describe(
+        'Write full card credentials to this file path; stdout shows redacted card data only',
+      ),
+    force: z
+      .boolean()
+      .default(false)
+      .describe('Overwrite output file if it already exists'),
+    approvalDetail: z
+      .union([z.string(), z.record(z.string(), z.unknown())])
+      .optional()
+      .describe(
+        'Approval details object (MCP/agent: pass as object; CLI: pass as JSON string). Required fields: approved_at (unix timestamp), approval_method (click|programmatic|voice), app_name, external_user_id. Optional: ip_address, user_agent, device_type (mobile|web), agent_log_id, external_user_name, external_session_id, device_id, authentication_method (biometric_face|biometric_fingerprint|passkey).',
+      ),
+    metadata: z
+      .array(z.union([z.string(), z.record(z.string(), z.string())]))
+      .default([])
+      .describe(
+        'Metadata key:value pair (repeatable). Attaches arbitrary string data to the spend request. Max 50 keys, key <= 40 chars, value <= 500 chars. Example: "order_id:ord_123"',
+      ),
+    expiresAt: z.coerce
+      .number()
+      .int()
+      .optional()
+      .describe('Unix timestamp (seconds).'),
+    recurringInterval: z
+      .string()
+      .pipe(
+        z.enum(['hour', 'day', 'week', 'month', 'year'], {
+          error: 'Recurring interval must be day, week, month, or year.',
+        }),
+      )
+      .meta({ type: 'string', enum: ['day', 'week', 'month', 'year'] })
+      .optional()
+      .describe(
+        'Reset the spending limit every day, week, month, or year. Omit for a one-time purchase',
+      ),
+    recurringIntervalCount: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe(
+        'Number of intervals per recurring period (positive integer; defaults to 1). Requires --recurring-interval',
+      ),
+  })
+  .superRefine((value, ctx) => {
+    const hasCallback = value.completionCallbackUrl !== undefined;
+    const hasNonce = value.nonce !== undefined;
+    if (hasCallback !== hasNonce) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          '--completion-callback-url and --nonce must be supplied together',
+      });
+    }
+  });
 
 export const listOptions = z.object({
   includeHistory: z
@@ -194,4 +245,10 @@ export const updateOptions = z.object({
     .boolean()
     .default(false)
     .describe('Use the delegated approval flow for this update'),
+  useApprovalPolicy: z
+    .boolean()
+    .default(false)
+    .describe(
+      'Use approval policy through the delegated approval flow (beta, available only to select OAuth clients)',
+    ),
 });

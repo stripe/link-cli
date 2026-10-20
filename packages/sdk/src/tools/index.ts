@@ -75,12 +75,12 @@ export function createLinkTools<Context = unknown>(
         ),
     ),
     create_spend_request: tool(
-      'Create a Link spend request for a purchase. Show approval_url to the user; creating a request does not establish approval. Retrieve the same request after approval or required actions.',
+      'Create a Link spend request for a one-time or recurring purchase. For recurring purchases, confirm the spending limit and cadence with the user. Show approval_url to the user; creating a request does not establish approval. Retrieve the same request after approval or required actions.',
       schemas.createSpendRequest,
       (link, input) => link.spendRequests.create(input),
     ),
     retrieve_spend_request: tool(
-      'Retrieve a Link spend request, its approval status, and requested credentials. Follow status_details.requires_action instructions; never assume approval from an earlier status.',
+      'Retrieve a Link spend request, its approval status, and requested credentials. Follow status_details.requires_action instructions; never assume approval from an earlier status. Recurring card requests remain active after individual charges; do not wait for succeeded after each payment.',
       schemas.retrieveSpendRequest,
       (link, { id, ...options }) => link.spendRequests.retrieve(id, options),
     ),
@@ -95,7 +95,7 @@ export function createLinkTools<Context = unknown>(
       (link, { id }) => link.spendRequests.requestApproval(id),
     ),
     cancel_spend_request: tool(
-      'Cancel a Link spend request.',
+      'Cancel a Link spend request and revoke its payment credentials. This does not cancel a subscription with the merchant.',
       schemas.spendRequestId,
       (link, { id }) => link.spendRequests.cancel(id),
     ),

@@ -1,5 +1,18 @@
 # @stripe/link-integrations-eve
 
+## 0.3.4
+
+### Patch Changes
+
+- 5adf7d9: Support recurring spend requests in public SDK inputs and agent tools. Document
+  daily, weekly, monthly, and yearly spending limits, approval, expiry, and
+  cancellation. Show recurring cadence in CLI spend request lists and update
+  payment skills to handle recurring purchases.
+- 88dc127: Add optional completion callback URL and nonce inputs to spend-request creation. CLI and agent tools require both or neither, validate URL and nonce limits, and preserve the supplied values unchanged. Returned approval and supported action URLs carry the backend-provided callback context; response parsing and polling behavior are unchanged.
+- Updated dependencies [5adf7d9]
+- Updated dependencies [88dc127]
+  - @stripe/link-sdk@0.14.0
+
 ## 0.3.3
 
 ### Patch Changes
