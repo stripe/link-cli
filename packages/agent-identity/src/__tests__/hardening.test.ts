@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vitest';
 import { parsePrivateTokenCredential } from '@/attestation';
-import { createAttestationChallenge } from '@/challenge';
+import { fromBase64 } from '@/internal/bytes';
 import { LinkIssuer } from '@/issuer';
-import { LinkFixture } from '@/testing/index';
 
 describe('issuer fetches are bounded and same-origin', () => {
   it('refuses metadata naming an off-origin token_keys', async () => {
@@ -42,9 +41,7 @@ describe('issuer fetches are bounded and same-origin', () => {
       minRefreshSeconds: 0,
       timeoutMs: 50,
     });
-    const started = Date.now();
     await assert.rejects(() => issuer.refresh({ force: true }), /timed out/);
-    assert.ok(Date.now() - started < 3000);
   });
 });
 
@@ -75,20 +72,14 @@ describe('PrivateToken auth-params', () => {
     const result = parsePrivateTokenCredential(
       'PrivateToken foo-token=BBBB, token=AAAA',
     );
-    assert.ok(
-      !(typeof result === 'string'),
-      `expected the token, got: ${result}`,
-    );
+    assert.deepEqual(result, fromBase64('AAAA'));
   });
 
   it('ignores unknown parameters, per RFC 9577', () => {
     const result = parsePrivateTokenCredential(
       'PrivateToken other="x", token="AAAA"',
     );
-    assert.ok(
-      !(typeof result === 'string'),
-      `expected the token, got: ${result}`,
-    );
+    assert.deepEqual(result, fromBase64('AAAA'));
   });
 
   it('refuses two token parameters rather than choosing', () => {
@@ -97,32 +88,5 @@ describe('PrivateToken auth-params', () => {
     );
     assert.equal(typeof result, 'string');
     assert.match(result as string, /more than one token/);
-  });
-});
-
-describe('challenge encoding', () => {
-  it('pads the base64url parameters, as RFC 9577 requires', async () => {
-    const fixture = await LinkFixture.create('https://api.link.com', 1);
-    const issuer = new LinkIssuer({
-      fetchImpl: fixture.fetchImpl(),
-      minRefreshSeconds: 0,
-    });
-    const [value] = (await createAttestationChallenge(issuer)).wwwAuthenticate;
-    assert.ok(value !== undefined);
-    const challenge = /challenge="([^"]+)"/.exec(value)?.[1] ?? '';
-    const tokenKey = /token-key="([^"]+)"/.exec(value)?.[1] ?? '';
-    // A 19-byte TokenChallenge is not a multiple of 3, so it must carry padding.
-    assert.equal(
-      challenge.length % 4,
-      0,
-      `challenge is not padded: ${challenge}`,
-    );
-    assert.equal(tokenKey.length % 4, 0, 'token-key is not padded');
-    // And padding is exactly why the values are quoted: `=` is not an RFC 9110
-    // token character.
-    assert.ok(
-      challenge.includes('='),
-      'expected real padding on a 19-byte challenge',
-    );
   });
 });

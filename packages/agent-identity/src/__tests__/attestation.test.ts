@@ -24,7 +24,7 @@ async function setup(keyCount = 1) {
 
 describe('challenge', () => {
   it('advertises one challenge per published key, sharing one stable TokenChallenge', async () => {
-    const { fixture, issuer } = await setup(2);
+    const { issuer } = await setup(2);
     const challenge = await createAttestationChallenge(issuer);
 
     assert.equal(challenge.wwwAuthenticate.length, 2);
@@ -40,10 +40,9 @@ describe('challenge', () => {
       (v) => /token-key="([^"]+)"/.exec(v)![1],
     );
     assert.equal(new Set(keyValues).size, 2, 'each key must be advertised');
-    void fixture;
   });
 
-  it('quotes base64url parameters, since padded base64url is not a valid HTTP token', async () => {
+  it('pads and quotes base64url parameters, as RFC 9577 requires', async () => {
     const { issuer } = await setup();
     const [value] = (await createAttestationChallenge(issuer)).wwwAuthenticate;
     assert.ok(value !== undefined);
@@ -51,6 +50,17 @@ describe('challenge', () => {
       value,
       /^PrivateToken challenge="[^"]+", token-key="[^"]+", max-age=\d+$/,
     );
+    const challenge = /challenge="([^"]+)"/.exec(value)?.[1] ?? '';
+    const tokenKey = /token-key="([^"]+)"/.exec(value)?.[1] ?? '';
+    // A 19-byte TokenChallenge is not a multiple of 3, so it must carry padding,
+    // and `=` is not an RFC 9110 token character, which is why values are quoted.
+    assert.ok(challenge.endsWith('='), `challenge is not padded: ${challenge}`);
+    assert.equal(
+      challenge.length % 4,
+      0,
+      `challenge is not padded: ${challenge}`,
+    );
+    assert.equal(tokenKey.length % 4, 0, 'token-key is not padded');
   });
 
   it('is stable across calls, so pooled tokens keep verifying', async () => {

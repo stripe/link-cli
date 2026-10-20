@@ -141,12 +141,17 @@ describe('native RSA key validation', () => {
 
   it('rejects trailing data, oversized keys and non-RSA keys', async () => {
     const ec = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
-    for (const input of [
-      concat(spki, new Uint8Array([0])),
-      new Uint8Array(8193),
-      new Uint8Array(ec.publicKey.export({ format: 'der', type: 'spki' })),
-    ]) {
-      assert.equal(typeof (await importTokenKey(input)), 'string');
+    for (const [input, reason] of [
+      [concat(spki, new Uint8Array([0])), /trailing bytes/],
+      [new Uint8Array(8193), /implausibly large/],
+      [
+        new Uint8Array(ec.publicKey.export({ format: 'der', type: 'spki' })),
+        /neither rsaEncryption nor id-RSASSA-PSS/,
+      ],
+    ] as const) {
+      const result = await importTokenKey(input);
+      assert.equal(typeof result, 'string');
+      assert.match(result as string, reason);
     }
   });
 
