@@ -352,7 +352,7 @@ describe('command continuations', () => {
       );
       const { instruction } = output[0];
       expect(instruction).toContain(
-        'requires additional verification (partner_auth_challenge). Complete verification in the Link app. ',
+        'requires additional verification (partner_auth_challenge). Complete verification in the Link app ',
       );
       expect(instruction).toContain(expected);
       expect(instruction).not.toContain('null');
