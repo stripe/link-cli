@@ -66,7 +66,9 @@ export type NextActionType =
   | 'update_payment_method'
   | 're_authorize'
   | 'three_d_secure'
-  | 'three_d_secure_retry';
+  | 'three_d_secure_retry'
+  | 'partner_auth_challenge'
+  | 'partner_auth_challenge_retry';
 
 export type NextActionResolution =
   | 'auto_resume'

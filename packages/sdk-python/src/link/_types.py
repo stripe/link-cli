@@ -31,6 +31,8 @@ NextActionType: TypeAlias = Literal[
     "re_authorize",
     "three_d_secure",
     "three_d_secure_retry",
+    "partner_auth_challenge",
+    "partner_auth_challenge_retry",
 ]
 NextActionResolution: TypeAlias = Literal[
     "auto_resume",

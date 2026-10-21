@@ -6,7 +6,8 @@ export const DISPLAY_DELAY_MS = 1500;
 
 /**
  * Interval and max wait time for polling a spend request stuck in
- * `requires_action` with an `auto_resume` resolution (e.g. 3D Secure).
+ * `requires_action` with an `auto_resume` resolution (e.g. 3D Secure or a
+ * partner auth challenge).
  */
 export const RESUME_POLL_INTERVAL_MS = 2000;
 export const RESUME_TIMEOUT_MS = 600_000;
