@@ -42,7 +42,7 @@ python-version = "3.11"
 dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
-    "ruff>=0.16.7",
+    "ruff>=0.17.1",
     "twine>=7.0.0",
     "ty>=0.0.81",
 ]
