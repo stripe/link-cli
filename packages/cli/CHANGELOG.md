@@ -1,5 +1,12 @@
 # @stripe/link-cli
 
+## 0.29.1
+
+### Patch Changes
+
+- 7d80ee9: UCP checkout and catalog output now uses currency-aware amount formatting instead of a hardcoded `$` and `/100`, which rendered zero- and three-decimal currencies 100x or 10x off.
+- 4428004: Support the `partner_auth_challenge` and `partner_auth_challenge_retry` next actions. Interactive `spend-request create --request-approval` and `spend-request request-approval` now keep polling through any `auto_resume` action reached after approval instead of exiting, and agent-mode guidance for `auto_resume` no longer assumes 3D Secure.
+
 ## 0.29.0
 
 ### Minor Changes

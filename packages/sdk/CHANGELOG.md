@@ -1,5 +1,11 @@
 # @stripe/link-sdk
 
+## 0.14.1
+
+### Patch Changes
+
+- 4428004: Support the `partner_auth_challenge` and `partner_auth_challenge_retry` next actions. Interactive `spend-request create --request-approval` and `spend-request request-approval` now keep polling through any `auto_resume` action reached after approval instead of exiting, and agent-mode guidance for `auto_resume` no longer assumes 3D Secure.
+
 ## 0.14.0
 
 ### Minor Changes
