@@ -39,6 +39,7 @@ def valid(client: Client) -> None:
     assert_type(
         client.payment_methods.update("pd_1", nickname=""), PaymentMethod
     )
+    assert_type(client.payment_methods.update("pd_1", is_default=False), PaymentMethod)
     assert_type(client.spend_requests.retrieve("sr_1"), SpendRequest | None)
     client.reports.create(
         domain="example.com", outcome="success", spend_request_id="sr_1"
@@ -61,6 +62,9 @@ async def valid_async(client: AsyncClient) -> None:
     assert_type(
         await client.payment_methods.update("pd_1", nickname="Work card"),
         PaymentMethod,
+    )
+    assert_type(
+        await client.payment_methods.update("pd_1", is_default=True), PaymentMethod
     )
 """)
     command = [

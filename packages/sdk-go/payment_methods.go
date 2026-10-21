@@ -6,9 +6,11 @@ import (
 	"net/url"
 )
 
-// UpdatePaymentMethodParams contains mutable payment-method fields.
+// UpdatePaymentMethodParams contains mutable payment-method fields. Nil omits a
+// field; a pointer to "" or false explicitly clears that field.
 type UpdatePaymentMethodParams struct {
-	Nickname string `json:"nickname"`
+	Nickname  *string `json:"nickname,omitempty"`
+	IsDefault *bool   `json:"is_default,omitempty"`
 }
 
 // PaymentMethodsResource provides payment-method operations.
@@ -34,7 +36,7 @@ func (r *PaymentMethodsResource) List(ctx context.Context) ([]PaymentMethod, err
 	return envelope.PaymentDetails, nil
 }
 
-// Update sets, changes, or clears a payment-method nickname.
+// Update sets or clears a payment method's nickname, default status, or both.
 func (r *PaymentMethodsResource) Update(ctx context.Context, id string, params UpdatePaymentMethodParams) (*PaymentMethod, error) {
 	var result PaymentMethod
 	endpoint := r.base.baseURL + "/payment-details/" + url.PathEscape(id)

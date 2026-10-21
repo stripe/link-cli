@@ -81,7 +81,10 @@ export class PaymentMethodsResource
       method: 'POST',
       url: `${this.endpoint}/${encodeURIComponent(id)}`,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nickname: params.nickname }),
+      body: JSON.stringify({
+        nickname: params.nickname,
+        is_default: params.is_default,
+      }),
     });
 
     if (status < 200 || status >= 300) {

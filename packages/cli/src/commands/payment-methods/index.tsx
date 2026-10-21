@@ -1,4 +1,8 @@
-import type { IPaymentMethodsResource, PaymentMethod } from '@stripe/link-sdk';
+import type {
+  IPaymentMethodsResource,
+  PaymentMethod,
+  UpdatePaymentMethodParams,
+} from '@stripe/link-sdk';
 import { Cli } from 'incur';
 import type { CliAuthStorage } from '../../auth/storage';
 import { renderInteractive } from '../../utils/render-interactive';
@@ -74,15 +78,28 @@ export function createPaymentMethodsCli(
   });
 
   cli.command('update', {
-    description: 'Update a payment method nickname',
+    description: 'Update a payment method nickname or wallet default status',
     args: updateArgs,
     options: updateOptions,
     outputPolicy: 'agent-only' as const,
     middleware: [requireAuth(authStorage, envAccessToken)],
     async run(c) {
-      const resource = createResource();
       const id = c.args.id;
       const nickname = c.options.nickname;
+      const isDefault = c.options.isDefault;
+      if (nickname === undefined && isDefault === undefined) {
+        return c.error({
+          code: 'MISSING_UPDATE',
+          message: 'Supply --nickname, --is-default, or both',
+        });
+      }
+      const params: UpdatePaymentMethodParams = {
+        ...(nickname !== undefined ? { nickname } : {}),
+        ...(isDefault !== undefined
+          ? { is_default: isDefault === 'true' }
+          : {}),
+      };
+      const resource = createResource();
 
       if (!c.agent && !c.formatExplicit) {
         let capturedResult: PaymentMethod | undefined;
@@ -90,7 +107,7 @@ export function createPaymentMethodsCli(
           <PaymentMethodUpdate
             resource={resource}
             id={id}
-            nickname={nickname}
+            params={params}
             onComplete={(result) => {
               capturedResult = result;
             }}
@@ -104,7 +121,7 @@ export function createPaymentMethodsCli(
         );
       }
 
-      return resource.update(id, { nickname });
+      return resource.update(id, params);
     },
   });
 

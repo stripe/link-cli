@@ -10,6 +10,8 @@ import (
 	"testing"
 )
 
+func updatePointer[T any](value T) *T { return &value }
+
 func TestUpdatePaymentMethod(t *testing.T) {
 	var method, requestURI, contentType string
 	var body map[string]any
@@ -29,14 +31,14 @@ func TestUpdatePaymentMethod(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := client.PaymentMethods.Update(context.Background(), "pd/../other", UpdatePaymentMethodParams{Nickname: "Work card"})
+	result, err := client.PaymentMethods.Update(context.Background(), "pd/../other", UpdatePaymentMethodParams{Nickname: updatePointer("Work card")})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if method != http.MethodPost || requestURI != "/payment-details/pd%2F..%2Fother" {
 		t.Fatalf("got %s %s", method, requestURI)
 	}
-	if contentType != "application/json" || body["nickname"] != "Work card" {
+	if contentType != "application/json" || len(body) != 1 || body["nickname"] != "Work card" {
 		t.Fatalf("got content type %q and body %#v", contentType, body)
 	}
 	if result.Nickname == nil || *result.Nickname != "Work card" {
@@ -57,9 +59,51 @@ func TestUpdatePaymentMethodPreservesEmptyNickname(t *testing.T) {
 	}))
 	defer server.Close()
 	client, _ := NewClient(Options{AccessToken: "token", APIBaseURL: server.URL})
-	result, err := client.PaymentMethods.Update(context.Background(), "pd_1", UpdatePaymentMethodParams{Nickname: ""})
+	result, err := client.PaymentMethods.Update(context.Background(), "pd_1", UpdatePaymentMethodParams{Nickname: updatePointer("")})
 	if err != nil || result.Nickname != nil {
 		t.Fatalf("result %#v, error %v", result, err)
+	}
+}
+
+func TestUpdatePaymentMethodDefaultStatus(t *testing.T) {
+	for _, isDefault := range []bool{true, false} {
+		t.Run(map[bool]string{true: "set", false: "clear"}[isDefault], func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+				var body map[string]any
+				if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+					t.Fatal(err)
+				}
+				if len(body) != 1 || body["is_default"] != isDefault {
+					t.Fatalf("got body %#v", body)
+				}
+				_ = json.NewEncoder(response).Encode(PaymentMethod{ID: "pd_1", Type: "CARD", IsDefault: isDefault, Name: "Visa"})
+			}))
+			defer server.Close()
+			client, _ := NewClient(Options{AccessToken: "token", APIBaseURL: server.URL})
+			result, err := client.PaymentMethods.Update(context.Background(), "pd_1", UpdatePaymentMethodParams{IsDefault: updatePointer(isDefault)})
+			if err != nil || result.IsDefault != isDefault {
+				t.Fatalf("result %#v, error %v", result, err)
+			}
+		})
+	}
+}
+
+func TestUpdatePaymentMethodNicknameAndDefault(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if len(body) != 2 || body["nickname"] != "" || body["is_default"] != false {
+			t.Fatalf("got body %#v", body)
+		}
+		_, _ = response.Write([]byte(`{"id":"pd_1","type":"CARD","is_default":false,"name":"Visa","nickname":null}`))
+	}))
+	defer server.Close()
+	client, _ := NewClient(Options{AccessToken: "token", APIBaseURL: server.URL})
+	_, err := client.PaymentMethods.Update(context.Background(), "pd_1", UpdatePaymentMethodParams{Nickname: updatePointer(""), IsDefault: updatePointer(false)})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -71,7 +115,7 @@ func TestUpdatePaymentMethodErrors(t *testing.T) {
 		}))
 		defer server.Close()
 		client, _ := NewClient(Options{AccessToken: "token", APIBaseURL: server.URL})
-		_, err := client.PaymentMethods.Update(context.Background(), "pd_1", UpdatePaymentMethodParams{Nickname: "Work"})
+		_, err := client.PaymentMethods.Update(context.Background(), "pd_1", UpdatePaymentMethodParams{Nickname: updatePointer("Work")})
 		var apiError *LinkAPIError
 		if !errors.As(err, &apiError) || apiError.Status != http.StatusForbidden || !strings.Contains(err.Error(), "feature unavailable") {
 			t.Fatalf("got %#v", err)
@@ -84,7 +128,7 @@ func TestUpdatePaymentMethodErrors(t *testing.T) {
 		}))
 		defer server.Close()
 		client, _ := NewClient(Options{AccessToken: "token", APIBaseURL: server.URL})
-		_, err := client.PaymentMethods.Update(context.Background(), "pd_1", UpdatePaymentMethodParams{Nickname: "Work"})
+		_, err := client.PaymentMethods.Update(context.Background(), "pd_1", UpdatePaymentMethodParams{Nickname: updatePointer("Work")})
 		var responseError *LinkResponseError
 		if !errors.As(err, &responseError) {
 			t.Fatalf("got %#v", err)
@@ -114,7 +158,7 @@ func TestUpdatePaymentMethodRetriesProvider401(t *testing.T) {
 			return "token", nil
 		},
 	})
-	if _, err := client.PaymentMethods.Update(context.Background(), "pd_1", UpdatePaymentMethodParams{Nickname: "Work"}); err != nil {
+	if _, err := client.PaymentMethods.Update(context.Background(), "pd_1", UpdatePaymentMethodParams{Nickname: updatePointer("Work")}); err != nil {
 		t.Fatal(err)
 	}
 	if requests != 2 || providerCalls != 2 {

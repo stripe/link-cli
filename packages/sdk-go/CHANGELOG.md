@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Update payment methods' wallet default status independently or with nicknames.
 - Support optional completion callback URL and nonce parameters on spend-request creation, preserving returned approval and action URLs unchanged.
 - Fix Go SDK compilation by adding the missing default spend request currency field.
 - Preserve the stable Link user ID in user-info responses.

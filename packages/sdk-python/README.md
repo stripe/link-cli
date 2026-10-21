@@ -59,6 +59,19 @@ asyncio.run(main())
 
 The SDK reads no environment variables itself; pass credentials explicitly.
 
+## Update payment methods
+
+Pass `nickname`, `is_default`, or both to `payment_methods.update`. An empty
+nickname clears it. `True` sets the wallet default and replaces the previous
+default; `False` clears the selected method's default status. Omitted fields
+stay unchanged. Async clients support the same arguments with `await`.
+
+```python
+client.payment_methods.update("pd_123", is_default=True)
+client.payment_methods.update("pd_123", is_default=False)
+client.payment_methods.update("pd_123", nickname="Work card", is_default=True)
+```
+
 ## Credentials and configuration
 
 Provide exactly one of `access_token` or `get_access_token`. For expiring
@@ -231,7 +244,7 @@ ID are keyword-only. List methods return one API page without auto-pagination.
 | Resource | Methods / result |
 | --- | --- |
 | `spend_requests` | `create`, `update`, `retrieve`, `cancel` → `SpendRequest`; `retrieve` returns `None` on 404. `list` → list; `request_approval` → `RequestApprovalResponse`. |
-| `payment_methods` | `list` → `list[PaymentMethod]` |
+| `payment_methods` | `list` → `list[PaymentMethod]`; `update` → `PaymentMethod` |
 | `shipping_addresses` | `list` → `list[ShippingAddressRecord]` |
 | `user_info` | `retrieve` → `UserInfo` |
 | `transactions` | `list` → `TransactionsPage` |

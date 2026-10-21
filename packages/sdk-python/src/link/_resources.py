@@ -153,9 +153,13 @@ class PaymentMethodsResource:
         """List payment methods."""
         return self._transport.request(op.payment_methods())
 
-    def update(self, id: str, *, nickname: str) -> PaymentMethod:
-        """Set, change, or clear a payment-method nickname."""
-        return self._transport.request(op.payment_method_update(id, nickname))
+    def update(
+        self, id: str, *, nickname: str | None = None, is_default: bool | None = None
+    ) -> PaymentMethod:
+        """Update a payment method's nickname, default status, or both."""
+        return self._transport.request(
+            op.payment_method_update(id, nickname, is_default)
+        )
 
 
 class ShippingAddressesResource:

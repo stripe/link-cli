@@ -203,6 +203,22 @@ const link = new Link({
 Verbose logging includes request methods, URLs, and response status codes. It
 does not include authorization headers or request and response bodies.
 
+## Update payment methods
+
+Pass `nickname`, `is_default`, or both to `paymentMethods.update`. An empty
+nickname clears it; `is_default: true` sets the wallet default and replaces the
+previous default, while `false` clears this method's default status. Omitted
+fields stay unchanged.
+
+```ts
+await link.paymentMethods.update('pd_123', { is_default: true });
+await link.paymentMethods.update('pd_123', { is_default: false });
+await link.paymentMethods.update('pd_123', {
+  nickname: 'Work card',
+  is_default: true,
+});
+```
+
 ## Recurring payments
 
 Pass `recurring` to `spendRequests.create` when the user has agreed to recurring
@@ -269,7 +285,7 @@ try {
 ## Client resources
 
 - `spendRequests` — create, approve, retrieve, update, cancel, and list
-- `paymentMethods` — list Link payment methods
+- `paymentMethods` — list, retrieve, and update Link payment methods
 - `shippingAddresses` — list shipping addresses
 - `userInfo` — retrieve Link user information, including the stable `id` when returned by the API
 - `transactions` — list transactions

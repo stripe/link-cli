@@ -144,6 +144,43 @@ async def test_update_payment_method(api: API, nickname: str) -> None:
     assert json.loads(request.content) == {"nickname": nickname}
 
 
+@pytest.mark.parametrize("is_default", [True, False])
+async def test_update_payment_method_default_only(api: API, is_default: bool) -> None:
+    api.respond(
+        {
+            "id": "pd_1",
+            "type": "CARD",
+            "is_default": is_default,
+            "name": "Visa",
+            "nickname": "Existing",
+        }
+    )
+
+    result = await api.call("payment_methods", "update", "pd_1", is_default=is_default)
+
+    assert result.is_default is is_default
+    assert json.loads(api.requests[0].content) == {"is_default": is_default}
+
+
+async def test_update_payment_method_nickname_and_default(api: API) -> None:
+    api.respond(
+        {
+            "id": "pd_1",
+            "type": "CARD",
+            "is_default": False,
+            "name": "Visa",
+            "nickname": None,
+        }
+    )
+
+    await api.call("payment_methods", "update", "pd_1", nickname="", is_default=False)
+
+    assert json.loads(api.requests[0].content) == {
+        "nickname": "",
+        "is_default": False,
+    }
+
+
 @pytest.mark.parametrize("id", ["pd/a?b#c%", "..", ".", "a b", "é"])
 async def test_update_payment_method_path_encoding(api: API, id: str) -> None:
     from urllib.parse import unquote

@@ -153,9 +153,13 @@ class AsyncPaymentMethodsResource:
         """List payment methods."""
         return await self._transport.request(op.payment_methods())
 
-    async def update(self, id: str, *, nickname: str) -> PaymentMethod:
-        """Set, change, or clear a payment-method nickname."""
-        return await self._transport.request(op.payment_method_update(id, nickname))
+    async def update(
+        self, id: str, *, nickname: str | None = None, is_default: bool | None = None
+    ) -> PaymentMethod:
+        """Update a payment method's nickname, default status, or both."""
+        return await self._transport.request(
+            op.payment_method_update(id, nickname, is_default)
+        )
 
 
 class AsyncShippingAddressesResource:

@@ -2068,7 +2068,59 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       expect(JSON.parse(lastRequest.body)).toEqual({ nickname: '' });
     });
 
-    it('requires --nickname before making an HTTP request', async () => {
+    it.each([true, false])(
+      'updates is_default to %s without sending nickname',
+      async (isDefault) => {
+        setResponseForUrl('/payment-details/pd_123', 200, {
+          ...updatedPaymentMethod,
+          is_default: isDefault,
+        });
+
+        const result = await runProdCli(
+          'payment-methods',
+          'update',
+          'pd_123',
+          '--is-default',
+          String(isDefault),
+          '--format',
+          'json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(JSON.parse(lastRequest.body)).toEqual({ is_default: isDefault });
+        expect(parseJson(result.stdout)).toMatchObject({
+          is_default: isDefault,
+        });
+      },
+    );
+
+    it('combines nickname clearing with default clearing', async () => {
+      setResponseForUrl('/payment-details/pd_123', 200, {
+        ...updatedPaymentMethod,
+        is_default: false,
+        nickname: null,
+      });
+
+      const result = await runProdCli(
+        'payment-methods',
+        'update',
+        'pd_123',
+        '--nickname',
+        '',
+        '--is-default',
+        'false',
+        '--format',
+        'json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(lastRequest.body)).toEqual({
+        nickname: '',
+        is_default: false,
+      });
+    });
+
+    it('requires an update field before making an HTTP request', async () => {
       const result = await runProdCli(
         'payment-methods',
         'update',
@@ -2080,6 +2132,21 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       expect(result.exitCode).toBe(1);
       expect(requests).toHaveLength(0);
       expect(result.stdout + result.stderr).toContain('nickname');
+    });
+
+    it('rejects an invalid default value before making an HTTP request', async () => {
+      const result = await runProdCli(
+        'payment-methods',
+        'update',
+        'pd_123',
+        '--is-default',
+        'yes',
+        '--format',
+        'json',
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(requests).toHaveLength(0);
     });
 
     it.each([

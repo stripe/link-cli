@@ -1,4 +1,8 @@
-import type { IPaymentMethodsResource, PaymentMethod } from '@stripe/link-sdk';
+import type {
+  IPaymentMethodsResource,
+  PaymentMethod,
+  UpdatePaymentMethodParams,
+} from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
@@ -9,19 +13,19 @@ import { sanitizeText } from '../../utils/sanitize-text';
 interface PaymentMethodUpdateProps {
   resource: IPaymentMethodsResource;
   id: string;
-  nickname: string;
+  params: UpdatePaymentMethodParams;
   onComplete: (result: PaymentMethod) => void;
 }
 
 export const PaymentMethodUpdate: React.FC<PaymentMethodUpdateProps> = ({
   resource,
   id,
-  nickname,
+  params,
   onComplete,
 }) => {
   const action = useCallback(
-    () => resource.update(id, { nickname }),
-    [resource, id, nickname],
+    () => resource.update(id, params),
+    [resource, id, params],
   );
   const {
     status,
@@ -52,9 +56,28 @@ export const PaymentMethodUpdate: React.FC<PaymentMethodUpdateProps> = ({
 
   if (!method) return null;
 
-  return method.nickname ? (
-    <Text color="green">✓ Nickname updated to {method.nickname}.</Text>
-  ) : (
-    <Text color="green">✓ Nickname cleared.</Text>
+  const messages: string[] = [];
+  if (params.nickname !== undefined) {
+    messages.push(
+      method.nickname
+        ? `Nickname updated to ${sanitizeText(method.nickname)}.`
+        : 'Nickname cleared.',
+    );
+  }
+  if (params.is_default !== undefined) {
+    messages.push(
+      method.is_default
+        ? 'Default payment method set.'
+        : 'Default payment method cleared.',
+    );
+  }
+  return (
+    <Box flexDirection="column">
+      {messages.map((message) => (
+        <Text key={message} color="green">
+          ✓ {message}
+        </Text>
+      ))}
+    </Box>
   );
 };

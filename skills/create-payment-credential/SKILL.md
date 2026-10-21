@@ -157,6 +157,18 @@ link-cli payment-methods update <payment-method-id> --nickname "Work card"
 
 Pass `--nickname ""` to clear a nickname.
 
+Only set or clear the wallet-wide default when the user explicitly asks. Use
+`payment-methods list` to identify the intended method from redacted details if
+its ID is unknown. Setting a new default replaces the previous wallet default.
+Pass an explicit value; `false` clears the selected method's default status:
+
+```bash
+link-cli payment-methods update <payment-method-id> --is-default true
+link-cli payment-methods update <payment-method-id> --is-default false
+```
+
+`--nickname` and `--is-default` can be combined. Omitted fields stay unchanged.
+
 If the merchant checkout requires a shipping or delivery address, fetch the user's saved shipping addresses. Use the default address unless the user specifies otherwise.
 
 ```bash

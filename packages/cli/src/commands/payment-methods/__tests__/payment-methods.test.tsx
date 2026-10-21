@@ -136,7 +136,7 @@ describe('payment-methods', () => {
         <PaymentMethodUpdate
           resource={resource}
           id="pd_123"
-          nickname="  Work card  "
+          params={{ nickname: '  Work card  ' }}
           onComplete={() => {}}
         />,
       );
@@ -174,7 +174,7 @@ describe('payment-methods', () => {
           <PaymentMethodUpdate
             resource={resource}
             id="pd_123"
-            nickname=""
+            params={{ nickname: '' }}
             onComplete={() => {}}
           />,
         );
@@ -183,6 +183,36 @@ describe('payment-methods', () => {
         });
       },
     );
+
+    it.each([
+      [true, 'Default payment method set.'],
+      [false, 'Default payment method cleared.'],
+    ])('renders a default status of %s', async (isDefault, message) => {
+      const resource = {
+        update: vi.fn(async () => ({
+          id: 'pd_123',
+          type: 'CARD',
+          name: 'Visa',
+          is_default: isDefault,
+          nickname: 'Existing',
+        })),
+      } as unknown as IPaymentMethodsResource;
+      const { lastFrame } = render(
+        <PaymentMethodUpdate
+          resource={resource}
+          id="pd_123"
+          params={{ is_default: isDefault }}
+          onComplete={() => {}}
+        />,
+      );
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain(message);
+        expect(lastFrame()).not.toContain('Nickname updated');
+      });
+      expect(resource.update).toHaveBeenCalledWith('pd_123', {
+        is_default: isDefault,
+      });
+    });
 
     it('renders a sanitized update failure', async () => {
       const resource = {
@@ -194,7 +224,7 @@ describe('payment-methods', () => {
         <PaymentMethodUpdate
           resource={resource}
           id="pd_123"
-          nickname="Work"
+          params={{ nickname: 'Work' }}
           onComplete={() => {}}
         />,
       );
@@ -220,7 +250,7 @@ describe('payment-methods', () => {
         <PaymentMethodUpdate
           resource={resource}
           id="pd_123"
-          nickname="Work"
+          params={{ nickname: 'Work' }}
           onComplete={() => {}}
         />,
       );

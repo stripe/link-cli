@@ -129,7 +129,8 @@ export interface IPaymentMethodsResource {
 }
 
 export interface UpdatePaymentMethodParams {
-  nickname: string;
+  nickname?: string;
+  is_default?: boolean;
 }
 
 export interface IShippingAddressResource {

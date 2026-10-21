@@ -54,6 +54,31 @@ func main() {
 Use a fixed token for a short-lived job or when the caller replaces the entire
 client as credentials change.
 
+## Update payment methods
+
+Pass `Nickname`, `IsDefault`, or both to `PaymentMethods.Update`. Use pointers
+to distinguish omitted fields from an empty nickname or `false`. Setting
+`IsDefault` to `true` replaces the previous wallet default; `false` clears the
+selected method's default status.
+
+```go
+setDefault := true
+_, err := client.PaymentMethods.Update(ctx, "pd_123", link.UpdatePaymentMethodParams{
+	IsDefault: &setDefault,
+})
+
+clearDefault := false
+_, err = client.PaymentMethods.Update(ctx, "pd_123", link.UpdatePaymentMethodParams{
+	IsDefault: &clearDefault,
+})
+
+nickname := "Work card" // Use "" to clear the nickname.
+_, err = client.PaymentMethods.Update(ctx, "pd_123", link.UpdatePaymentMethodParams{
+	Nickname:  &nickname,
+	IsDefault: &setDefault,
+})
+```
+
 ## Recurring payments
 
 Set `Recurring` on `CreateSpendRequestParams` for a recurring purchase approved
@@ -277,7 +302,7 @@ if errors.As(err, &linkError) {
 ## Client resources
 
 - `SpendRequests` — create, approve, retrieve, update, cancel, and list
-- `PaymentMethods` — list Link payment methods
+- `PaymentMethods` — list and update Link payment methods
 - `ShippingAddresses` — list shipping addresses
 - `UserInfo` — retrieve Link user information, including the stable `ID` when returned by the API
 - `Transactions` — list transactions

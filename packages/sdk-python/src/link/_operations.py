@@ -183,13 +183,19 @@ def _payment_method_path(id: str) -> str:
     return "/payment-details/" + segment
 
 
-def payment_method_update(id: str, nickname: str) -> Request[PaymentMethod]:
+def payment_method_update(
+    id: str, nickname: str | None, is_default: bool | None
+) -> Request[PaymentMethod]:
     return Request(
         "update payment method",
         "POST",
         _payment_method_path(id),
         PaymentMethod.model_validate,
-        body={"nickname": nickname},
+        body={
+            key: value
+            for key, value in {"nickname": nickname, "is_default": is_default}.items()
+            if value is not None
+        },
     )
 
 

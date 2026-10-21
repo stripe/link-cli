@@ -11,5 +11,12 @@ export const updateArgs = z.object({
 export const updateOptions = z.object({
   nickname: z
     .string()
+    .optional()
     .describe('New nickname; pass an empty string to clear the nickname'),
+  isDefault: z
+    .enum(['true', 'false'])
+    .optional()
+    .describe(
+      'Set this payment method as the wallet default (true) or clear its default status (false)',
+    ),
 });

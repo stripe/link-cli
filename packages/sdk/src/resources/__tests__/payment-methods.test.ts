@@ -194,6 +194,44 @@ describe('PaymentMethodsResource', () => {
     expect(mockFetch.mock.calls[0]![1].body).toBe('{"nickname":""}');
   });
 
+  it.each([true, false])(
+    'sends is_default: %s without changing the nickname',
+    async (is_default) => {
+      mockFetchResponse(200, {
+        id: 'pd_123',
+        type: 'CARD',
+        is_default,
+        name: 'Visa',
+        nickname: 'Existing',
+      });
+
+      await expect(
+        repo.update('pd_123', { is_default }),
+      ).resolves.toMatchObject({
+        is_default,
+        nickname: 'Existing',
+      });
+      expect(mockFetch.mock.calls[0]![1].body).toBe(
+        JSON.stringify({ is_default }),
+      );
+    },
+  );
+
+  it('sends nickname and is_default together', async () => {
+    mockFetchResponse(200, {
+      id: 'pd_123',
+      type: 'CARD',
+      is_default: false,
+      name: 'Visa',
+      nickname: null,
+    });
+
+    await repo.update('pd_123', { nickname: '', is_default: false });
+    expect(mockFetch.mock.calls[0]![1].body).toBe(
+      '{"nickname":"","is_default":false}',
+    );
+  });
+
   it('encodes the payment method ID in the update path', async () => {
     mockFetchResponse(200, {
       id: 'pd/../other',

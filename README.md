@@ -201,8 +201,17 @@ Clear a nickname by passing an explicit empty string:
 link-cli payment-methods update <payment-method-id> --nickname ""
 ```
 
-Link trims surrounding whitespace and returns the updated, redacted payment
-method.
+Set a payment method as the wallet default, or clear its default status:
+
+```bash
+link-cli payment-methods update <payment-method-id> --is-default true
+link-cli payment-methods update <payment-method-id> --is-default false
+```
+
+You can pass `--nickname` and `--is-default` together. Supply at least one of
+them; omitted fields stay unchanged. Setting a new default replaces the previous
+wallet default. Link trims surrounding nickname whitespace and returns the
+updated, redacted payment method.
 
 ### List shipping addresses
 
