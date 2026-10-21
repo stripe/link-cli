@@ -174,6 +174,11 @@ export interface RequestApprovalResponse {
   approval_url: string;
 }
 
+export interface TestSpendRequestDecisionResponse {
+  id: string;
+  status: string;
+}
+
 export interface CardDetails {
   brand: string;
   last4: string;

@@ -5,6 +5,7 @@ import { IdentityCredentialsResource } from '@/resources/identity-credentials';
 import { PaymentMethodsResource } from '@/resources/payment-methods';
 import { ReportResource } from '@/resources/report';
 import { SpendRequestResource } from '@/resources/spend-request';
+import { TestHelpersSpendRequestResource } from '@/resources/test-helpers/spend-request';
 import { TransactionsResource } from '@/resources/transactions';
 import { WebBotAuthResource } from '@/resources/web-bot-auth';
 
@@ -21,6 +22,9 @@ describe('Link', () => {
       IdentityCredentialsResource,
     );
     expect(client.spendRequests).toBeInstanceOf(SpendRequestResource);
+    expect(client.testHelpers.spendRequests).toBeInstanceOf(
+      TestHelpersSpendRequestResource,
+    );
     expect(client.paymentMethods).toBeInstanceOf(PaymentMethodsResource);
     expect(client.transactions).toBeInstanceOf(TransactionsResource);
     expect(client.webBotAuth).toBeInstanceOf(WebBotAuthResource);

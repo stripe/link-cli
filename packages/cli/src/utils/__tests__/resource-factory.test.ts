@@ -34,6 +34,9 @@ describe('ResourceFactory', () => {
     expect(factory.createSpendRequestResource()).toBe(
       factory.createSpendRequestResource(),
     );
+    expect(factory.createTestHelpersSpendRequestResource()).toBe(
+      factory.createTestHelpersSpendRequestResource(),
+    );
     expect(factory.createPaymentMethodsResource()).toBe(
       factory.createPaymentMethodsResource(),
     );
@@ -49,6 +52,9 @@ describe('ResourceFactory', () => {
       'function',
     );
     expect(factory.createSpendRequestResource().create).toBeTypeOf('function');
+    expect(factory.createTestHelpersSpendRequestResource().approve).toBeTypeOf(
+      'function',
+    );
     expect(factory.createPaymentMethodsResource().list).toBeTypeOf('function');
     expect(factory.createBalancesResource().list).toBeTypeOf('function');
     expect(factory.createWebBotAuthResource().signUrl).toBeTypeOf('function');

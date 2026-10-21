@@ -10,6 +10,7 @@ import {
   type IShippingAddressResource,
   type ISourcesResource,
   type ISpendRequestResource,
+  type ITestHelpersSpendRequestResource,
   type ITransactionsResource,
   type IUcpResource,
   type IUserInfoResource,
@@ -116,6 +117,7 @@ export class ResourceFactory {
   private attestationsResource?: IAttestationsResource;
   private identityCredentialsResource?: IIdentityCredentialsResource;
   private spendRequestResource?: ISpendRequestResource;
+  private testHelpersSpendRequestResource?: ITestHelpersSpendRequestResource;
   private paymentMethodsResource?: IPaymentMethodsResource;
   private shippingAddressResource?: IShippingAddressResource;
   private userInfoResource?: IUserInfoResource;
@@ -259,6 +261,18 @@ export class ResourceFactory {
 
     const resource = sanitizeResource(this.createSdkClient().spendRequests);
     this.spendRequestResource = resource;
+    return resource;
+  }
+
+  createTestHelpersSpendRequestResource(): ITestHelpersSpendRequestResource {
+    if (this.testHelpersSpendRequestResource) {
+      return this.testHelpersSpendRequestResource;
+    }
+
+    const resource = sanitizeResource(
+      this.createSdkClient().testHelpers.spendRequests,
+    );
+    this.testHelpersSpendRequestResource = resource;
     return resource;
   }
 
