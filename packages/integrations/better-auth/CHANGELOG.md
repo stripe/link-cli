@@ -1,5 +1,11 @@
 # @stripe/link-integrations-better-auth
 
+## 0.3.2
+
+### Patch Changes
+
+- 30256b7: Update runtime dependencies.
+
 ## 0.3.1
 
 ### Patch Changes

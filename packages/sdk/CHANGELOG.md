@@ -1,5 +1,12 @@
 # @stripe/link-sdk
 
+## 0.14.2
+
+### Patch Changes
+
+- b7a8e48: Support setting and clearing the wallet default payment method independently or together with a nickname update.
+- 30256b7: Update runtime dependencies.
+
 ## 0.14.1
 
 ### Patch Changes

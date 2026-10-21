@@ -1,5 +1,14 @@
 # @stripe/link-integrations-eve
 
+## 0.3.6
+
+### Patch Changes
+
+- 30256b7: Update runtime dependencies.
+- Updated dependencies [b7a8e48]
+- Updated dependencies [30256b7]
+  - @stripe/link-sdk@0.14.2
+
 ## 0.3.5
 
 ### Patch Changes
