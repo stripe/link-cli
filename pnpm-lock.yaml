@@ -270,6 +270,28 @@ importers:
 
   packages/typescript-config: {}
 
+  packages/validate:
+    dependencies:
+      mppx:
+        specifier: 0.13.4
+        version: 0.13.4(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.6.7))(express@5.2.1)(hono@4.13.13)(next@16.3.8(@types/node@26.6.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(typescript@7.0.2)(viem@2.57.5(typescript@7.0.2)(zod@4.6.7))
+      zod:
+        specifier: ^4.5.4
+        version: 4.6.7
+    devDependencies:
+      '@stripe/link-typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^26.4.1
+        version: 26.6.5
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.0
+        version: 5.0.4(@types/node@26.6.5)(vite@8.2.0(@types/node@26.6.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
+
 packages:
 
   '@adraffy/ens-normalize@1.11.1':
