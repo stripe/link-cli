@@ -23,7 +23,10 @@ import { LinkAuthenticationError } from '../auth/errors';
 import { createAccessTokenProvider } from '../auth/session';
 import type { CliAuthStorage } from '../auth/storage';
 import type { IAuthResource } from '../auth/types';
-import { TestHelpersSpendRequestResource } from '../commands/test-helpers/spend-request';
+import {
+  type ITestHelpersSpendRequestResource,
+  TestHelpersSpendRequestResource,
+} from '../commands/test-helpers/spend-request';
 import { sanitizeDeep } from './sanitize-text';
 
 /**
@@ -117,7 +120,7 @@ export class ResourceFactory {
   private attestationsResource?: IAttestationsResource;
   private identityCredentialsResource?: IIdentityCredentialsResource;
   private spendRequestResource?: ISpendRequestResource;
-  private testHelpersSpendRequestResource?: TestHelpersSpendRequestResource;
+  private testHelpersSpendRequestResource?: ITestHelpersSpendRequestResource;
   private paymentMethodsResource?: IPaymentMethodsResource;
   private shippingAddressResource?: IShippingAddressResource;
   private userInfoResource?: IUserInfoResource;
@@ -264,7 +267,7 @@ export class ResourceFactory {
     return resource;
   }
 
-  createTestHelpersSpendRequestResource(): TestHelpersSpendRequestResource {
+  createTestHelpersSpendRequestResource(): ITestHelpersSpendRequestResource {
     if (this.testHelpersSpendRequestResource) {
       return this.testHelpersSpendRequestResource;
     }

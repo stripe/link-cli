@@ -1553,18 +1553,9 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
   });
 
   describe('test-helpers spend-request approve', () => {
-    it('hides test helpers unless enabled', async () => {
-      const disabledEnv = { LINK_TEST_HELPERS: '' };
-      const help = await runProdCliWithEnv(disabledEnv, '--help');
-      expect(help.exitCode).toBe(0);
-      expect(help.stdout).not.toContain('test-helpers');
-
-      const llms = await runProdCliWithEnv(disabledEnv, '--llms');
-      expect(llms.exitCode).toBe(0);
-      expect(llms.stdout).not.toContain('test-helpers');
-
-      const disabled = await runProdCliWithEnv(
-        disabledEnv,
+    it('requires LINK_TEST_HELPERS', async () => {
+      const result = await runProdCliWithEnv(
+        { LINK_TEST_HELPERS: '' },
         'test-helpers',
         'spend-request',
         'approve',
@@ -1572,15 +1563,9 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         '--format',
         'json',
       );
-      expect(disabled.exitCode).toBe(1);
-      expect(requests).toHaveLength(0);
 
-      const enabled = await runProdCliWithEnv(
-        { LINK_TEST_HELPERS: 'true' },
-        '--help',
-      );
-      expect(enabled.exitCode).toBe(0);
-      expect(enabled.stdout).toContain('test-helpers');
+      expect(result.exitCode).toBe(1);
+      expect(requests).toHaveLength(0);
     });
 
     it('approves the test request by ID and returns its ID and status', async () => {

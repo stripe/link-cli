@@ -1,10 +1,10 @@
 import { Cli, z } from 'incur';
 import type { CliAuthStorage } from '../../auth/storage';
 import { requireAuth } from '../../utils/require-auth';
-import type { TestHelpersSpendRequestResource } from './spend-request';
+import type { ITestHelpersSpendRequestResource } from './spend-request';
 
 export function createTestHelpersCli(
-  repository: TestHelpersSpendRequestResource,
+  repository: ITestHelpersSpendRequestResource,
   authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ) {

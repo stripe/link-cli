@@ -9,6 +9,7 @@ export {
 } from './errors';
 export { ApprovalPolicyResource } from './resources/approval-policy';
 export * from './resources/attestations';
+export { BaseResource } from './resources/base';
 export {
   holderJwksEqual,
   holderJwkThumbprint,
