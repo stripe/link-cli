@@ -8,7 +8,10 @@ from conftest import API
 from fixtures import ADDRESS, BALANCE, SPEND, TRANSACTION
 
 from link import (
+    REPORT_ATTEMPT_TRACE_MAX_LENGTH,
+    AvailableInsightTypesPage,
     BalancesPage,
+    InsightsPage,
     LinkAPIError,
     LinkResponseError,
     LinkSDKError,
@@ -214,6 +217,161 @@ async def test_update_payment_method_malformed_response(api: API) -> None:
     api.respond({"id": 123})
     with pytest.raises(LinkResponseError):
         await api.call("payment_methods", "update", "pd_1", nickname="Work")
+
+
+async def test_retrieve_payment_method(api: API) -> None:
+    api.respond(
+        {
+            "id": "pd_1",
+            "type": "LINK_BALANCE",
+            "is_default": False,
+            "name": "Link balance",
+            "balance_details": {
+                "available_balance": {"amount": 1250, "currency": "usd"}
+            },
+            "capabilities": {"card": {"eligible": True, "ineligibility_reasons": []}},
+        }
+    )
+
+    result = await api.call("payment_methods", "retrieve", "pd/../other")
+
+    assert isinstance(result, PaymentMethod)
+    assert result.balance_details is not None
+    assert result.balance_details.available_balance is not None
+    assert result.balance_details.available_balance.amount == 1250
+    request = api.requests[0]
+    assert request.method == "GET"
+    assert request.url.raw_path == b"/payment-details/pd%2F..%2Fother"
+    assert request.content == b""
+
+
+async def test_retrieve_missing_payment_method_returns_none(api: API) -> None:
+    api.respond({"error": {"message": "not found"}}, 404)
+    assert await api.call("payment_methods", "retrieve", "pd_missing") is None
+
+
+@pytest.mark.parametrize("status", [400, 403, 500])
+async def test_retrieve_payment_method_api_errors(api: API, status: int) -> None:
+    api.respond({"error": {"message": "unavailable"}}, status)
+    with pytest.raises(LinkAPIError) as caught:
+        await api.call("payment_methods", "retrieve", "pd_1")
+    assert caught.value.status == status
+
+
+async def test_retrieve_payment_method_malformed_response(api: API) -> None:
+    api.respond({"id": 123})
+    with pytest.raises(LinkResponseError):
+        await api.call("payment_methods", "retrieve", "pd_1")
+
+
+async def test_list_available_insight_types(api: API) -> None:
+    page = {
+        "data": [
+            {
+                "id": "top_brand_by_transaction_count_per_category_t180d",
+                "description": "Top brands",
+                "authorization_remediation": {
+                    "authorization_details": [
+                        {
+                            "type": "source",
+                            "actions": [
+                                "read_link_transactions",
+                                "read_external_transactions",
+                            ],
+                        }
+                    ]
+                },
+            }
+        ],
+        "has_more": True,
+    }
+    api.respond(page)
+
+    result = await api.call(
+        "insights", "list_available_types", limit=1, starting_after="previous"
+    )
+
+    assert isinstance(result, AvailableInsightTypesPage)
+    assert result.model_dump(exclude_unset=True) == page
+    request = api.requests[0]
+    assert request.method == "GET"
+    assert request.url.path == "/insights/available_types"
+    assert request.url.params.multi_items() == [
+        ("limit", "1"),
+        ("starting_after", "previous"),
+    ]
+
+
+async def test_list_insights_preserves_future_values(api: API) -> None:
+    page = {
+        "data": [
+            {
+                "id": "monthly_spend",
+                "description": "Monthly spend",
+                "status": "available",
+                "as_of": 1767225600,
+                "data": [
+                    {"label": "Total", "value": {"type": "money", "amount": 100}},
+                    {"label": "Future", "value": {"type": "future", "x": [1]}},
+                ],
+                "future_field": True,
+            },
+            {
+                "id": "top_brands",
+                "description": "Top brands",
+                "status": "unauthorized",
+                "data": None,
+                "error_code": "insufficient_scope",
+                "error_message": "Grant transaction access.",
+                "authorization_remediation": {"scope": ["transactions:read"]},
+            },
+        ],
+        "has_more": False,
+    }
+    api.respond(page)
+
+    result = await api.call(
+        "insights", "list", insights=["monthly_spend", "top_brands"]
+    )
+
+    assert isinstance(result, InsightsPage)
+    assert result.model_dump(exclude_unset=True) == page
+    assert api.requests[0].url.path == "/insights"
+    assert api.requests[0].url.params.multi_items() == [
+        ("insights[]", "monthly_spend"),
+        ("insights[]", "top_brands"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("method", "body"),
+    [
+        ("list_available_types", {"data": [{"id": "abc"}], "has_more": False}),
+        ("list", {"data": []}),
+    ],
+)
+async def test_insights_reject_invalid_pages(
+    api: API, method: str, body: dict[str, Any]
+) -> None:
+    api.respond(body)
+    with pytest.raises(LinkResponseError):
+        await api.call("insights", method)
+
+
+async def test_insights_api_errors(api: API) -> None:
+    api.respond({"error": {"message": "Invalid limit"}}, 400)
+    with pytest.raises(LinkAPIError, match="Invalid limit"):
+        await api.call("insights", "list", limit=0)
+
+
+@pytest.mark.parametrize("value", ["monthly_spend", b"monthly_spend"])
+async def test_insights_reject_string_sequence(api: API, value: Any) -> None:
+    with pytest.raises(LinkSDKError, match="sequence of strings"):
+        await api.call("insights", "list", insights=value)
+
+
+def test_report_attempt_trace_max_length() -> None:
+    assert REPORT_ATTEMPT_TRACE_MAX_LENGTH == 8000
 
 
 @pytest.mark.parametrize("address", [{}, {"country_code": "US", "line_1": "123 Main"}])
@@ -565,6 +723,7 @@ async def test_report_all_fields(api: API) -> None:
         "tags": [],
         "step": "checkout",
         "freeform_context": "all done",
+        "attempt_trace": "1. Opened checkout\n2. Submitted payment",
     }
     api.respond(
         {

@@ -244,17 +244,20 @@ ID are keyword-only. List methods return one API page without auto-pagination.
 | Resource | Methods / result |
 | --- | --- |
 | `spend_requests` | `create`, `update`, `retrieve`, `cancel` → `SpendRequest`; `retrieve` returns `None` on 404. `list` → list; `request_approval` → `RequestApprovalResponse`. |
-| `payment_methods` | `list` → `list[PaymentMethod]`; `update` → `PaymentMethod` |
+| `payment_methods` | `list` → `list[PaymentMethod]`; `retrieve(id)` → `PaymentMethod`, or `None` on 404; `update` → `PaymentMethod` |
 | `shipping_addresses` | `list` → `list[ShippingAddressRecord]` |
 | `user_info` | `retrieve` → `UserInfo` |
 | `transactions` | `list` → `TransactionsPage` |
 | `sources` | `list` → `SourcesPage` |
 | `balances` | `list` → `BalancesPage` |
+| `insights` | `list_available_types` → `AvailableInsightTypesPage`; `list` → `InsightsPage` |
 | `web_bot_auth` | `sign_url(url)` → `WebBotAuthBlock`; cached by hostname until 30 seconds before expiry. |
 | `reports` | `create` → `ReportRecord` |
+| `approval_policy` | `retrieve` → `ApprovalPolicy` |
 
-The resource surface follows the common TypeScript/Go contract. TypeScript's
-report `attempt_trace` field is outside that shared contract.
+The resource surface follows the TypeScript SDK's API resources. Report
+`attempt_trace` values longer than `REPORT_ATTEMPT_TRACE_MAX_LENGTH` (8,000
+characters) are truncated by the API rather than rejected.
 
 Examples of filters and updates:
 
@@ -265,10 +268,26 @@ request = client.spend_requests.update("sr_123", line_items=[], totals=[])
 page = client.transactions.list(
     limit=20, starting_after="tx_123", start_date="2026-01-01", sources=["source_123"]
 )
+method = client.payment_methods.retrieve("pd_123")
+types = client.insights.list_available_types(limit=10)
+insights = client.insights.list(insights=[types.data[0].id])
 report = client.reports.create(
-    domain="merchant.example", outcome="success", spend_request_id="sr_123", tags=[]
+    domain="merchant.example",
+    outcome="success",
+    spend_request_id="sr_123",
+    tags=[],
+    attempt_trace="1. Opened checkout\n2. Submitted payment",
 )
 ```
+
+Insight entries keep `value` payloads unchanged as JSON data, so future value
+types remain readable. Insights that need more access include
+`authorization_remediation` with the `scope` or `authorization_details` to request.
+
+## Approval policy
+
+`approval_policy.retrieve()` returns the account's spend-request approval rules,
+including per-purchase limits.
 
 ## Types and errors
 
@@ -276,7 +295,7 @@ Responses are Pydantic models with attribute access. Request methods have typed
 keyword arguments; nested request objects use dictionaries. Exported TypedDicts
 such as `CreateSpendRequestParams` can also be passed with `**params`. Collection
 inputs accept sequences (including tuples) and metadata accepts read-only mappings.
-Pass `include` and `sources` as sequences such as `["card"]` and `["source_123"]`;
+Pass `include`, `sources`, and `insights` as sequences such as `["card"]` and `["source_123"]`;
 bare strings are rejected. `JsonPrimitive` and `JsonValue` describe JSON data.
 
 Optional request values set to `None` are omitted; explicit empty collections,
@@ -292,7 +311,7 @@ empty values. Optional fields default to `None`, and `model_fields_set` or
 Shipping addresses can omit nullable postal fields and `nickname`, matching
 the other SDKs.
 Malformed scalar types are rejected without coercion. `TransactionsPage`,
-`Source`, `SourcesPage`, `Balance`, and `BalancesPage` retain unknown properties
+`Source`, `SourcesPage`, `Balance`, `BalancesPage`, and the insight models retain unknown properties
 in `model_extra` and include them in serialized output. Use
 `model_dump(exclude_unset=True)` to preserve response field presence.
 

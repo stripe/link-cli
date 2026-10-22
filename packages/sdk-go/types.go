@@ -403,7 +403,21 @@ type PaymentMethod struct {
 	Nickname           *string                      `json:"nickname,omitempty"`
 	CardDetails        *CardDetails                 `json:"card_details,omitempty"`
 	BankAccountDetails *BankAccountDetails          `json:"bank_account_details,omitempty"`
+	BalanceDetails     *PaymentMethodBalanceDetails `json:"balance_details,omitempty"`
 	Capabilities       map[string]ProductCapability `json:"capabilities,omitempty"`
+}
+
+// PaymentMethodBalanceDetails contains a Link balance payment method's
+// available amount, when known.
+type PaymentMethodBalanceDetails struct {
+	AvailableBalance *PaymentMethodAvailableBalance `json:"available_balance,omitempty"`
+}
+
+// PaymentMethodAvailableBalance is an available balance in the currency's
+// minor unit.
+type PaymentMethodAvailableBalance struct {
+	Amount   int64  `json:"amount"`
+	Currency string `json:"currency"`
 }
 
 // ShippingAddress contains nullable postal-address fields.
@@ -511,6 +525,64 @@ type Balance struct {
 type BalancesPage struct {
 	Data             []Balance      `json:"data"`
 	HasMore          *bool          `json:"has_more,omitempty"`
+	AdditionalFields map[string]any `json:"-"`
+}
+
+// InsightAuthorizationRemediation lists the additional access needed to
+// compute an insight.
+type InsightAuthorizationRemediation struct {
+	Scope                []string                     `json:"scope,omitempty"`
+	AuthorizationDetails []InsightAuthorizationDetail `json:"authorization_details,omitempty"`
+}
+
+// InsightAuthorizationDetail is a typed authorization detail with actions.
+type InsightAuthorizationDetail struct {
+	Type    string   `json:"type"`
+	Actions []string `json:"actions"`
+}
+
+// AvailableInsightType describes an insight that can be requested.
+// AdditionalFields preserves forward-compatible response properties not yet
+// modeled by the SDK.
+type AvailableInsightType struct {
+	ID                       string                           `json:"id"`
+	Description              string                           `json:"description"`
+	AuthorizationRemediation *InsightAuthorizationRemediation `json:"authorization_remediation,omitempty"`
+	AdditionalFields         map[string]any                   `json:"-"`
+}
+
+// AvailableInsightTypesPage is a page of available insight types.
+type AvailableInsightTypesPage struct {
+	Data             []AvailableInsightType `json:"data"`
+	HasMore          bool                   `json:"has_more"`
+	AdditionalFields map[string]any         `json:"-"`
+}
+
+// InsightEntry is a labeled insight value. Values are tagged by `type`; Value
+// preserves future payloads unchanged.
+type InsightEntry struct {
+	Label            string         `json:"label"`
+	Value            JSONValue      `json:"value"`
+	AdditionalFields map[string]any `json:"-"`
+}
+
+// Insight is a precomputed insight result.
+type Insight struct {
+	ID                       string                           `json:"id"`
+	Description              string                           `json:"description"`
+	Status                   string                           `json:"status"`
+	AsOf                     *int64                           `json:"as_of,omitempty"`
+	Data                     []InsightEntry                   `json:"data,omitempty"`
+	ErrorCode                *string                          `json:"error_code,omitempty"`
+	ErrorMessage             *string                          `json:"error_message,omitempty"`
+	AuthorizationRemediation *InsightAuthorizationRemediation `json:"authorization_remediation,omitempty"`
+	AdditionalFields         map[string]any                   `json:"-"`
+}
+
+// InsightsPage is a page of insights.
+type InsightsPage struct {
+	Data             []Insight      `json:"data"`
+	HasMore          bool           `json:"has_more"`
 	AdditionalFields map[string]any `json:"-"`
 }
 

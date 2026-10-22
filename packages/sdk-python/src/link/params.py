@@ -2,7 +2,7 @@
 
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Required, TypedDict
+from typing import Final, Required, TypedDict
 
 from ._types import (
     ApprovalMethod,
@@ -127,6 +127,19 @@ class ListBalancesParams(ListSourcesParams, total=False):
     sources: Sequence[str] | None
 
 
+class ListInsightTypesParams(TypedDict, total=False):
+    limit: int | None
+    starting_after: str | None
+
+
+class ListInsightsParams(ListInsightTypesParams, total=False):
+    insights: Sequence[str] | None
+
+
+REPORT_ATTEMPT_TRACE_MAX_LENGTH: Final = 8000
+"""Server-side cap on ``attempt_trace``. The API truncates longer values."""
+
+
 class CreateReportParams(TypedDict, total=False):
     domain: Required[str]
     outcome: Required[ReportOutcome]
@@ -134,3 +147,4 @@ class CreateReportParams(TypedDict, total=False):
     tags: Sequence[ReportTag] | None
     step: str | None
     freeform_context: str | None
+    attempt_trace: str | None

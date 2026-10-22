@@ -31,6 +31,8 @@ class Client:
     transactions: _resources.TransactionsResource
     sources: _resources.SourcesResource
     balances: _resources.BalancesResource
+    insights: _resources.InsightsResource
+    approval_policy: _resources.ApprovalPolicyResource
     reports: _resources.ReportsResource
     web_bot_auth: WebBotAuthResource
 
@@ -75,6 +77,8 @@ class Client:
         self.transactions = _resources.TransactionsResource(transport)
         self.sources = _resources.SourcesResource(transport)
         self.balances = _resources.BalancesResource(transport)
+        self.insights = _resources.InsightsResource(transport)
+        self.approval_policy = _resources.ApprovalPolicyResource(transport)
         self.reports = _resources.ReportsResource(transport)
         self.web_bot_auth = WebBotAuthResource(transport)
 
@@ -105,6 +109,8 @@ class AsyncClient:
     transactions: _async_resources.AsyncTransactionsResource
     sources: _async_resources.AsyncSourcesResource
     balances: _async_resources.AsyncBalancesResource
+    insights: _async_resources.AsyncInsightsResource
+    approval_policy: _async_resources.AsyncApprovalPolicyResource
     reports: _async_resources.AsyncReportsResource
     web_bot_auth: AsyncWebBotAuthResource
 
@@ -151,6 +157,8 @@ class AsyncClient:
         self.transactions = _async_resources.AsyncTransactionsResource(transport)
         self.sources = _async_resources.AsyncSourcesResource(transport)
         self.balances = _async_resources.AsyncBalancesResource(transport)
+        self.insights = _async_resources.AsyncInsightsResource(transport)
+        self.approval_policy = _async_resources.AsyncApprovalPolicyResource(transport)
         self.reports = _async_resources.AsyncReportsResource(transport)
         self.web_bot_auth = AsyncWebBotAuthResource(transport)
 

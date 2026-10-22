@@ -9,7 +9,10 @@ from urllib.parse import quote
 from ._transport import Request
 from .errors import LinkSDKError
 from .models import (
+    ApprovalPolicy,
+    AvailableInsightTypesPage,
     BalancesPage,
+    InsightsPage,
     LinkModel,
     PaymentMethod,
     ReportRecord,
@@ -183,6 +186,16 @@ def _payment_method_path(id: str) -> str:
     return "/payment-details/" + segment
 
 
+def payment_method_retrieve(id: str) -> Request[PaymentMethod | None]:
+    return Request[PaymentMethod | None](
+        "retrieve payment method",
+        "GET",
+        _payment_method_path(id),
+        PaymentMethod.model_validate,
+        on_not_found=lambda: None,
+    )
+
+
 def payment_method_update(
     id: str, nickname: str | None, is_default: bool | None
 ) -> Request[PaymentMethod]:
@@ -257,6 +270,39 @@ def balances(params: Mapping[str, Any]) -> Request[BalancesPage]:
     )
 
 
+def _insights_query(params: Mapping[str, Any]) -> tuple[tuple[str, str], ...]:
+    query: list[tuple[str, str]] = []
+    for key, value in params.items():
+        if value is None:
+            continue
+        if key == "insights":
+            _validate_string_sequence(key, value)
+            query.extend(("insights[]", insight) for insight in value)
+        else:
+            query.append((key, str(value)))
+    return tuple(query)
+
+
+def insight_types(params: Mapping[str, Any]) -> Request[AvailableInsightTypesPage]:
+    return Request(
+        "list available insight types",
+        "GET",
+        "/insights/available_types",
+        AvailableInsightTypesPage.model_validate,
+        query=_insights_query(params),
+    )
+
+
+def insights(params: Mapping[str, Any]) -> Request[InsightsPage]:
+    return Request(
+        "list insights",
+        "GET",
+        "/insights",
+        InsightsPage.model_validate,
+        query=_insights_query(params),
+    )
+
+
 def report_create(params: Mapping[str, Any]) -> Request[ReportRecord]:
     return Request(
         "create report",
@@ -274,4 +320,13 @@ def web_bot_sign(url: str) -> Request[WebBotAuthBlock]:
         "/web_bot_auth/sign",
         _web_bot_auth,
         body={"url": url},
+    )
+
+
+def approval_policy() -> Request[ApprovalPolicy]:
+    return Request(
+        "retrieve approval policy",
+        "GET",
+        "/approval-policy",
+        ApprovalPolicy.model_validate,
     )

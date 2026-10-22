@@ -12,7 +12,8 @@ from typing import assert_type
 from types import MappingProxyType
 from link import AsyncClient, Client, LineItemParams, SpendRequest, PaymentMethod
 from link import JsonPrimitive, JsonValue, SpendRequestStatus
-from link import UserInfoAddress
+from link import UserInfoAddress, InsightsPage, AvailableInsightTypesPage
+from link import ApprovalPolicy
 
 future_status: SpendRequestStatus = "future_status"
 primitive: JsonPrimitive = None
@@ -36,11 +37,17 @@ def valid(client: Client) -> None:
         merchant_account_id="acct_1",
     )
     assert_type(client.payment_methods.list(), list[PaymentMethod])
+    assert_type(client.payment_methods.retrieve("pd_1"), PaymentMethod | None)
+    assert_type(client.insights.list(insights=["a"]), InsightsPage)
+    assert_type(
+        client.insights.list_available_types(limit=1), AvailableInsightTypesPage
+    )
     assert_type(
         client.payment_methods.update("pd_1", nickname=""), PaymentMethod
     )
     assert_type(client.payment_methods.update("pd_1", is_default=False), PaymentMethod)
     assert_type(client.spend_requests.retrieve("sr_1"), SpendRequest | None)
+    assert_type(client.approval_policy.retrieve(), ApprovalPolicy)
     client.reports.create(
         domain="example.com", outcome="success", spend_request_id="sr_1"
     )
@@ -66,6 +73,9 @@ async def valid_async(client: AsyncClient) -> None:
     assert_type(
         await client.payment_methods.update("pd_1", is_default=True), PaymentMethod
     )
+    assert_type(await client.payment_methods.retrieve("pd_1"), PaymentMethod | None)
+    assert_type(await client.insights.list(), InsightsPage)
+    assert_type(await client.approval_policy.retrieve(), ApprovalPolicy)
 """)
     command = [
         sys.executable,

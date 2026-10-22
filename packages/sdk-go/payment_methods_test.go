@@ -165,3 +165,49 @@ func TestUpdatePaymentMethodRetriesProvider401(t *testing.T) {
 		t.Fatalf("got %d requests and %d provider calls", requests, providerCalls)
 	}
 }
+
+func TestRetrievePaymentMethod(t *testing.T) {
+	var method, requestURI string
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		method = request.Method
+		requestURI = request.RequestURI
+		_, _ = response.Write([]byte(`{"id":"pd/1","type":"LINK_BALANCE","is_default":false,"name":"Link balance","balance_details":{"available_balance":{"amount":1250,"currency":"usd"}},"capabilities":{"card":{"eligible":false,"ineligibility_reasons":["unsupported"]}}}`))
+	}))
+	defer server.Close()
+	client, _ := NewClient(Options{AccessToken: "token", APIBaseURL: server.URL})
+	result, err := client.PaymentMethods.Retrieve(context.Background(), "pd/1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if method != http.MethodGet || requestURI != "/payment-details/pd%2F1" {
+		t.Fatalf("got %s %s", method, requestURI)
+	}
+	if result.BalanceDetails == nil || result.BalanceDetails.AvailableBalance == nil ||
+		result.BalanceDetails.AvailableBalance.Amount != 1250 || result.BalanceDetails.AvailableBalance.Currency != "usd" {
+		t.Fatalf("got balance details %#v", result.BalanceDetails)
+	}
+	if capability, ok := result.Capabilities["card"]; !ok || capability.Eligible || capability.IneligibilityReasons[0] != "unsupported" {
+		t.Fatalf("got capabilities %#v", result.Capabilities)
+	}
+}
+
+func TestRetrievePaymentMethodNotFoundAndErrors(t *testing.T) {
+	status := http.StatusNotFound
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.WriteHeader(status)
+		_, _ = response.Write([]byte(`{"error":{"message":"server unavailable"}}`))
+	}))
+	defer server.Close()
+	client, _ := NewClient(Options{AccessToken: "token", APIBaseURL: server.URL})
+	result, err := client.PaymentMethods.Retrieve(context.Background(), "pd_missing")
+	if err != nil || result != nil {
+		t.Fatalf("result %#v, error %v", result, err)
+	}
+
+	status = http.StatusInternalServerError
+	_, err = client.PaymentMethods.Retrieve(context.Background(), "pd_1")
+	var apiError *LinkAPIError
+	if !errors.As(err, &apiError) || apiError.Status != http.StatusInternalServerError || !strings.Contains(err.Error(), "server unavailable") {
+		t.Fatalf("got %#v", err)
+	}
+}

@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from ._types import (
     AgentWalletVerificationStatus,
     ApprovalMethod,
+    ApprovalPolicyAction,
     AuthenticationMethod,
     BalanceType,
     CredentialType,
@@ -231,6 +232,15 @@ class ProductCapability(LinkModel):
     ineligibility_reasons: list[str]
 
 
+class PaymentMethodAvailableBalance(LinkModel):
+    amount: int
+    currency: str
+
+
+class PaymentMethodBalanceDetails(LinkModel):
+    available_balance: PaymentMethodAvailableBalance | None = None
+
+
 class PaymentMethod(LinkModel):
     id: str = Field(min_length=1)
     type: str
@@ -239,6 +249,7 @@ class PaymentMethod(LinkModel):
     nickname: str | None = None
     card_details: CardDetails | None = None
     bank_account_details: BankAccountDetails | None = None
+    balance_details: PaymentMethodBalanceDetails | None = None
     capabilities: dict[str, ProductCapability] | None = None
 
 
@@ -322,6 +333,57 @@ class BalancesPage(LinkModel):
     has_more: bool | None = None
 
 
+class InsightAuthorizationDetail(LinkModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+    type: str
+    actions: list[str]
+
+
+class InsightAuthorizationRemediation(LinkModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+    scope: list[str] | None = None
+    authorization_details: list[InsightAuthorizationDetail] | None = None
+
+
+class AvailableInsightType(LinkModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+    id: str
+    description: str
+    authorization_remediation: InsightAuthorizationRemediation | None = None
+
+
+class AvailableInsightTypesPage(LinkModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+    data: list[AvailableInsightType]
+    has_more: bool
+
+
+class InsightEntry(LinkModel):
+    """An insight value. ``value`` payloads are tagged by ``type`` and preserved."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+    label: str
+    value: Any
+
+
+class Insight(LinkModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+    id: str
+    description: str
+    status: str
+    as_of: int | None = None
+    data: list[InsightEntry] | None = None
+    error_code: str | None = None
+    error_message: str | None = None
+    authorization_remediation: InsightAuthorizationRemediation | None = None
+
+
+class InsightsPage(LinkModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+    data: list[Insight]
+    has_more: bool
+
+
 class WebBotAuthBlock(LinkModel):
     signature: str
     signature_input: str
@@ -337,3 +399,26 @@ class ReportRecord(LinkModel):
     outcome: str
     spend_request_id: str
     status: str
+
+
+class ApprovalPolicyAmount(LinkModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+    amount: int
+    currency: str
+
+
+class ApprovalPolicyLimits(LinkModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+    per_purchase: ApprovalPolicyAmount
+
+
+class ApprovalPolicyRule(LinkModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+    action: ApprovalPolicyAction | str
+    limits: ApprovalPolicyLimits
+    allowed_payment_methods: list[str] | None = None
+
+
+class ApprovalPolicy(LinkModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+    rules: list[ApprovalPolicyRule]

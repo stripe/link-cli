@@ -75,3 +75,4 @@ ReportTag: TypeAlias = Literal[
     "payment_declined",
     "other",
 ]
+ApprovalPolicyAction: TypeAlias = Literal["spend_request_create"]

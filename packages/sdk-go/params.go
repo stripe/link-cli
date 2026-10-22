@@ -116,6 +116,19 @@ type ListBalancesParams struct {
 	EndingBefore  *string  `json:"ending_before,omitempty"`
 }
 
+// ListInsightTypesParams paginates available insight types.
+type ListInsightTypesParams struct {
+	Limit         *int64  `json:"limit,omitempty"`
+	StartingAfter *string `json:"starting_after,omitempty"`
+}
+
+// ListInsightsParams filters and paginates insights.
+type ListInsightsParams struct {
+	Limit         *int64   `json:"limit,omitempty"`
+	StartingAfter *string  `json:"starting_after,omitempty"`
+	Insights      []string `json:"insights,omitempty"`
+}
+
 // ReportOutcome is the result of an agent attempt.
 type ReportOutcome string
 
@@ -153,7 +166,14 @@ type CreateReportParams struct {
 	Tags            []ReportTag   `json:"tags,omitempty"`
 	Step            *string       `json:"step,omitempty"`
 	FreeformContext *string       `json:"freeform_context,omitempty"`
+	// AttemptTrace is the full replayable path the agent took. The API
+	// truncates values longer than ReportAttemptTraceMaxLength.
+	AttemptTrace *string `json:"attempt_trace,omitempty"`
 }
+
+// ReportAttemptTraceMaxLength is the server-side cap on AttemptTrace. Longer
+// values are truncated by the API rather than rejected.
+const ReportAttemptTraceMaxLength = 8000
 
 func (params CreateReportParams) MarshalJSON() ([]byte, error) {
 	type wire CreateReportParams

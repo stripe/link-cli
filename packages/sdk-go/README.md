@@ -54,6 +54,22 @@ func main() {
 Use a fixed token for a short-lived job or when the caller replaces the entire
 client as credentials change.
 
+## Retrieve a payment method
+
+`PaymentMethods.Retrieve` returns one payment method by ID, or `nil` with no
+error when it does not exist. Link balance methods include `BalanceDetails`
+with the available amount when known.
+
+```go
+method, err := client.PaymentMethods.Retrieve(ctx, "pd_123")
+if err != nil {
+	log.Fatal(err)
+}
+if method == nil {
+	log.Fatal("payment method not found")
+}
+```
+
 ## Update payment methods
 
 Pass `Nickname`, `IsDefault`, or both to `PaymentMethods.Update`. Use pointers
@@ -77,6 +93,37 @@ _, err = client.PaymentMethods.Update(ctx, "pd_123", link.UpdatePaymentMethodPar
 	Nickname:  &nickname,
 	IsDefault: &setDefault,
 })
+```
+
+## Insights
+
+`Insights.ListAvailableTypes` lists the precomputed insights that can be
+requested. `Insights.List` returns computed results, optionally filtered by
+insight ID. An insight that cannot be computed has an `ErrorCode`, and
+`AuthorizationRemediation` lists the scopes or authorization details to request
+when missing access is the cause. `InsightEntry.Value` is tagged by `type` and
+decoded as generic JSON so future value formats are preserved.
+
+```go
+types, err := client.Insights.ListAvailableTypes(ctx, nil)
+if err != nil {
+	log.Fatal(err)
+}
+
+insights, err := client.Insights.List(ctx, &link.ListInsightsParams{
+	Insights: []string{types.Data[0].ID},
+})
+```
+
+## Approval policy
+
+`ApprovalPolicy.Retrieve` returns the user's configured approval rules, each
+with a per-purchase limit in the currency's minor unit and optional allowed
+payment methods. A user without a configured policy returns a `LinkAPIError`
+with status 404.
+
+```go
+policy, err := client.ApprovalPolicy.Retrieve(ctx)
 ```
 
 ## Recurring payments
@@ -302,14 +349,16 @@ if errors.As(err, &linkError) {
 ## Client resources
 
 - `SpendRequests` — create, approve, retrieve, update, cancel, and list
-- `PaymentMethods` — list and update Link payment methods
+- `PaymentMethods` — list, retrieve, and update Link payment methods
 - `ShippingAddresses` — list shipping addresses
 - `UserInfo` — retrieve Link user information, including the stable `ID` when returned by the API
 - `Transactions` — list transactions
 - `Sources` — list connected sources
 - `Balances` — list balances
+- `Insights` — list available insight types and precomputed insights
 - `WebBotAuth` — sign URLs for Web Bot Auth
 - `Reports` — report agent outcomes
+- `ApprovalPolicy` — retrieve the user's approval policy
 
 ## Go data model
 

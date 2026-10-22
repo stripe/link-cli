@@ -36,6 +36,26 @@ func (r *PaymentMethodsResource) List(ctx context.Context) ([]PaymentMethod, err
 	return envelope.PaymentDetails, nil
 }
 
+// Retrieve returns one payment method, or nil when it does not exist.
+func (r *PaymentMethodsResource) Retrieve(ctx context.Context, id string) (*PaymentMethod, error) {
+	endpoint := r.base.baseURL + "/payment-details/" + url.PathEscape(id)
+	response, err := r.base.fetch(ctx, http.MethodGet, endpoint, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	if response.status == http.StatusNotFound {
+		return nil, nil
+	}
+	if response.status < 200 || response.status >= 300 {
+		return nil, newAPIError("retrieve payment method", response.status, response.data, response.rawBody)
+	}
+	var result PaymentMethod
+	if err := decodeResponse("retrieve payment method", response, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 // Update sets or clears a payment method's nickname, default status, or both.
 func (r *PaymentMethodsResource) Update(ctx context.Context, id string, params UpdatePaymentMethodParams) (*PaymentMethod, error) {
 	var result PaymentMethod

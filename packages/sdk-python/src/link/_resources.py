@@ -14,7 +14,10 @@ from ._types import (
     TransactionOrigin,
 )
 from .models import (
+    ApprovalPolicy,
+    AvailableInsightTypesPage,
     BalancesPage,
+    InsightsPage,
     PaymentMethod,
     ReportRecord,
     RequestApprovalResponse,
@@ -30,6 +33,8 @@ from .params import (
     CreateSpendRequestParams,
     LineItemParams,
     ListBalancesParams,
+    ListInsightsParams,
+    ListInsightTypesParams,
     ListSourcesParams,
     ListTransactionsParams,
     SpendRequestRecurringParams,
@@ -153,6 +158,10 @@ class PaymentMethodsResource:
         """List payment methods."""
         return self._transport.request(op.payment_methods())
 
+    def retrieve(self, id: str) -> PaymentMethod | None:
+        """Retrieve a payment method, or None when it does not exist."""
+        return self._transport.request(op.payment_method_retrieve(id))
+
     def update(
         self, id: str, *, nickname: str | None = None, is_default: bool | None = None
     ) -> PaymentMethod:
@@ -252,6 +261,39 @@ class BalancesResource:
         return self._transport.request(op.balances(params))
 
 
+class InsightsResource:
+    def __init__(self, transport: Transport) -> None:
+        self._transport = transport
+
+    def list_available_types(
+        self,
+        *,
+        limit: int | None = None,
+        starting_after: str | None = None,
+    ) -> AvailableInsightTypesPage:
+        """List insight types available to the Link account."""
+        params: ListInsightTypesParams = {
+            "limit": limit,
+            "starting_after": starting_after,
+        }
+        return self._transport.request(op.insight_types(params))
+
+    def list(
+        self,
+        *,
+        limit: int | None = None,
+        starting_after: str | None = None,
+        insights: Sequence[str] | None = None,
+    ) -> InsightsPage:
+        """List precomputed insights."""
+        params: ListInsightsParams = {
+            "limit": limit,
+            "starting_after": starting_after,
+            "insights": insights,
+        }
+        return self._transport.request(op.insights(params))
+
+
 class ReportsResource:
     def __init__(self, transport: Transport) -> None:
         self._transport = transport
@@ -265,6 +307,7 @@ class ReportsResource:
         tags: Sequence[ReportTag] | None = None,
         step: str | None = None,
         freeform_context: str | None = None,
+        attempt_trace: str | None = None,
     ) -> ReportRecord:
         """Record an agent outcome."""
         params: CreateReportParams = {
@@ -274,5 +317,15 @@ class ReportsResource:
             "tags": tags,
             "step": step,
             "freeform_context": freeform_context,
+            "attempt_trace": attempt_trace,
         }
         return self._transport.request(op.report_create(params))
+
+
+class ApprovalPolicyResource:
+    def __init__(self, transport: Transport) -> None:
+        self._transport = transport
+
+    def retrieve(self) -> ApprovalPolicy:
+        """Retrieve the Link account's spend-request approval policy."""
+        return self._transport.request(op.approval_policy())

@@ -131,3 +131,87 @@ func (page BalancesPage) MarshalJSON() ([]byte, error) {
 	type wire BalancesPage
 	return marshalExtra(wire(page), page.AdditionalFields)
 }
+
+func (insightType *AvailableInsightType) UnmarshalJSON(data []byte) error {
+	type wire AvailableInsightType
+	*insightType = AvailableInsightType{}
+	extra, err := unmarshalExtra(data, (*wire)(insightType), "id", "description", "authorization_remediation")
+	insightType.AdditionalFields = extra
+	return err
+}
+
+func (insightType AvailableInsightType) MarshalJSON() ([]byte, error) {
+	type wire AvailableInsightType
+	return marshalExtra(wire(insightType), insightType.AdditionalFields)
+}
+
+func (page *AvailableInsightTypesPage) UnmarshalJSON(data []byte) error {
+	type wire AvailableInsightTypesPage
+	*page = AvailableInsightTypesPage{}
+	extra, err := unmarshalExtra(data, (*wire)(page), "data", "has_more")
+	page.AdditionalFields = extra
+	return err
+}
+
+func (page AvailableInsightTypesPage) MarshalJSON() ([]byte, error) {
+	type wire AvailableInsightTypesPage
+	return marshalExtra(wire(page), page.AdditionalFields)
+}
+
+func (entry *InsightEntry) UnmarshalJSON(data []byte) error {
+	type wire InsightEntry
+	*entry = InsightEntry{}
+	extra, err := unmarshalExtra(data, (*wire)(entry), "label", "value")
+	entry.AdditionalFields = extra
+	return err
+}
+
+func (entry InsightEntry) MarshalJSON() ([]byte, error) {
+	type wire InsightEntry
+	return marshalExtra(wire(entry), entry.AdditionalFields)
+}
+
+func (insight *Insight) UnmarshalJSON(data []byte) error {
+	type wire Insight
+	*insight = Insight{}
+	extra, err := unmarshalExtra(
+		data,
+		(*wire)(insight),
+		"id",
+		"description",
+		"status",
+		"as_of",
+		"data",
+		"error_code",
+		"error_message",
+		"authorization_remediation",
+	)
+	insight.AdditionalFields = extra
+	return err
+}
+
+func (insight Insight) MarshalJSON() ([]byte, error) {
+	type wire Insight
+	present := make(map[string]any, len(insight.AdditionalFields)+1)
+	for key, value := range insight.AdditionalFields {
+		present[key] = value
+	}
+	// Preserve an explicit empty data array, which omitempty would drop.
+	if insight.Data != nil {
+		present["data"] = insight.Data
+	}
+	return marshalExtra(wire(insight), present)
+}
+
+func (page *InsightsPage) UnmarshalJSON(data []byte) error {
+	type wire InsightsPage
+	*page = InsightsPage{}
+	extra, err := unmarshalExtra(data, (*wire)(page), "data", "has_more")
+	page.AdditionalFields = extra
+	return err
+}
+
+func (page InsightsPage) MarshalJSON() ([]byte, error) {
+	type wire InsightsPage
+	return marshalExtra(wire(page), page.AdditionalFields)
+}
