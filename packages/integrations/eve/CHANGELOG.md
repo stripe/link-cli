@@ -1,5 +1,12 @@
 # @stripe/link-integrations-eve
 
+## 0.3.7
+
+### Patch Changes
+
+- Updated dependencies [c757edb]
+  - @stripe/link-sdk@0.15.0
+
 ## 0.3.6
 
 ### Patch Changes

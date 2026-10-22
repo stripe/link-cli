@@ -1,5 +1,13 @@
 # @stripe/link-sdk
 
+## 0.15.0
+
+### Minor Changes
+
+- c757edb: Add `test-helpers spend-request approve <id>` to approve pending demo spend requests. Enable with `LINK_TEST_HELPERS=1` or `true`.
+  
+  Export `BaseResource` so CLI-owned resources can reuse SDK request handling.
+
 ## 0.14.2
 
 ### Patch Changes
