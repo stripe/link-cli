@@ -15,7 +15,6 @@ import type {
   IShippingAddressResource,
   ISourcesResource,
   ISpendRequestResource,
-  ITestHelpersSpendRequestResource,
   ITransactionsResource,
   IUcpResource,
   IUserInfoResource,
@@ -26,7 +25,6 @@ import { ReportResource } from '@/resources/report';
 import { ShippingAddressResource } from '@/resources/shipping-address';
 import { SourcesResource } from '@/resources/sources';
 import { SpendRequestResource } from '@/resources/spend-request';
-import { TestHelpersSpendRequestResource } from '@/resources/test-helpers/spend-request';
 import { TransactionsResource } from '@/resources/transactions';
 import { UcpResource } from '@/resources/ucp';
 import { UserInfoResource } from '@/resources/user-info';
@@ -36,9 +34,6 @@ export class Link {
   readonly attestations: IAttestationsResource;
   readonly identityCredentials: IIdentityCredentialsResource;
   readonly spendRequests: ISpendRequestResource;
-  readonly testHelpers: {
-    readonly spendRequests: ITestHelpersSpendRequestResource;
-  };
   readonly paymentMethods: IPaymentMethodsResource;
   readonly shippingAddresses: IShippingAddressResource;
   readonly userInfo: IUserInfoResource;
@@ -55,9 +50,6 @@ export class Link {
     this.attestations = new AttestationsResource(options);
     this.identityCredentials = new IdentityCredentialsResource(options);
     this.spendRequests = new SpendRequestResource(options);
-    this.testHelpers = {
-      spendRequests: new TestHelpersSpendRequestResource(options),
-    };
     this.paymentMethods = new PaymentMethodsResource(options);
     this.shippingAddresses = new ShippingAddressResource(options);
     this.userInfo = new UserInfoResource(options);

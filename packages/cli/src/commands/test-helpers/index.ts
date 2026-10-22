@@ -1,10 +1,10 @@
-import type { ITestHelpersSpendRequestResource } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import type { CliAuthStorage } from '../../auth/storage';
 import { requireAuth } from '../../utils/require-auth';
+import type { TestHelpersSpendRequestResource } from './spend-request';
 
 export function createTestHelpersCli(
-  repository: ITestHelpersSpendRequestResource,
+  repository: TestHelpersSpendRequestResource,
   authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ) {

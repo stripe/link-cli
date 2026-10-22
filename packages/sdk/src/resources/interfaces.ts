@@ -12,7 +12,6 @@ import type {
   ShippingAddressRecord,
   SourcesPage,
   SpendRequest,
-  TestSpendRequestDecisionResponse,
   Total,
   TransactionOrigin,
   TransactionsPage,
@@ -121,10 +120,6 @@ export interface ISpendRequestResource {
     id: string,
     opts?: { include?: string[] },
   ): Promise<SpendRequest | null>;
-}
-
-export interface ITestHelpersSpendRequestResource {
-  approve(id: string): Promise<TestSpendRequestDecisionResponse>;
 }
 
 export interface IPaymentMethodsResource {
