@@ -120,13 +120,19 @@ cli.command(
     usedRemovedExecutionMethod,
   }),
 );
-cli.command(
-  createTestHelpersCli(
-    factory.createTestHelpersSpendRequestResource(),
-    authStorage,
-    envAccessToken,
-  ),
-);
+const testHelpersEnabled =
+  process.env.LINK_TEST_HELPERS === '1' ||
+  process.env.LINK_TEST_HELPERS === 'true';
+
+if (testHelpersEnabled) {
+  cli.command(
+    createTestHelpersCli(
+      factory.createTestHelpersSpendRequestResource(),
+      authStorage,
+      envAccessToken,
+    ),
+  );
+}
 cli.command(
   createPaymentMethodsCli(
     () => factory.createPaymentMethodsResource(),

@@ -1,4 +1,6 @@
+import { Cli } from 'incur';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createTestHelpersCli } from '../index';
 import { TestHelpersSpendRequestResource } from '../spend-request';
 
 const mockFetch = vi.fn();
@@ -96,5 +98,35 @@ describe('TestHelpersSpendRequestResource', () => {
       code: 'invalid_response',
       status: 200,
     });
+  });
+
+  it('excludes registered test helpers from MCP', async () => {
+    const cli = Cli.create('test', {
+      mcp: { tools: { discovery: 'direct' } },
+    });
+    cli.command('public', { run: () => ({ ok: true }) });
+    cli.command(createTestHelpersCli(repo));
+
+    const response = await cli.fetch(
+      new Request('http://localhost/mcp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/list',
+          params: {},
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(
+      body.result.tools.map((tool: { name: string }) => tool.name),
+    ).toEqual(['public']);
   });
 });

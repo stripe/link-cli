@@ -17,6 +17,7 @@ export function createTestHelpersCli(
 
   spendRequest.command('approve', {
     description: 'Approve a pending demo spend request',
+    mcp: false,
     args: z.object({
       id: z.string().describe('Spend request ID'),
     }),
