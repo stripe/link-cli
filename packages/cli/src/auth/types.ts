@@ -9,6 +9,15 @@ export const SOURCE_ACTIONS = [
 
 export type SourceAction = (typeof SOURCE_ACTIONS)[number];
 
+// Keep login defaults explicit so adding a supported source action does not
+// silently expand the permissions requested by a new connection.
+export const DEFAULT_FINANCIAL_INSIGHTS_SOURCE_ACTIONS = [
+  'read_balances',
+  'read_external_transactions',
+  'read_link_transactions',
+  'read_source_details',
+] as const satisfies readonly SourceAction[];
+
 export interface AuthTokens {
   access_token: string;
   refresh_token: string;

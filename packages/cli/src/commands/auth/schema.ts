@@ -3,7 +3,7 @@ import { SOURCE_ACTIONS } from '../../auth/types';
 
 const SOURCE_ACTIONS_DESCRIPTION = SOURCE_ACTIONS.join(', ');
 
-export const loginOptions = z.object({
+const accessOptions = z.object({
   clientName: z
     .string()
     .default('Link CLI')
@@ -20,7 +20,7 @@ export const loginOptions = z.object({
     .array(z.enum(SOURCE_ACTIONS))
     .default([])
     .describe(
-      `Source action to request via authorization_details (repeatable). Accepted values: ${SOURCE_ACTIONS_DESCRIPTION}.`,
+      `Source action to request via authorization_details (repeatable). On login, explicit actions replace defaults. Accepted values: ${SOURCE_ACTIONS_DESCRIPTION}.`,
     ),
   authorizationDetail: z
     .array(z.string())
@@ -41,6 +41,17 @@ export const loginOptions = z.object({
     .default(300)
     .describe('Polling timeout in seconds.'),
 });
+
+export const loginOptions = accessOptions.extend({
+  financialInsights: z
+    .boolean()
+    .default(true)
+    .describe(
+      'All financial insights source actions are requested by default. Use --no-financial-insights to omit them.',
+    ),
+});
+
+export const upgradeOptions = accessOptions;
 
 export const statusOptions = z.object({
   interval: z.coerce

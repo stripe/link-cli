@@ -2776,6 +2776,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         'My Agent',
         '--scope',
         'userinfo:read   spend_requests:approve',
+        '--no-financial-insights',
         '--json',
       );
 
@@ -2800,6 +2801,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         'My Agent',
         '--scope',
         'userinfo:read   source_details:read   balances:read',
+        '--no-financial-insights',
         '--json',
       );
 
@@ -2814,6 +2816,46 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       );
       expect(params.get('authorization_details')).toBeNull();
       expect(params.get('authorization_details[0][type]')).toBeNull();
+    });
+
+    it('requests all financial-insights source actions on a new login', async () => {
+      storage.clearTokens();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli('auth', 'login', '--json');
+
+      expect(result.exitCode).toBe(0);
+      const params = new URLSearchParams(
+        requests.find((r) => r.url.includes('/device/code'))?.body,
+      );
+      expect(params.getAll('authorization_details[][type]')).toEqual([
+        'source',
+      ]);
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_balances',
+        'read_external_transactions',
+        'read_link_transactions',
+        'read_source_details',
+      ]);
+    });
+
+    it('omits automatic source actions with --no-financial-insights', async () => {
+      storage.clearTokens();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--no-financial-insights',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const params = new URLSearchParams(
+        requests.find((r) => r.url.includes('/device/code'))?.body,
+      );
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([]);
+      expect(params.getAll('authorization_details[][type]')).toEqual([]);
     });
 
     it('passes source actions via authorization_details', async () => {
@@ -2846,6 +2888,52 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       expect(params.getAll('authorization_details[][actions][]')).toEqual([
         'read_source_details',
         'read_balances',
+      ]);
+    });
+
+    it('keeps explicit source actions when automatic actions are disabled', async () => {
+      storage.clearTokens();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--no-financial-insights',
+        '--source-actions',
+        'read_balances',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const params = new URLSearchParams(
+        requests.find((r) => r.url.includes('/device/code'))?.body,
+      );
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_balances',
+      ]);
+    });
+
+    it('does not add default actions to an explicit source detail', async () => {
+      storage.clearTokens();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--authorization-detail',
+        '{"type":"source","actions":["read_link_transactions"]}',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const params = new URLSearchParams(
+        requests.find((r) => r.url.includes('/device/code'))?.body,
+      );
+      expect(params.getAll('authorization_details[][type]')).toEqual([
+        'source',
+      ]);
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_link_transactions',
       ]);
     });
 
@@ -3115,9 +3203,12 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       // Unlike `login`, upgrade does NOT return "already logged in".
       expect(output[0].message).toBeUndefined();
       expect(output[0].verification_url).toBeDefined();
-      expect(
-        requests.find((r) => r.url.includes('/device/code')),
-      ).toBeDefined();
+      const deviceCodeRequest = requests.find((r) =>
+        r.url.includes('/device/code'),
+      );
+      expect(deviceCodeRequest).toBeDefined();
+      const params = new URLSearchParams(deviceCodeRequest?.body);
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([]);
       // Deferred lifecycle: the existing session is preserved (NOT cleared) and
       // the pending is flagged so the poll completes the new approval and
       // revokes the old grant only once the widened tokens land.
