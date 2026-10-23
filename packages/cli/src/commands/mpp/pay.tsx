@@ -37,21 +37,21 @@ export function buildHeaders(
   data: string | undefined,
   headers: string[] | undefined,
 ): Record<string, string> {
-  const result: Record<string, string> = {};
+  const result = new Headers();
   if (data !== undefined) {
-    result['Content-Type'] = 'application/json';
+    result.set('Content-Type', 'application/json');
   }
   for (const line of headers ?? []) {
     const idx = line.indexOf(':');
     if (idx === -1) continue;
     const key = line.slice(0, idx).trim();
     const value = line.slice(idx + 1).trim();
-    if (key) result[key] = value;
+    if (key) result.set(key, value);
   }
-  if (!Object.keys(result).some((key) => key.toLowerCase() === 'user-agent')) {
-    result['User-Agent'] = buildUserAgent(__CLI_VERSION__, process.env);
+  if (!result.has('user-agent')) {
+    result.set('User-Agent', buildUserAgent(__CLI_VERSION__, process.env));
   }
-  return result;
+  return Object.fromEntries(result.entries());
 }
 
 export async function readPayResult(response: Response): Promise<PayResult> {
