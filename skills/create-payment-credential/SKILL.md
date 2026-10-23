@@ -76,7 +76,7 @@ _Recommended_: Run `link-cli --llms` to understand all the available commands. T
 Copy this checklist and track progress:
 
 - Step 1: Authenticate with Link for the whole task
-- Step 2: Evaluate merchant site (determine credential type)
+- Step 2: Discover merchant payment options and choose the highest-priority supported flow
 - Step 3: Get payment methods
 - Step 4: Create spend request with correct credential type
 - Step 5: Complete payment
@@ -115,28 +115,33 @@ Optionally, before a purchase, run `link-cli user-info retrieve` to inspect bala
 
 ### Step 2: Evaluate the merchant site BEFORE creating a spend request
 
-**CRITICAL:** Before calling `spend-request create` you must complete this checklist:
-1. Understand how the merchant accepts payments (cards or machine payments or other). **Do NOT** default to `card` credential type. The merchant determines the credential type — you cannot know it without checking first. Skipping this step will produce a spend request with the wrong credential type.
-2. Have the final total amount needed. Inclusive of any shipping costs, taxes or other costs. Skipping this step will produce a spend request that does not cover the full amount needed, and will be rejected.
-3. Clear context and understanding of what the user is purchasing. Be sure to know sizes, colors, shipping options, etc. Skipping this step will produce a spend request that the user does not recognize or understand.
+**CRITICAL:** Before creating a spend request:
 
-**Determine how the merchant accepts payment:**
+1. Determine how the merchant accepts payment. **Do not default to `card`**, even if a card form is visible: first check for a supported SPT payment route.
+2. Confirm the final total, including shipping, taxes, and fees. For MPP, `link-cli mpp pay` derives the amount and currency from the payment challenge.
+3. Understand what the user is purchasing, including sizes, colors, quantities, and shipping options, so the approval context describes the intended purchase.
 
-1. **Navigate to the merchant page** — browse it, read the page content, and understand how the site accepts payment.
-2. **If the checkout page includes the AI-agent steering block** (find the `.AiAgentPaymentSteering` container — visually hidden but present in the DOM, typically inside a Stripe iframe) — it may support the **Link Pay Token flow** (Step 5, "Link Pay Token" section). **Requires browser automation.** Before creating an LPT request, verify that both `input[name="link_pay_token"]` and `data-stripe-merchant-account` appear in the same frame. Read the account ID from that attribute. If either marker does **not** appear, use `card` instead. Without browser automation, use `card`.
-3. **If the page has a credit-card form and no AI-agent steering block** (no `.AiAgentPaymentSteering`) — use `card`.
-4. **If the page describes an API or programmatic payment flow** — make a request to the relevant endpoint. If it returns **HTTP 402** with a `www-authenticate` header, use `shared_payment_token`.
+**Discover payment options:**
 
-What you find determines which credential type to use:
+- Read the merchant page and linked developer, API, payment, and agent documentation. Check `/llms.txt` and `/agents.txt` when available; follow relevant documentation links to MCP setup instructions, OpenAPI specifications, and MPP payment endpoints. Search these sources for `MCP`, `MPP`, `HTTP 402`, `Stripe`, `SPT`, `Shared Payment Token`, and `shared_payment_token`.
+- **For MCP:** Check available merchant tools and their descriptions and input schemas. If the merchant documents an MCP server, connect using your MCP client and call `tools/list`. Identify the checkout/payment tool, verify that it explicitly accepts Stripe Shared Payment Tokens, and determine its token parameter, required order/cart inputs, final quote, and Stripe network ID. A generic `token` parameter or an MCP server's existence does not establish SPT support. Use the documented setup; do not guess server URLs or tool parameters.
+- **For MPP:** Locate the actual payable endpoint and its required HTTP method, body, and headers. A documentation URL or merchant home page is not necessarily a payment endpoint. Explicit documentation of Stripe SPT acceptance is enough to select `link-cli mpp pay`, which probes the endpoint itself. If acceptance is unclear, request the documented endpoint with the intended inputs and check for HTTP 402 with a Stripe challenge (`method="stripe"` in `WWW-Authenticate`). HTTP 402 or MPP support alone does not establish SPT acceptance; a Tempo-only challenge is a different payment flow.
+- If neither programmatic route supports the intended purchase, open the actual checkout and examine its payment controls, including Stripe frames, for Link Pay Token support or a credit-card form.
 
-| What you see | Credential type | What to request |
+**Choose the first supported route in this priority order:**
+
+| Priority | Confirmed support for the intended purchase | Action |
 |---|---|---|
-| `.AiAgentPaymentSteering` block containing both `input[name="link_pay_token"]` and `data-stripe-merchant-account` | `link_pay_token` | Link Pay Token (else `card`) |
-| Credit-card form, no AI-agent steering block | `card` (default) | Card |
-| HTTP 402 with `method="stripe"` in `www-authenticate` | `shared_payment_token` | Shared payment token (SPT) |
-| HTTP 402 without `method="stripe"` in `www-authenticate` | not supported | Do not continue |
+| 1 | MPP endpoint accepting Stripe SPTs | **Use `link-cli mpp pay <endpoint> --context "<description>"` immediately**, with the documented method/body/headers (Step 5). It creates the SPT spend request and handles approval and payment; do not create a separate card or SPT request first. |
+| 2 | Merchant MCP payment tool explicitly accepting Stripe SPTs | Create a `shared_payment_token` spend request with the merchant's documented network ID (Step 4), retrieve the approved SPT, and pass it to that tool's documented token parameter (Step 5). |
+| 3 | Verified Link Pay Token controls in browser checkout | Follow the Link Pay Token flow in Step 5; it uses `--credential-type link_pay_token`. |
+| 4 | Confirmed credit-card form, with no applicable SPT or Link Pay Token route | Create a `card` spend request and fill the checkout form. |
 
-**For 402 responses:** Use `mpp pay` — it handles the entire flow automatically (probes URL, parses challenge, picks payment method, creates spend request, gets approval, and pays). See Step 5.
+Once an applicable SPT route is established, proceed with it; there is no need to browse checkout to look for card alternatives. If only an MCP SPT route is documented, use it without an exhaustive search for MPP. An SPT route must cover the intended purchase; an unrelated account-funding endpoint is not a substitute. If no supported flow can be established, stop and report what is missing before creating a spend request.
+
+**Link Pay Token verification for browser checkout:**
+
+**If the checkout page includes the AI-agent steering block** (find the `.AiAgentPaymentSteering` container — visually hidden but present in the DOM, typically inside a Stripe iframe) — it may support the **Link Pay Token flow** (Step 5, "Link Pay Token" section). **Requires browser automation.** Before creating an LPT request, verify that both `input[name="link_pay_token"]` and `data-stripe-merchant-account` appear in the same frame. Read the account ID from that attribute. If either marker does **not** appear, use `card` instead. Without browser automation, use `card`.
 
 ### Step 3: Confirm payment method and potentially shipping addresses
 
@@ -177,12 +182,28 @@ link-cli shipping-address list
 
 ### Step 4: Create the spend request with the right credential type
 
-For card and Shared Payment Token flows, use the command below. For Link Pay
-Token, do **not** create this generic request: follow the LPT instructions in
-Step 5 after you have read the merchant account ID from the checkout DOM.
+**MPP with SPT:** Skip manual spend-request creation and use `link-cli mpp pay` in Step 5. It handles creation and approval for you.
+
+**MCP tool accepting SPT:** Use the network ID and final quote from the merchant's payment documentation or tool response. If the network ID is missing, resolve it before creating a request; do not invent it or substitute a Stripe account ID. Omit `--merchant-name` and `--merchant-url` for SPT requests.
 
 ```bash
 link-cli spend-request create \
+  --credential-type shared_payment_token \
+  --network-id <network-id> \
+  --amount <cents> \
+  --currency <currency> \
+  --context "<description>" \
+  --line-item "name:<product>,unit_amount:<cents>,quantity:<n>" \
+  --total "type:total,display_text:Total,amount:<cents>"
+```
+
+**Link Pay Token:** Follow the LPT instructions in Step 5 after reading the merchant account ID from the checkout DOM.
+
+**Virtual card:** Use the command below only after the discovery in Step 2 rules out applicable higher-priority routes.
+
+```bash
+link-cli spend-request create \
+  --credential-type card \
   --amount <amount> \
   --currency <code> \
   --context "<description>" \
@@ -296,6 +317,14 @@ The SPT created by `mpp pay` is **one-time use** — if it has been consumed, a 
 ```bash
 link-cli mpp pay <url> --spend-request-id <id> [-X POST] [-d '<body>'] [-H 'Name: Value']
 ```
+
+**SPT with a merchant MCP tool:** After approval, retrieve the token:
+
+```bash
+link-cli spend-request retrieve <id> --include shared_payment_token --format json
+```
+
+Pass `shared_payment_token.id` to the merchant payment tool's documented SPT parameter, together with the required order/cart inputs. Use the exact schema discovered in Step 2; do not assume a tool name or parameter name. Confirm the merchant's payment/order result before reporting success. SPTs are one-time use; do not reuse a consumed token. Use `mpp pay` only when the merchant provides an MPP endpoint, not for an arbitrary MCP server URL.
 
 **Link Pay Token:** Some checkout pages embed an AI-agent steering block (the
 `AiAgentPaymentSteering` component) that lets an agent pay with a Link Pay
