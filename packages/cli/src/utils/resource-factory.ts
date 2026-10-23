@@ -198,8 +198,8 @@ export class ResourceFactory {
     }
 
     if (this.envAccessToken) {
-      const envAccessToken = this.envAccessToken;
-      const envRefreshToken = this.envRefreshToken;
+      let envAccessToken = this.envAccessToken;
+      let envRefreshToken = this.envRefreshToken;
       const noRefresh = this.noRefresh;
 
       this.accessTokenProvider = async ({ forceRefresh } = {}) => {
@@ -211,7 +211,9 @@ export class ResourceFactory {
           }
           const refreshed =
             await this.createAuthResource().refreshToken(envRefreshToken);
-          return refreshed.access_token;
+          envAccessToken = refreshed.access_token;
+          envRefreshToken = refreshed.refresh_token;
+          return envAccessToken;
         }
         return envAccessToken;
       };
