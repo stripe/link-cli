@@ -181,6 +181,12 @@ preferences always override them. Describe a pattern as observed, for example
 preference the user declared. Results cover only authorized sources; mention
 that coverage may be incomplete.
 
+For an ambiguous merchant during a payment, use a `ready` top-brand insight
+for the relevant category only when the tools and existing access are available.
+If access is missing or the insight is unavailable, continue without it or ask
+the user which merchant to use. Do not request new access or retry solely for
+this optional payment clue.
+
 ## Pagination
 
 `list_transactions`, `list_balances`, and `list_sources` accept:
