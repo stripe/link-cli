@@ -1,7 +1,9 @@
 import type { ISpendRequestResource } from '@stripe/link-sdk';
 import { Challenge, Credential } from 'mppx';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { buildUserAgent } from '../../utils/user-agent';
 import {
+  buildHeaders,
   payWithSpt,
   runMppPayFullFlow,
   runMppPayWithSpendRequest,
@@ -59,6 +61,37 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+});
+
+describe('buildHeaders', () => {
+  it('defaults to JSON when a body is supplied, including an empty body', () => {
+    expect(buildHeaders('{"hello":"world"}', undefined).get('content-type')).toBe(
+      'application/json',
+    );
+    expect(buildHeaders('', undefined).get('content-type')).toBe(
+      'application/json',
+    );
+    expect(buildHeaders(undefined, undefined).has('content-type')).toBe(false);
+  });
+
+  it.each(['content-type', 'Content-Type', 'CONTENT-TYPE'])(
+    'replaces the default with an explicit %s without duplication',
+    (name) => {
+      const headers = buildHeaders('{}', [`${name}: application/json`]);
+      expect(headers.get('content-type')).toBe('application/json');
+      const overridden = buildHeaders('{}', [`${name}: text/plain`]);
+      expect(overridden.get('content-type')).toBe('text/plain');
+    },
+  );
+
+  it('preserves the default user agent and case-insensitive explicit overrides', () => {
+    expect(buildHeaders(undefined, undefined).get('user-agent')).toBe(
+      buildUserAgent('test', process.env),
+    );
+    expect(
+      buildHeaders(undefined, ['user-agent: custom-agent']).get('user-agent'),
+    ).toBe('custom-agent');
+  });
 });
 
 describe('payWithSpt', () => {
