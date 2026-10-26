@@ -65,9 +65,9 @@ afterEach(() => {
 
 describe('buildHeaders', () => {
   it('defaults to JSON when a body is supplied, including an empty body', () => {
-    expect(buildHeaders('{"hello":"world"}', undefined).get('content-type')).toBe(
-      'application/json',
-    );
+    expect(
+      buildHeaders('{"hello":"world"}', undefined).get('content-type'),
+    ).toBe('application/json');
     expect(buildHeaders('', undefined).get('content-type')).toBe(
       'application/json',
     );
