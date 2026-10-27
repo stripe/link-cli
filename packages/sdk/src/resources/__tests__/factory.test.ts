@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import Link from '@/client';
 import { AttestationsResource } from '@/resources/attestations';
 import { IdentityCredentialsResource } from '@/resources/identity-credentials';
+import { MppResource } from '@/resources/mpp';
 import { PaymentMethodsResource } from '@/resources/payment-methods';
 import { ReportResource } from '@/resources/report';
 import { SpendRequestResource } from '@/resources/spend-request';
@@ -25,6 +26,7 @@ describe('Link', () => {
     expect(client.transactions).toBeInstanceOf(TransactionsResource);
     expect(client.webBotAuth).toBeInstanceOf(WebBotAuthResource);
     expect(client.reports).toBeInstanceOf(ReportResource);
+    expect(client.mpp).toBeInstanceOf(MppResource);
     expect(client.spendRequests.create).toBeTypeOf('function');
     expect(client.spendRequests.update).toBeTypeOf('function');
     expect(client.spendRequests.retrieve).toBeTypeOf('function');
@@ -32,5 +34,6 @@ describe('Link', () => {
     expect(client.identityCredentials.issue).toBeTypeOf('function');
     expect(client.paymentMethods.list).toBeTypeOf('function');
     expect(client.transactions.list).toBeTypeOf('function');
+    expect(client.mpp.pay).toBeTypeOf('function');
   });
 });

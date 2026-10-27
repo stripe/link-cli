@@ -1,4 +1,5 @@
 import type {
+  IMppResource,
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
@@ -12,6 +13,7 @@ export function createOnboardCli(
   authRepo: IAuthResource,
   spendRequestRepo: ISpendRequestResource,
   createPaymentMethodsResource: () => IPaymentMethodsResource,
+  mpp: IMppResource,
   authStorage?: CliAuthStorage,
 ) {
   return Cli.create('onboard', {
@@ -33,6 +35,7 @@ export function createOnboardCli(
           authRepo={authRepo}
           spendRequestRepo={spendRequestRepo}
           paymentMethodsResource={paymentMethodsResource}
+          mpp={mpp}
           authStorage={authStorage}
           onComplete={() => {}}
         />,

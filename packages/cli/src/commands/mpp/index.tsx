@@ -1,23 +1,19 @@
-import type {
-  IPaymentMethodsResource,
-  ISpendRequestResource,
-} from '@stripe/link-sdk';
+import type { IMppResource, ISpendRequestResource } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import type { CliAuthStorage } from '../../auth/storage';
 import { buildCommandContinuation } from '../../utils/command-continuation';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
+import { sanitizeDeep, sanitizeText } from '../../utils/sanitize-text';
 import { decodeStripeChallenge } from './decode';
 import { DecodeChallengeView } from './decode-view';
 import {
   buildHeaders,
+  type CliMppResource,
   MppPay,
   type PayResult,
-  probeMppRequest,
-  readPayResult,
   runMppPayWithSpendRequest,
 } from './pay';
-import { createMppRequest } from './request';
 import { decodeOptions, payOptions } from './schema';
 
 export function resolveInteractivePayResult(
@@ -34,11 +30,12 @@ export function resolveInteractivePayResult(
 }
 
 export function createMppCli(
-  repository: ISpendRequestResource,
-  paymentMethodsFactory: () => IPaymentMethodsResource,
+  mpp: IMppResource,
+  spendRequests: ISpendRequestResource,
   authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ) {
+  const cliMpp = mpp as CliMppResource;
   const cli = Cli.create('mpp', {
     description: 'Machine payment protocol (MPP) commands',
   });
@@ -74,8 +71,8 @@ export function createMppCli(
             paymentMethodId={opts.paymentMethodId}
             test={opts.test}
             approve={opts.approve}
-            repository={repository}
-            paymentMethodsFactory={paymentMethodsFactory}
+            mpp={cliMpp}
+            spendRequests={spendRequests}
             onComplete={(result) => {
               capturedResult = result;
             }}
@@ -91,64 +88,14 @@ export function createMppCli(
           method,
           data,
           headers,
-          repository,
+          mpp,
           opts.approvedChallenge,
         );
         return;
       }
 
-      // Full flow in agent mode: yield approval URL mid-flow so the agent
-      // can present it to the user while we poll for approval inline.
-      const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
+      // Agent mode returns a continuation so approval can span multiple runs.
       const requestHeaders = buildHeaders(data, headers);
-
-      const probe = await probeMppRequest(
-        createMppRequest(url, httpMethod, data, requestHeaders),
-      );
-      const probeResponse = probe.response;
-
-      if (probeResponse.status !== 402) {
-        yield await readPayResult(probeResponse);
-        return;
-      }
-
-      const wwwAuth = probeResponse.headers.get('www-authenticate');
-      if (!wwwAuth) {
-        return c.error({
-          code: 'INVALID_RESPONSE',
-          message: 'URL returned 402 but no WWW-Authenticate header',
-        });
-      }
-
-      const decoded = decodeStripeChallenge(wwwAuth);
-      await probeResponse.body?.cancel();
-      const networkId = decoded.network_id;
-      const challengeAmount = decoded.request_json.amount
-        ? Number(decoded.request_json.amount)
-        : undefined;
-      const challengeCurrency =
-        (decoded.request_json.currency as string) ?? 'usd';
-      const amount = opts.amount ?? challengeAmount;
-
-      if (
-        opts.amount !== undefined &&
-        challengeAmount !== undefined &&
-        opts.amount !== challengeAmount
-      ) {
-        return c.error({
-          code: 'INVALID_INPUT',
-          message: `--amount must match the MPP challenge amount (${challengeAmount})`,
-        });
-      }
-
-      if (!amount) {
-        return c.error({
-          code: 'INVALID_INPUT',
-          message:
-            'Could not determine amount from 402 challenge. Pass --amount explicitly.',
-        });
-      }
-
       if (!opts.context) {
         return c.error({
           code: 'INVALID_INPUT',
@@ -157,32 +104,26 @@ export function createMppCli(
         });
       }
 
-      let pmId = opts.paymentMethodId;
-      if (!pmId) {
-        const pmResource = paymentMethodsFactory();
-        const methods = await pmResource.list();
-        if (!methods.length) {
-          return c.error({
-            code: 'NO_PAYMENT_METHOD',
-            message:
-              'No payment methods found. Add one with `link-cli payment-methods add`.',
-          });
-        }
-        pmId = methods[0].id;
-      }
-
-      const createParams = {
-        payment_details: pmId,
-        credential_type: 'shared_payment_token' as const,
-        network_id: networkId,
-        amount,
-        currency: challengeCurrency,
+      const prepared = await cliMpp.createSpendRequest({
+        url,
+        ...(method !== undefined && { method }),
+        ...(data !== undefined && { body: data }),
+        headers: requestHeaders,
         context: opts.context,
-        request_approval: true,
-        test: opts.test || undefined,
-        approve: opts.approve || undefined,
-      };
-      const spendRequest = await repository.create(createParams);
+        ...(opts.amount !== undefined && { amount: opts.amount }),
+        ...(opts.paymentMethodId !== undefined && {
+          paymentMethodId: opts.paymentMethodId,
+        }),
+        test: opts.test,
+        approve: opts.approve,
+      });
+      if (!('spendRequest' in prepared)) {
+        yield sanitizeDeep(prepared);
+        return;
+      }
+      const spendRequest = sanitizeDeep(prepared.spendRequest);
+      const probe = prepared.request;
+      const wwwAuth = sanitizeText(prepared.approvedChallenge);
 
       // Continue from the request that actually returned the challenge. Redirects
       // may have changed its URL, method, body, or safe-to-forward headers.
@@ -198,7 +139,7 @@ export function createMppCli(
         probe.method,
       ];
       if (probe.body !== undefined) nextArgs.push('-d', probe.body);
-      for (const [name, value] of probe.headers) {
+      for (const [name, value] of Object.entries(probe.headers)) {
         nextArgs.push('-H', `${name}: ${value}`);
       }
       const payment = buildCommandContinuation('mpp', nextArgs);
