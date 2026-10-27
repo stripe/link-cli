@@ -1065,9 +1065,7 @@ describe('spend-request', () => {
 
       await vi.waitFor(() => {
         const frame = lastFrame();
-        expect(frame).toContain(
-          'Waiting for 3D Secure verification to complete',
-        );
+        expect(frame).toContain('Waiting for a required action to complete');
       });
 
       await vi.waitFor(
