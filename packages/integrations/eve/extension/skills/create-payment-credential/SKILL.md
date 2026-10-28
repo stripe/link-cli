@@ -32,7 +32,7 @@ Eve authorization, let the user finish it so the call can resume. Do not ask for
 tokens in chat. If authorization fails or is denied, explain the result and stop.
 
 Call `retrieve_user_info` with `{}` when you need to confirm the connected user,
-spend limits, balance eligibility, or verification requirements. If
+spend limits, or verification requirements. If
 `agent_wallet_verification_requirement.action_url` is present, show the user the
 required action. Finite spend-limit values are cents; a returned `null` limit
 means unlimited. Missing fields do not establish unlimited access or completed

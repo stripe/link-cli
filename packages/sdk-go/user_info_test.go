@@ -39,7 +39,7 @@ func TestUserInfoDefaultSpendRequestCurrency(t *testing.T) {
 	}
 }
 
-func TestUserInfoRetrieveDecodesAddressAndBalanceEligibility(t *testing.T) {
+func TestUserInfoRetrieveDecodesAddressAndIgnoresLegacyBalanceEligibility(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		if request.URL.Path != "/userinfo" {
 			t.Errorf("got path %q, want /userinfo", request.URL.Path)
@@ -72,9 +72,7 @@ func TestUserInfoRetrieveDecodesAddressAndBalanceEligibility(t *testing.T) {
 	if result.Address.Line2 != nil {
 		t.Fatalf("got line2 %q, want nil", *result.Address.Line2)
 	}
-	if result.EligibleForBalance == nil || *result.EligibleForBalance {
-		t.Fatalf("got eligible_for_balance %#v, want false", result.EligibleForBalance)
-	}
+	assertUserInfoJSONOmitsBalanceEligibility(t, result)
 }
 
 func TestUserInfoRetrievePreservesOmittedEnrichment(t *testing.T) {
@@ -88,12 +86,12 @@ func TestUserInfoRetrievePreservesOmittedEnrichment(t *testing.T) {
 	result, err := client.UserInfo.Retrieve(context.Background())
 	assertNoError(t, err)
 
-	if result.Address != nil || result.EligibleForBalance != nil {
-		t.Fatalf("unexpected enrichment: address=%#v eligible_for_balance=%#v", result.Address, result.EligibleForBalance)
+	if result.Address != nil {
+		t.Fatalf("unexpected address: %#v", result.Address)
 	}
 }
 
-func TestUserInfoRetrieveDecodesNullAddressWithIneligibility(t *testing.T) {
+func TestUserInfoRetrieveDecodesNullAddressAndIgnoresLegacyBalanceEligibility(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
 		_, _ = response.Write([]byte(`{"address":null,"eligible_for_balance":false}`))
 	}))
@@ -107,8 +105,17 @@ func TestUserInfoRetrieveDecodesNullAddressWithIneligibility(t *testing.T) {
 	if result.Address != nil {
 		t.Fatalf("got address %#v, want nil", result.Address)
 	}
-	if result.EligibleForBalance == nil || *result.EligibleForBalance {
-		t.Fatalf("got eligible_for_balance %#v, want false", result.EligibleForBalance)
+	assertUserInfoJSONOmitsBalanceEligibility(t, result)
+}
+
+func assertUserInfoJSONOmitsBalanceEligibility(t *testing.T, info *UserInfo) {
+	t.Helper()
+	encoded, err := json.Marshal(info)
+	assertNoError(t, err)
+	var output map[string]json.RawMessage
+	assertNoError(t, json.Unmarshal(encoded, &output))
+	if _, ok := output["eligible_for_balance"]; ok {
+		t.Fatalf("unexpected eligible_for_balance in JSON: %s", encoded)
 	}
 }
 
