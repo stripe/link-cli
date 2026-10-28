@@ -42,11 +42,7 @@ Documentation:
 npm i -g @stripe/link-cli
 ```
 
-Or run directly with `npx`:
-
-```bash
-npx @stripe/link-cli
-```
+Agent and plugin integrations, including the MCP server, run the installed `link-cli` binary. They intentionally never download or resolve packages at startup, so install the CLI first.
 
 ### Use with agents
 
@@ -78,8 +74,8 @@ Link CLI can run as a local MCP server. Add the following to your MCP client con
 {
   "mcpServers": {
     "link": {
-      "command": "npx",
-      "args": ["@stripe/link-cli", "--mcp"]
+      "command": "link-cli",
+      "args": ["--mcp"]
     }
   }
 }
