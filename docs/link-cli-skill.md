@@ -34,7 +34,7 @@ Once the use case is known, run `auth status` as the first Link CLI command. Alw
 link-cli auth status --format json
 ```
 
-If `link-cli` is unavailable, install it with `npm install -g @stripe/link-cli`, then run the status command. Alternatively, replace `link-cli` in every command with `npx @stripe/link-cli@latest`.
+If `link-cli` is unavailable, stop and ask the user to install it with `npm install -g @stripe/link-cli`, then run the status command. Never substitute a package runner such as `npx`, `pnpx`, or `bunx`.
 
 ### Common commands/options
 

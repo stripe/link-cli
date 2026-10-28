@@ -96,6 +96,8 @@ Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request creat
 
 The CLI also runs as an MCP server (`--mcp`) and serves skill files via `skills` subcommand, both provided by incur.
 
+The plugin MCP config (`.mcp.json`, shared by `plugins/link/`) and the generated `buildMcpCommand()` (`packages/cli/src/utils/package-runner.ts`) must run the installed `link-cli` binary (or the SEA executable). Never use a package runner (`npx`, `pnpx`, `bunx`): it honours the opened repository's `.npmrc` and `node_modules`. Skills and docs must not offer one as a fallback. `mcp-config-security.test.ts` guards this.
+
 **When changing commands, flags, or schema descriptions, always update all four together:** `README.md`, `skills/create-payment-credential/SKILL.md`, the schema description strings in the relevant `schema.ts` file, and `CLAUDE.md`. These can easily drift apart.
 
 Input is passed via flags. Define options in the command's zod schema — incur registers CLI flags automatically from the schema.

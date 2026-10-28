@@ -5,8 +5,6 @@ description: |
   Gets secure payment credentials (cards, tokens) from a Link wallet for one-time purchases and recurring payments. Use when the user says "get me a card", "buy something", "pay for X", "make a purchase", "I need to pay", "complete checkout", or asks to set up a subscription or transact on a merchant site. Use when the user asks to connect or log in to or sign up for their Link account.
 allowed-tools:
  - Bash(link-cli:*)
- - Bash(npx --yes @stripe/link-cli:*)
- - Bash(npx @stripe/link-cli:*)
  - Bash(npm install -g @stripe/link-cli:*)
 license: Complete terms in LICENSE
 metadata:
@@ -36,7 +34,7 @@ The CLI can produce three credential types:
 
 ## Installing
 
-Install with `npm install -g @stripe/link-cli`. Or run directly with `npx @stripe/link-cli`.
+Install with `npm install -g @stripe/link-cli`. Always run the installed `link-cli` binary; never substitute a package runner such as `npx`, `pnpx`, or `bunx`.
 
 ## Running commands
 
@@ -48,14 +46,14 @@ Link CLI can run as an **MCP server** or as a **standalone CLI**.
 {
   "mcpServers": {
     "link": {
-      "command": "npx",
-      "args": ["@stripe/link-cli", "--mcp"]
+      "command": "link-cli",
+      "args": ["--mcp"]
     }
   }
 }
 ```
 
-Run the MCP server directly with `npx @stripe/link-cli@latest --mcp`.
+Run the MCP server directly with `link-cli --mcp`.
 
 Call `tools/list` to see all available MCP tools.
 
