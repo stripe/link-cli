@@ -87,12 +87,6 @@ export const UserInfoRetrieve: React.FC<UserInfoRetrieveProps> = ({
             </Box>
           </Box>
         )}
-        {userInfo?.eligible_for_balance !== undefined && (
-          <Text>
-            <Text dimColor>Eligible for balance: </Text>
-            {userInfo.eligible_for_balance ? 'Yes' : 'No'}
-          </Text>
-        )}
         {userInfo?.default_spend_request_currency !== undefined && (
           <Text>
             <Text dimColor>Default spend request currency: </Text>

@@ -116,7 +116,7 @@ link-cli user-info retrieve --format json
 ```
 
 In addition to identity fields, the response can include the user's address,
-balance eligibility, spend limits, and verification requirements:
+spend limits, and verification requirements:
 
 ```json
 {
@@ -130,7 +130,6 @@ balance eligibility, spend limits, and verification requirements:
     "postal_code": "94103",
     "country": "US"
   },
-  "eligible_for_balance": true,
   "agent_wallet_spend_limits": {
     "per_transaction": { "limit": 50000 },
     "daily": { "limit": 500000, "used": 120000, "remaining": 380000 },
@@ -143,11 +142,10 @@ balance eligibility, spend limits, and verification requirements:
 }
 ```
 
-The address and `eligible_for_balance` fields are omitted when their enrichment
-is unavailable. `address` is null and `eligible_for_balance` is false when the
-user has no Person record. Finite spend-limit values are cents because this
-response does not include a currency. A null limit or remaining amount means
-unlimited. `agent_wallet_verification_requirement.status` can be
+The address field is omitted when its enrichment is unavailable and is null
+when the user has no Person record. Finite spend-limit values are cents because
+this response does not include a currency. A null limit or remaining amount
+means unlimited. `agent_wallet_verification_requirement.status` can be
 `not_required`, `ssn_verification`, `credit_file_match_ca`,
 `identity_verification`, `doc_upload_ca`, `pending`, `contact_support`, or
 `complete`. Its `action_url` is null when no user action is available.

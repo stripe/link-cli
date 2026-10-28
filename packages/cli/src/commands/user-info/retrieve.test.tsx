@@ -27,7 +27,6 @@ describe('user-info retrieve component', () => {
         postal_code: '94103',
         country: 'US',
       },
-      eligible_for_balance: false,
       agent_wallet_spend_limits: {
         per_transaction: { limit: 50000 },
         daily: { limit: 500000, used: 120000, remaining: 380000 },
@@ -58,7 +57,7 @@ describe('user-info retrieve component', () => {
       expect(frame).toContain('State: CA');
       expect(frame).toContain('Postal code: 94103');
       expect(frame).toContain('Country: US');
-      expect(frame).toContain('Eligible for balance: No');
+      expect(frame).not.toContain('Eligible for balance');
       expect(frame).toContain('Per-transaction: 50000 cents');
       expect(frame).toContain(
         'Daily: limit 500000 cents, used 120000 cents, remaining 380000 cents',
