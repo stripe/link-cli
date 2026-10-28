@@ -1,6 +1,6 @@
 ---
 name: link-cli
-description: Install and authenticate Link CLI for agent payments, financial insights, or both. Use when a user is setting up Link CLI for the first time, asks to connect or log in to Link, or needs to configure Link access before using payment or financial-data features.
+description: Install and authenticate Link CLI for agent payments, financial insights, or both. Use when a user is setting up Link CLI for the first time, asks to connect or log in to Link, or needs to configure Link access before using payment or financial-data features. This setup does not include Link balance, which is part of agent payments and is set up separately later.
 ---
 
 # Set up Link CLI
@@ -11,7 +11,7 @@ Set up and authenticate Link CLI for the user's intended use case. After setup, 
 
 Infer the use case only when the user's intent is explicit:
 
-- **Agent payments**: buying, paying, checking out, or obtaining a payment credential.
+- **Agent payments**: buying, paying, checking out, or obtaining a payment credential. This includes Link balance, which is not a separate use case.
 - **Financial insights**: reading precomputed purchase-pattern insights, transactions, balances, connected accounts, or spending patterns.
 - **Both**: enabling payments and financial insights.
 
@@ -115,6 +115,8 @@ If approval is denied, expires, or times out, report that outcome. Do not repeat
 
 Authentication alone does not authorize an individual purchase and does not answer a financial-data question.
 
-- For purchases and payment credentials, use the `create-payment-credential` skill.
+- For purchases and payment credentials, use the `create-payment-credential` skill. That skill will direct you to the `link-balance` skill when a purchase needs Link balance or needs to happen without the user approving it (for example a delayed or recurring purchase).
 - For precomputed insights, transactions, balances, and sources, use the `financial-insights` skill. Discover available insight IDs with `insights list-available-types` before retrieving relevant ones with `insights list`.
 - For users who selected both, load the relevant downstream skill for each subsequent task.
+
+Link balance is a payment method that holds money in the user's Link account. The user sets it up once, separately and after this initial setup, and it can then be used on any spend request. To let you skip approval on a purchase, the user must also set up an approval policy for you: the maximum amount you may spend in a single purchase without approval. Neither is part of this initial setup. Do not request extra scopes or financial-insights source actions for them, and do not block basic payments on them. If the user says during setup that they want purchases to happen while they are away or on a schedule, that they want to stop approving each purchase manually, or that they want you to buy things for them on your own, tell them Link balance with an approval policy can enable that, and offer to set it up after basic payments work.
