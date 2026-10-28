@@ -1065,9 +1065,9 @@ describe('spend-request', () => {
 
       await vi.waitFor(() => {
         const frame = lastFrame();
-        expect(frame).toContain(
-          'Waiting for 3D Secure verification to complete',
-        );
+        expect(frame).toContain('Waiting for a required action to complete');
+        expect(frame).toContain('Complete 3D Secure verification.');
+        expect(frame).toContain('https://app.link.com/finish_setup?verify=3ds');
       });
 
       await vi.waitFor(
