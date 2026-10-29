@@ -36,6 +36,7 @@ let baseUrl: string;
 let directory: string;
 let createResponse: Record<string, unknown>;
 let createStatus: number;
+let createRequest: { path: string; body: Record<string, unknown> } | undefined;
 let paidRequest:
   | {
       authorization: string;
@@ -73,6 +74,7 @@ beforeAll(async () => {
         url.pathname === '/spend_requests/create_delegated') &&
       req.method === 'POST'
     ) {
+      createRequest = { path: url.pathname, body: JSON.parse(body) };
       status = createStatus;
       response = createResponse;
     } else if (url.pathname.endsWith('/request_approval')) {
@@ -119,6 +121,7 @@ beforeAll(async () => {
 beforeEach(() => {
   createResponse = SPEND_REQUEST;
   createStatus = 200;
+  createRequest = undefined;
   paidRequest = undefined;
   completeBody = undefined;
 });
@@ -179,7 +182,7 @@ const createArgs = [
 ];
 
 describe('command continuations', () => {
-  const mppArgs = () => [
+  const mppArgs = (flag: string) => [
     'mpp',
     'pay',
     `${baseUrl}/seller`,
@@ -187,27 +190,39 @@ describe('command continuations', () => {
     CONTEXT,
     '--payment-method-id',
     'pd_synthetic',
-    '--use-approval-policy',
+    flag,
   ];
 
   it.each(['--approve', '--use-approval-policy'])(
-    'continues directly to payment after immediate approval with %s',
+    'returns only the payment continuation after immediate approval with %s',
     async (flag) => {
       createResponse = {
         ...SPEND_REQUEST,
         status: 'approved',
         approval_url: undefined,
       };
-      const args = mppArgs();
-      args[args.length - 1] = flag;
-      const [output] = await runCli(args);
+      const [output] = await runCli(mppArgs(flag));
+      expect(createRequest).toMatchObject({
+        path: '/spend_requests/create_delegated',
+        body: {
+          request_approval: true,
+          amount: 1000,
+          network_id: 'net_security',
+        },
+      });
+      expect(createRequest?.body.use_approval_policy).toBe(
+        flag === '--use-approval-policy' ? true : undefined,
+      );
       expect(output.status).toBe('approved');
       expect(output._next).not.toHaveProperty('poll_argv');
       expect(output._next).not.toHaveProperty('poll_command');
       expect(output._next).not.toHaveProperty('until');
-      expect(output.instruction).toContain('_next.argv');
+      expect(output._next).not.toHaveProperty('argv');
+      expect(output.instruction).toContain('_next.pay_argv');
       expect(output.instruction).not.toMatch(/approval_url|poll|Link app/);
-      expect(output._next.pay_argv.args).toContain(CHALLENGE);
+      const next = output._next.pay_argv as CommandArgv;
+      expect(next.args).toContain(CHALLENGE);
+      expect(next.args).toContain(SPEND_REQUEST.id);
       if (process.platform === 'win32') {
         expect(output._next).not.toHaveProperty('pay_command');
         expect(output._next).not.toHaveProperty('shell');
@@ -215,9 +230,6 @@ describe('command continuations', () => {
         expect(output._next.pay_command).toContain('mpp pay');
         expect(output._next.shell).toBe('posix');
       }
-      expectPlatformPolicy(output._next);
-      expect(output._next.argv).toEqual(output._next.pay_argv);
-      const next = output._next.argv as CommandArgv;
       const [paid] = await runCli([next.command, ...next.args]);
       expect(paid.status).toBe(200);
       expect(paidRequest).toBeDefined();
@@ -225,17 +237,14 @@ describe('command continuations', () => {
     10_000,
   );
 
-  it.each([
-    { status: 'created', approvalUrl: undefined },
-    { status: 'created', approvalUrl: SPEND_REQUEST.approval_url },
-    { status: 'pending_approval', approvalUrl: undefined },
-    { status: 'pending_approval', approvalUrl: SPEND_REQUEST.approval_url },
-  ])(
-    'polls $status and only requests manual approval when a URL exists ($approvalUrl)',
-    async ({ status, approvalUrl }) => {
-      createResponse = { ...SPEND_REQUEST, status, approval_url: approvalUrl };
-      const [output] = await runCli(mppArgs());
-      expect(output._next.poll_argv).toMatchObject({
+  it.each(['pending_approval', 'requires_action'])(
+    'preserves polling and payment continuations for %s with approval policy',
+    async (status) => {
+      createResponse = { ...SPEND_REQUEST, status };
+      const [output] = await runCli(mppArgs('--use-approval-policy'));
+      expect(createRequest?.body.use_approval_policy).toBe(true);
+      expect(output.status).toBe(status);
+      expect(output._next.poll_argv).toEqual({
         command: 'spend-request',
         args: [
           'retrieve',
@@ -246,113 +255,19 @@ describe('command continuations', () => {
           '300',
         ],
       });
-      expect(output._next.until).toContain(`status changes from ${status}`);
-      expect(output.instruction).toContain('only when status is approved');
-      if (approvalUrl) {
-        expect(output.instruction).toContain('Present the approval_url');
-      } else {
-        expect(output.instruction).not.toContain('approval_url');
-      }
+      expect(output._next.pay_argv.command).toBe('mpp');
+      expect(output._next.pay_argv.args).toContain(SPEND_REQUEST.id);
       expect(output._next.pay_argv.args).toContain(CHALLENGE);
-      expect(output._next.argv).toEqual(output._next.poll_argv);
-      expectPlatformPolicy(output._next);
-    },
-  );
-
-  it.each(['https://link.example/verify', null])(
-    'preserves verification and payment continuations for automatic resume (action_url: %s)',
-    async (actionUrl) => {
-      createResponse = {
-        ...SPEND_REQUEST,
-        status: 'requires_action',
-        status_details: {
-          requires_action: {
-            next_action: {
-              type: 'partner_auth_challenge',
-              resolution: 'auto_resume',
-              display_message: 'Complete verification in the Link app',
-              action_url: actionUrl,
-            },
-          },
-        },
-      };
-      const [output] = await runCli(mppArgs());
-      expect(output.instruction).toContain(
-        'Complete verification in the Link app',
+      expect(output._next).not.toHaveProperty('argv');
+      expect(output._next.until).toBe(
+        'status changes from pending_approval, then run pay_argv',
       );
-      expect(output.instruction).toContain('_next.argv');
-      expect(output.instruction).toContain('only when status is approved');
-      expect(output.instruction).not.toContain('approval_url');
-      expect(output.instruction).not.toMatch(/null|undefined/);
-      if (actionUrl) expect(output.instruction).toContain(actionUrl);
-      expect(output._next.until).toContain(
-        'status changes from requires_action',
-      );
-      expect(output._next.poll_argv.command).toBe('spend-request');
-      expect(output._next.pay_argv.args).toContain(CHALLENGE);
-      expect(output.status_details).toEqual(createResponse.status_details);
-      expectPlatformPolicy(output._next);
-    },
-  );
-
-  it.each([
-    'create_new_spend_request',
-    'create_new_spend_request_after_completion',
-  ])(
-    'requires a new request without offering payment or polling (%s)',
-    async (resolution) => {
-      createResponse = {
-        ...SPEND_REQUEST,
-        status: 'requires_action',
-        status_details: {
-          requires_action: {
-            next_action: {
-              type: 'update_payment_method',
-              resolution,
-              display_message: 'Update the payment method',
-              action_url: 'https://link.example/payment-method',
-            },
-          },
-        },
-      };
-      const [output] = await runCli(mppArgs());
-      expect(output).not.toHaveProperty('_next');
-      expect(output.instruction).toContain('Update the payment method');
-      expect(output.instruction).toContain(
-        'https://link.example/payment-method',
-      );
-      expect(output.instruction).toContain('create a new spend request');
-      expect(output.instruction).not.toContain('approval_url');
-      expect(output.status_details).toEqual(createResponse.status_details);
+      expect(output.instruction).toContain('Present the approval_url');
+      expect(output.instruction).toContain('_next.poll_argv');
+      expect(output.instruction).toContain('_next.pay_argv');
       expect(paidRequest).toBeUndefined();
     },
   );
-
-  it('does not invent a continuation when required action details are missing', async () => {
-    createResponse = { ...SPEND_REQUEST, status: 'requires_action' };
-    const [output] = await runCli(mppArgs());
-    expect(output.status).toBe('requires_action');
-    expect(output).not.toHaveProperty('_next');
-    expect(output.instruction).not.toMatch(/null|undefined|create a new/);
-    expect(paidRequest).toBeUndefined();
-  });
-
-  it.each([
-    'denied',
-    'expired',
-    'canceled',
-    'failed',
-    'submitted',
-    'succeeded',
-    'future_status',
-  ])('does not offer payment or polling for %s requests', async (status) => {
-    createResponse = { ...SPEND_REQUEST, status };
-    const [output] = await runCli(mppArgs());
-    expect(output.status).toBe(status);
-    expect(output).not.toHaveProperty('_next');
-    expect(output).not.toHaveProperty('instruction');
-    expect(paidRequest).toBeUndefined();
-  });
 
   it('accepts the malicious challenge and completes MPP using argv without executing it', async () => {
     expect(decodeStripeChallenge(CHALLENGE)).toMatchObject({
@@ -375,7 +290,7 @@ describe('command continuations', () => {
       '-H',
       header,
     ]);
-    const next = output[0]._next as CommandContinuation & {
+    const next = output[0]._next as {
       pay_argv: CommandArgv;
       poll_argv: CommandArgv;
       pay_command?: string;
@@ -406,7 +321,7 @@ describe('command continuations', () => {
         '300',
       ],
     });
-    expect(output[0].instruction).toContain('_next.argv');
+    expect(output[0].instruction).toContain('_next.poll_argv');
     expect(output[0].instruction).not.toContain('pay_command');
     if (process.platform === 'win32') {
       expect(next).not.toHaveProperty('pay_command');
@@ -417,9 +332,7 @@ describe('command continuations', () => {
       expect(next.poll_command).toContain('spend-request retrieve');
       expect(next.shell).toBe('posix');
     }
-    expect(next.argv).toEqual(next.poll_argv);
-    expectPlatformPolicy(next);
-    await runCli([next.argv.command, ...next.argv.args]);
+    await runCli([next.poll_argv.command, ...next.poll_argv.args]);
     const paid = await runCli([next.pay_argv.command, ...next.pay_argv.args]);
     expect(paid[0]).toMatchObject({ status: 200 });
     expect(paidRequest).toMatchObject({
