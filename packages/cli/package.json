@@ -1,6 +1,6 @@
 {
   "name": "@stripe/link-cli",
-  "version": "0.30.0",
+  "version": "1.0.0",
   "type": "module",
   "bin": {
     "link-cli": "./dist/cli.js"

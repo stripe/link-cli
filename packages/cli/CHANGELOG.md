@@ -1,5 +1,15 @@
 # @stripe/link-cli
 
+## 1.0.0
+
+### Major Changes
+
+- b76e268: Remove balance eligibility from user info. The TypeScript SDK no longer exposes `eligible_for_balance`, the Go SDK no longer exposes `EligibleForBalance`, and CLI JSON and interactive output omit the field even when the server still returns it.
+
+### Patch Changes
+
+- 097261e: The Link plugin and generated MCP server configurations now run the installed `link-cli` binary instead of resolving `@stripe/link-cli` through `npx`, `pnpx`, or `bunx` at startup, so an opened repository's `.npmrc` or `node_modules` can no longer choose the executable. Install the CLI with `npm install -g @stripe/link-cli` before using the plugin.
+
 ## 0.30.0
 
 ### Minor Changes
