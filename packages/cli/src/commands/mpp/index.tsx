@@ -7,6 +7,7 @@ import type { CliAuthStorage } from '../../auth/storage';
 import { buildCommandContinuation } from '../../utils/command-continuation';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
+import { shouldPollSpendRequest } from '../../utils/should-poll-spend-request';
 import { decodeStripeChallenge } from './decode';
 import { DecodeChallengeView } from './decode-view';
 import {
@@ -98,8 +99,7 @@ export function createMppCli(
         return;
       }
 
-      // Full flow in agent mode: yield approval URL mid-flow so the agent
-      // can present it to the user while we poll for approval inline.
+      // Agent mode returns a continuation based on the created request's status.
       const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
       const requestHeaders = buildHeaders(data, headers);
 
@@ -185,6 +185,33 @@ export function createMppCli(
         use_approval_policy: opts.useApprovalPolicy || undefined,
       };
       const spendRequest = await repository.create(createParams);
+      const nextAction =
+        spendRequest.status_details?.requires_action?.next_action;
+      const actionInstruction = [
+        nextAction?.display_message || 'The spend request requires action.',
+        nextAction?.action_url
+          ? `Present action_url (${nextAction.action_url}) to the user so they can complete it.`
+          : 'Have the user complete it.',
+      ].join(' ');
+
+      if (
+        spendRequest.status !== 'approved' &&
+        !shouldPollSpendRequest(spendRequest)
+      ) {
+        const requiresNewRequest =
+          nextAction?.resolution === 'create_new_spend_request' ||
+          nextAction?.resolution ===
+            'create_new_spend_request_after_completion';
+        yield spendRequest.status === 'requires_action'
+          ? {
+              ...spendRequest,
+              instruction: requiresNewRequest
+                ? `${actionInstruction} Once the action is completed, create a new spend request.`
+                : actionInstruction,
+            }
+          : spendRequest;
+        return;
+      }
 
       // Continue from the request that actually returned the challenge. Redirects
       // may have changed its URL, method, body, or safe-to-forward headers.
@@ -204,6 +231,23 @@ export function createMppCli(
         nextArgs.push('-H', `${name}: ${value}`);
       }
       const payment = buildCommandContinuation('mpp', nextArgs);
+      const paymentNext = {
+        ...(payment.command !== undefined
+          ? { pay_command: payment.command, shell: payment.shell }
+          : {}),
+        pay_argv: payment.argv,
+      };
+
+      if (spendRequest.status === 'approved') {
+        yield {
+          ...spendRequest,
+          instruction:
+            'Invoke _next.pay_argv directly without a shell to complete payment.',
+          _next: paymentNext,
+        };
+        return;
+      }
+
       const poll = buildCommandContinuation('spend-request', [
         'retrieve',
         spendRequest.id,
@@ -213,22 +257,23 @@ export function createMppCli(
         '300',
       ]);
 
-      // Yield approval URL and return — agent drives completion via _next
       yield {
         ...spendRequest,
-        instruction:
-          'Present the approval_url to the user and ask them to approve in the Link app. Then invoke _next.poll_argv directly without a shell to poll until approved. Once approved, invoke _next.pay_argv directly without a shell to complete payment. Do not wait for the user to reply — start polling immediately.',
+        instruction: [
+          spendRequest.status === 'requires_action'
+            ? actionInstruction
+            : spendRequest.approval_url
+              ? 'Present the approval_url to the user and ask them to approve in the Link app. Start polling without waiting for a reply.'
+              : undefined,
+          'Invoke _next.poll_argv directly without a shell to wait for a status change and inspect the returned status. Follow any returned action instructions and repeat polling while approval is pending. Invoke _next.pay_argv directly without a shell only when status is approved.',
+        ]
+          .filter(Boolean)
+          .join(' '),
         _next: {
-          ...(payment.command !== undefined
-            ? {
-                poll_command: poll.command,
-                pay_command: payment.command,
-                shell: payment.shell,
-              }
-            : {}),
+          ...paymentNext,
+          ...(poll.command !== undefined ? { poll_command: poll.command } : {}),
           poll_argv: poll.argv,
-          pay_argv: payment.argv,
-          until: 'status changes from pending_approval, then run pay_argv',
+          until: `status changes from ${spendRequest.status}; run pay_argv only if status is approved`,
         },
       };
     },
