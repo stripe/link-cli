@@ -701,7 +701,7 @@ link-cli ucp checkout create --business <business> \
 
 `--line-item` is repeatable; `quantity` defaults to 1. All buyer fields are optional (`first_name`, `last_name`, `email`, `phone`). `--fulfillment` accepts the entire UCP JSON object; `--fullfilment` is an alternate spelling. Omit buyer or fulfillment to use saved Link details during creation. The seller determines the checkout currency.
 
-Review the returned `messages`, `totals`, and fulfillment choices. Update the checkout as needed. Updates use PUT: include the complete line-item list and every buyer and fulfillment section you want to retain.
+Review the returned `messages`, `totals`, and fulfillment choices. Update the checkout as needed. Updates use PUT and require the complete line-item list, including unchanged items. Buyer and fulfillment are optional on update: omitted sections keep their existing checkout values. Updates do not reload saved Link wallet details.
 
 ```bash
 link-cli ucp checkout retrieve --id <checkout_id> --business <business> --format json

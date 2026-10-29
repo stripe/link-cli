@@ -293,7 +293,7 @@ export interface CreateUcpCheckoutParams {
   fulfillment?: Record<string, unknown>;
 }
 
-/** PUT replaces checkout state; include every section you want to retain. */
+/** PUT requires the full line-item list; omitted buyer/fulfillment sections keep existing checkout values. */
 export interface UpdateUcpCheckoutParams extends CreateUcpCheckoutParams {
   line_items: (UcpLineItem & { id?: string; parent_id?: string })[];
 }

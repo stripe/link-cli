@@ -160,7 +160,7 @@ export function createUcpCli(
       ]);
       return {
         ...created,
-        instruction: `Review checkout ${created.id}, resolve any messages, and use checkout update to supply any missing details and select fulfillment. PUT updates require every field you want to retain. Once the checkout is ready_for_complete and you have reviewed its final total, create a spend request for that total using ${formatCommandSuggestion(spendRequest)}; spend-request calls the UCP business value a network ID. Get it approved, then complete the checkout. Both \`--spend-request-id\` and \`--business\` are required. Replace only the <spend_request_id> argument in _next.argv with the approved spend request ID, preserving the original business argument, then invoke it directly without a shell.`,
+        instruction: `Review checkout ${created.id}, resolve any messages, and use checkout update to supply any missing details and select fulfillment. PUT updates require the full line-item list, including unchanged items; omitted buyer and fulfillment sections keep their existing checkout values. Once the checkout is ready_for_complete and you have reviewed its final total, create a spend request for that total using ${formatCommandSuggestion(spendRequest)}; spend-request calls the UCP business value a network ID. Get it approved, then complete the checkout. Both \`--spend-request-id\` and \`--business\` are required. Replace only the <spend_request_id> argument in _next.argv with the approved spend request ID, preserving the original business argument, then invoke it directly without a shell.`,
         _next: {
           ...completion,
           until:
@@ -172,7 +172,7 @@ export function createUcpCli(
 
   checkout.command('update', {
     description:
-      'Replace a UCP checkout with PUT. Include the full line-item list and every buyer/fulfillment section you want to retain; omitted sections are not merged with saved Link details.',
+      'Update a UCP checkout with PUT. Include the full line-item list, including unchanged items. Omitted buyer/fulfillment sections keep existing checkout values; saved Link wallet details are not reloaded.',
     args: z.object({
       id: z
         .string()
