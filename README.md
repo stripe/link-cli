@@ -663,7 +663,7 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
   --header "X-Custom: value"
 ```
 
-In agent mode (`--format json`), the full flow returns `_next.pay_argv` (`{ "command": "mpp", "args": [...] }`) and `_next.poll_argv` for payment and approval polling. Invoke these directly without a shell. `command` is a Link CLI subcommand, not an executable; pass it and each `args` entry as separate arguments to your trusted CLI entrypoint:
+In agent mode (`--format json`), the full flow returns `_next.pay_argv` (`{ "command": "mpp", "args": [...] }`) to complete payment when the new spend request is approved. Requests awaiting approval or automatic verification also return `_next.poll_argv`; follow any action instructions, poll until approved, and only then pay. Requests that cannot continue return no `_next`. Invoke continuations directly without a shell. `command` is a Link CLI subcommand, not an executable; pass it and each `args` entry as separate arguments to your trusted CLI entrypoint:
 
 ```js
 import { execFile } from 'node:child_process';
