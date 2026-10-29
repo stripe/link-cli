@@ -4,7 +4,7 @@ import type {
 } from '@stripe/link-sdk';
 import { Box, Text, useInput } from 'ink';
 import Spinner from 'ink-spinner';
-import { Challenge, Credential, Method } from 'mppx';
+import { Challenge, Credential, Method, PaymentRequest } from 'mppx';
 import { Mppx } from 'mppx/client';
 import { Methods as StripeMethods } from 'mppx/stripe';
 import { useEffect, useState } from 'react';
@@ -312,11 +312,37 @@ async function payPinnedChallengeWithSpt(
 }
 
 function comparableChallenge(challenge: Challenge.Challenge): string {
-  return Challenge.serialize({
+  const comparison: Challenge.Challenge = {
     ...challenge,
     id: 'approval-comparison',
     expires: undefined,
-  });
+  };
+  try {
+    // Received challenges carry opaque without populating the convenience meta.
+    const meta: unknown =
+      challenge.opaque !== undefined
+        ? PaymentRequest.deserialize(challenge.opaque)
+        : challenge.meta;
+    if (
+      typeof meta === 'object' &&
+      meta !== null &&
+      !Array.isArray(meta) &&
+      '_mppx_nonce' in meta &&
+      typeof meta._mppx_nonce === 'string' &&
+      Object.values(meta).every((value) => typeof value === 'string')
+    ) {
+      // mppx rotates this HMAC-bound nonce on every issuance. Ignore it only
+      // for approval comparison; submit the refreshed challenge unchanged.
+      const { _mppx_nonce, ...comparableMeta } = meta;
+      comparison.meta = Object.keys(comparableMeta).length
+        ? comparableMeta
+        : undefined;
+      comparison.opaque = undefined;
+    }
+  } catch {
+    // Invalid opaque values remain pinned byte-for-byte.
+  }
+  return Challenge.serialize(comparison);
 }
 
 export async function runMppPayFullFlow(
