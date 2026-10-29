@@ -10,7 +10,7 @@ import { pollUntil } from '../../utils/poll-until';
 export type UcpCheckoutWaitReason =
   | 'checkout_completed_and_spend_request_succeeded'
   | 'spend_request_requires_action'
-  | 'checkout_expired'
+  | 'checkout_canceled'
   | 'spend_request_expired'
   | 'spend_request_denied'
   | 'spend_request_failed'
@@ -45,10 +45,10 @@ export function classifyUcpCheckout(
   const state = splitComposite(composite);
   const spendRequest = composite.spend_request;
 
-  if (composite.status === 'expired') {
+  if (composite.status === 'canceled') {
     return {
       outcome: 'terminal_failure',
-      reason: 'checkout_expired',
+      reason: 'checkout_canceled',
       ...state,
     };
   }

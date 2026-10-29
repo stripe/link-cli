@@ -85,8 +85,8 @@ beforeAll(async () => {
     } else if (url.pathname === '/ucp/checkout') {
       response = {
         id: CHECKOUT_ID,
-        status: 'requires_payment',
-        amount_total: 1000,
+        status: 'ready_for_complete',
+        totals: [{ type: 'total', amount: 1000 }],
         currency: 'usd',
       };
     } else if (

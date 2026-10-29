@@ -7,7 +7,7 @@ import { createUcpCli } from '..';
 
 const checkout: UcpCheckoutWithSpendRequest = {
   id: 'dcs_1',
-  status: 'requires_action',
+  status: 'complete_in_progress',
   spend_request: {
     id: 'lsrq_1',
     status: 'requires_action',
@@ -119,7 +119,7 @@ describe('ucp checkout retrieve output', () => {
       .fn<IUcpResource['retrieveCheckout']>()
       .mockResolvedValueOnce({
         id: 'dcs_1',
-        status: 'open',
+        status: 'complete_in_progress',
         spend_request: { ...checkout.spend_request, status: 'approved' },
       })
       .mockResolvedValueOnce({

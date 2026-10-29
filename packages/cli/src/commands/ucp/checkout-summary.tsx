@@ -19,32 +19,17 @@ interface CheckoutSummaryProps {
 export const CheckoutSummary: React.FC<CheckoutSummaryProps> = ({
   checkout,
 }) => {
-  const total =
-    checkout.totals?.find((entry) => entry.type === 'total')?.amount ??
-    checkout.amount_total;
-  const subtotal =
-    checkout.totals?.find((entry) => entry.type === 'subtotal')?.amount ??
-    checkout.amount_subtotal;
-  const shipping =
-    checkout.totals?.find((entry) => entry.type === 'fulfillment')?.amount ??
-    (checkout.total_details as { amount_shipping?: number })?.amount_shipping;
-  const orderStatus =
-    (checkout.order as { id?: string })?.id ??
-    (checkout.order_details as { status?: string })?.status;
-  const lineItems =
-    checkout.line_items?.map((line) => ({
-      sku_id: line.item.id,
-      quantity: line.quantity,
-      amount_total: line.totals?.find((entry) => entry.type === 'total')
-        ?.amount,
-    })) ??
-    (Array.isArray(checkout.line_item_details)
-      ? (checkout.line_item_details as Array<{
-          sku_id?: string;
-          quantity?: number;
-          amount_total?: number;
-        }>)
-      : []);
+  const total = checkout.totals?.find(
+    (entry) => entry.type === 'total',
+  )?.amount;
+  const subtotal = checkout.totals?.find(
+    (entry) => entry.type === 'subtotal',
+  )?.amount;
+  const shipping = checkout.totals?.find(
+    (entry) => entry.type === 'fulfillment',
+  )?.amount;
+  const orderId = checkout.order?.id;
+  const lineItems = checkout.line_items ?? [];
 
   return (
     <Box flexDirection="column" marginTop={1} paddingX={2}>
@@ -91,29 +76,32 @@ export const CheckoutSummary: React.FC<CheckoutSummaryProps> = ({
           <Text bold color="white">
             Line Items:
           </Text>
-          {lineItems.map((item, index) => (
-            <Text key={item.sku_id ?? String(index)}>
-              {'  '}
-              {item.sku_id ?? '—'} ×{item.quantity ?? 1}
-              {item.amount_total != null
-                ? `  ${formatAmount(item.amount_total, checkout.currency)}`
-                : ''}
-            </Text>
-          ))}
+          {lineItems.map((line, index) => {
+            const amount = line.totals?.find(
+              (entry) => entry.type === 'total',
+            )?.amount;
+            return (
+              <Text key={line.id ?? String(index)}>
+                {'  '}
+                {line.item.id} ×{line.quantity}
+                {amount != null
+                  ? `  ${formatAmount(amount, checkout.currency)}`
+                  : ''}
+              </Text>
+            );
+          })}
         </Box>
       )}
-      {orderStatus && (
+      {orderId && (
         <Text>
           Order:{' '}
           <Text bold color="white">
-            {orderStatus}
+            {orderId}
           </Text>
         </Text>
       )}
       {checkout.expires_at != null && (
-        <Text dimColor>
-          Expires: {new Date(checkout.expires_at * 1000).toISOString()}
-        </Text>
+        <Text dimColor>Expires: {checkout.expires_at}</Text>
       )}
     </Box>
   );

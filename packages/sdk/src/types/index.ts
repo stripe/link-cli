@@ -492,21 +492,18 @@ export interface UcpSearchResult {
   [key: string]: unknown;
 }
 
-/**
- * A UCP checkout session. The response, including capability metadata, messages,
- * totals, and fulfillment choices, is preserved as returned by the seller.
- */
 export type UcpCheckoutStatus =
-  | 'open'
-  | 'requires_action'
   | 'incomplete'
   | 'requires_escalation'
   | 'ready_for_complete'
   | 'complete_in_progress'
   | 'completed'
-  | 'canceled'
-  | 'expired';
+  | 'canceled';
 
+/**
+ * A UCP checkout session. The response, including capability metadata, messages,
+ * totals, and fulfillment choices, is preserved as returned by the seller.
+ */
 export interface UcpCheckout {
   id: string;
   status?: UcpCheckoutStatus | null;
@@ -523,14 +520,12 @@ export interface UcpCheckout {
   fulfillment?: Record<string, unknown> | null;
   ucp?: Record<string, unknown>;
   messages?: unknown[];
-  order?: Record<string, unknown> | null;
-  amount_total?: number | null;
-  amount_subtotal?: number | null;
-  total_details?: Record<string, unknown> | null;
-  line_item_details?: unknown;
-  fulfillment_details?: Record<string, unknown> | null;
-  order_details?: Record<string, unknown> | null;
-  expires_at?: number | null;
+  links?: Array<{ type: string; url: string; title?: string | null }>;
+  payment?: Record<string, unknown>;
+  order?: { id: string; permalink_url?: string } | null;
+  /** RFC 3339 timestamp. */
+  expires_at?: string | null;
+  continue_url?: string | null;
   [key: string]: unknown;
 }
 

@@ -220,7 +220,7 @@ describe('ucp checkout create component', () => {
           totals: [{ type: 'total', amount: 5000 }],
         },
       ],
-      expires_at: 1_800_000_000,
+      expires_at: '2027-01-15T08:00:00Z',
     };
     const repo = makeResource({ createCheckout: vi.fn(async () => checkout) });
 
@@ -243,6 +243,7 @@ describe('ucp checkout create component', () => {
       expect(frame).toContain('$55.00');
       expect(frame).toContain('$5.00'); // shipping
       expect(frame).toContain('sku_1 ×2');
+      expect(frame).toContain('Expires: 2027-01-15T08:00:00Z');
       expect(frame).toContain('checkout update');
       expect(frame).toContain('spend-request create');
       expect(frame).toContain('--credential-type shared_payment_token');
@@ -260,7 +261,7 @@ describe('ucp checkout summary currency formatting', () => {
   it('formats amounts in the currency minor unit', async () => {
     const checkout: UcpCheckout = {
       id: 'dcs_jpy',
-      status: 'open',
+      status: 'ready_for_complete',
       currency: 'jpy',
       totals: [{ type: 'total', amount: 1000 }],
     };
@@ -336,7 +337,7 @@ describe('ucp checkout complete component', () => {
     });
     const actionState = {
       id: 'dcs_1',
-      status: 'requires_action' as const,
+      status: 'complete_in_progress' as const,
       spend_request: {
         id: 'lsrq_1',
         status: 'requires_action' as const,
@@ -357,7 +358,7 @@ describe('ucp checkout complete component', () => {
     const successState = {
       id: 'dcs_1',
       status: 'completed' as const,
-      order_details: { status: 'confirmed' },
+      order: { id: 'order_confirmed' },
       spend_request: {
         id: 'lsrq_1',
         status: 'succeeded' as const,
@@ -404,7 +405,7 @@ describe('ucp checkout complete component', () => {
   it('stops for an action that requires a new spend request', async () => {
     const retrieveCheckout = vi.fn(async () => ({
       id: 'dcs_1',
-      status: 'requires_action' as const,
+      status: 'complete_in_progress' as const,
       spend_request: {
         id: 'lsrq_1',
         status: 'requires_action' as const,

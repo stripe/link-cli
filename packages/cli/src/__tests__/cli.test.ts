@@ -4363,9 +4363,9 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       it('POSTs business and parsed line items to /ucp/checkout', async () => {
         setNextResponse(200, {
           id: 'dcs_1',
-          status: 'open',
+          status: 'ready_for_complete',
           currency: 'usd',
-          amount_total: 5500,
+          totals: [{ type: 'total', amount: 5500 }],
         });
 
         const result = await runProdCli(
@@ -4457,7 +4457,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     });
 
     describe('checkout update', () => {
-      it('PUTs the full checkout state to the encoded checkout path', async () => {
+      it('PUTs supplied checkout sections to the encoded checkout path', async () => {
         const fulfillment = {
           methods: [
             {
@@ -4510,7 +4510,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         setNextResponse(200, {
           id: 'dcs_1',
           status: 'completed',
-          order_details: { status: 'confirmed' },
+          order: { id: 'order_confirmed' },
         });
 
         const result = await runProdCli(
@@ -4636,7 +4636,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       it('GETs the composite state once and preserves nested next_action output', async () => {
         setNextResponse(200, {
           id: 'dcs_1',
-          status: 'requires_action',
+          status: 'complete_in_progress',
           spend_request: {
             id: 'lsrq_1',
             status: 'requires_action',
@@ -4694,7 +4694,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         const output = parseJson(result.stdout) as Record<string, unknown>;
         expect(output).toMatchObject({
           id: 'dcs_1',
-          status: 'requires_action',
+          status: 'complete_in_progress',
           spend_request: {
             id: 'lsrq_1',
             status_details: {
