@@ -19,6 +19,10 @@ import { pollUntil } from '../../utils/poll-until';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth, requireAuthGuard } from '../../utils/require-auth';
 import { shouldPollSpendRequest } from '../../utils/should-poll-spend-request';
+import {
+  buildApprovalContinuation,
+  buildRequiresActionContinuation,
+} from '../../utils/spend-request-continuation';
 import { CancelSpendRequest } from './cancel';
 import { CreateSpendRequest } from './create';
 import { SpendRequestList } from './list';
@@ -31,36 +35,6 @@ import {
   updateOptions,
 } from './schema';
 import { UpdateSpendRequest } from './update';
-
-function buildPollContinuation(id: string) {
-  return buildCommandContinuation('spend-request', [
-    'retrieve',
-    id,
-    '--interval',
-    '2',
-    '--max-attempts',
-    '300',
-  ]);
-}
-
-function buildRequiresActionResult(request: SpendRequest) {
-  const nextAction = request.status_details?.requires_action?.next_action;
-  const isAutoResume = nextAction?.resolution === 'auto_resume';
-  const poll = buildPollContinuation(request.id);
-
-  return {
-    ...request,
-    instruction: isAutoResume
-      ? `The spend request requires additional verification (${nextAction?.type}).${nextAction?.display_message ? ` ${nextAction.display_message}` : ''}${nextAction?.action_url ? ` Present action_url (${nextAction.action_url}) to the user so they can complete it, then invoke` : ' Have the user complete it, then invoke'} _next.argv directly without a shell to keep polling until it resolves. Do not create a new spend request — this one resumes automatically once verification is completed.`
-      : `The spend request requires action (${nextAction?.type}): ${nextAction?.display_message}${nextAction?.action_url ? ` URL: ${nextAction.action_url}` : ''} Have the user complete this, then create a new spend request.`,
-    _next: isAutoResume
-      ? {
-          ...poll,
-          until: 'status changes from requires_action',
-        }
-      : undefined,
-  };
-}
 
 async function applyOutputFile(
   request: SpendRequest,
@@ -381,7 +355,7 @@ export function createSpendRequestCli(
         throw err;
       }
       if (created.status === 'requires_action') {
-        yield buildRequiresActionResult(created);
+        yield { ...created, ...buildRequiresActionContinuation(created) };
         return;
       }
       if (!requestApproval || !shouldPollSpendRequest(created)) {
@@ -396,16 +370,7 @@ export function createSpendRequestCli(
         }
         return;
       }
-      const poll = buildPollContinuation(created.id);
-      yield {
-        ...created,
-        instruction:
-          'Present the approval_url to the user and ask them to approve in the Link app. Then invoke _next.argv directly without a shell to wait for a status change and inspect the returned status. Do not wait for the user to reply — start polling immediately.',
-        _next: {
-          ...poll,
-          until: `status changes from ${created.status}`,
-        },
-      };
+      yield { ...created, ...buildApprovalContinuation(created) };
     },
   });
 
@@ -524,15 +489,13 @@ export function createSpendRequestCli(
         }
         throw err;
       }
-      const poll = buildPollContinuation(id);
       yield {
         ...approval,
-        instruction:
-          'Present the approval_url to the user and ask them to approve in the Link app. Then invoke _next.argv directly without a shell to wait for a status change and inspect the returned status. Do not wait for the user to reply — start polling immediately.',
-        _next: {
-          ...poll,
-          until: 'status changes from pending_approval',
-        },
+        ...buildApprovalContinuation({
+          id,
+          status: 'pending_approval',
+          approval_url: approval.approval_url,
+        }),
       };
     },
   });
@@ -601,7 +564,10 @@ export function createSpendRequestCli(
 
         if (result.terminal) {
           if (result.value.status === 'requires_action' && !result.reason) {
-            yield buildRequiresActionResult(result.value);
+            yield {
+              ...result.value,
+              ...buildRequiresActionContinuation(result.value),
+            };
             return;
           }
 

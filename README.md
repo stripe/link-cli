@@ -663,19 +663,19 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
   --header "X-Custom: value"
 ```
 
-In agent mode (`--format json`), the full flow returns `_next.pay_argv` (`{ "command": "mpp", "args": [...] }`) to complete payment when the new spend request is approved. Requests awaiting approval or automatic verification also return `_next.poll_argv`; follow any action instructions, poll until approved, and only then pay. Requests that cannot continue return no `_next`. Invoke continuations directly without a shell. `command` is a Link CLI subcommand, not an executable; pass it and each `args` entry as separate arguments to your trusted CLI entrypoint:
+In agent mode (`--format json`), `_next.argv` (`{ "command": "mpp", "args": [...] }`) gives the next command: payment for an approved request, or the standard spend-request polling command while approval or automatic verification is pending. Follow any action instructions, inspect the status after polling, and invoke the retained `_next.pay_argv` only when approved. Requests that cannot continue return no `_next`. Invoke continuations directly without a shell. `command` is a Link CLI subcommand, not an executable; pass it and each `args` entry as separate arguments to your trusted CLI entrypoint:
 
 ```js
 import { execFile } from 'node:child_process';
 
-const { command, args } = result._next.pay_argv;
+const { command, args } = result._next.argv;
 // cliScript is the trusted path to the installed CLI's dist/cli.js.
 execFile(process.execPath, [cliScript, command, ...args], { shell: false });
 ```
 
 For the standalone Windows executable, use `execFile(cliExecutable, [command, ...args], { shell: false })`. Avoid npm `.cmd` shims, which require a command shell. Never join, unquote, or re-split an argv array to construct a shell string: URLs, request bodies, and headers can contain merchant-controlled text.
 
-Outside Windows, `_next.pay_command` and `_next.poll_command` remain available with `_next.shell: "posix"`. These strings are quoted **only for POSIX-compatible shells**; pass them verbatim only to such a shell, regardless of where the output was generated. They are unsafe for `cmd.exe` and PowerShell and are omitted on Windows.
+MPP retains `_next.pay_argv` and, while waiting, `_next.poll_argv` for compatibility. Outside Windows, `_next.command`, `_next.pay_command`, and `_next.poll_command` remain available with `_next.shell: "posix"`. These strings are quoted **only for POSIX-compatible shells**; pass them verbatim only to such a shell, regardless of where the output was generated. They are unsafe for `cmd.exe` and PowerShell and are omitted on Windows.
 
 Spend-request approval and automatic-resume polling similarly return `_next.argv`. UCP checkout creation returns `_next.argv` as a completion template: after approval, replace only the `<spend_request_id>` argument with the approved ID, preserve the original business argument, and invoke the CLI directly. Do not execute the template before replacement or edit its compatibility string. These flows retain `_next.command` with `_next.shell: "posix"` outside Windows and omit the string on Windows.
 

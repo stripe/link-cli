@@ -205,7 +205,7 @@ describe('command continuations', () => {
       expect(output._next).not.toHaveProperty('poll_argv');
       expect(output._next).not.toHaveProperty('poll_command');
       expect(output._next).not.toHaveProperty('until');
-      expect(output.instruction).toContain('_next.pay_argv');
+      expect(output.instruction).toContain('_next.argv');
       expect(output.instruction).not.toMatch(/approval_url|poll|Link app/);
       expect(output._next.pay_argv.args).toContain(CHALLENGE);
       if (process.platform === 'win32') {
@@ -215,7 +215,9 @@ describe('command continuations', () => {
         expect(output._next.pay_command).toContain('mpp pay');
         expect(output._next.shell).toBe('posix');
       }
-      const next = output._next.pay_argv as CommandArgv;
+      expectPlatformPolicy(output._next);
+      expect(output._next.argv).toEqual(output._next.pay_argv);
+      const next = output._next.argv as CommandArgv;
       const [paid] = await runCli([next.command, ...next.args]);
       expect(paid.status).toBe(200);
       expect(paidRequest).toBeDefined();
@@ -245,7 +247,6 @@ describe('command continuations', () => {
         ],
       });
       expect(output._next.until).toContain(`status changes from ${status}`);
-      expect(output._next.until).toContain('only if status is approved');
       expect(output.instruction).toContain('only when status is approved');
       if (approvalUrl) {
         expect(output.instruction).toContain('Present the approval_url');
@@ -253,6 +254,11 @@ describe('command continuations', () => {
         expect(output.instruction).not.toContain('approval_url');
       }
       expect(output._next.pay_argv.args).toContain(CHALLENGE);
+      const [standard] = await runCli([...createArgs, '--request-approval']);
+      expect(output.instruction).toContain(standard.instruction);
+      expect(output._next).toMatchObject(standard._next);
+      expect(output._next.argv).toEqual(output._next.poll_argv);
+      expectPlatformPolicy(output._next);
     },
   );
 
@@ -277,7 +283,7 @@ describe('command continuations', () => {
       expect(output.instruction).toContain(
         'Complete verification in the Link app',
       );
-      expect(output.instruction).toContain('_next.poll_argv');
+      expect(output.instruction).toContain('_next.argv');
       expect(output.instruction).toContain('only when status is approved');
       expect(output.instruction).not.toContain('approval_url');
       expect(output.instruction).not.toMatch(/null|undefined/);
@@ -288,6 +294,10 @@ describe('command continuations', () => {
       expect(output._next.poll_argv.command).toBe('spend-request');
       expect(output._next.pay_argv.args).toContain(CHALLENGE);
       expect(output.status_details).toEqual(createResponse.status_details);
+      const [standard] = await runCli([...createArgs, '--request-approval']);
+      expect(output.instruction).toContain(standard.instruction);
+      expect(output._next).toMatchObject(standard._next);
+      expectPlatformPolicy(output._next);
     },
   );
 
@@ -320,6 +330,8 @@ describe('command continuations', () => {
       expect(output.instruction).toContain('create a new spend request');
       expect(output.instruction).not.toContain('approval_url');
       expect(output.status_details).toEqual(createResponse.status_details);
+      const [standard] = await runCli([...createArgs, '--request-approval']);
+      expect(output).toEqual(standard);
       expect(paidRequest).toBeUndefined();
     },
   );
@@ -331,6 +343,8 @@ describe('command continuations', () => {
     expect(output).not.toHaveProperty('_next');
     expect(output.instruction).not.toMatch(/null|undefined|create a new/);
     expect(paidRequest).toBeUndefined();
+    const [standard] = await runCli([...createArgs, '--request-approval']);
+    expect(output).toEqual(standard);
   });
 
   it.each([
@@ -371,7 +385,7 @@ describe('command continuations', () => {
       '-H',
       header,
     ]);
-    const next = output[0]._next as {
+    const next = output[0]._next as CommandContinuation & {
       pay_argv: CommandArgv;
       poll_argv: CommandArgv;
       pay_command?: string;
@@ -402,7 +416,7 @@ describe('command continuations', () => {
         '300',
       ],
     });
-    expect(output[0].instruction).toContain('_next.poll_argv');
+    expect(output[0].instruction).toContain('_next.argv');
     expect(output[0].instruction).not.toContain('pay_command');
     if (process.platform === 'win32') {
       expect(next).not.toHaveProperty('pay_command');
@@ -413,7 +427,9 @@ describe('command continuations', () => {
       expect(next.poll_command).toContain('spend-request retrieve');
       expect(next.shell).toBe('posix');
     }
-    await runCli([next.poll_argv.command, ...next.poll_argv.args]);
+    expect(next.argv).toEqual(next.poll_argv);
+    expectPlatformPolicy(next);
+    await runCli([next.argv.command, ...next.argv.args]);
     const paid = await runCli([next.pay_argv.command, ...next.pay_argv.args]);
     expect(paid[0]).toMatchObject({ status: 200 });
     expect(paidRequest).toMatchObject({
@@ -503,7 +519,7 @@ describe('command continuations', () => {
       'https://link.example/verify',
       'Present action_url (https://link.example/verify)',
     ],
-    [null, 'Have the user complete it, then invoke _next.argv'],
+    [null, 'Have the user complete it. Then invoke _next.argv'],
   ])(
     'tells the agent to keep polling through partner_auth_challenge (action_url: %s)',
     async (actionUrl, expected) => {
