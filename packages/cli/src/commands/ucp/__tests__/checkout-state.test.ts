@@ -30,6 +30,7 @@ function resource(
     searchCatalog: vi.fn(),
     createCheckout: vi.fn(),
     completeCheckout: vi.fn(),
+    updateCheckout: vi.fn(),
     retrieveCheckout,
   };
 }
@@ -199,6 +200,7 @@ describe('pollUcpCheckout', () => {
 
     const results = await collect(
       pollUcpCheckout(repository, 'dcs_1', {
+        business: 'np_1',
         spendRequestId: 'lsrq_1',
         interval: 0.001,
         timeout: 60,
@@ -228,6 +230,7 @@ describe('pollUcpCheckout', () => {
 
     const results = await collect(
       pollUcpCheckout(repository, 'dcs_1', {
+        business: 'np_1',
         spendRequestId: 'lsrq_1',
         interval: 0.001,
         timeout: 60,
@@ -250,6 +253,7 @@ describe('pollUcpCheckout', () => {
     const autoRepository = resource(vi.fn(async () => autoState));
     const autoResults = await collect(
       pollUcpCheckout(autoRepository, 'dcs_1', {
+        business: 'np_1',
         spendRequestId: 'lsrq_1',
         interval: 0.001,
         timeout: 60,
@@ -267,6 +271,7 @@ describe('pollUcpCheckout', () => {
     const actionRepository = resource(vi.fn(async () => actionState));
     const actionResults = await collect(
       pollUcpCheckout(actionRepository, 'dcs_1', {
+        business: 'np_1',
         spendRequestId: 'lsrq_1',
         interval: 0.001,
         timeout: 60,
@@ -291,6 +296,7 @@ describe('pollUcpCheckout', () => {
 
     const results = await collect(
       pollUcpCheckout(repository, 'dcs_1', {
+        business: 'np_1',
         spendRequestId: 'lsrq_1',
         interval: 0.001,
         timeout: 60,
@@ -315,6 +321,7 @@ describe('pollUcpCheckout', () => {
     await expect(
       collect(
         pollUcpCheckout(repository, 'dcs_1', {
+          business: 'np_1',
           spendRequestId: 'lsrq_1',
           interval: 0.001,
           timeout: 60,
@@ -330,6 +337,7 @@ describe('pollUcpCheckout', () => {
     );
     const results = await collect(
       pollUcpCheckout(repository, 'dcs_1', {
+        business: 'np_1',
         spendRequestId: 'lsrq_1',
         interval: 0.001,
         timeout: 0.003,
@@ -355,16 +363,16 @@ describe('consolidated checkout retrieve mode', () => {
     const repository = resource(vi.fn(async () => value));
 
     const result = runUcpCheckoutRetrieve(repository, 'dcs_1', {
+      business: 'np_1',
       spendRequestId: 'lsrq_1',
-      test: true,
       poll: false,
     });
 
     expect(Symbol.asyncIterator in result).toBe(false);
     await expect(result).resolves.toBe(value);
     expect(repository.retrieveCheckout).toHaveBeenCalledWith('dcs_1', {
+      business: 'np_1',
       spend_request_id: 'lsrq_1',
-      test: true,
     });
     expect(
       value.spend_request.status_details?.requires_action?.next_action,
@@ -379,6 +387,7 @@ describe('consolidated checkout retrieve mode', () => {
     const value = composite('completed', 'succeeded');
     const repository = resource(vi.fn(async () => value));
     const result = runUcpCheckoutRetrieve(repository, 'dcs_1', {
+      business: 'np_1',
       spendRequestId: 'lsrq_1',
       poll: false,
     });
@@ -395,6 +404,7 @@ describe('consolidated checkout retrieve mode', () => {
       vi.fn(async () => composite('completed', 'succeeded')),
     );
     const result = runUcpCheckoutRetrieve(repository, 'dcs_1', {
+      business: 'np_1',
       spendRequestId: 'lsrq_1',
       poll: true,
       timeout: 60,
@@ -410,6 +420,7 @@ describe('consolidated checkout retrieve mode', () => {
     expect(DEFAULT_UCP_POLL_TIMEOUT_SECONDS).toBe(600);
     expect(
       checkoutRetrieveOptions.safeParse({
+        business: 'np_1',
         spendRequestId: 'lsrq_1',
         poll: false,
         timeout: 10,
@@ -417,6 +428,7 @@ describe('consolidated checkout retrieve mode', () => {
     ).toBe(false);
     expect(
       checkoutRetrieveOptions.safeParse({
+        business: 'np_1',
         spendRequestId: 'lsrq_1',
         poll: true,
         timeout: 10,

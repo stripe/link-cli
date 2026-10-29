@@ -1,3 +1,5 @@
+import type { UcpBuyer } from '../resources/interfaces';
+
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue =
   | JsonPrimitive
@@ -491,20 +493,37 @@ export interface UcpSearchResult {
 }
 
 /**
- * A UCP checkout session (curated view of the Delegated Checkout requested
- * session). `create` returns it in `requires_payment`; `complete` returns it in
- * a terminal state with `order_details`.
+ * A UCP checkout session. The response, including capability metadata, messages,
+ * totals, and fulfillment choices, is preserved as returned by the seller.
  */
 export type UcpCheckoutStatus =
   | 'open'
   | 'requires_action'
+  | 'incomplete'
+  | 'requires_escalation'
+  | 'ready_for_complete'
+  | 'complete_in_progress'
   | 'completed'
+  | 'canceled'
   | 'expired';
 
 export interface UcpCheckout {
   id: string;
   status?: UcpCheckoutStatus | null;
   currency?: string | null;
+  totals?: Array<{ type: string; amount: number; display_text?: string }>;
+  line_items?: Array<{
+    id?: string;
+    item: { id: string; title?: string; [key: string]: unknown };
+    quantity: number;
+    totals?: Array<{ type: string; amount: number }>;
+    [key: string]: unknown;
+  }>;
+  buyer?: UcpBuyer | null;
+  fulfillment?: Record<string, unknown> | null;
+  ucp?: Record<string, unknown>;
+  messages?: unknown[];
+  order?: Record<string, unknown> | null;
   amount_total?: number | null;
   amount_subtotal?: number | null;
   total_details?: Record<string, unknown> | null;

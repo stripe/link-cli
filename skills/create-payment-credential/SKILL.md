@@ -388,7 +388,7 @@ report `blocked`. Do not reuse the LPT at a different checkout surface.
 
 The Universal Commerce Protocol (UCP) commands let you shop a business's catalog and check out programmatically, without a browser or a merchant checkout page. Pass the business target from catalog search to checkout creation and completion.
 
-Add `--test` to every command to run in **demo mode**: the endpoints return self-consistent synthetic data without a live catalog or charge. This is the safe way to try the flow end to end.
+Catalog search supports `--test` for synthetic search results. Checkout commands use the UCP API and do not accept `--test`; their currency is determined by the seller.
 
 Steps:
 
@@ -398,7 +398,7 @@ Steps:
    link-cli ucp catalog search --query "running shoes" --business <np_...> --limit 5 --format json
    ```
 
-2. **Create a checkout** for the business and the SKUs you want. This returns a session in status `requires_payment` with `amount_total` — the amount you must pay (inclusive of shipping/tax).
+2. **Create a checkout** for the business and the SKUs you want. Review the returned `messages`, fulfillment choices, and `totals`; the entry with `type: "total"` gives the final amount in the smallest currency unit.
 
    ```bash
    link-cli ucp checkout create \
@@ -407,7 +407,9 @@ Steps:
      --format json
    ```
 
-   `--line-item` is repeatable and uses `key:value` format with keys `id` (required) and `quantity` (required, positive integer). The CLI sends `id` to the UCP API as `sku_id`. Optionally pass `--fulfillment-details` as JSON (e.g. a shipping address).
+   `--line-item` is repeatable and uses `key:value` format with keys `id` (required) and `quantity` (positive integer, defaults to 1). The CLI sends `id` as `line_items[].item.id`. Optionally supply `--buyer 'first_name:Jane,last_name:Doe,email:jane@example.com,phone:+1234567890'`; every subfield is optional. Supply the entire UCP fulfillment JSON object with `--fulfillment` (alternate spelling `--fullfilment`). When buyer or fulfillment is omitted on create, Link supplies saved wallet details.
+
+   **Resolve checkout messages and fulfillment before requesting approval.** Retrieve with `ucp checkout retrieve --id <checkout_id> --business <business> --format json`; no spend request is needed yet. Use `ucp checkout update --id <checkout_id> --business <business> --line-item 'id:<sku>' --buyer '<buyer fields>' --fulfillment '<entire JSON object>' --format json`. Updates use PUT: include the full line-item list and every section you want to retain. Update does not merge omitted sections with saved Link details. Wait for `ready_for_complete` and confirm the final total before creating the spend request.
 
 3. **Create a spend request for the checkout total.** Use the `shared_payment_token` credential type. Spend requests call the UCP business value a network ID, so pass the same value to `--network-id`:
 
@@ -431,7 +433,7 @@ Steps:
      --format json
    ```
 
-5. **Retrieve the composite state exactly once** before polling. Treat the
+5. **Retrieve the composite state exactly once** before polling. Pass both the checkout business and the spend request ID; the CLI fetches checkout and payment state from their respective endpoints. Treat the
    spend request as the source of truth for payment execution and required
    action. Checkout `completed` is not monotonic during payment: the checkout
    can temporarily be `completed` while the spend request is
@@ -457,6 +459,7 @@ Steps:
 
    ```bash
    link-cli ucp checkout retrieve <checkout_id> \
+     --business <business> \
      --spend-request-id <spend_request_id> \
      --format json
    ```
@@ -473,6 +476,7 @@ Steps:
 
    ```bash
    link-cli ucp checkout retrieve <checkout_id> \
+     --business <business> \
      --spend-request-id <spend_request_id> \
      --poll \
      --timeout 600 \

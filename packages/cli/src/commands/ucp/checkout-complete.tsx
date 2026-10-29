@@ -82,7 +82,7 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
 
         for await (const state of pollUcpCheckout(repository, id, {
           spendRequestId: params.spend_request_id,
-          test: params.test,
+          business: params.business,
           interval: pollInterval,
           timeout: pollTimeout,
           continueAutoResume: true,
@@ -217,7 +217,8 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
         </Text>
         <Text dimColor>
           Run `ucp checkout retrieve {id} --spend-request-id{' '}
-          {params.spend_request_id} --poll` to check the current status.
+          {params.spend_request_id} --business {params.business} --poll` to
+          check the current status.
         </Text>
         {checkout && <CheckoutSummary checkout={checkout} />}
       </Box>

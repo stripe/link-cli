@@ -41,6 +41,7 @@ async function retrieve(
       searchCatalog: vi.fn(),
       createCheckout: vi.fn(),
       completeCheckout: vi.fn(),
+      updateCheckout: vi.fn(),
       retrieveCheckout,
     };
     const cli = createUcpCli(() => repository, undefined, 'test-access-token');
@@ -53,6 +54,8 @@ async function retrieve(
         'dcs_1',
         '--spend-request-id',
         'lsrq_1',
+        '--business',
+        'np_1',
         ...flags,
       ],
       {
@@ -81,8 +84,8 @@ describe('ucp checkout retrieve output', () => {
       const output = await retrieve(retrieveCheckout, tty);
 
       expect(retrieveCheckout).toHaveBeenCalledExactlyOnceWith('dcs_1', {
+        business: 'np_1',
         spend_request_id: 'lsrq_1',
-        test: undefined,
       });
       for (const value of [
         'dcs_1',

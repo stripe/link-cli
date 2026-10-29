@@ -282,6 +282,26 @@ try {
 }
 ```
 
+## UCP checkout
+
+UCP checkout uses a business target and merchant item IDs. Quantity defaults to 1:
+
+```ts
+const checkout = await link.ucp.createCheckout({
+  business: 'profile_example',
+  line_items: [{ item: { id: 'sku_example' } }],
+  buyer: { email: 'jane@example.com', phone_number: '+1234567890' },
+});
+
+const current = await link.ucp.retrieveCheckout(checkout.id, {
+  business: 'profile_example',
+});
+```
+
+Omit buyer or fulfillment during creation to use saved Link details. Review the returned messages, fulfillment choices, and totals. `updateCheckout(id, params)` uses PUT: supply the complete line-item list and every section you want to retain. The seller determines currency; checkout requests do not accept `test` or `currency`.
+
+When the checkout is ready, create and approve a spend request for the final total. `completeCheckout(id, { business, spend_request_id })` resolves its payment credential on the server. To inspect payment state as well as checkout state, pass `spend_request_id` to `retrieveCheckout`; the SDK fetches the spend request separately and attaches it as `spend_request`.
+
 ## Client resources
 
 - `spendRequests` — create, approve, retrieve, update, cancel, and list
@@ -293,3 +313,4 @@ try {
 - `balances` — list balances
 - `webBotAuth` — sign URLs for Web Bot Auth
 - `reports` — report agent outcomes
+- `ucp` — search the catalog and create, update, retrieve, and complete checkouts

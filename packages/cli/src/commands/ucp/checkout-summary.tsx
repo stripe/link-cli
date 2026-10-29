@@ -19,16 +19,32 @@ interface CheckoutSummaryProps {
 export const CheckoutSummary: React.FC<CheckoutSummaryProps> = ({
   checkout,
 }) => {
-  const shipping = (checkout.total_details as { amount_shipping?: number })
-    ?.amount_shipping;
-  const orderStatus = (checkout.order_details as { status?: string })?.status;
-  const lineItems = Array.isArray(checkout.line_item_details)
-    ? (checkout.line_item_details as Array<{
-        sku_id?: string;
-        quantity?: number;
-        amount_total?: number;
-      }>)
-    : [];
+  const total =
+    checkout.totals?.find((entry) => entry.type === 'total')?.amount ??
+    checkout.amount_total;
+  const subtotal =
+    checkout.totals?.find((entry) => entry.type === 'subtotal')?.amount ??
+    checkout.amount_subtotal;
+  const shipping =
+    checkout.totals?.find((entry) => entry.type === 'fulfillment')?.amount ??
+    (checkout.total_details as { amount_shipping?: number })?.amount_shipping;
+  const orderStatus =
+    (checkout.order as { id?: string })?.id ??
+    (checkout.order_details as { status?: string })?.status;
+  const lineItems =
+    checkout.line_items?.map((line) => ({
+      sku_id: line.item.id,
+      quantity: line.quantity,
+      amount_total: line.totals?.find((entry) => entry.type === 'total')
+        ?.amount,
+    })) ??
+    (Array.isArray(checkout.line_item_details)
+      ? (checkout.line_item_details as Array<{
+          sku_id?: string;
+          quantity?: number;
+          amount_total?: number;
+        }>)
+      : []);
 
   return (
     <Box flexDirection="column" marginTop={1} paddingX={2}>
@@ -46,19 +62,19 @@ export const CheckoutSummary: React.FC<CheckoutSummaryProps> = ({
           </Text>
         </Text>
       )}
-      {checkout.amount_total != null && (
+      {total != null && (
         <Text>
           Total:{' '}
           <Text bold color="white">
-            {formatAmount(checkout.amount_total, checkout.currency)}
+            {formatAmount(total, checkout.currency)}
           </Text>
         </Text>
       )}
-      {checkout.amount_subtotal != null && (
+      {subtotal != null && (
         <Text>
           Subtotal:{' '}
           <Text bold color="white">
-            {formatAmount(checkout.amount_subtotal, checkout.currency)}
+            {formatAmount(subtotal, checkout.currency)}
           </Text>
         </Text>
       )}

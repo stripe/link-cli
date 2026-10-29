@@ -686,6 +686,42 @@ link-cli mpp decode \
   --challenge 'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge", request="..."'
 ```
 
+### UCP checkout
+
+Search a catalog, then use the returned business and SKU to create a UCP checkout:
+
+```bash
+link-cli ucp catalog search --query "running shoes" --format json
+link-cli ucp checkout create --business <business> \
+  --line-item 'id:<sku>' \
+  --buyer 'first_name:Jane,email:jane@example.com,phone:+1234567890' \
+  --fulfillment '{"methods":[{"type":"shipping","destinations":[{"street_address":"123 Main St","address_locality":"Springfield","address_region":"IL","postal_code":"62701","address_country":"US"}]}]}' \
+  --format json
+```
+
+`--line-item` is repeatable; `quantity` defaults to 1. All buyer fields are optional (`first_name`, `last_name`, `email`, `phone`). `--fulfillment` accepts the entire UCP JSON object; `--fullfilment` is an alternate spelling. Omit buyer or fulfillment to use saved Link details during creation. The seller determines the checkout currency.
+
+Review the returned `messages`, `totals`, and fulfillment choices. Update the checkout as needed. Updates use PUT: include the complete line-item list and every buyer and fulfillment section you want to retain.
+
+```bash
+link-cli ucp checkout retrieve --id <checkout_id> --business <business> --format json
+link-cli ucp checkout update --id <checkout_id> --business <business> \
+  --line-item 'id:<sku>,quantity:2' \
+  --buyer 'email:jane@example.com' \
+  --fulfillment '<entire fulfillment JSON object>' --format json
+```
+
+Once the checkout is `ready_for_complete`, create and approve a `shared_payment_token` spend request for the final `totals` entry with `type: "total"`, using the business as its `--network-id`. Complete with that spend request ID, then retrieve payment state or poll:
+
+```bash
+link-cli ucp checkout complete <checkout_id> --business <business> \
+  --spend-request-id <spend_request_id> --format json
+link-cli ucp checkout retrieve --id <checkout_id> --business <business> \
+  --spend-request-id <spend_request_id> --poll --format json
+```
+
+Payment succeeds when the checkout is `completed` and the spend request is `succeeded`. Follow any required payment action and continue polling; avoid repeating completion. Checkout commands use the UCP API's live flow. Only catalog search supports `--test` demo results.
+
 ### Report outcomes
 
 Use `report` to record the outcome of a purchase attempt. Reporting is optional, but calling it after attempts — success or failure — helps Stripe improve checkout for agents.

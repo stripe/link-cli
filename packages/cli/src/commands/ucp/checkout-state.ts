@@ -103,8 +103,8 @@ export const UCP_POLL_INTERVAL_SECONDS = 2;
 export const DEFAULT_UCP_POLL_TIMEOUT_SECONDS = 600;
 
 export interface PollUcpCheckoutOptions {
+  business: string;
   spendRequestId: string;
-  test?: boolean;
   /** Internal test override; the CLI always uses UCP_POLL_INTERVAL_SECONDS. */
   interval?: number;
   timeout: number;
@@ -121,11 +121,11 @@ export interface RunUcpCheckoutRetrieveOptions
 function retrieveUcpCheckoutState(
   repository: IUcpResource,
   id: string,
-  options: Pick<PollUcpCheckoutOptions, 'spendRequestId' | 'test'>,
+  options: Pick<PollUcpCheckoutOptions, 'spendRequestId' | 'business'>,
 ): Promise<UcpCheckoutWithSpendRequest> {
   return repository.retrieveCheckout(id, {
     spend_request_id: options.spendRequestId,
-    test: options.test,
+    business: options.business,
   });
 }
 
@@ -142,7 +142,7 @@ export function runUcpCheckoutRetrieve(
 
   return pollUcpCheckout(repository, id, {
     spendRequestId: options.spendRequestId,
-    test: options.test,
+    business: options.business,
     timeout: options.timeout ?? DEFAULT_UCP_POLL_TIMEOUT_SECONDS,
   });
 }

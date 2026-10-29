@@ -206,12 +206,20 @@ describe('ucp checkout create component', () => {
   it('renders the created session summary and next step', async () => {
     const checkout: UcpCheckout = {
       id: 'dcs_1',
-      status: 'open',
+      status: 'ready_for_complete',
       currency: 'usd',
-      amount_total: 5500,
-      amount_subtotal: 5000,
-      total_details: { amount_shipping: 500 },
-      line_item_details: [{ sku_id: 'sku_1', quantity: 2, amount_total: 5000 }],
+      totals: [
+        { type: 'total', amount: 5500 },
+        { type: 'subtotal', amount: 5000 },
+        { type: 'fulfillment', amount: 500 },
+      ],
+      line_items: [
+        {
+          item: { id: 'sku_1' },
+          quantity: 2,
+          totals: [{ type: 'total', amount: 5000 }],
+        },
+      ],
       expires_at: 1_800_000_000,
     };
     const repo = makeResource({ createCheckout: vi.fn(async () => checkout) });
@@ -220,8 +228,8 @@ describe('ucp checkout create component', () => {
       <CheckoutCreate
         repository={repo}
         params={{
-          profile_id: 'np_1',
-          line_items: [{ sku_id: 'sku_1', quantity: 2 }],
+          business: 'np_1',
+          line_items: [{ item: { id: 'sku_1' }, quantity: 2 }],
         }}
         onComplete={() => {}}
       />,
@@ -231,9 +239,11 @@ describe('ucp checkout create component', () => {
       const frame = lastFrame();
       expect(frame).toContain('Checkout created');
       expect(frame).toContain('dcs_1');
-      expect(frame).toContain('open');
+      expect(frame).toContain('ready_for_complete');
       expect(frame).toContain('$55.00');
       expect(frame).toContain('$5.00'); // shipping
+      expect(frame).toContain('sku_1 ×2');
+      expect(frame).toContain('checkout update');
       expect(frame).toContain('spend-request create');
       expect(frame).toContain('--credential-type shared_payment_token');
       expect(frame).toContain('--network-id np_1');
@@ -252,7 +262,7 @@ describe('ucp checkout summary currency formatting', () => {
       id: 'dcs_jpy',
       status: 'open',
       currency: 'jpy',
-      amount_total: 1000,
+      totals: [{ type: 'total', amount: 1000 }],
     };
     const repo = makeResource({ createCheckout: vi.fn(async () => checkout) });
 
@@ -260,8 +270,8 @@ describe('ucp checkout summary currency formatting', () => {
       <CheckoutCreate
         repository={repo}
         params={{
-          profile_id: 'np_1',
-          line_items: [{ sku_id: 'sku_1', quantity: 1 }],
+          business: 'np_1',
+          line_items: [{ item: { id: 'sku_1' }, quantity: 1 }],
         }}
         onComplete={() => {}}
       />,
@@ -280,7 +290,7 @@ describe('ucp checkout complete component', () => {
     const checkout: UcpCheckout = {
       id: 'dcs_1',
       status: 'completed',
-      order_details: { status: 'confirmed' },
+      order: { id: 'order_confirmed' },
     };
     const completeCheckout = vi.fn(async () => checkout);
     const retrieveCheckout = vi.fn(async () => ({
@@ -301,7 +311,7 @@ describe('ucp checkout complete component', () => {
       <CheckoutComplete
         repository={repo}
         id="dcs_1"
-        params={{ spend_request_id: 'lsrq_1', profile_id: 'np_1' }}
+        params={{ spend_request_id: 'lsrq_1', business: 'np_1' }}
         onComplete={() => {}}
       />,
     );
@@ -310,12 +320,12 @@ describe('ucp checkout complete component', () => {
       const frame = lastFrame();
       expect(frame).toContain('Checkout completed');
       expect(frame).toContain('dcs_1');
-      expect(frame).toContain('confirmed');
+      expect(frame).toContain('order_confirmed');
     });
     expect(completeCheckout).toHaveBeenCalledOnce();
     expect(retrieveCheckout).toHaveBeenCalledWith('dcs_1', {
       spend_request_id: 'lsrq_1',
-      test: undefined,
+      business: 'np_1',
     });
   });
 
@@ -371,7 +381,7 @@ describe('ucp checkout complete component', () => {
       <CheckoutComplete
         repository={repo}
         id="dcs_1"
-        params={{ spend_request_id: 'lsrq_1', profile_id: 'np_1' }}
+        params={{ spend_request_id: 'lsrq_1', business: 'np_1' }}
         pollInterval={0.001}
         onComplete={() => {}}
       />,
@@ -422,7 +432,7 @@ describe('ucp checkout complete component', () => {
       <CheckoutComplete
         repository={repo}
         id="dcs_1"
-        params={{ spend_request_id: 'lsrq_1', profile_id: 'np_1' }}
+        params={{ spend_request_id: 'lsrq_1', business: 'np_1' }}
         pollInterval={0.001}
         onComplete={() => {}}
       />,
@@ -460,7 +470,7 @@ describe('ucp checkout complete component', () => {
       <CheckoutComplete
         repository={repo}
         id="dcs_1"
-        params={{ spend_request_id: 'lsrq_1', profile_id: 'np_1' }}
+        params={{ spend_request_id: 'lsrq_1', business: 'np_1' }}
         pollInterval={0.001}
         pollTimeout={0}
         onComplete={() => {}}

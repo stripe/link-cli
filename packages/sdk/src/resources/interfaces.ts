@@ -253,7 +253,7 @@ export interface IReportResource {
 
 export interface SearchUcpCatalogParams {
   query?: string;
-  profile_id?: string;
+  business?: string;
   sku?: string;
   brand?: string[];
   category?: string[];
@@ -275,38 +275,57 @@ export interface SearchUcpCatalogParams {
 }
 
 export interface UcpLineItem {
-  sku_id: string;
-  quantity: number;
+  item: { id: string };
+  quantity?: number;
+}
+
+export interface UcpBuyer {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone_number?: string;
 }
 
 export interface CreateUcpCheckoutParams {
-  profile_id: string;
+  business: string;
   line_items: UcpLineItem[];
-  currency?: string;
-  fulfillment_details?: Record<string, unknown>;
-  test?: boolean;
+  buyer?: UcpBuyer;
+  fulfillment?: Record<string, unknown>;
+}
+
+/** PUT replaces checkout state; include every section you want to retain. */
+export interface UpdateUcpCheckoutParams extends CreateUcpCheckoutParams {
+  line_items: (UcpLineItem & { id?: string; parent_id?: string })[];
 }
 
 export interface CompleteUcpCheckoutParams {
   spend_request_id: string;
-  profile_id: string;
-  test?: boolean;
+  business: string;
 }
 
 export interface RetrieveUcpCheckoutParams {
-  spend_request_id: string;
-  test?: boolean;
+  business: string;
+  /** Fetch payment state separately and attach it to the checkout. */
+  spend_request_id?: string;
 }
 
 export interface IUcpResource {
   searchCatalog(params: SearchUcpCatalogParams): Promise<UcpSearchResult>;
   createCheckout(params: CreateUcpCheckoutParams): Promise<UcpCheckout>;
+  updateCheckout(
+    id: string,
+    params: UpdateUcpCheckoutParams,
+  ): Promise<UcpCheckout>;
   completeCheckout(
     id: string,
     params: CompleteUcpCheckoutParams,
   ): Promise<UcpCheckout>;
   retrieveCheckout(
     id: string,
-    params: RetrieveUcpCheckoutParams,
+    params: RetrieveUcpCheckoutParams & { spend_request_id: string },
   ): Promise<UcpCheckoutWithSpendRequest>;
+  retrieveCheckout(
+    id: string,
+    params: RetrieveUcpCheckoutParams,
+  ): Promise<UcpCheckout>;
 }
