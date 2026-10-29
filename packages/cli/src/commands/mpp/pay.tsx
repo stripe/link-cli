@@ -160,6 +160,7 @@ export interface MppPayFullFlowOptions {
   paymentMethodId: string | undefined;
   test: boolean;
   approve: boolean;
+  useApprovalPolicy?: boolean;
   repository: ISpendRequestResource;
   paymentMethodsFactory: () => IPaymentMethodsResource;
   onStep?: (step: Step) => void;
@@ -358,6 +359,7 @@ export async function runMppPayFullFlow(
     paymentMethodId,
     test,
     approve,
+    useApprovalPolicy,
     repository,
     paymentMethodsFactory,
     onStep,
@@ -434,7 +436,8 @@ export async function runMppPayFullFlow(
     context,
     request_approval: true,
     test: test || undefined,
-    approve: approve || undefined,
+    approve: approve || useApprovalPolicy || undefined,
+    use_approval_policy: useApprovalPolicy || undefined,
   };
   const spendRequest = await repository.create(createParams);
 
@@ -520,6 +523,7 @@ export function MppPay({
   paymentMethodId,
   test,
   approve,
+  useApprovalPolicy,
   repository,
   paymentMethodsFactory,
   onComplete,
@@ -534,6 +538,7 @@ export function MppPay({
   paymentMethodId?: string;
   test?: boolean;
   approve?: boolean;
+  useApprovalPolicy?: boolean;
   repository: ISpendRequestResource;
   paymentMethodsFactory: () => IPaymentMethodsResource;
   onComplete: (result: PayResult | null) => void;
@@ -576,6 +581,7 @@ export function MppPay({
             paymentMethodId,
             test: test ?? false,
             approve: approve ?? false,
+            useApprovalPolicy: useApprovalPolicy ?? false,
             repository,
             paymentMethodsFactory,
             onStep: setStep,
@@ -602,6 +608,7 @@ export function MppPay({
     paymentMethodId,
     test,
     approve,
+    useApprovalPolicy,
     repository,
     paymentMethodsFactory,
     onComplete,

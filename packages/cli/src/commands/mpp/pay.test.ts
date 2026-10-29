@@ -291,21 +291,32 @@ describe('payWithSpt', () => {
     expect(credential.challenge.id).toBe('ch_002');
   });
 
-  it('passes delegated approval through when creating the spend request', async () => {
-    const repository = approvedRepository();
-    const fetcher = vi
-      .fn()
-      .mockResolvedValueOnce(challengeResponse())
-      .mockResolvedValueOnce(challengeResponse())
-      .mockResolvedValueOnce(new Response('paid'));
-    vi.stubGlobal('fetch', fetcher);
+  it.each([
+    { approve: false, useApprovalPolicy: false },
+    { approve: true, useApprovalPolicy: false },
+    { approve: false, useApprovalPolicy: true },
+    { approve: true, useApprovalPolicy: true },
+  ])(
+    'creates a spend request with approve=$approve and useApprovalPolicy=$useApprovalPolicy',
+    async ({ approve, useApprovalPolicy }) => {
+      const repository = approvedRepository();
+      const fetcher = vi
+        .fn()
+        .mockResolvedValueOnce(challengeResponse())
+        .mockResolvedValueOnce(challengeResponse())
+        .mockResolvedValueOnce(new Response('paid'));
+      vi.stubGlobal('fetch', fetcher);
 
-    await runFullFlow(repository, 1000, true);
+      await runFullFlow(repository, 1000, approve, useApprovalPolicy);
 
-    expect(repository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ approve: true }),
-    );
-  });
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          approve: approve || useApprovalPolicy || undefined,
+          use_approval_policy: useApprovalPolicy || undefined,
+        }),
+      );
+    },
+  );
 
   it('pays an mppx seller with rotating issuance nonces', async () => {
     const create = vi.fn().mockResolvedValue({
@@ -647,6 +658,7 @@ function runFullFlow(
   repository: ISpendRequestResource,
   amountOverride = 1000,
   approve = false,
+  useApprovalPolicy = false,
 ) {
   return runMppPayFullFlow({
     url: 'https://merchant.example/challenge',
@@ -659,6 +671,7 @@ function runFullFlow(
     paymentMethodId: 'pd_test_123',
     test: true,
     approve,
+    useApprovalPolicy,
     repository,
     paymentMethodsFactory: vi.fn(),
   });

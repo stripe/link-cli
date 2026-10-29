@@ -74,6 +74,7 @@ export function createMppCli(
             paymentMethodId={opts.paymentMethodId}
             test={opts.test}
             approve={opts.approve}
+            useApprovalPolicy={opts.useApprovalPolicy}
             repository={repository}
             paymentMethodsFactory={paymentMethodsFactory}
             onComplete={(result) => {
@@ -180,7 +181,8 @@ export function createMppCli(
         context: opts.context,
         request_approval: true,
         test: opts.test || undefined,
-        approve: opts.approve || undefined,
+        approve: opts.approve || opts.useApprovalPolicy || undefined,
+        use_approval_policy: opts.useApprovalPolicy || undefined,
       };
       const spendRequest = await repository.create(createParams);
 
