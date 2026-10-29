@@ -6,8 +6,6 @@ description: |
   Also use available precomputed insights to answer questions about shopping preferences or identifying preferred businesses.
 allowed-tools:
  - Bash(link-cli:*)
- - Bash(npx --yes @stripe/link-cli:*)
- - Bash(npx @stripe/link-cli:*)
  - Bash(npm install -g @stripe/link-cli:*)
 license: Complete terms in LICENSE
 metadata:

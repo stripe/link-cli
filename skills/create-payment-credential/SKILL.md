@@ -5,8 +5,6 @@ description: |
   Gets secure payment credentials (cards, tokens) from a Link wallet for one-time purchases and recurring payments. Use when the user says "get me a card", "buy something", "pay for X", "make a purchase", "I need to pay", "complete checkout", or asks to set up a subscription or transact on a merchant site. Use when the user asks to connect or log in to or sign up for their Link account.
 allowed-tools:
  - Bash(link-cli:*)
- - Bash(npx --yes @stripe/link-cli:*)
- - Bash(npx @stripe/link-cli:*)
  - Bash(npm install -g @stripe/link-cli:*)
 license: Complete terms in LICENSE
 metadata:
@@ -36,7 +34,7 @@ The CLI can produce three credential types:
 
 ## Installing
 
-Install with `npm install -g @stripe/link-cli`. Or run directly with `npx @stripe/link-cli`.
+Install with `npm install -g @stripe/link-cli`. Always run the installed `link-cli` binary; never substitute a package runner such as `npx`, `pnpx`, or `bunx`.
 
 ## Running commands
 
@@ -48,14 +46,14 @@ Link CLI can run as an **MCP server** or as a **standalone CLI**.
 {
   "mcpServers": {
     "link": {
-      "command": "npx",
-      "args": ["@stripe/link-cli", "--mcp"]
+      "command": "link-cli",
+      "args": ["--mcp"]
     }
   }
 }
 ```
 
-Run the MCP server directly with `npx @stripe/link-cli@latest --mcp`.
+Run the MCP server directly with `link-cli --mcp`.
 
 Call `tools/list` to see all available MCP tools.
 
@@ -111,7 +109,7 @@ Always check the current authentication status before starting a new login flow 
 
 If the user is already authenticated but you need broader access (an additional `scope`, `--source-actions`, or `--authorization-detail`), use `auth upgrade` instead of `auth login`. It takes the same flags but, rather than stopping with an "already logged in" message, merges what you request with the current `scope`/`authorization_details` and starts a new approval for the superset — so existing access is never dropped. Check `auth status` first so you know what's already granted. The current session stays valid during the approval and is only replaced once the user approves the new one, so an abandoned upgrade leaves the existing session working.
 
-Optionally, before a purchase, run `link-cli user-info retrieve` to inspect balance eligibility, address, applicable spend limits, and verification requirements. The optional `eligible_for_balance` field says whether the user's balance is available for Agent Wallet usage. Finite limit values are cents, while `null` limit or remaining values mean unlimited. When `agent_wallet_verification_requirement.action_url` is present, direct the user there to complete the required action.
+Optionally, before a purchase, run `link-cli user-info retrieve` to inspect the address, applicable spend limits, and verification requirements. Finite limit values are cents, while `null` limit or remaining values mean unlimited. When `agent_wallet_verification_requirement.action_url` is present, direct the user there to complete the required action.
 
 ### Step 2: Evaluate the merchant site BEFORE creating a spend request
 
