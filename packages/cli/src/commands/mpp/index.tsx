@@ -8,10 +8,6 @@ import { buildCommandContinuation } from '../../utils/command-continuation';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
 import { shouldPollSpendRequest } from '../../utils/should-poll-spend-request';
-import {
-  buildApprovalContinuation,
-  buildRequiresActionContinuation,
-} from '../../utils/spend-request-continuation';
 import { decodeStripeChallenge } from './decode';
 import { DecodeChallengeView } from './decode-view';
 import {
@@ -224,28 +220,57 @@ export function createMppCli(
         return;
       }
 
-      const waiting =
-        spendRequest.status === 'requires_action'
-          ? buildRequiresActionContinuation(spendRequest)
-          : shouldPollSpendRequest(spendRequest)
-            ? buildApprovalContinuation(spendRequest)
-            : undefined;
+      const nextAction =
+        spendRequest.status_details?.requires_action?.next_action;
+      const actionInstruction = [
+        nextAction?.display_message || 'The spend request requires action.',
+        nextAction?.action_url
+          ? `Present action_url (${nextAction.action_url}) to the user so they can complete it.`
+          : 'Have the user complete it.',
+      ].join(' ');
 
-      if (!waiting?._next) {
-        yield { ...spendRequest, ...waiting };
+      if (!shouldPollSpendRequest(spendRequest)) {
+        const requiresNewRequest =
+          nextAction?.resolution === 'create_new_spend_request' ||
+          nextAction?.resolution ===
+            'create_new_spend_request_after_completion';
+        yield spendRequest.status === 'requires_action'
+          ? {
+              ...spendRequest,
+              instruction: requiresNewRequest
+                ? `${actionInstruction} Once the action is completed, create a new spend request.`
+                : actionInstruction,
+            }
+          : spendRequest;
         return;
       }
 
-      const poll = waiting._next;
+      const poll = buildCommandContinuation('spend-request', [
+        'retrieve',
+        spendRequest.id,
+        '--interval',
+        '2',
+        '--max-attempts',
+        '300',
+      ]);
       yield {
         ...spendRequest,
-        ...waiting,
-        instruction: `${waiting.instruction} Follow any returned action instructions and repeat polling while approval is pending. Invoke _next.pay_argv directly without a shell only when status is approved.`,
+        instruction: [
+          spendRequest.status === 'requires_action'
+            ? `${actionInstruction} Do not create a new spend request — this one resumes automatically once verification is completed.`
+            : spendRequest.approval_url
+              ? 'Present the approval_url to the user and ask them to approve in the Link app. Start polling without waiting for a reply.'
+              : undefined,
+          'Invoke _next.argv directly without a shell to wait for a status change and inspect the returned status. Follow any returned action instructions and repeat polling while approval is pending. Invoke _next.pay_argv directly without a shell only when status is approved.',
+        ]
+          .filter(Boolean)
+          .join(' '),
         _next: {
           ...poll,
           ...paymentNext,
           ...(poll.command !== undefined ? { poll_command: poll.command } : {}),
           poll_argv: poll.argv,
+          until: `status changes from ${spendRequest.status}`,
         },
       };
     },

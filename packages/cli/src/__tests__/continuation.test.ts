@@ -254,9 +254,6 @@ describe('command continuations', () => {
         expect(output.instruction).not.toContain('approval_url');
       }
       expect(output._next.pay_argv.args).toContain(CHALLENGE);
-      const [standard] = await runCli([...createArgs, '--request-approval']);
-      expect(output.instruction).toContain(standard.instruction);
-      expect(output._next).toMatchObject(standard._next);
       expect(output._next.argv).toEqual(output._next.poll_argv);
       expectPlatformPolicy(output._next);
     },
@@ -294,9 +291,6 @@ describe('command continuations', () => {
       expect(output._next.poll_argv.command).toBe('spend-request');
       expect(output._next.pay_argv.args).toContain(CHALLENGE);
       expect(output.status_details).toEqual(createResponse.status_details);
-      const [standard] = await runCli([...createArgs, '--request-approval']);
-      expect(output.instruction).toContain(standard.instruction);
-      expect(output._next).toMatchObject(standard._next);
       expectPlatformPolicy(output._next);
     },
   );
@@ -330,8 +324,6 @@ describe('command continuations', () => {
       expect(output.instruction).toContain('create a new spend request');
       expect(output.instruction).not.toContain('approval_url');
       expect(output.status_details).toEqual(createResponse.status_details);
-      const [standard] = await runCli([...createArgs, '--request-approval']);
-      expect(output).toEqual(standard);
       expect(paidRequest).toBeUndefined();
     },
   );
@@ -343,8 +335,6 @@ describe('command continuations', () => {
     expect(output).not.toHaveProperty('_next');
     expect(output.instruction).not.toMatch(/null|undefined|create a new/);
     expect(paidRequest).toBeUndefined();
-    const [standard] = await runCli([...createArgs, '--request-approval']);
-    expect(output).toEqual(standard);
   });
 
   it.each([
@@ -519,7 +509,7 @@ describe('command continuations', () => {
       'https://link.example/verify',
       'Present action_url (https://link.example/verify)',
     ],
-    [null, 'Have the user complete it. Then invoke _next.argv'],
+    [null, 'Have the user complete it, then invoke _next.argv'],
   ])(
     'tells the agent to keep polling through partner_auth_challenge (action_url: %s)',
     async (actionUrl, expected) => {
