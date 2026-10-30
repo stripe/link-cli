@@ -4642,6 +4642,75 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       });
     });
 
+    describe('checkout cancel', () => {
+      it.each([['checkout/1'], ['--id', 'checkout/1']])(
+        'POSTs business to the encoded cancel path using %j',
+        async (...idArgs) => {
+          const checkout = {
+            id: 'checkout/1',
+            status: 'canceled',
+            totals: [{ type: 'total', amount: 5500 }],
+            messages: [],
+            ucp: { version: '2026-01-23' },
+          };
+          setNextResponse(200, checkout);
+          const result = await runProdCli(
+            'ucp',
+            'checkout',
+            'cancel',
+            ...idArgs,
+            '--business',
+            'np_1',
+            '--json',
+          );
+          expect(result.exitCode).toBe(0);
+          expect(requests).toHaveLength(1);
+          expect(lastRequest.method).toBe('POST');
+          expect(lastRequest.url).toBe('/ucp/checkout/checkout%2F1/cancel');
+          expect(lastRequest.headers.authorization).toBe(
+            'Bearer prod_test_access_token',
+          );
+          expect(JSON.parse(lastRequest.body)).toEqual({ business: 'np_1' });
+          expect(parseJson(result.stdout)).toEqual(checkout);
+        },
+      );
+
+      it('surfaces cancellation errors', async () => {
+        setNextResponse(409, {
+          error: { message: 'Checkout cannot be canceled' },
+        });
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'cancel',
+          'checkout_1',
+          '--business',
+          'np_1',
+          '--json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout + result.stderr).toContain(
+          'Checkout cannot be canceled',
+        );
+      });
+
+      it('requires authentication before canceling', async () => {
+        storage.clearTokens();
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'cancel',
+          'checkout_1',
+          '--business',
+          'np_1',
+          '--json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(requests).toHaveLength(0);
+        expect(result.stdout + result.stderr).toContain('Not authenticated');
+      });
+    });
+
     describe('checkout retrieve', () => {
       it('retrieves before payment using --id and business without a spend request', async () => {
         const checkout = {

@@ -121,6 +121,11 @@ export const checkoutUpdateOptions = checkoutCreateOptions.extend({
     ),
 });
 
+export const checkoutCancelOptions = z.object({
+  id: z.string().trim().nonempty().optional().describe('Checkout session ID'),
+  business: z.string().trim().nonempty().describe('Business target (required)'),
+});
+
 export const checkoutCompleteOptions = z.object({
   spendRequestId: z
     .string()

@@ -18,6 +18,10 @@ async function run(args: string[]) {
     createCheckout: vi.fn(async () => checkout),
     updateCheckout: vi.fn(async () => checkout),
     completeCheckout: vi.fn(),
+    cancelCheckout: vi.fn(async () => ({
+      ...checkout,
+      status: 'canceled' as const,
+    })),
     retrieveCheckout: vi.fn().mockResolvedValue(checkout),
   };
   let output = '';
@@ -166,6 +170,26 @@ describe('UCP checkout schema', () => {
     );
   });
 
+  it.each([
+    ['checkout_1'],
+    ['--id', 'checkout_1'],
+    ['checkout_1', '--id', 'checkout_1'],
+  ])('cancels a checkout using ID arguments %j', async (...idArgs) => {
+    const { repository, checkout, output } = await run([
+      'cancel',
+      ...idArgs,
+      '--business',
+      'np_1',
+    ]);
+    expect(repository.cancelCheckout).toHaveBeenCalledExactlyOnceWith(
+      'checkout_1',
+      { business: 'np_1' },
+    );
+    expect(repository.retrieveCheckout).not.toHaveBeenCalled();
+    expect(repository.completeCheckout).not.toHaveBeenCalled();
+    expect(output).toEqual({ ...checkout, status: 'canceled' });
+  });
+
   it('retrieves before payment with --id and business', async () => {
     const { repository } = await run([
       'retrieve',
@@ -230,6 +254,19 @@ describe('UCP checkout schema', () => {
     ['retrieve', 'checkout_1'],
     ['retrieve', 'checkout_1', '--id', 'other', '--business', 'np_1'],
     ['retrieve', '--id', 'checkout_1', '--business', 'np_1', '--poll'],
+    ['cancel', '--business', 'np_1'],
+    ['cancel', 'checkout_1'],
+    ['cancel', 'checkout_1', '--business', '   '],
+    ['cancel', '--id', '   ', '--business', 'np_1'],
+    ['cancel', 'checkout_1', '--id', 'other', '--business', 'np_1'],
+    [
+      'cancel',
+      'checkout_1',
+      '--business',
+      'np_1',
+      '--spend-request-id',
+      'lsrq_1',
+    ],
   ])(
     'rejects missing state or conflicting checkout identifiers: %j',
     async (...args) => {
@@ -237,6 +274,7 @@ describe('UCP checkout schema', () => {
       expect(repository.createCheckout).not.toHaveBeenCalled();
       expect(repository.updateCheckout).not.toHaveBeenCalled();
       expect(repository.retrieveCheckout).not.toHaveBeenCalled();
+      expect(repository.cancelCheckout).not.toHaveBeenCalled();
       expect(output.code).toBeDefined();
     },
   );

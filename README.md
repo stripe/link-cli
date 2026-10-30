@@ -721,6 +721,12 @@ link-cli ucp checkout retrieve --id <checkout_id> --business <business> \
 
 Payment succeeds when the checkout is `completed` and the spend request is `succeeded`. Follow any required payment action and continue polling; avoid repeating completion. Checkout commands use the UCP API's live flow. Only catalog search supports `--test` demo results.
 
+To cancel a checkout, supply its ID and business. The response contains the canceled checkout:
+
+```bash
+link-cli ucp checkout cancel --id <checkout_id> --business <business> --format json
+```
+
 ### Report outcomes
 
 Use `report` to record the outcome of a purchase attempt. Reporting is optional, but calling it after attempts — success or failure — helps Stripe improve checkout for agents.

@@ -41,6 +41,7 @@ async function retrieve(
       searchCatalog: vi.fn(),
       createCheckout: vi.fn(),
       completeCheckout: vi.fn(),
+      cancelCheckout: vi.fn(),
       updateCheckout: vi.fn(),
       retrieveCheckout,
     };

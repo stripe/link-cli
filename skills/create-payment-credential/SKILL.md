@@ -411,6 +411,8 @@ Steps:
 
    **Resolve checkout messages and fulfillment before requesting approval.** Retrieve with `ucp checkout retrieve --id <checkout_id> --business <business> --format json`; no spend request is needed yet. Use `ucp checkout update --id <checkout_id> --business <business> [--line-item 'id:<sku>'] [--buyer '<buyer fields>'] [--fulfillment '<entire JSON object>'] --format json`. Updates use PUT. Line items, buyer, and fulfillment are optional on update: omitted sections keep their existing checkout values. Updates do not reload saved Link wallet details. When supplying a section, do not assume its nested fields are merged with existing values. Wait for `ready_for_complete` and confirm the final total before creating the spend request.
 
+   To abandon a checkout, use `ucp checkout cancel --id <checkout_id> --business <business> --format json`. It returns the canceled checkout and does not require a spend request.
+
 3. **Create a spend request for the checkout total.** Use the `shared_payment_token` credential type. Spend requests call the UCP business value a network ID, so pass the same value to `--network-id`:
 
    ```bash

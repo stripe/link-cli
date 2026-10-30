@@ -25,6 +25,7 @@ import {
 import { runUcpCheckoutRetrieve } from './checkout-state';
 import {
   catalogSearchOptions,
+  checkoutCancelOptions,
   checkoutCompleteOptions,
   checkoutCreateOptions,
   checkoutRetrieveOptions,
@@ -104,7 +105,8 @@ export function createUcpCli(
   });
 
   const checkout = Cli.create('checkout', {
-    description: 'Create, update, retrieve, and complete UCP checkout sessions',
+    description:
+      'Create, update, retrieve, complete, and cancel UCP checkout sessions',
   });
 
   checkout.command('create', {
@@ -245,6 +247,34 @@ export function createUcpCli(
     },
   });
 
+  checkout.command('cancel', {
+    description: 'Cancel a UCP checkout by ID and business.',
+    args: z.object({
+      id: z
+        .string()
+        .trim()
+        .nonempty()
+        .optional()
+        .describe('Checkout session ID'),
+    }),
+    options: checkoutCancelOptions,
+    middleware: [requireAuth(authStorage, envAccessToken)],
+    run(c) {
+      let id: string;
+      try {
+        id = checkoutId(c.args.id, c.options.id);
+      } catch (err) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message: (err as Error).message,
+        });
+      }
+      return repositoryFactory().cancelCheckout(id, {
+        business: c.options.business,
+      });
+    },
+  });
+
   checkout.command('retrieve', {
     description:
       'Retrieve a UCP checkout by ID and business. Add --spend-request-id to include payment state, or --poll to wait for a payment outcome.',
@@ -285,7 +315,7 @@ export function createUcpCli(
 
   const cli = Cli.create('ucp', {
     description:
-      'Universal Commerce Protocol (UCP) checkout: search a catalog, create, update, retrieve, and complete a checkout session.',
+      'Universal Commerce Protocol (UCP) checkout: search a catalog, create, update, retrieve, complete, and cancel a checkout session.',
   });
   cli.command(catalog);
   cli.command(checkout);

@@ -307,6 +307,14 @@ Omit buyer or fulfillment during creation to use saved Link details. Review the 
 
 When the checkout is ready, create and approve a spend request for the final total. `completeCheckout(id, { business, spend_request_id })` resolves its payment credential on the server. To inspect payment state as well as checkout state, pass `spend_request_id` to `retrieveCheckout`; the SDK fetches the spend request separately and attaches it as `spend_request`.
 
+To cancel a checkout, use `cancelCheckout(id, { business })`. It returns the canceled checkout:
+
+```ts
+const canceled = await link.ucp.cancelCheckout(checkout.id, {
+  business: 'profile_example',
+});
+```
+
 ## Client resources
 
 - `spendRequests` — create, approve, retrieve, update, cancel, and list
@@ -318,4 +326,4 @@ When the checkout is ready, create and approve a spend request for the final tot
 - `balances` — list balances
 - `webBotAuth` — sign URLs for Web Bot Auth
 - `reports` — report agent outcomes
-- `ucp` — search the catalog and create, update, retrieve, and complete checkouts
+- `ucp` — search the catalog and create, update, retrieve, complete, and cancel checkouts
