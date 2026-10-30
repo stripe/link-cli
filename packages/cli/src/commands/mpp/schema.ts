@@ -7,12 +7,6 @@ export const payOptions = z.object({
     .describe(
       'Approved spend request ID with credential_type "shared_payment_token". If omitted, the command handles the full flow: probe URL, parse challenge, create spend request, get approval, and pay.',
     ),
-  approvedChallenge: z
-    .string()
-    .optional()
-    .describe(
-      'Original WWW-Authenticate challenge to verify when continuing an approval flow',
-    ),
   method: z
     .string()
     .optional()
@@ -51,6 +45,12 @@ export const payOptions = z.object({
       'Use test mode (creates testmode credentials from test card data)',
     ),
   approve: z.boolean().default(false).describe(''),
+  useApprovalPolicy: z
+    .boolean()
+    .default(false)
+    .describe(
+      'Use approval policy through the delegated approval flow (beta, available only to select OAuth clients)',
+    ),
 });
 
 export const decodeOptions = z.object({

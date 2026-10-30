@@ -1,15 +1,18 @@
-import type { IMppResource, ISpendRequestResource } from '@stripe/link-sdk';
+import type {
+  IMppResource,
+  IPaymentMethodsResource,
+  ISpendRequestResource,
+} from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import type { CliAuthStorage } from '../../auth/storage';
 import { buildCommandContinuation } from '../../utils/command-continuation';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
-import { sanitizeDeep, sanitizeText } from '../../utils/sanitize-text';
+import { sanitizeDeep } from '../../utils/sanitize-text';
 import { decodeStripeChallenge } from './decode';
 import { DecodeChallengeView } from './decode-view';
 import {
   buildHeaders,
-  type CliMppResource,
   MppPay,
   type PayResult,
   runMppPayWithSpendRequest,
@@ -32,10 +35,10 @@ export function resolveInteractivePayResult(
 export function createMppCli(
   mpp: IMppResource,
   spendRequests: ISpendRequestResource,
+  paymentMethodsFactory: () => IPaymentMethodsResource,
   authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ) {
-  const cliMpp = mpp as CliMppResource;
   const cli = Cli.create('mpp', {
     description: 'Machine payment protocol (MPP) commands',
   });
@@ -71,8 +74,10 @@ export function createMppCli(
             paymentMethodId={opts.paymentMethodId}
             test={opts.test}
             approve={opts.approve}
-            mpp={cliMpp}
+            useApprovalPolicy={opts.useApprovalPolicy}
+            mpp={mpp}
             spendRequests={spendRequests}
+            paymentMethodsFactory={paymentMethodsFactory}
             onComplete={(result) => {
               capturedResult = result;
             }}
@@ -89,13 +94,10 @@ export function createMppCli(
           data,
           headers,
           mpp,
-          opts.approvedChallenge,
         );
         return;
       }
 
-      // Agent mode returns a continuation so approval can span multiple runs.
-      const requestHeaders = buildHeaders(data, headers);
       if (!opts.context) {
         return c.error({
           code: 'INVALID_INPUT',
@@ -104,45 +106,117 @@ export function createMppCli(
         });
       }
 
-      const prepared = await cliMpp.createSpendRequest({
+      // Agent mode returns a continuation so approval can span multiple runs.
+      const requestHeaders = buildHeaders(data, headers);
+      const mppRequest = {
         url,
         ...(method !== undefined && { method }),
         ...(data !== undefined && { body: data }),
         headers: requestHeaders,
-        context: opts.context,
-        ...(opts.amount !== undefined && { amount: opts.amount }),
-        ...(opts.paymentMethodId !== undefined && {
-          paymentMethodId: opts.paymentMethodId,
-        }),
-        test: opts.test,
-        approve: opts.approve,
-      });
-      if (!('spendRequest' in prepared)) {
-        yield sanitizeDeep(prepared);
+      };
+
+      const decoded = await mpp.decode(mppRequest);
+      if (!decoded.payment_required) {
+        yield sanitizeDeep(decoded.response);
         return;
       }
-      const spendRequest = sanitizeDeep(prepared.spendRequest);
-      const probe = prepared.request;
-      const wwwAuth = sanitizeText(prepared.approvedChallenge);
 
-      // Continue from the request that actually returned the challenge. Redirects
-      // may have changed its URL, method, body, or safe-to-forward headers.
-      // Merchant-controlled values remain data in the structured continuation.
+      const challenge = decoded.challenges[0];
+      if (!challenge) {
+        return c.error({
+          code: 'INVALID_RESPONSE',
+          message:
+            'WWW-Authenticate header does not include a supported stripe charge or session challenge',
+        });
+      }
+
+      const networkId = challenge.network_id;
+      const challengeAmount = challenge.request_json.amount
+        ? Number(challenge.request_json.amount)
+        : undefined;
+      const challengeCurrency =
+        (challenge.request_json.currency as string) ?? 'usd';
+      const amount = opts.amount ?? challengeAmount;
+
+      if (
+        opts.amount !== undefined &&
+        challengeAmount !== undefined &&
+        opts.amount !== challengeAmount
+      ) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message: `--amount must match the MPP challenge amount (${challengeAmount})`,
+        });
+      }
+
+      if (!amount) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message:
+            'Could not determine amount from 402 challenge. Pass --amount explicitly.',
+        });
+      }
+
+      let paymentMethodId = opts.paymentMethodId;
+      if (!paymentMethodId) {
+        const methods = await paymentMethodsFactory().list();
+        const paymentMethod = methods[0];
+        if (!paymentMethod) {
+          return c.error({
+            code: 'NO_PAYMENT_METHOD',
+            message:
+              'No payment methods found. Add one with `link-cli payment-methods add`.',
+          });
+        }
+        paymentMethodId = paymentMethod.id;
+      }
+
+      const createParams = {
+        payment_details: paymentMethodId,
+        credential_type: 'shared_payment_token' as const,
+        network_id: networkId,
+        amount,
+        currency: challengeCurrency,
+        context: opts.context,
+        request_approval: true,
+        test: opts.test || undefined,
+        approve: opts.approve || opts.useApprovalPolicy || undefined,
+        use_approval_policy: opts.useApprovalPolicy || undefined,
+      };
+      const spendRequest = await spendRequests.create(createParams);
+
+      // Continue from the exact request the agent provided. mpp.pay re-probes
+      // it (following safe redirects) and verifies the fresh challenge against
+      // this spend request's own terms, so the destination isn't pinned here.
       const nextArgs = [
         'pay',
-        probe.url,
+        url,
         '--spend-request-id',
         spendRequest.id,
-        '--approved-challenge',
-        wwwAuth,
         '-X',
-        probe.method,
+        mppRequest.method ?? (data !== undefined ? 'POST' : 'GET'),
       ];
-      if (probe.body !== undefined) nextArgs.push('-d', probe.body);
-      for (const [name, value] of Object.entries(probe.headers)) {
+      if (data !== undefined) nextArgs.push('-d', data);
+      for (const [name, value] of requestHeaders) {
         nextArgs.push('-H', `${name}: ${value}`);
       }
       const payment = buildCommandContinuation('mpp', nextArgs);
+
+      if (spendRequest.status === 'approved') {
+        yield {
+          ...spendRequest,
+          instruction:
+            'Invoke _next.pay_argv directly without a shell to complete payment.',
+          _next: {
+            ...(payment.command !== undefined
+              ? { pay_command: payment.command, shell: payment.shell }
+              : {}),
+            pay_argv: payment.argv,
+          },
+        };
+        return;
+      }
+
       const poll = buildCommandContinuation('spend-request', [
         'retrieve',
         spendRequest.id,

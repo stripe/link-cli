@@ -64,10 +64,7 @@ export class Link {
     this.webBotAuth = new WebBotAuthResource(options);
     this.reports = new ReportResource(options);
     this.ucp = new UcpResource(options);
-    this.mpp = new MppResource(options, {
-      spendRequests: this.spendRequests,
-      paymentMethods: this.paymentMethods,
-    });
+    this.mpp = new MppResource(options, { spendRequests: this.spendRequests });
   }
 }
 

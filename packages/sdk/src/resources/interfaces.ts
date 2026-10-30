@@ -122,13 +122,15 @@ export interface ISpendRequestResource {
   ): Promise<SpendRequest | null>;
 }
 
-export interface MppPayOptions {
+export interface MppRequest {
   url: string;
   method?: string;
   body?: string;
   headers?: HeadersInit;
+}
+
+export interface MppPayOptions {
   spendRequestId: string;
-  challenge?: string;
 }
 
 export interface MppPaymentResult {
@@ -170,9 +172,23 @@ export interface DecodedStripeChallenge extends DecodedMppChallengeBase {
 /** Supported decoded MPP challenges. Add new method variants to this union. */
 export type DecodedMppChallenge = DecodedStripeChallenge;
 
+export type MppDecodeResult =
+  | { payment_required: true; challenges: DecodedMppChallenge[] }
+  | { payment_required: false; response: MppPaymentResult };
+
 export interface IMppResource {
-  decodeChallenge(challengeHeader: string): DecodedMppChallenge[];
-  pay(options: MppPayOptions): Promise<MppPaymentResult>;
+  /**
+   * Probes a URL for a Machine Payment Protocol challenge, without sending
+   * any payment credential. Follows safe redirects the way a browser would.
+   */
+  decode(request: MppRequest): Promise<MppDecodeResult>;
+  /**
+   * Re-fetches the challenge at `request`, verifies it matches the terms of
+   * the already-approved `spendRequestId`, then pays it with a shared
+   * payment token. Safe to retry with the same arguments after an uncertain
+   * result (e.g. a 503) — a non-402 re-fetch is simply returned as-is.
+   */
+  pay(request: MppRequest, options: MppPayOptions): Promise<MppPaymentResult>;
 }
 
 export interface IPaymentMethodsResource {

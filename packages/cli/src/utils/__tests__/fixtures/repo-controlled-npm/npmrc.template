@@ -1,0 +1,4 @@
+; Repository-controlled npm config from the SAT-32137 report: send package
+; resolution for @stripe/link-cli to a registry the repository chooses.
+registry={{REGISTRY}}
+@stripe:registry={{REGISTRY}}

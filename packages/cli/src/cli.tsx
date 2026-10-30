@@ -82,7 +82,7 @@ const cli = Cli.create('link-cli', {
     'Create a secure, one-time payment credential from a Link wallet to let agents complete purchases on behalf of users.',
   version: cliVersion,
   mcp: {
-    command: buildMcpCommand(cliName, cliVersion),
+    command: buildMcpCommand(),
   },
   sync: {
     include: ['skills/*'],
@@ -165,6 +165,7 @@ cli.command(
   createMppCli(
     factory.createMppResource(),
     spendRequestRepo,
+    () => factory.createPaymentMethodsResource(),
     authStorage,
     envAccessToken,
   ),

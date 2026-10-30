@@ -2,9 +2,10 @@ import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
+import path from 'node:path';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { storage } from '../auth/storage';
+import { Storage } from '../auth/storage';
 
 const execFileAsync = promisify(execFile);
 
@@ -14,6 +15,11 @@ const CLI_VERSION = JSON.parse(
 ).version;
 const CLI_USER_AGENT = `link-cli/${CLI_VERSION}`;
 const CLI_TIMEOUT_MS = 10_000;
+const TEST_AUTH_DIR = fs.mkdtempSync(
+  path.join(os.tmpdir(), 'link-cli-cli-test-'),
+);
+const TEST_AUTH_FILE = path.join(TEST_AUTH_DIR, 'config.json');
+const storage = new Storage({ configPath: TEST_AUTH_FILE });
 
 // Do not inherit agent attribution from the developer's shell or CI runner.
 const EMPTY_AGENT_ENV = {
@@ -89,6 +95,7 @@ beforeEach(() => {
 
 afterAll(() => {
   storage.clearAll();
+  fs.rmSync(TEST_AUTH_DIR, { recursive: true, force: true });
 });
 
 // ─── Production mode tests (real HTTP against local mock server) ────────────
@@ -201,6 +208,7 @@ async function runProdCliWithEnv(
           ...EMPTY_AGENT_ENV,
           LINK_API_BASE_URL: `http://127.0.0.1:${serverPort}`,
           LINK_AUTH_BASE_URL: `http://127.0.0.1:${serverPort}`,
+          LINK_AUTH_FILE: TEST_AUTH_FILE,
           XDG_DATA_HOME: '/tmp/link-cli-test-empty',
           ...extraEnv,
         },
@@ -2786,7 +2794,12 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       expect(deviceCodeRequest).toBeDefined();
       const params = new URLSearchParams(deviceCodeRequest?.body);
       expect(params.get('scope')).toBe('userinfo:read spend_requests:approve');
-      expect(params.get('authorization_details')).toBeNull();
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_balances',
+        'read_external_transactions',
+        'read_link_transactions',
+        'read_source_details',
+      ]);
     });
 
     it('does not translate source-related --scope values into authorization_details', async () => {
@@ -2800,6 +2813,8 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         'My Agent',
         '--scope',
         'userinfo:read   source_details:read   balances:read',
+        '--source-actions',
+        'read_link_transactions',
         '--json',
       );
 
@@ -2812,8 +2827,94 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       expect(params.get('scope')).toBe(
         'userinfo:read source_details:read balances:read',
       );
-      expect(params.get('authorization_details')).toBeNull();
-      expect(params.get('authorization_details[0][type]')).toBeNull();
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_link_transactions',
+      ]);
+    });
+
+    it('requests all financial-insights source actions on a new login', async () => {
+      storage.clearTokens();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli('auth', 'login', '--json');
+
+      expect(result.exitCode).toBe(0);
+      const params = new URLSearchParams(
+        requests.find((r) => r.url.includes('/device/code'))?.body,
+      );
+      expect(params.getAll('authorization_details[][type]')).toEqual([
+        'source',
+      ]);
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_balances',
+        'read_external_transactions',
+        'read_link_transactions',
+        'read_source_details',
+      ]);
+      expect(params.get('scope')).toBe('userinfo:read payment_methods.agentic');
+    });
+
+    it('omits automatic source actions with --no-financial-insights', async () => {
+      storage.clearTokens();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--no-financial-insights',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const params = new URLSearchParams(
+        requests.find((r) => r.url.includes('/device/code'))?.body,
+      );
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([]);
+      expect(params.getAll('authorization_details[][type]')).toEqual([]);
+    });
+
+    it('omits the agentic payments scope with --no-agentic-payments', async () => {
+      storage.clearTokens();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--no-agentic-payments',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const params = new URLSearchParams(
+        requests.find((r) => r.url.includes('/device/code'))?.body,
+      );
+      expect(params.get('scope')).toBe('userinfo:read');
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_balances',
+        'read_external_transactions',
+        'read_link_transactions',
+        'read_source_details',
+      ]);
+    });
+
+    it('lets an explicit scope replace the agentic payments default', async () => {
+      storage.clearTokens();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--scope',
+        'userinfo:read subscriptions:read',
+        '--agentic-payments',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const params = new URLSearchParams(
+        requests.find((r) => r.url.includes('/device/code'))?.body,
+      );
+      expect(params.get('scope')).toBe('userinfo:read subscriptions:read');
     });
 
     it('passes source actions via authorization_details', async () => {
@@ -2846,6 +2947,75 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       expect(params.getAll('authorization_details[][actions][]')).toEqual([
         'read_source_details',
         'read_balances',
+      ]);
+    });
+
+    it.each([
+      ['--financial-insights', '--source-actions', 'read_balances'],
+      ['--no-financial-insights', '--source-actions', 'read_balances'],
+      ['--financial-insights', '--authorization-detail', '{"type":"source"}'],
+      [
+        '--no-financial-insights',
+        '--authorization-detail',
+        '{"type":"source"}',
+      ],
+    ])('rejects %s with %s', async (...flags) => {
+      const result = await runProdCli('auth', 'login', ...flags, '--json');
+
+      expect(result.exitCode).toBe(1);
+      expect(requests).toHaveLength(0);
+      expect(parseJson(result.stdout)).toMatchObject({
+        code: 'INVALID_ARGUMENT',
+        message:
+          "The --financial-insights parameter can't be used at the same time as --authorization-detail or --source-actions.",
+      });
+    });
+
+    it('does not add default actions to an explicit source detail', async () => {
+      storage.clearTokens();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--authorization-detail',
+        '{"type":"source","actions":["read_link_transactions"]}',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const params = new URLSearchParams(
+        requests.find((r) => r.url.includes('/device/code'))?.body,
+      );
+      expect(params.getAll('authorization_details[][type]')).toEqual([
+        'source',
+      ]);
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_link_transactions',
+      ]);
+    });
+
+    it('does not add default actions to another authorization detail', async () => {
+      storage.clearTokens();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--authorization-detail',
+        '{"type":"account","actions":["read"]}',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const params = new URLSearchParams(
+        requests.find((r) => r.url.includes('/device/code'))?.body,
+      );
+      expect(params.getAll('authorization_details[][type]')).toEqual([
+        'account',
+      ]);
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read',
       ]);
     });
 
@@ -3115,9 +3285,12 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       // Unlike `login`, upgrade does NOT return "already logged in".
       expect(output[0].message).toBeUndefined();
       expect(output[0].verification_url).toBeDefined();
-      expect(
-        requests.find((r) => r.url.includes('/device/code')),
-      ).toBeDefined();
+      const deviceCodeRequest = requests.find((r) =>
+        r.url.includes('/device/code'),
+      );
+      expect(deviceCodeRequest).toBeDefined();
+      const params = new URLSearchParams(deviceCodeRequest?.body);
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([]);
       // Deferred lifecycle: the existing session is preserved (NOT cleared) and
       // the pending is flagged so the poll completes the new approval and
       // revokes the old grant only once the widened tokens land.
@@ -3438,7 +3611,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         postal_code: '94103',
         country: 'US',
       });
-      expect(output.eligible_for_balance).toBe(false);
+      expect(output).not.toHaveProperty('eligible_for_balance');
       expect(output.agent_wallet_spend_limits).toEqual({
         per_transaction: { limit: null },
         daily: { limit: 500000, used: 120000, remaining: 380000 },
@@ -3933,39 +4106,76 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       );
     });
 
-    it('uses delegated spend-request creation when --approve is set', async () => {
-      setNextResponse(200, {
-        ...BASE_REQUEST,
-        id: 'lsrq_spt_delegated',
-        status: 'approved',
-        credential_type: 'shared_payment_token',
-        network_id: 'net_001',
-      });
-      setMerchantResponse(402, '{"error":"payment required"}', {
-        'www-authenticate': WWW_AUTHENTICATE_STRIPE,
-      });
+    it.each([
+      { approvalFlags: [], delegated: false, useApprovalPolicy: false },
+      {
+        approvalFlags: ['--approve'],
+        delegated: true,
+        useApprovalPolicy: false,
+      },
+      {
+        approvalFlags: ['--use-approval-policy'],
+        delegated: true,
+        useApprovalPolicy: true,
+      },
+      {
+        approvalFlags: ['--approve', '--use-approval-policy'],
+        delegated: true,
+        useApprovalPolicy: true,
+      },
+      {
+        approvalFlags: ['--no-use-approval-policy'],
+        delegated: false,
+        useApprovalPolicy: false,
+      },
+      {
+        approvalFlags: ['--approve', '--no-use-approval-policy'],
+        delegated: true,
+        useApprovalPolicy: false,
+      },
+    ])(
+      'creates a spend request with $approvalFlags',
+      async ({ approvalFlags, delegated, useApprovalPolicy }) => {
+        setNextResponse(200, {
+          ...BASE_REQUEST,
+          id: 'lsrq_spt_delegated',
+          status: 'approved',
+          credential_type: 'shared_payment_token',
+          network_id: 'net_001',
+        });
+        setMerchantResponse(402, '{"error":"payment required"}', {
+          'www-authenticate': WWW_AUTHENTICATE_STRIPE,
+        });
 
-      const result = await runProdCli(
-        'mpp',
-        'pay',
-        `http://127.0.0.1:${merchantPort}/api/charge`,
-        '--context',
-        VALID_CONTEXT,
-        '--payment-method-id',
-        'pd_prod_test',
-        '--approve',
-        '--format',
-        'json',
-      );
+        const result = await runProdCli(
+          'mpp',
+          'pay',
+          `http://127.0.0.1:${merchantPort}/api/charge`,
+          '--context',
+          VALID_CONTEXT,
+          '--payment-method-id',
+          'pd_prod_test',
+          ...approvalFlags,
+          '--format',
+          'json',
+        );
 
-      expect(result.exitCode).toBe(0);
-      const createRequest = requests.find(
-        (request) => request.url === '/spend_requests/create_delegated',
-      );
-      expect(createRequest).toBeDefined();
-      if (!createRequest) throw new Error('Expected delegated create request');
-      expect(JSON.parse(createRequest.body).approve).toBeUndefined();
-    });
+        expect(result.exitCode).toBe(0);
+        const createRequest = requests.find(
+          (request) =>
+            request.url ===
+            (delegated
+              ? '/spend_requests/create_delegated'
+              : '/spend_requests'),
+        );
+        expect(createRequest).toBeDefined();
+        if (!createRequest) throw new Error('Expected create request');
+        expect(JSON.parse(createRequest.body).approve).toBeUndefined();
+        expect(JSON.parse(createRequest.body).use_approval_policy).toBe(
+          useApprovalPolicy ? true : undefined,
+        );
+      },
+    );
 
     it('rejects an amount that conflicts with the MPP challenge', async () => {
       setMerchantResponse(402, '{"error":"payment required"}', {

@@ -1,5 +1,24 @@
 # @stripe/link-cli
 
+## 1.0.1
+
+### Patch Changes
+
+- 9b7ea4d: Fixed MPP payments being rejected after approval when mppx rotated its challenge issuance nonce. Kept payment terms and route metadata pinned while echoing the refreshed challenge unchanged.
+- 9e61846: Add `--use-approval-policy` to `mpp pay` to use delegated approval policies when creating a spend request.
+  
+  Skip approval polling in `mpp pay` when the new spend request is already approved, returning only the payment continuation.
+
+## 1.0.0
+
+### Major Changes
+
+- b76e268: Remove balance eligibility from user info. The TypeScript SDK no longer exposes `eligible_for_balance`, the Go SDK no longer exposes `EligibleForBalance`, and CLI JSON and interactive output omit the field even when the server still returns it.
+
+### Patch Changes
+
+- 097261e: The Link plugin and generated MCP server configurations now run the installed `link-cli` binary instead of resolving `@stripe/link-cli` through `npx`, `pnpx`, or `bunx` at startup, so an opened repository's `.npmrc` or `node_modules` can no longer choose the executable. Install the CLI with `npm install -g @stripe/link-cli` before using the plugin.
+
 ## 0.30.0
 
 ### Minor Changes

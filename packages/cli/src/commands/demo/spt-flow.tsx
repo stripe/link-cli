@@ -5,6 +5,7 @@ import type {
   PaymentMethod,
   SpendRequest,
 } from '@stripe/link-sdk';
+import { decodeMppChallenges } from '@stripe/link-sdk';
 import { Box, Text, useInput } from 'ink';
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -164,9 +165,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
         }
 
         const wwwAuth = probeResponse.headers.get('www-authenticate') ?? '';
-        const decoded = mpp
-          .decodeChallenge(wwwAuth)
-          .find((challenge) => challenge.method === 'stripe');
+        const [decoded] = decodeMppChallenges(wwwAuth);
         if (!decoded) throw new Error('No supported Stripe challenge found');
         setNetworkId(decoded.network_id);
 

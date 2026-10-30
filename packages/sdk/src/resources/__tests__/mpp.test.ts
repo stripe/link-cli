@@ -1,10 +1,6 @@
 import { Challenge, Credential } from 'mppx';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type {
-  IPaymentMethodsResource,
-  ISpendRequestResource,
-  MppPaymentResult,
-} from '@/resources/interfaces';
+import type { ISpendRequestResource } from '@/resources/interfaces';
 import { decodeMppChallenges, MppResource } from '@/resources/mpp';
 
 const REQUEST = {
@@ -34,36 +30,54 @@ function challengeResponse(header = HEADER): Response {
 function resource(
   fetch: typeof globalThis.fetch,
   spendRequests: ISpendRequestResource = {} as ISpendRequestResource,
-  paymentMethods: IPaymentMethodsResource = {} as IPaymentMethodsResource,
 ) {
   return new MppResource(
     { accessToken: 'test_token', fetch },
-    { spendRequests, paymentMethods },
+    { spendRequests },
   );
 }
 
-function payWithSharedPaymentToken(
+// The spend request's amount/currency/network_id match REQUEST above
+// (1000 cents, usd, net_001) so happy-path tests can share it.
+function approvedSpendRequest(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'lsrq_123',
+    status: 'approved',
+    credential_type: 'shared_payment_token',
+    amount: 1000,
+    currency: 'usd',
+    network_id: 'net_001',
+    shared_payment_token: { id: 'spt_test_123' },
+    ...overrides,
+  };
+}
+
+function probeRequest(
   mpp: MppResource,
   options: {
     url: string;
     method?: string;
     body?: string;
     headers?: HeadersInit;
-    sharedPaymentToken: string;
-    approvedChallenge?: string;
   },
-): Promise<MppPaymentResult> {
+) {
   const internal = mpp as unknown as {
-    payWithSharedPaymentToken(value: typeof options): Promise<MppPaymentResult>;
+    probe(o: typeof options): Promise<{
+      url: string;
+      method: string;
+      headers: Headers;
+      body?: string;
+      response: Response;
+    }>;
   };
-  return internal.payWithSharedPaymentToken(options);
+  return internal.probe(options);
 }
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('MppResource', () => {
+describe('decodeMppChallenges', () => {
   it('decodes stripe charge and session challenges for SDK consumers', () => {
     expect(decodeMppChallenges(HEADER)).toMatchObject([
       {
@@ -119,11 +133,13 @@ describe('MppResource', () => {
       { id: 'ch_002', method: 'stripe', intent: 'session' },
     ]);
   });
+});
 
+describe('MppResource#probe (used internally by decode and pay)', () => {
   it('rejects non-loopback HTTP before making a request', async () => {
     const fetch = vi.fn();
     await expect(
-      resource(fetch).probe({ url: 'http://merchant.example/pay' }),
+      probeRequest(resource(fetch), { url: 'http://merchant.example/pay' }),
     ).rejects.toThrow(/require HTTPS/);
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -138,7 +154,7 @@ describe('MppResource', () => {
         }),
       )
       .mockResolvedValueOnce(new Response('ok'));
-    const probe = await resource(fetch).probe({
+    const probe = await probeRequest(resource(fetch), {
       url: 'https://redirector.example/start',
       method: 'PUT',
       body: 'payload',
@@ -160,7 +176,7 @@ describe('MppResource', () => {
         }),
       )
       .mockResolvedValueOnce(new Response('ok'));
-    const probe = await resource(fetch).probe({
+    const probe = await probeRequest(resource(fetch), {
       url: 'https://merchant.example/start',
       method: 'PUT',
       body: 'payload',
@@ -181,20 +197,53 @@ describe('MppResource', () => {
     });
     const fetch = vi.fn().mockResolvedValue(redirected);
     await expect(
-      resource(fetch).probe({ url: 'https://merchant.example/start' }),
+      probeRequest(resource(fetch), { url: 'https://merchant.example/start' }),
     ).rejects.toThrow(/HTTPS downgrade/);
     expect(redirected.bodyUsed).toBe(true);
   });
+});
 
+describe('MppResource#decode', () => {
+  it('returns parsed challenges for a supported 402', async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(challengeResponse());
+    const decoded = await resource(fetch).decode({
+      url: 'https://merchant.example/pay',
+    });
+    expect(decoded).toMatchObject({
+      payment_required: true,
+      challenges: [{ id: 'ch_001', method: 'stripe', network_id: 'net_001' }],
+    });
+  });
+
+  it('returns the response as-is when payment is not required', async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(new Response('ok'));
+    const decoded = await resource(fetch).decode({
+      url: 'https://merchant.example/pay',
+    });
+    expect(decoded).toEqual({
+      payment_required: false,
+      response: {
+        status: 200,
+        headers: { 'content-type': 'text/plain;charset=UTF-8' },
+        body: 'ok',
+      },
+    });
+  });
+});
+
+describe('MppResource#pay', () => {
   it('signs and submits a stripe charge with a shared payment token', async () => {
     const fetch = vi
       .fn()
       .mockResolvedValueOnce(challengeResponse())
       .mockResolvedValueOnce(new Response('paid'));
-    const result = await payWithSharedPaymentToken(resource(fetch), {
-      url: 'https://merchant.example/pay',
-      sharedPaymentToken: 'spt_test_123',
-    });
+    const retrieve = vi.fn().mockResolvedValue(approvedSpendRequest());
+    const result = await resource(fetch, {
+      retrieve,
+    } as unknown as ISpendRequestResource).pay(
+      { url: 'https://merchant.example/pay' },
+      { spendRequestId: 'lsrq_123' },
+    );
     expect(result).toMatchObject({ status: 200, body: 'paid' });
     const headers = new Headers(fetch.mock.calls[1]![1]?.headers);
     const credential = Credential.deserialize(headers.get('authorization')!);
@@ -210,11 +259,12 @@ describe('MppResource', () => {
       .fn()
       .mockResolvedValueOnce(challengeResponse(header))
       .mockResolvedValueOnce(new Response('paid'));
+    const retrieve = vi.fn().mockResolvedValue(approvedSpendRequest());
 
-    await payWithSharedPaymentToken(resource(fetch), {
-      url: 'https://merchant.example/pay',
-      sharedPaymentToken: 'spt_test_123',
-    });
+    await resource(fetch, { retrieve } as unknown as ISpendRequestResource).pay(
+      { url: 'https://merchant.example/pay' },
+      { spendRequestId: 'lsrq_123' },
+    );
 
     const headers = new Headers(fetch.mock.calls[1]![1]?.headers);
     const credential = Credential.deserialize(headers.get('authorization')!);
@@ -234,12 +284,15 @@ describe('MppResource', () => {
           headers: { location: 'https://other.example/pay' },
         }),
       );
+    const retrieve = vi.fn().mockResolvedValue(approvedSpendRequest());
     await expect(
-      payWithSharedPaymentToken(resource(fetch), {
-        url: 'https://merchant.example/pay',
-        sharedPaymentToken: 'spt_test_123',
-        headers: { Authorization: 'Bearer caller-value' },
-      }),
+      resource(fetch, { retrieve } as unknown as ISpendRequestResource).pay(
+        {
+          url: 'https://merchant.example/pay',
+          headers: { Authorization: 'Bearer caller-value' },
+        },
+        { spendRequestId: 'lsrq_123' },
+      ),
     ).rejects.toThrow(/redirect 307/);
     const headers = new Headers(fetch.mock.calls[1]![1]?.headers);
     expect(headers.get('authorization')).toMatch(/^Payment /);
@@ -255,10 +308,11 @@ describe('MppResource', () => {
       .fn()
       .mockResolvedValueOnce(challengeResponse(sessionHeader))
       .mockResolvedValueOnce(new Response('opened'));
-    await payWithSharedPaymentToken(resource(fetch), {
-      url: 'https://merchant.example/session',
-      sharedPaymentToken: 'spt_test_123',
-    });
+    const retrieve = vi.fn().mockResolvedValue(approvedSpendRequest());
+    await resource(fetch, { retrieve } as unknown as ISpendRequestResource).pay(
+      { url: 'https://merchant.example/session' },
+      { spendRequestId: 'lsrq_123' },
+    );
     const headers = new Headers(fetch.mock.calls[1]![1]?.headers);
     const credential = Credential.deserialize(headers.get('authorization')!);
     expect(credential.payload).toEqual({
@@ -267,40 +321,28 @@ describe('MppResource', () => {
     });
   });
 
-  it('refuses a changed challenge after approval', async () => {
-    const changed = Challenge.serialize({
-      ...CHALLENGE,
-      request: { ...REQUEST, amount: '2000' },
-    });
-    const response = challengeResponse(changed);
-    const fetch = vi.fn().mockResolvedValueOnce(response);
-    await expect(
-      payWithSharedPaymentToken(resource(fetch), {
-        url: 'https://merchant.example/pay',
-        sharedPaymentToken: 'spt_test_123',
-        approvedChallenge: HEADER,
-      }),
-    ).rejects.toThrow(/challenge changed after approval/);
-    expect(fetch).toHaveBeenCalledOnce();
-    expect(response.bodyUsed).toBe(true);
-  });
-
-  it('accepts refreshed challenge IDs and expiration changes', async () => {
-    const refreshed = Challenge.serialize({
+  // mppx re-issues a fresh challenge (new id/opaque nonce) on every probe, so
+  // the challenge seen at pay-time routinely differs from the one seen when
+  // the spend request was created. Since approval is no longer pinned to a
+  // specific challenge (only to the spend request's own terms), a rotated
+  // nonce or new challenge id must not block payment. Regression test for #490.
+  it('pays using the freshly re-fetched challenge even when its id, expiration, or nonce differ', async () => {
+    const rotated = Challenge.serialize({
       ...CHALLENGE,
       id: 'ch_002',
       expires: undefined,
+      opaque: 'cm90YXRlZA==',
     });
     const fetch = vi
       .fn()
-      .mockResolvedValueOnce(challengeResponse(refreshed))
+      .mockResolvedValueOnce(challengeResponse(rotated))
       .mockResolvedValueOnce(new Response('paid'));
+    const retrieve = vi.fn().mockResolvedValue(approvedSpendRequest());
     await expect(
-      payWithSharedPaymentToken(resource(fetch), {
-        url: 'https://merchant.example/pay',
-        sharedPaymentToken: 'spt_test_123',
-        approvedChallenge: HEADER,
-      }),
+      resource(fetch, { retrieve } as unknown as ISpendRequestResource).pay(
+        { url: 'https://merchant.example/pay' },
+        { spendRequestId: 'lsrq_123' },
+      ),
     ).resolves.toMatchObject({ body: 'paid' });
     const headers = new Headers(fetch.mock.calls[1]![1]?.headers);
     expect(
@@ -308,40 +350,52 @@ describe('MppResource', () => {
     ).toBe('ch_002');
   });
 
-  it.each([
-    ['currency', { request: { ...REQUEST, currency: 'eur' } }],
-    ['network', { request: { ...REQUEST, networkId: 'net_002' } }],
-    ['intent', { intent: 'session' }],
-    ['realm', { realm: 'other.example' }],
-    ['description', { description: 'Different purchase' }],
-    ['credential header', { header: 'Payment-Credential' }],
-  ])('refuses a changed approved %s', async (_name, change) => {
-    const changed = Challenge.serialize({ ...CHALLENGE, ...change });
-    const response = challengeResponse(changed);
-    const fetch = vi.fn().mockResolvedValueOnce(response);
-    await expect(
-      payWithSharedPaymentToken(resource(fetch), {
-        url: 'https://merchant.example/pay',
-        sharedPaymentToken: 'spt_test_123',
-        approvedChallenge: HEADER,
-      }),
-    ).rejects.toThrow(/challenge changed after approval/);
-    expect(fetch).toHaveBeenCalledOnce();
+  it('returns the re-fetched response without paying when it is no longer a 402', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('already complete'));
+    const retrieve = vi.fn();
+    const result = await resource(fetch, {
+      retrieve,
+    } as unknown as ISpendRequestResource).pay(
+      { url: 'https://merchant.example/pay' },
+      { spendRequestId: 'lsrq_123' },
+    );
+    expect(result).toMatchObject({ status: 200, body: 'already complete' });
+    expect(retrieve).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['amount', { amount: 2000 }],
+    ['currency', { currency: 'eur' }],
+    ['network ID', { network_id: 'net_002' }],
+  ])(
+    'refuses to pay when the spend request %s does not match the fresh challenge',
+    async (_field, change) => {
+      const fetch = vi.fn().mockResolvedValueOnce(challengeResponse());
+      const retrieve = vi.fn().mockResolvedValue(approvedSpendRequest(change));
+      await expect(
+        resource(fetch, { retrieve } as unknown as ISpendRequestResource).pay(
+          { url: 'https://merchant.example/pay' },
+          { spendRequestId: 'lsrq_123' },
+        ),
+      ).rejects.toThrow(/does not match/);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it('validates the spend request before retrieving its credential', async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(challengeResponse());
     const retrieve = vi.fn().mockResolvedValue({
       id: 'lsrq_123',
       status: 'pending_approval',
       credential_type: 'shared_payment_token',
     });
     await expect(
-      resource(vi.fn(), {
-        retrieve,
-      } as unknown as ISpendRequestResource).pay({
-        url: 'https://merchant.example/pay',
-        spendRequestId: 'lsrq_123',
-      }),
+      resource(fetch, { retrieve } as unknown as ISpendRequestResource).pay(
+        { url: 'https://merchant.example/pay' },
+        { spendRequestId: 'lsrq_123' },
+      ),
     ).rejects.toThrow(/must be approved/);
   });
 
@@ -349,11 +403,9 @@ describe('MppResource', () => {
     vi.useFakeTimers();
     const retrieve = vi
       .fn()
-      .mockResolvedValueOnce({
-        id: 'lsrq_123',
-        status: 'approved',
-        credential_type: 'shared_payment_token',
-      })
+      .mockResolvedValueOnce(
+        approvedSpendRequest({ shared_payment_token: undefined }),
+      )
       .mockResolvedValueOnce({
         id: 'lsrq_123',
         status: 'approved',
@@ -370,40 +422,12 @@ describe('MppResource', () => {
       .fn()
       .mockResolvedValueOnce(challengeResponse())
       .mockResolvedValueOnce(new Response('paid'));
-    const promise = resource(fetch, spendRequests).pay({
-      url: 'https://merchant.example/pay',
-      spendRequestId: 'lsrq_123',
-      challenge: HEADER,
-    });
+    const promise = resource(fetch, spendRequests).pay(
+      { url: 'https://merchant.example/pay' },
+      { spendRequestId: 'lsrq_123' },
+    );
     await vi.runAllTimersAsync();
     await expect(promise).resolves.toMatchObject({ body: 'paid' });
     expect(retrieve).toHaveBeenCalledTimes(3);
-  });
-
-  it('returns a serializable continuation when creating a spend request', async () => {
-    const spendRequests = {
-      create: vi.fn().mockResolvedValue({
-        id: 'lsrq_123',
-        status: 'pending_approval',
-        approval_url: 'https://link.com/approve/lsrq_123',
-      }),
-    } as unknown as ISpendRequestResource;
-    const fetch = vi.fn().mockResolvedValueOnce(challengeResponse());
-    const prepared = await resource(fetch, spendRequests).createSpendRequest({
-      url: 'https://merchant.example/pay',
-      context:
-        'Buy the selected item from the merchant after the user reviews and approves this exact request.',
-      paymentMethodId: 'pm_123',
-    });
-    expect(prepared).toMatchObject({
-      request: {
-        url: 'https://merchant.example/pay',
-        method: 'GET',
-        headers: {},
-      },
-      approvedChallenge: HEADER,
-      spendRequest: { id: 'lsrq_123' },
-    });
-    expect(JSON.parse(JSON.stringify(prepared))).toEqual(prepared);
   });
 });

@@ -11,13 +11,14 @@ import type {
   DecodedStripeChallenge,
   DecodedStripeChallengeRequest,
   IMppResource,
-  IPaymentMethodsResource,
   ISpendRequestResource,
+  MppDecodeResult,
   MppPaymentResult,
   MppPayOptions,
+  MppRequest,
 } from '@/resources/interfaces';
-import { PaymentMethodsResource } from '@/resources/payment-methods';
 import { SpendRequestResource } from '@/resources/spend-request';
+import type { SpendRequest } from '@/types';
 
 type StripeChallenge = Challenge.Challenge<
   Record<string, unknown>,
@@ -27,16 +28,13 @@ type StripeChallenge = Challenge.Challenge<
 
 interface MppResourceDependencies {
   spendRequests?: ISpendRequestResource;
-  paymentMethods?: IPaymentMethodsResource;
 }
 
-type MppPaymentStep = 'probing' | 'creating';
-
-interface MppRequestOptions {
+interface NormalizedMppRequest {
   url: string;
-  method?: string;
-  body?: string;
-  headers?: HeadersInit;
+  method: string;
+  headers: Headers;
+  body: string | undefined;
 }
 
 interface MppProbeResult {
@@ -49,41 +47,7 @@ interface MppProbeResult {
 
 interface PreparedMppPayment {
   probe: MppProbeResult;
-  challenge: StripeChallenge;
-  challengeHeader: string;
   decoded: DecodedStripeChallenge;
-}
-
-interface NormalizedMppRequest {
-  url: string;
-  method: string;
-  headers: Headers;
-  body: string | undefined;
-}
-
-interface MppCreateSpendRequestOptions extends MppRequestOptions {
-  context: string;
-  amount?: number;
-  paymentMethodId?: string;
-  test?: boolean;
-  approve?: boolean;
-  onStep?: (step: MppPaymentStep) => void;
-}
-
-interface MppSpendRequestResult {
-  spendRequest: import('@/types').SpendRequest;
-  request: {
-    url: string;
-    method: string;
-    headers: Record<string, string>;
-    body?: string;
-  };
-  approvedChallenge: string;
-}
-
-interface MppPayWithSharedPaymentTokenOptions extends MppRequestOptions {
-  sharedPaymentToken: string;
-  approvedChallenge?: string;
 }
 
 const SPT_RETRIEVAL_DELAYS_MS = [
@@ -114,7 +78,7 @@ function isRedirectResponse(response: Response): boolean {
   return response.status >= 300 && response.status < 400;
 }
 
-function normalizeRequest(options: MppRequestOptions): NormalizedMppRequest {
+function normalizeRequest(options: MppRequest): NormalizedMppRequest {
   const url = new URL(options.url);
   assertSafeMppUrl(url);
   return {
@@ -303,27 +267,10 @@ export function decodeMppChallenges(
   return challenges.map((challenge) => parseStripeChallenge(challenge).decoded);
 }
 
-function challengeFromResponse(response: Response): StripeChallenge {
-  return resolveStripeChallenge(Challenge.fromResponseList(response)).challenge;
-}
-
-function challengeFromHeader(header: string): StripeChallenge {
-  return resolveStripeChallenge(Challenge.deserializeList(header)).challenge;
-}
-
-function comparableChallenge(challenge: Challenge.Challenge): string {
-  return Challenge.serialize({
-    ...challenge,
-    id: 'approval-comparison',
-    expires: undefined,
-  });
-}
-
 /** Machine Payment Protocol flows backed by Link shared payment tokens. */
 export class MppResource implements IMppResource {
   private readonly fetchImpl: typeof globalThis.fetch;
   private readonly spendRequests: ISpendRequestResource;
-  private readonly paymentMethods: IPaymentMethodsResource;
 
   constructor(
     options: LinkOptions,
@@ -332,15 +279,112 @@ export class MppResource implements IMppResource {
     this.fetchImpl = requireFetchImplementation(resolveLinkSdkConfig(options));
     this.spendRequests =
       dependencies.spendRequests ?? new SpendRequestResource(options);
-    this.paymentMethods =
-      dependencies.paymentMethods ?? new PaymentMethodsResource(options);
   }
 
-  decodeChallenge(challengeHeader: string): DecodedMppChallenge[] {
-    return decodeMppChallenges(challengeHeader);
+  async decode(request: MppRequest): Promise<MppDecodeResult> {
+    const probe = await this.probe(request);
+    if (probe.response.status !== 402) {
+      return {
+        payment_required: false,
+        response: await this.readResult(probe.response),
+      };
+    }
+    try {
+      const challengeHeader = probe.response.headers.get('www-authenticate');
+      if (!challengeHeader) {
+        throw new Error('URL returned 402 but no WWW-Authenticate header');
+      }
+      return {
+        payment_required: true,
+        challenges: decodeMppChallenges(challengeHeader),
+      };
+    } finally {
+      await probe.response.body?.cancel().catch(() => undefined);
+    }
   }
 
-  async probe(options: MppRequestOptions): Promise<MppProbeResult> {
+  async pay(
+    request: MppRequest,
+    options: MppPayOptions,
+  ): Promise<MppPaymentResult> {
+    const probe = await this.probe(request);
+    if (probe.response.status !== 402) {
+      return this.readResult(probe.response);
+    }
+
+    let prepared: PreparedMppPayment;
+    let spendRequest: SpendRequest;
+    try {
+      prepared = this.parsePreparedPayment(probe);
+      const retrieved = await this.spendRequests.retrieve(
+        options.spendRequestId,
+        { include: ['shared_payment_token'] },
+      );
+      if (!retrieved) {
+        throw new Error(`Spend request ${options.spendRequestId} not found`);
+      }
+      if (retrieved.status !== 'approved') {
+        throw new Error(
+          `Spend request must be approved (current status: ${retrieved.status})`,
+        );
+      }
+      if (retrieved.credential_type !== 'shared_payment_token') {
+        const type = retrieved.credential_type ?? 'card';
+        throw new Error(
+          `Spend request ${options.spendRequestId} must have credential_type 'shared_payment_token' (current: '${type}')`,
+        );
+      }
+      this.assertChallengeMatchesSpendRequest(prepared.decoded, retrieved);
+      spendRequest = retrieved;
+    } catch (error) {
+      await probe.response.body?.cancel().catch(() => undefined);
+      throw error;
+    }
+
+    const sharedPaymentToken =
+      spendRequest.shared_payment_token?.id ??
+      (await this.retrieveSharedPaymentToken(options.spendRequestId, false));
+    return this.submitPayment(prepared.probe, sharedPaymentToken);
+  }
+
+  /**
+   * Verifies the fresh challenge's financial terms against the spend request
+   * that was approved for this payment, rather than pinning to whatever
+   * challenge was decoded earlier. This is what lets a seller rotate its
+   * challenge id/nonce (e.g. mppx re-issuing on every probe) between decode
+   * and pay without failing an otherwise-valid payment.
+   */
+  private assertChallengeMatchesSpendRequest(
+    decoded: DecodedStripeChallenge,
+    spendRequest: SpendRequest,
+  ): void {
+    const amount = Number(decoded.request_json.amount);
+    if (
+      !Number.isFinite(amount) ||
+      spendRequest.amount === undefined ||
+      amount !== spendRequest.amount
+    ) {
+      throw new Error(
+        `MPP challenge amount (${decoded.request_json.amount}) does not match the spend request amount (${spendRequest.amount})`,
+      );
+    }
+    if (
+      spendRequest.currency === undefined ||
+      decoded.request_json.currency.toLowerCase() !==
+        spendRequest.currency.toLowerCase()
+    ) {
+      throw new Error(
+        `MPP challenge currency (${decoded.request_json.currency}) does not match the spend request currency (${spendRequest.currency})`,
+      );
+    }
+    if (decoded.network_id !== spendRequest.network_id) {
+      throw new Error(
+        `MPP challenge network (${decoded.network_id}) does not match the spend request network (${spendRequest.network_id})`,
+      );
+    }
+  }
+
+  private async probe(options: MppRequest): Promise<MppProbeResult> {
     const initial = normalizeRequest(options);
     const prepared = await this.createPaymentClient().prepareRequest(
       initial.url,
@@ -371,114 +415,6 @@ export class MppResource implements IMppResource {
         : {}),
       response,
     };
-  }
-
-  /** @internal Used by the CLI to orchestrate its interactive approval flow. */
-  async createSpendRequest(
-    options: MppCreateSpendRequestOptions,
-  ): Promise<MppSpendRequestResult | MppPaymentResult> {
-    options.onStep?.('probing');
-    const probe = await this.probe(options);
-    if (probe.response.status !== 402) {
-      return this.readResult(probe.response);
-    }
-    const prepared = this.parsePreparedPayment(probe);
-    try {
-      const spendRequest = await this.createLinkSpendRequest(
-        options,
-        prepared.decoded,
-      );
-      const request = {
-        url: prepared.probe.url,
-        method: prepared.probe.method,
-        headers: Object.fromEntries(prepared.probe.headers.entries()),
-        ...(prepared.probe.body !== undefined && {
-          body: prepared.probe.body,
-        }),
-      };
-      return {
-        spendRequest,
-        request,
-        approvedChallenge: prepared.challengeHeader,
-      };
-    } finally {
-      await prepared.probe.response.body?.cancel().catch(() => undefined);
-    }
-  }
-
-  async pay(options: MppPayOptions): Promise<MppPaymentResult> {
-    const spendRequest = await this.spendRequests.retrieve(
-      options.spendRequestId,
-      { include: ['shared_payment_token'] },
-    );
-    if (!spendRequest) {
-      throw new Error(`Spend request ${options.spendRequestId} not found`);
-    }
-    if (spendRequest.credential_type !== 'shared_payment_token') {
-      const type = spendRequest.credential_type ?? 'card';
-      throw new Error(
-        `Spend request ${options.spendRequestId} must have credential_type 'shared_payment_token' (current: '${type}')`,
-      );
-    }
-    if (spendRequest.status !== 'approved') {
-      throw new Error(
-        `Spend request must be approved (current status: ${spendRequest.status})`,
-      );
-    }
-    const sharedPaymentToken =
-      spendRequest.shared_payment_token?.id ??
-      (await this.retrieveSharedPaymentToken(options.spendRequestId, false));
-    return this.payWithSharedPaymentToken({
-      url: options.url,
-      ...(options.method !== undefined && { method: options.method }),
-      ...(options.body !== undefined && { body: options.body }),
-      ...(options.headers !== undefined && { headers: options.headers }),
-      sharedPaymentToken,
-      ...(options.challenge !== undefined && {
-        approvedChallenge: options.challenge,
-      }),
-    });
-  }
-
-  private async payWithSharedPaymentToken(
-    options: MppPayWithSharedPaymentTokenOptions,
-  ): Promise<MppPaymentResult> {
-    const request = normalizeRequest(options);
-    const response = await this.fetchRequest(request);
-    if (isRedirectResponse(response)) {
-      await response.body?.cancel();
-      throw new Error(
-        `MPP challenge destination redirected with status ${response.status} after approval`,
-      );
-    }
-    if (response.status !== 402) return this.readResult(response);
-    const probe: MppProbeResult = {
-      url: request.url,
-      method: request.method,
-      headers: request.headers,
-      ...(request.body !== undefined && { body: request.body }),
-      response,
-    };
-    if (options.approvedChallenge) {
-      const approvedChallenge = challengeFromHeader(options.approvedChallenge);
-      let refreshedChallenge: StripeChallenge;
-      try {
-        refreshedChallenge = challengeFromResponse(response);
-      } catch (error) {
-        await response.body?.cancel();
-        throw error;
-      }
-      if (
-        comparableChallenge(refreshedChallenge) !==
-        comparableChallenge(approvedChallenge)
-      ) {
-        await response.body?.cancel();
-        throw new Error(
-          'MPP challenge changed after approval; refusing to use the approved payment credential',
-        );
-      }
-    }
-    return this.submitPayment(probe, options.sharedPaymentToken);
   }
 
   private createPaymentClient(sharedPaymentToken?: string) {
@@ -527,17 +463,6 @@ export class MppResource implements IMppResource {
     };
   }
 
-  private async fetchRequest(
-    request: NormalizedMppRequest | Omit<MppProbeResult, 'response'>,
-  ): Promise<Response> {
-    return this.fetchImpl(request.url, {
-      method: request.method,
-      headers: request.headers,
-      ...(request.body !== undefined && { body: request.body }),
-      redirect: 'manual',
-    });
-  }
-
   private parsePreparedPayment(probe: MppProbeResult): PreparedMppPayment {
     const challengeHeader = probe.response.headers.get('www-authenticate');
     if (!challengeHeader) {
@@ -546,53 +471,7 @@ export class MppResource implements IMppResource {
     const resolved = resolveStripeChallenge(
       Challenge.fromResponseList(probe.response),
     );
-    return { probe, challengeHeader, ...resolved };
-  }
-
-  private async createLinkSpendRequest(
-    options: MppCreateSpendRequestOptions,
-    decoded: DecodedStripeChallenge,
-  ) {
-    const challengeAmount = decoded.request_json.amount
-      ? Number(decoded.request_json.amount)
-      : undefined;
-    const amount = options.amount ?? challengeAmount;
-    if (
-      options.amount !== undefined &&
-      challengeAmount !== undefined &&
-      options.amount !== challengeAmount
-    ) {
-      throw new Error(
-        `--amount must match the MPP challenge amount (${challengeAmount})`,
-      );
-    }
-    if (!amount) {
-      throw new Error(
-        'Could not determine amount from 402 challenge. Pass an amount explicitly.',
-      );
-    }
-    let paymentMethodId = options.paymentMethodId;
-    if (!paymentMethodId) {
-      options.onStep?.('creating');
-      const methods = await this.paymentMethods.list();
-      const paymentMethod = methods[0];
-      if (!paymentMethod) {
-        throw new Error('No Link payment methods found.');
-      }
-      paymentMethodId = paymentMethod.id;
-    }
-    options.onStep?.('creating');
-    return this.spendRequests.create({
-      payment_details: paymentMethodId,
-      credential_type: 'shared_payment_token',
-      network_id: decoded.network_id,
-      amount,
-      currency: (decoded.request_json.currency as string) ?? 'usd',
-      context: options.context,
-      request_approval: true,
-      ...(options.test && { test: true }),
-      ...(options.approve && { approve: true }),
-    });
+    return { probe, decoded: resolved.decoded };
   }
 
   private async retrieveSharedPaymentToken(

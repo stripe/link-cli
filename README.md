@@ -42,11 +42,7 @@ Documentation:
 npm i -g @stripe/link-cli
 ```
 
-Or run directly with `npx`:
-
-```bash
-npx @stripe/link-cli
-```
+Agent and plugin integrations, including the MCP server, run the installed `link-cli` binary. They intentionally never download or resolve packages at startup, so install the CLI first.
 
 ### Use with agents
 
@@ -78,8 +74,8 @@ Link CLI can run as a local MCP server. Add the following to your MCP client con
 {
   "mcpServers": {
     "link": {
-      "command": "npx",
-      "args": ["@stripe/link-cli", "--mcp"]
+      "command": "link-cli",
+      "args": ["--mcp"]
     }
   }
 }
@@ -113,6 +109,11 @@ link-cli auth login
 
 You receive a verification URL and a short phrase. Visit the URL, log in to your Link account, and enter the phrase to approve the connection.
 
+By default, login requests the `userinfo:read` and `payment_methods.agentic`
+scopes plus the four financial-insights source actions. To leave out financial
+data access, use `--no-financial-insights`; to leave out payment access, use
+`--no-agentic-payments`.
+
 ### Retrieve user info
 
 ```bash
@@ -120,7 +121,7 @@ link-cli user-info retrieve --format json
 ```
 
 In addition to identity fields, the response can include the user's address,
-balance eligibility, spend limits, and verification requirements:
+spend limits, and verification requirements:
 
 ```json
 {
@@ -134,7 +135,6 @@ balance eligibility, spend limits, and verification requirements:
     "postal_code": "94103",
     "country": "US"
   },
-  "eligible_for_balance": true,
   "agent_wallet_spend_limits": {
     "per_transaction": { "limit": 50000 },
     "daily": { "limit": 500000, "used": 120000, "remaining": 380000 },
@@ -147,11 +147,10 @@ balance eligibility, spend limits, and verification requirements:
 }
 ```
 
-The address and `eligible_for_balance` fields are omitted when their enrichment
-is unavailable. `address` is null and `eligible_for_balance` is false when the
-user has no Person record. Finite spend-limit values are cents because this
-response does not include a currency. A null limit or remaining amount means
-unlimited. `agent_wallet_verification_requirement.status` can be
+The address field is omitted when its enrichment is unavailable and is null
+when the user has no Person record. Finite spend-limit values are cents because
+this response does not include a currency. A null limit or remaining amount
+means unlimited. `agent_wallet_verification_requirement.status` can be
 `not_required`, `ssn_verification`, `credit_file_match_ca`,
 `identity_verification`, `doc_upload_ca`, `pending`, `contact_support`, or
 `complete`. Its `action_url` is null when no user action is available.
@@ -277,22 +276,28 @@ Link is already integrated with the following agents:
 
 Link CLI can also read a consumer's financial data -- transactions, balances, and connected account details. Agents can use these features to answer personal finance questions and track trends. Financial Insights are powered by [Financial Connections](https://stripe.com/financial-connections), covering 12,000+ US financial institutions.
 
-Financial Insights also provides pre-computed and user-provided insights to power betterr shopping experiences through the `insights` commands.
-
+Financial Insights also provides pre-computed and user-provided insights to power better shopping experiences through the `insights` commands.
 
 ### Authentication
-Financial Insights requires additional authorization beyond the default; request access to each type of data you want to access on financial data sources:
+
+`auth login` requests all four financial-insights source actions by default:
+`read_link_transactions`, `read_external_transactions`, `read_balances`, and
+`read_source_details`. The user decides whether to approve the connection;
+requesting access does not retrieve financial data.
 
 ```bash
-link-cli auth login \
-  --client-name "My Agent" \
-  --scope "userinfo:read" \
-  --source-actions read_link_transactions \
-  --source-actions read_external_transactions \
-  --source-actions read_balances \
-  --source-actions read_source_details
+link-cli auth login --client-name "My Agent"
 ```
-If already authenticated for payments, use `auth upgrade` to add financial data access without dropping existing scopes.
+
+Use `--no-financial-insights` for a payment-only login, or
+`--no-agentic-payments` for a login without the default payment scope. To
+request a narrower set of financial-data actions, pass the desired
+`--source-actions` flags or `--authorization-detail` entries; either replaces
+the four-action default. Don't combine either option with an explicit
+`--financial-insights` or `--no-financial-insights` flag. An explicit `--scope`
+replaces the default scopes. If already authenticated, use
+`auth upgrade --source-actions <action>` to add only the access needed without
+dropping existing access.
 
 Discovering available insight types only requires an authenticated session. Retrieving an insight can require additional source actions, which the discovery response identifies.
 
@@ -369,7 +374,16 @@ When you provide `--client-name`, the Link app displays it when you approve the 
 
 With `--interval`, the login command yields the verification code immediately and then polls inline until authenticated or time out — no separate `auth status` call needed. This is recommended for agents that cannot relay the code while a separate polling command blocks their I/O channel.
 
-`auth upgrade` takes the same flags as `auth login` but is meant for widening access when you're already logged in. Unlike `auth login` — which stops with an "already logged in" message when a valid session exists — `auth upgrade` merges the flags you pass with your currently granted `scope` and `authorization_details` and starts a new approval for the **superset**, so you never accidentally drop access. If there's no valid session, it prints a warning and continues with just the access you requested. Your current session stays valid throughout the approval and is only replaced (and the old grant revoked) once you approve the new one — so abandoning the approval leaves your existing session untouched.
+`auth upgrade` accepts the same explicit access flags as `auth login`, but does
+not add the login-only financial-insights default. Use it to widen an existing
+session. `auth login` stops with an "already logged in" message when a valid
+session exists; `auth upgrade` merges the requested access with the current
+`scope` and `authorization_details` and starts approval for the superset.
+
+If there is no valid session, `auth upgrade` warns and continues with only the
+requested access. An existing session remains valid during approval and is
+replaced only after the new grant is approved, so abandoning the approval leaves
+the old session working.
 
 `auth status` reports the `scope` and `authorization_details` the current session was granted (echoed by the token endpoint at login/refresh and stored in the credential file), and includes an `update` field when a newer version is available:
 
@@ -669,7 +683,7 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
   --header "X-Custom: value"
 ```
 
-In agent mode (`--format json`), the full flow returns `_next.pay_argv` (`{ "command": "mpp", "args": [...] }`) and `_next.poll_argv` for payment and approval polling. Invoke these directly without a shell. `command` is a Link CLI subcommand, not an executable; pass it and each `args` entry as separate arguments to your trusted CLI entrypoint:
+In agent mode (`--format json`), the full flow returns `_next.pay_argv` (`{ "command": "mpp", "args": [...] }`) to complete payment. If the new spend request is already approved, it omits polling instructions and `_next.poll_argv`. Otherwise, it also returns `_next.poll_argv` to wait for approval before paying. Invoke continuations directly without a shell. `command` is a Link CLI subcommand, not an executable; pass it and each `args` entry as separate arguments to your trusted CLI entrypoint:
 
 ```js
 import { execFile } from 'node:child_process';
