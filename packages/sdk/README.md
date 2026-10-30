@@ -226,13 +226,16 @@ const spendRequest = await link.spendRequests.create({
 await sendToUser(spendRequest.approval_url!);
 ```
 
-After confirming that the spend request is approved, pass the same request
-and its ID to `pay`. `pay` re-fetches the challenge and verifies its amount,
-currency, and network match the spend request before paying, so it's safe to
-retry with the same arguments after an uncertain result (e.g. a 503):
+After confirming that the spend request is approved, pass `decoded.request`
+(the request after any redirects) and the spend request ID to `pay`. `pay`
+re-fetches the challenge and verifies its amount, currency, and network match
+the spend request before paying, so it's safe to retry with the same arguments
+after an uncertain result (e.g. a 503):
 
 ```ts
-const paid = await link.mpp.pay(request, { spendRequestId: spendRequest.id });
+const paid = await link.mpp.pay(decoded.request, {
+  spendRequestId: spendRequest.id,
+});
 ```
 
 Remote URLs must use HTTPS; plain HTTP is allowed only for loopback
