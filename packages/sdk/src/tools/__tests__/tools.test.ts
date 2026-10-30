@@ -300,6 +300,20 @@ describe('Link tools', () => {
     });
   });
 
+  it('routes create_spend_request through the delegated approval flow when use_approval_policy is set', async () => {
+    const { tools, fetch } = fixture();
+    await tools.create_spend_request.execute(
+      { ...purchase, use_approval_policy: true },
+      context,
+    );
+
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(url).toBe('https://api.link.com/spend_requests/create_delegated');
+    const body = JSON.parse(String(init?.body));
+    expect(body.use_approval_policy).toBe(true);
+    expect(body).not.toHaveProperty('approve');
+  });
+
   it('maps retrieve includes and update IDs without putting IDs in the body', async () => {
     const { tools, fetch } = fixture();
     await tools.retrieve_spend_request.execute(
@@ -324,6 +338,72 @@ describe('Link tools', () => {
       amount: 2000,
       line_items: [{ name: 'Book', quantity: 2 }],
     });
+  });
+
+  it('returns the approval policy from retrieve_approval_policy', async () => {
+    const { tools, fetch } = fixture();
+    const policy = {
+      rules: [
+        {
+          action: 'spend_request_create',
+          limits: { per_purchase: { amount: 5000, currency: 'usd' } },
+        },
+      ],
+    };
+    fetch.mockImplementation(async () => Response.json(policy));
+
+    const result = await tools.retrieve_approval_policy.execute({}, context);
+
+    expect(result).toEqual(policy);
+    expect(String(fetch.mock.calls[0]?.[0])).toBe(
+      'https://api.link.com/approval-policy',
+    );
+  });
+
+  it('returns null from retrieve_approval_policy when no policy is configured', async () => {
+    const { tools, fetch } = fixture();
+    fetch.mockImplementation(async () =>
+      Response.json(
+        {
+          error: {
+            message: 'No approval policy has been configured',
+            code: 'approval_policy_not_found',
+          },
+        },
+        { status: 404 },
+      ),
+    );
+
+    await expect(
+      tools.retrieve_approval_policy.execute({}, context),
+    ).resolves.toBeNull();
+  });
+
+  it('rethrows a 404 that is not the "not configured" signal', async () => {
+    const { tools, fetch } = fixture();
+    fetch.mockImplementation(async () =>
+      Response.json({ error: { message: 'boom' } }, { status: 404 }),
+    );
+
+    await expect(
+      tools.retrieve_approval_policy.execute({}, context),
+    ).rejects.toThrow('Failed to retrieve approval policy (404): boom');
+  });
+
+  it('rethrows non-404 errors from retrieve_approval_policy', async () => {
+    const { tools, fetch } = fixture();
+    fetch.mockImplementation(async () =>
+      Response.json(
+        { error: { code: 'feature_unavailable' } },
+        { status: 403 },
+      ),
+    );
+
+    await expect(
+      tools.retrieve_approval_policy.execute({}, context),
+    ).rejects.toThrow(
+      'Failed to retrieve approval policy (403): feature_unavailable',
+    );
   });
 
   it('keeps reports with long attempt traces valid', () => {
