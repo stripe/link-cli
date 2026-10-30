@@ -606,6 +606,12 @@ link-cli mpp pay https://climate.stripe.dev/api/contribute \
   --header "X-Custom: value"
 ```
 
+Some merchants take the SPT directly in their own API instead of a 402 challenge (for example an [Agentic Commerce Protocol](https://agenticcommerce.dev) checkout with a Stripe SPT payment handler). Create the spend request with `--credential-type "shared_payment_token"` and the merchant's `--network-id`, without `--merchant-name` or `--merchant-url`. After approval, retrieve the token with `--include shared_payment_token` and send `shared_payment_token.id` in the merchant's payment request. The token can take a few seconds to appear after approval; if it is `null`, retrieve again.
+
+```bash
+link-cli spend-request retrieve lsrq_001 --include shared_payment_token --format json
+```
+
 ### Link Pay Token
 
 Some Stripe payment surfaces expose an AI-agent steering block that supports a
