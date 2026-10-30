@@ -171,9 +171,9 @@ export function createMppCli(
         paymentMethodId = paymentMethod.id;
       }
 
-      const createParams = {
+      const spendRequest = await spendRequests.create({
         payment_details: paymentMethodId,
-        credential_type: 'shared_payment_token' as const,
+        credential_type: 'shared_payment_token',
         network_id: networkId,
         amount,
         currency: challengeCurrency,
@@ -182,8 +182,7 @@ export function createMppCli(
         test: opts.test || undefined,
         approve: opts.approve || opts.useApprovalPolicy || undefined,
         use_approval_policy: opts.useApprovalPolicy || undefined,
-      };
-      const spendRequest = await spendRequests.create(createParams);
+      });
 
       // Continue from the exact request the agent provided. mpp.pay re-probes
       // it (following safe redirects) and verifies the fresh challenge against

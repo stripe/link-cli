@@ -139,9 +139,9 @@ export async function runMppPayFullFlow(
   }
 
   options.onStep?.('creating');
-  const createParams = {
+  const spendRequest = await options.spendRequests.create({
     payment_details: paymentMethodId,
-    credential_type: 'shared_payment_token' as const,
+    credential_type: 'shared_payment_token',
     network_id: networkId,
     amount,
     currency: challengeCurrency,
@@ -150,8 +150,7 @@ export async function runMppPayFullFlow(
     test: options.test || undefined,
     approve: options.approve || options.useApprovalPolicy || undefined,
     use_approval_policy: options.useApprovalPolicy || undefined,
-  };
-  const spendRequest = await options.spendRequests.create(createParams);
+  });
 
   let approved = spendRequest;
   if (spendRequest.status !== 'approved') {
