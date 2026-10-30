@@ -190,24 +190,28 @@ Retrieve the request to determine its status after a callback.
 
 The [Machine Payments Protocol](https://mpp.dev) uses HTTP 402 challenges to
 describe a payment required by an API. `link.mpp` exposes two operations:
-`decodeChallenge` for inspecting the supported challenges in a header and
-`pay` for paying a Stripe challenge with an approved Link spend request.
+`decode` probes a URL (no payment credentials) and `pay` re-verifies and pays
+a challenge with an approved Link spend request.
 
-`decodeChallenge` returns an array because one header can advertise several
-payment methods. The current SDK recognizes Stripe charge and session
-challenges; future methods will be added as new members of the
-`DecodedMppChallenge` union.
-
-Decode the merchant's `WWW-Authenticate` header, then use the regular
-`spendRequests` resource to create and approve a shared-payment-token request:
+`decode` returns `payment_required: false` with the plain response when no
+payment is needed, or `payment_required: true` with every supported challenge
+found — one header can advertise several payment methods. The current SDK
+recognizes Stripe charge and session challenges.
 
 ```ts
-const challengeHeader = response.headers.get('www-authenticate')!;
-const challenges = link.mpp.decodeChallenge(challengeHeader);
-const challenge = challenges.find((candidate) => candidate.method === 'stripe');
-if (!challenge) throw new Error('No supported Stripe challenge found');
-const paymentMethods = await link.paymentMethods.list();
+const request = {
+  url: 'https://merchant.example/api/purchase',
+  method: 'POST',
+  body: JSON.stringify({ sku: 'sku_123' }),
+  headers: { 'Content-Type': 'application/json' },
+};
 
+const decoded = await link.mpp.decode(request);
+if (!decoded.payment_required) throw new Error('No payment required');
+const challenge = decoded.challenges[0];
+if (!challenge) throw new Error('No supported Stripe challenge found');
+
+const paymentMethods = await link.paymentMethods.list();
 const spendRequest = await link.spendRequests.create({
   payment_details: paymentMethods[0].id,
   credential_type: 'shared_payment_token',
@@ -222,19 +226,13 @@ const spendRequest = await link.spendRequests.create({
 await sendToUser(spendRequest.approval_url!);
 ```
 
-After confirming that the spend request is approved, pass its ID to `pay`.
-Supplying the original challenge pins the approved payment details and causes
-the SDK to reject a changed challenge:
+After confirming that the spend request is approved, pass the same request
+and its ID to `pay`. `pay` re-fetches the challenge and verifies its amount,
+currency, and network match the spend request before paying, so it's safe to
+retry with the same arguments after an uncertain result (e.g. a 503):
 
 ```ts
-const paid = await link.mpp.pay({
-  url: 'https://merchant.example/api/purchase',
-  method: 'POST',
-  body: JSON.stringify({ sku: 'sku_123' }),
-  headers: { 'Content-Type': 'application/json' },
-  spendRequestId: spendRequest.id,
-  challenge: challengeHeader,
-});
+const paid = await link.mpp.pay(request, { spendRequestId: spendRequest.id });
 ```
 
 Remote URLs must use HTTPS; plain HTTP is allowed only for loopback
