@@ -3770,6 +3770,11 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       credential_type: 'shared_payment_token',
       shared_payment_token: 'spt_test_abc123',
       network_id: 'net_001',
+      // Matches the WWW_AUTHENTICATE_* fixtures below (amount 1000, usd,
+      // net_001) — mpp.pay verifies the fresh challenge's terms against
+      // the spend request's own amount/currency/network_id.
+      amount: 1000,
+      currency: 'usd',
     };
 
     const WWW_AUTHENTICATE_STRIPE = [
@@ -3980,6 +3985,11 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         ...APPROVED_SPT_REQUEST,
         status: 'pending_approval',
       });
+      // pay() re-fetches the challenge before checking spend-request status,
+      // so the probe must return 402 for that check to be reached at all.
+      setMerchantResponse(402, '{"error":"payment required"}', {
+        'www-authenticate': WWW_AUTHENTICATE_STRIPE,
+      });
 
       const result = await runProdCli(
         'mpp',
@@ -4142,6 +4152,8 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
           status: 'approved',
           credential_type: 'shared_payment_token',
           network_id: 'net_001',
+          amount: 1000,
+          currency: 'usd',
         });
         setMerchantResponse(402, '{"error":"payment required"}', {
           'www-authenticate': WWW_AUTHENTICATE_STRIPE,
@@ -4258,12 +4270,6 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         expect(next.pay_argv.args[1]).toBe(effectiveUrl);
         expect(next.pay_argv.args).toContain('--spend-request-id');
         expect(next.pay_argv.args).toContain('lsrq_spt_002');
-        const challengeIndex = next.pay_argv.args.indexOf(
-          '--approved-challenge',
-        );
-        expect(next.pay_argv.args[challengeIndex + 1]).toBe(
-          WWW_AUTHENTICATE_STRIPE,
-        );
 
         expect(next.pay_command).not.toContain('pay $(touch');
         expect(next.pay_command).toContain(`'${effectiveUrl}'`);

@@ -187,7 +187,18 @@ export interface DecodedStripeChallenge extends DecodedMppChallengeBase {
 export type DecodedMppChallenge = DecodedStripeChallenge;
 
 export type MppDecodeResult =
-  | { payment_required: true; challenges: DecodedMppChallenge[] }
+  | {
+      payment_required: true;
+      challenges: DecodedMppChallenge[];
+      /**
+       * The request that actually returned the challenge, after following
+       * any safe redirect from the originally supplied URL. Pass this (not
+       * the original request) to `pay` — `pay` requires same-origin between
+       * the request it's given and the challenge it finds, so continuing
+       * from the resolved destination avoids re-triggering that check.
+       */
+      request: MppRequest;
+    }
   | { payment_required: false; response: MppPaymentResult };
 
 export interface IMppResource {
@@ -200,7 +211,10 @@ export interface IMppResource {
    * Re-fetches the challenge at `request`, verifies it matches the terms of
    * the already-approved `spendRequestId`, then pays it with a shared
    * payment token. Safe to retry with the same arguments after an uncertain
-   * result (e.g. a 503) — a non-402 re-fetch is simply returned as-is.
+   * result (e.g. a 503) — a non-402 re-fetch is simply returned as-is. The
+   * re-fetch may follow safe redirects, but the challenge must ultimately be
+   * found at the same origin as `request.url`, or `pay` throws without
+   * sending any credential.
    */
   pay(request: MppRequest, options: MppPayOptions): Promise<MppPaymentResult>;
 }

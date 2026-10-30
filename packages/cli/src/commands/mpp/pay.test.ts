@@ -49,6 +49,7 @@ const DECODED: MppDecodeResult = {
       request_json: { amount: '1000', currency: 'usd' },
     },
   ],
+  request: { url: 'https://merchant.example/pay', method: 'GET' },
 };
 
 function mpp(decoded: MppDecodeResult = DECODED) {
@@ -148,6 +149,24 @@ describe('runMppPayFullFlow', () => {
     expect(retrieve).not.toHaveBeenCalled();
     expect(mppResource.pay).toHaveBeenCalledWith(
       expect.objectContaining({ url: 'https://merchant.example/pay' }),
+      { spendRequestId: 'lsrq_123' },
+    );
+  });
+
+  it('pays the resolved request decode() found the challenge at, not the original URL', async () => {
+    const create = vi
+      .fn()
+      .mockResolvedValue({ id: 'lsrq_123', status: 'approved' });
+    const mppResource = mpp({
+      ...DECODED,
+      request: { url: 'https://merchant.example/resolved', method: 'GET' },
+    });
+    await runFullFlow({
+      mpp: mppResource,
+      spendRequests: { create } as unknown as ISpendRequestResource,
+    });
+    expect(mppResource.pay).toHaveBeenCalledWith(
+      { url: 'https://merchant.example/resolved', method: 'GET' },
       { spendRequestId: 'lsrq_123' },
     );
   });

@@ -215,6 +215,25 @@ describe('MppResource#decode', () => {
     });
   });
 
+  it('returns the resolved, post-redirect request alongside the challenges', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 307,
+          headers: { location: 'https://merchant.example/pay' },
+        }),
+      )
+      .mockResolvedValueOnce(challengeResponse());
+    const decoded = await resource(fetch).decode({
+      url: 'https://redirector.example/start',
+    });
+    expect(decoded).toMatchObject({
+      payment_required: true,
+      request: { url: 'https://merchant.example/pay', method: 'GET' },
+    });
+  });
+
   it('returns the response as-is when payment is not required', async () => {
     const fetch = vi.fn().mockResolvedValueOnce(new Response('ok'));
     const decoded = await resource(fetch).decode({
@@ -362,6 +381,29 @@ describe('MppResource#pay', () => {
       { spendRequestId: 'lsrq_123' },
     );
     expect(result).toMatchObject({ status: 200, body: 'already complete' });
+    expect(retrieve).not.toHaveBeenCalled();
+  });
+
+  it('refuses to pay when the re-fetched challenge redirected to a different origin', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 307,
+          headers: { location: 'https://merchant.example/pay' },
+        }),
+      )
+      .mockResolvedValueOnce(challengeResponse());
+    const retrieve = vi.fn();
+    await expect(
+      resource(fetch, { retrieve } as unknown as ISpendRequestResource).pay(
+        { url: 'https://redirector.example/start' },
+        { spendRequestId: 'lsrq_123' },
+      ),
+    ).rejects.toThrow(/different origin/);
+    // The redirect-following probe only reaches the 402; no credentialed
+    // submission and no spend-request/SPT lookup may happen afterward.
+    expect(fetch).toHaveBeenCalledTimes(2);
     expect(retrieve).not.toHaveBeenCalled();
   });
 

@@ -184,19 +184,22 @@ export function createMppCli(
         use_approval_policy: opts.useApprovalPolicy || undefined,
       });
 
-      // Continue from the exact request the agent provided. mpp.pay re-probes
-      // it (following safe redirects) and verifies the fresh challenge against
-      // this spend request's own terms, so the destination isn't pinned here.
+      // Continue from the resolved (post-redirect) request decode() found
+      // the challenge at — mpp.pay re-verifies the fresh challenge against
+      // this spend request's own terms, and requires it to share an origin
+      // with the request it's given, so the original, pre-redirect URL
+      // would not work here.
+      const resolved = decoded.request;
       const nextArgs = [
         'pay',
-        url,
+        resolved.url,
         '--spend-request-id',
         spendRequest.id,
         '-X',
-        mppRequest.method ?? (data !== undefined ? 'POST' : 'GET'),
+        resolved.method ?? 'GET',
       ];
-      if (data !== undefined) nextArgs.push('-d', data);
-      for (const [name, value] of requestHeaders) {
+      if (resolved.body !== undefined) nextArgs.push('-d', resolved.body);
+      for (const [name, value] of new Headers(resolved.headers)) {
         nextArgs.push('-H', `${name}: ${value}`);
       }
       const payment = buildCommandContinuation('mpp', nextArgs);

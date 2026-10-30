@@ -168,7 +168,9 @@ export async function runMppPayFullFlow(
 
   options.onStep?.('signing');
   options.onStep?.('submitting');
-  const result = await options.mpp.pay(mppRequest, {
+  // Pay the resolved (post-redirect) request decode() found the challenge
+  // at, not the original one — pay requires them to share an origin.
+  const result = await options.mpp.pay(decoded.request, {
     spendRequestId: approved.id,
   });
   options.onStep?.('done');

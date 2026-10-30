@@ -517,25 +517,27 @@ describe('Link tools', () => {
 
   it('wires mpp_decode input through to the resource', async () => {
     const client = new Link({ accessToken: 'token' });
-    const decode = vi
-      .spyOn(client.mpp, 'decode')
-      .mockResolvedValue({ payment_required: true, challenges: [] });
-    const result = await createLinkTools(client).mpp_decode.execute(
-      {
-        url: 'https://merchant.example/pay',
-        method: 'POST',
-        body: '{}',
-        headers: { 'X-Test': '1' },
-      },
-      undefined,
-    );
-    expect(decode).toHaveBeenCalledWith({
+    const resolvedRequest = {
       url: 'https://merchant.example/pay',
       method: 'POST',
-      body: '{}',
       headers: { 'X-Test': '1' },
+      body: '{}',
+    };
+    const decode = vi.spyOn(client.mpp, 'decode').mockResolvedValue({
+      payment_required: true,
+      challenges: [],
+      request: resolvedRequest,
     });
-    expect(result).toEqual({ payment_required: true, challenges: [] });
+    const result = await createLinkTools(client).mpp_decode.execute(
+      resolvedRequest,
+      undefined,
+    );
+    expect(decode).toHaveBeenCalledWith(resolvedRequest);
+    expect(result).toEqual({
+      payment_required: true,
+      challenges: [],
+      request: resolvedRequest,
+    });
   });
 
   it('wires mpp_pay input to the resource with spend_request_id mapped to spendRequestId', async () => {

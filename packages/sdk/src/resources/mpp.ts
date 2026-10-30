@@ -297,6 +297,12 @@ export class MppResource implements IMppResource {
       return {
         payment_required: true,
         challenges: decodeMppChallenges(challengeHeader),
+        request: {
+          url: probe.url,
+          method: probe.method,
+          headers: probe.headers,
+          ...(probe.body !== undefined && { body: probe.body }),
+        },
       };
     } finally {
       await probe.response.body?.cancel().catch(() => undefined);
@@ -310,6 +316,12 @@ export class MppResource implements IMppResource {
     const probe = await this.probe(request);
     if (probe.response.status !== 402) {
       return this.readResult(probe.response);
+    }
+    if (new URL(probe.url).origin !== new URL(request.url).origin) {
+      await probe.response.body?.cancel().catch(() => undefined);
+      throw new Error(
+        'MPP challenge destination redirected to a different origin; refusing to send any payment credential',
+      );
     }
 
     let prepared: PreparedMppPayment;
