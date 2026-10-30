@@ -1,5 +1,14 @@
 # @stripe/link-cli
 
+## 1.0.1
+
+### Patch Changes
+
+- 9b7ea4d: Fixed MPP payments being rejected after approval when mppx rotated its challenge issuance nonce. Kept payment terms and route metadata pinned while echoing the refreshed challenge unchanged.
+- 9e61846: Add `--use-approval-policy` to `mpp pay` to use delegated approval policies when creating a spend request.
+  
+  Skip approval polling in `mpp pay` when the new spend request is already approved, returning only the payment continuation.
+
 ## 1.0.0
 
 ### Major Changes
