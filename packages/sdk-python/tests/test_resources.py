@@ -124,6 +124,57 @@ async def test_list_resources(
     assert request.content == b""
 
 
+@pytest.mark.parametrize("used", [None, {}, {"usd": 100}])
+async def test_list_balances_preserves_credit_used(
+    api: API, used: dict[str, int] | None
+) -> None:
+    page = {
+        "data": [
+            BALANCE,
+            {
+                "source_id": "source_2",
+                "type": "credit",
+                "current": 100,
+                "currency": "usd",
+                "as_of": "2026-01-01T00:00:00Z",
+                "credit": {"used": used},
+            },
+        ],
+        "has_more": False,
+    }
+    api.respond(page)
+
+    result = await api.call("balances", "list")
+
+    assert isinstance(result, BalancesPage)
+    assert result.model_dump(exclude_unset=True) == page
+
+
+@pytest.mark.parametrize("credit", [{}, {"used": []}, {"used": {"usd": "100"}}])
+async def test_list_balances_rejects_invalid_credit_used(
+    api: API, credit: dict[str, Any]
+) -> None:
+    api.respond(
+        {
+            "data": [
+                BALANCE,
+                {
+                    "source_id": "source_2",
+                    "type": "credit",
+                    "current": 100,
+                    "currency": "usd",
+                    "as_of": "2026-01-01T00:00:00Z",
+                    "credit": credit,
+                },
+            ],
+            "has_more": False,
+        }
+    )
+
+    with pytest.raises(LinkResponseError):
+        await api.call("balances", "list")
+
+
 @pytest.mark.parametrize("nickname", ["Work card", ""])
 async def test_update_payment_method(api: API, nickname: str) -> None:
     api.respond(
