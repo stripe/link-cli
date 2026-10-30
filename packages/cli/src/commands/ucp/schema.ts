@@ -83,10 +83,13 @@ export const catalogSearchOptions = z.object({
     ),
 });
 
+const checkoutLineItemOption = z.array(
+  z.union([z.string(), z.record(z.string(), z.unknown())]),
+);
+
 export const checkoutCreateOptions = z.object({
   business: z.string().trim().nonempty().describe('Business target (required)'),
-  lineItem: z
-    .array(z.union([z.string(), z.record(z.string(), z.unknown())]))
+  lineItem: checkoutLineItemOption
     .default([])
     .describe(
       'Line item (repeatable, key:value format). Keys: id (required), quantity (positive integer, default 1). Example: "id:sku_123,quantity:2"',
@@ -111,6 +114,11 @@ export const checkoutCreateOptions = z.object({
 
 export const checkoutUpdateOptions = checkoutCreateOptions.extend({
   id: z.string().trim().nonempty().optional().describe('Checkout session ID'),
+  lineItem: checkoutLineItemOption
+    .optional()
+    .describe(
+      'Line item (repeatable, key:value format). Omit to keep existing items. Keys: id (required), quantity (positive integer, default 1). Example: "id:sku_123,quantity:2"',
+    ),
 });
 
 export const checkoutCompleteOptions = z.object({

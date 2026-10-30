@@ -293,9 +293,10 @@ export interface CreateUcpCheckoutParams {
   fulfillment?: Record<string, unknown>;
 }
 
-/** PUT requires the full line-item list; omitted buyer/fulfillment sections keep existing checkout values. */
-export interface UpdateUcpCheckoutParams extends CreateUcpCheckoutParams {
-  line_items: (UcpLineItem & { id?: string; parent_id?: string })[];
+/** Omitted line_items, buyer, and fulfillment sections keep existing checkout values. */
+export interface UpdateUcpCheckoutParams
+  extends Omit<CreateUcpCheckoutParams, 'line_items'> {
+  line_items?: (UcpLineItem & { id?: string; parent_id?: string })[];
 }
 
 export interface CompleteUcpCheckoutParams {

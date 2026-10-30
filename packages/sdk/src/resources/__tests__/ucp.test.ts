@@ -165,6 +165,37 @@ describe('UcpResource', () => {
       });
     });
 
+    it.each([{ buyer: { email: 'jane@example.com' } }, { fulfillment }, {}])(
+      'updates without sending omitted line items: %j',
+      async (sections) => {
+        mockFetchResponse(200, { id: 'checkout_1' });
+        await repo.updateCheckout('checkout_1', {
+          business: 'np_1',
+          ...sections,
+        });
+        expect(mockFetch).toHaveBeenCalledOnce();
+        const [url, opts] = mockFetch.mock.calls[0]!;
+        expect(url).toBe('https://api.link.com/ucp/checkout/checkout_1');
+        expect(opts.method).toBe('PUT');
+        expect(JSON.parse(opts.body)).toEqual({
+          business: 'np_1',
+          ...sections,
+        });
+      },
+    );
+
+    it('preserves an explicitly empty line-item list on update', async () => {
+      mockFetchResponse(200, { id: 'checkout_1' });
+      await repo.updateCheckout('checkout_1', {
+        business: 'np_1',
+        line_items: [],
+      });
+      expect(JSON.parse(mockFetch.mock.calls[0]![1].body)).toEqual({
+        business: 'np_1',
+        line_items: [],
+      });
+    });
+
     it.each(['create', 'update'] as const)(
       'surfaces %s errors',
       async (operation) => {

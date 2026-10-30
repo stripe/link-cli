@@ -215,13 +215,19 @@ export class UcpResource implements IUcpResource {
     return normalizeCheckout(data);
   }
 
-  private checkoutBody(params: CreateUcpCheckoutParams) {
+  private checkoutBody(
+    params: CreateUcpCheckoutParams | UpdateUcpCheckoutParams,
+  ) {
     return {
       business: params.business,
-      line_items: params.line_items.map((line) => ({
-        ...line,
-        quantity: line.quantity ?? 1,
-      })),
+      ...(params.line_items !== undefined
+        ? {
+            line_items: params.line_items.map((line) => ({
+              ...line,
+              quantity: line.quantity ?? 1,
+            })),
+          }
+        : {}),
       ...(params.buyer !== undefined ? { buyer: params.buyer } : {}),
       ...(params.fulfillment !== undefined
         ? { fulfillment: params.fulfillment }

@@ -1,6 +1,8 @@
 import type { IUcpResource } from '@stripe/link-sdk';
 import { describe, expect, it, vi } from 'vitest';
 import { createUcpCli } from '..';
+import { parseCheckoutUpdateInput } from '../checkout-input';
+import { checkoutUpdateOptions } from '../schema';
 
 async function run(args: string[]) {
   const checkout = {
@@ -101,6 +103,45 @@ describe('UCP checkout schema', () => {
     expect(output).toEqual(checkout);
   });
 
+  it.each([
+    {
+      flags: ['--buyer', 'email:jane@example.com'],
+      sections: { buyer: { email: 'jane@example.com' } },
+    },
+    { flags: ['--fulfillment', '{}'], sections: { fulfillment: {} } },
+    { flags: ['--fullfilment', '{}'], sections: { fulfillment: {} } },
+    { flags: [], sections: {} },
+  ])(
+    'updates without sending omitted line items: $flags',
+    async ({ flags, sections }) => {
+      const { repository, checkout, output } = await run([
+        'update',
+        '--id',
+        'checkout_1',
+        '--business',
+        'np_1',
+        ...flags,
+      ]);
+      expect(repository.updateCheckout).toHaveBeenCalledExactlyOnceWith(
+        'checkout_1',
+        { business: 'np_1', ...sections },
+      );
+      expect(repository.retrieveCheckout).not.toHaveBeenCalled();
+      expect(output).toEqual(checkout);
+    },
+  );
+
+  it('preserves an explicitly empty line-item array from an agent update', () => {
+    expect(
+      parseCheckoutUpdateInput(
+        checkoutUpdateOptions.parse({
+          business: 'np_1',
+          lineItem: [],
+        }),
+      ),
+    ).toEqual({ business: 'np_1', line_items: [] });
+  });
+
   it('uses the same buyer and fulfillment parsing for a positional update', async () => {
     const { repository } = await run([
       'update',
@@ -176,7 +217,15 @@ describe('UCP checkout schema', () => {
   );
 
   it.each([
-    ['update', 'checkout_1', '--business', 'np_1'],
+    ['create', '--business', 'np_1'],
+    [
+      'update',
+      'checkout_1',
+      '--business',
+      'np_1',
+      '--line-item',
+      'id:sku_1,quantity:0',
+    ],
     ['update', '--business', 'np_1', '--line-item', 'id:sku_1'],
     ['retrieve', 'checkout_1'],
     ['retrieve', 'checkout_1', '--id', 'other', '--business', 'np_1'],
@@ -185,6 +234,7 @@ describe('UCP checkout schema', () => {
     'rejects missing state or conflicting checkout identifiers: %j',
     async (...args) => {
       const { repository, output } = await run(args);
+      expect(repository.createCheckout).not.toHaveBeenCalled();
       expect(repository.updateCheckout).not.toHaveBeenCalled();
       expect(repository.retrieveCheckout).not.toHaveBeenCalled();
       expect(output.code).toBeDefined();

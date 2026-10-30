@@ -4457,6 +4457,40 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     });
 
     describe('checkout update', () => {
+      it.each([
+        {
+          flags: ['--buyer', 'email:jane@example.com'],
+          sections: { buyer: { email: 'jane@example.com' } },
+        },
+        {
+          flags: ['--fulfillment', '{"methods":[]}'],
+          sections: { fulfillment: { methods: [] } },
+        },
+      ])('PUTs $flags without line items', async ({ flags, sections }) => {
+        const checkout = { id: 'checkout_1', status: 'ready_for_complete' };
+        setNextResponse(200, checkout);
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'update',
+          '--id',
+          'checkout_1',
+          '--business',
+          'np_1',
+          ...flags,
+          '--json',
+        );
+        expect(result.exitCode).toBe(0);
+        expect(requests).toHaveLength(1);
+        expect(lastRequest.method).toBe('PUT');
+        expect(lastRequest.url).toBe('/ucp/checkout/checkout_1');
+        expect(JSON.parse(lastRequest.body)).toEqual({
+          business: 'np_1',
+          ...sections,
+        });
+        expect(parseJson(result.stdout)).toEqual(checkout);
+      });
+
       it('PUTs supplied checkout sections to the encoded checkout path', async () => {
         const fulfillment = {
           methods: [

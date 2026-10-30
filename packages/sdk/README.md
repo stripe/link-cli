@@ -296,9 +296,14 @@ const checkout = await link.ucp.createCheckout({
 const current = await link.ucp.retrieveCheckout(checkout.id, {
   business: 'profile_example',
 });
+
+const updated = await link.ucp.updateCheckout(checkout.id, {
+  business: 'profile_example',
+  buyer: { email: 'updated@example.com' },
+});
 ```
 
-Omit buyer or fulfillment during creation to use saved Link details. Review the returned messages, fulfillment choices, and totals. `updateCheckout(id, params)` uses PUT and requires the complete line-item list, including unchanged items. Omitted buyer and fulfillment sections keep their existing checkout values; updates do not reload saved Link wallet details. The seller determines currency; checkout requests do not accept `test` or `currency`.
+Omit buyer or fulfillment during creation to use saved Link details. Review the returned messages, fulfillment choices, and totals. `updateCheckout(id, params)` uses PUT. Line items, buyer, and fulfillment are optional on update; omitted sections keep their existing checkout values. Updates do not reload saved Link wallet details. The seller determines currency; checkout requests do not accept `test` or `currency`.
 
 When the checkout is ready, create and approve a spend request for the final total. `completeCheckout(id, { business, spend_request_id })` resolves its payment credential on the server. To inspect payment state as well as checkout state, pass `spend_request_id` to `retrieveCheckout`; the SDK fetches the spend request separately and attaches it as `spend_request`.
 

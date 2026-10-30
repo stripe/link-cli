@@ -4,6 +4,7 @@ import type {
   SearchUcpCatalogParams,
   UcpCheckout,
   UcpSearchResult,
+  UpdateUcpCheckoutParams,
 } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import type { CliAuthStorage } from '../../auth/storage';
@@ -16,7 +17,11 @@ import { requireAuth } from '../../utils/require-auth';
 import { CatalogSearch } from './catalog-search';
 import { CheckoutComplete } from './checkout-complete';
 import { CheckoutCreate } from './checkout-create';
-import { checkoutId, parseCheckoutInput } from './checkout-input';
+import {
+  checkoutId,
+  parseCheckoutInput,
+  parseCheckoutUpdateInput,
+} from './checkout-input';
 import { runUcpCheckoutRetrieve } from './checkout-state';
 import {
   catalogSearchOptions,
@@ -160,7 +165,7 @@ export function createUcpCli(
       ]);
       return {
         ...created,
-        instruction: `Review checkout ${created.id}, resolve any messages, and use checkout update to supply any missing details and select fulfillment. PUT updates require the full line-item list, including unchanged items; omitted buyer and fulfillment sections keep their existing checkout values. Once the checkout is ready_for_complete and you have reviewed its final total, create a spend request for that total using ${formatCommandSuggestion(spendRequest)}; spend-request calls the UCP business value a network ID. Get it approved, then complete the checkout. Both \`--spend-request-id\` and \`--business\` are required. Replace only the <spend_request_id> argument in _next.argv with the approved spend request ID, preserving the original business argument, then invoke it directly without a shell.`,
+        instruction: `Review checkout ${created.id}, resolve any messages, and use checkout update to supply any missing details and select fulfillment. On PUT updates, omitted line items, buyer, and fulfillment sections keep their existing checkout values. Once the checkout is ready_for_complete and you have reviewed its final total, create a spend request for that total using ${formatCommandSuggestion(spendRequest)}; spend-request calls the UCP business value a network ID. Get it approved, then complete the checkout. Both \`--spend-request-id\` and \`--business\` are required. Replace only the <spend_request_id> argument in _next.argv with the approved spend request ID, preserving the original business argument, then invoke it directly without a shell.`,
         _next: {
           ...completion,
           until:
@@ -172,7 +177,7 @@ export function createUcpCli(
 
   checkout.command('update', {
     description:
-      'Update a UCP checkout with PUT. Include the full line-item list, including unchanged items. Omitted buyer/fulfillment sections keep existing checkout values; saved Link wallet details are not reloaded.',
+      'Update a UCP checkout with PUT. Omitted line items, buyer, and fulfillment sections keep existing checkout values; saved Link wallet details are not reloaded.',
     args: z.object({
       id: z
         .string()
@@ -185,10 +190,10 @@ export function createUcpCli(
     middleware: [requireAuth(authStorage, envAccessToken)],
     async run(c) {
       let id: string;
-      let params: CreateUcpCheckoutParams;
+      let params: UpdateUcpCheckoutParams;
       try {
         id = checkoutId(c.args.id, c.options.id);
-        params = parseCheckoutInput(c.options);
+        params = parseCheckoutUpdateInput(c.options);
       } catch (err) {
         return c.error({
           code: 'INVALID_INPUT',

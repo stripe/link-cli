@@ -2,10 +2,11 @@ import type {
   CreateUcpCheckoutParams,
   UcpBuyer,
   UcpLineItem,
+  UpdateUcpCheckoutParams,
 } from '@stripe/link-sdk';
 import { z } from 'incur';
 import { parseKvString } from '../../utils/line-item-parser';
-import type { checkoutCreateOptions } from './schema';
+import type { checkoutCreateOptions, checkoutUpdateOptions } from './schema';
 
 const lineItemSchema = z.strictObject({
   id: z.string().trim().nonempty('Each line item requires an id'),
@@ -56,6 +57,26 @@ export function parseCheckoutInput(
       'At least one --line-item is required (format: "id:sku_123,quantity:1")',
     );
   }
+  return {
+    ...parseCheckoutFields(options),
+    line_items: options.lineItem.map(parseLineItem),
+  };
+}
+
+export function parseCheckoutUpdateInput(
+  options: z.infer<typeof checkoutUpdateOptions>,
+): UpdateUcpCheckoutParams {
+  return {
+    ...parseCheckoutFields(options),
+    ...(options.lineItem !== undefined
+      ? { line_items: options.lineItem.map(parseLineItem) }
+      : {}),
+  };
+}
+
+function parseCheckoutFields(
+  options: Omit<z.infer<typeof checkoutCreateOptions>, 'lineItem'>,
+): Omit<CreateUcpCheckoutParams, 'line_items'> {
   if (options.fulfillment !== undefined && options.fullfilment !== undefined) {
     throw new Error('Supply only one of --fulfillment and --fullfilment');
   }
@@ -82,7 +103,6 @@ export function parseCheckoutInput(
   }
   return {
     business: options.business,
-    line_items: options.lineItem.map(parseLineItem),
     ...(options.buyer !== undefined
       ? { buyer: parseBuyer(options.buyer) }
       : {}),
