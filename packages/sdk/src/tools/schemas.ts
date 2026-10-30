@@ -36,6 +36,16 @@ const pagination = {
   ending_before: id.optional(),
 };
 
+const mppRequest = {
+  url: z.url().describe('URL to probe for a Machine Payment Protocol 402.'),
+  method: z
+    .string()
+    .optional()
+    .describe('HTTP method. Defaults to GET, or POST when body is set.'),
+  headers: z.record(z.string(), z.string()).optional(),
+  body: z.string().optional(),
+};
+
 const insightPagination = {
   limit: z
     .number()
@@ -254,6 +264,13 @@ export const linkToolSchemas = {
         'Insight IDs to return. Omit to return all; request only the IDs the task needs.',
       ),
     ...insightPagination,
+  }),
+  mppDecode: z.strictObject(mppRequest),
+  mppPay: z.strictObject({
+    ...mppRequest,
+    spend_request_id: id.describe(
+      'Approved Link spend request ID with credential_type shared_payment_token.',
+    ),
   }),
   createReport: z.strictObject({
     domain: z.string().min(1),

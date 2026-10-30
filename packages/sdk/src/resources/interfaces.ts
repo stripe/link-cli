@@ -136,6 +136,89 @@ export interface ISpendRequestResource {
   ): Promise<SpendRequest | null>;
 }
 
+export interface MppRequest {
+  url: string;
+  method?: string;
+  body?: string;
+  headers?: HeadersInit;
+}
+
+export interface MppPayOptions {
+  spendRequestId: string;
+}
+
+export interface MppPaymentResult {
+  status: number;
+  headers: Record<string, string>;
+  body: string;
+}
+
+export interface DecodedMppChallengeBase {
+  id: string;
+  realm: string;
+  description?: string;
+  digest?: string;
+  expires?: string;
+  header?: string;
+  meta?: Record<string, string>;
+  opaque?: string;
+}
+
+export interface DecodedStripeChallengeRequest extends Record<string, unknown> {
+  amount: string;
+  currency: string;
+  networkId?: string;
+  methodDetails?: {
+    networkId: string;
+    paymentMethodTypes?: string[];
+    metadata?: Record<string, string>;
+    [key: string]: unknown;
+  };
+}
+
+export interface DecodedStripeChallenge extends DecodedMppChallengeBase {
+  method: 'stripe';
+  intent: 'charge' | 'session';
+  network_id: string;
+  request_json: DecodedStripeChallengeRequest;
+}
+
+/** Supported decoded MPP challenges. Add new method variants to this union. */
+export type DecodedMppChallenge = DecodedStripeChallenge;
+
+export type MppDecodeResult =
+  | {
+      payment_required: true;
+      challenges: DecodedMppChallenge[];
+      /**
+       * The request that actually returned the challenge, after following
+       * any safe redirect from the originally supplied URL. Pass this (not
+       * the original request) to `pay` — `pay` requires same-origin between
+       * the request it's given and the challenge it finds, so continuing
+       * from the resolved destination avoids re-triggering that check.
+       */
+      request: MppRequest;
+    }
+  | { payment_required: false; response: MppPaymentResult };
+
+export interface IMppResource {
+  /**
+   * Probes a URL for a Machine Payment Protocol challenge, without sending
+   * any payment credential. Follows safe redirects the way a browser would.
+   */
+  decode(request: MppRequest): Promise<MppDecodeResult>;
+  /**
+   * Re-fetches the challenge at `request`, verifies it matches the terms of
+   * the already-approved `spendRequestId`, then pays it with a shared
+   * payment token. Safe to retry with the same arguments after an uncertain
+   * result (e.g. a 503) — a non-402 re-fetch is simply returned as-is. The
+   * re-fetch may follow safe redirects, but the challenge must ultimately be
+   * found at the same origin as `request.url`, or `pay` throws without
+   * sending any credential.
+   */
+  pay(request: MppRequest, options: MppPayOptions): Promise<MppPaymentResult>;
+}
+
 export interface IPaymentMethodsResource {
   list(): Promise<PaymentMethod[]>;
   retrieve(id: string): Promise<PaymentMethod | null>;

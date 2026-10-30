@@ -1,4 +1,5 @@
 import type {
+  IMppResource,
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
@@ -23,6 +24,7 @@ export function createDemoCli(
   authRepo: IAuthResource,
   spendRequestRepo: ISpendRequestResource,
   createPaymentMethodsResource: () => IPaymentMethodsResource,
+  mpp: IMppResource,
   authStorage?: CliAuthStorage,
 ) {
   return Cli.create('demo', {
@@ -45,6 +47,7 @@ export function createDemoCli(
           authRepo={authRepo}
           spendRequestRepo={spendRequestRepo}
           paymentMethodsResource={paymentMethodsResource}
+          mpp={mpp}
           authStorage={authStorage}
           onlyCard={c.options.onlyCard}
           onlySpt={c.options.onlySpt}

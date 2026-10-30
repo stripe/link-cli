@@ -10,6 +10,7 @@ import type {
   IBalancesResource,
   IIdentityCredentialsResource,
   IInsightsResource,
+  IMppResource,
   IPaymentMethodsResource,
   IReportResource,
   IShippingAddressResource,
@@ -20,6 +21,7 @@ import type {
   IUserInfoResource,
   IWebBotAuthResource,
 } from '@/resources/interfaces';
+import { MppResource } from '@/resources/mpp';
 import { PaymentMethodsResource } from '@/resources/payment-methods';
 import { ReportResource } from '@/resources/report';
 import { ShippingAddressResource } from '@/resources/shipping-address';
@@ -45,6 +47,7 @@ export class Link {
   readonly webBotAuth: IWebBotAuthResource;
   readonly reports: IReportResource;
   readonly ucp: IUcpResource;
+  readonly mpp: IMppResource;
 
   constructor(options: LinkOptions) {
     this.attestations = new AttestationsResource(options);
@@ -61,6 +64,7 @@ export class Link {
     this.webBotAuth = new WebBotAuthResource(options);
     this.reports = new ReportResource(options);
     this.ucp = new UcpResource(options);
+    this.mpp = new MppResource(options, { spendRequests: this.spendRequests });
   }
 }
 

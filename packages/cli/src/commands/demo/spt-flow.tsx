@@ -1,16 +1,17 @@
 import type {
+  IMppResource,
   IPaymentMethodsResource,
   ISpendRequestResource,
   PaymentMethod,
   SpendRequest,
 } from '@stripe/link-sdk';
+import { decodeMppChallenges } from '@stripe/link-sdk';
 import { Box, Text, useInput } from 'ink';
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { MarkdownText } from '../../utils/markdown-text';
 import { openUrl } from '../../utils/open-url';
 import { pollUntilApproved } from '../../utils/poll-until-approved';
-import { decodeStripeChallenge } from '../mpp/decode';
 import { type PayResult, runMppPayWithSpendRequest } from '../mpp/pay';
 import {
   DEMO_CLIMATE_API_URL,
@@ -37,6 +38,7 @@ type Step =
 interface SptFlowProps {
   spendRequestRepo: ISpendRequestResource;
   paymentMethodsResource: IPaymentMethodsResource;
+  mpp: IMppResource;
   paymentMethodId?: string;
   onComplete: (success: boolean) => void;
 }
@@ -44,6 +46,7 @@ interface SptFlowProps {
 export const SptFlow: React.FC<SptFlowProps> = ({
   spendRequestRepo,
   paymentMethodsResource,
+  mpp,
   paymentMethodId: initialPaymentMethodId,
   onComplete,
 }) => {
@@ -162,7 +165,8 @@ export const SptFlow: React.FC<SptFlowProps> = ({
         }
 
         const wwwAuth = probeResponse.headers.get('www-authenticate') ?? '';
-        const decoded = decodeStripeChallenge(wwwAuth);
+        const [decoded] = decodeMppChallenges(wwwAuth);
+        if (!decoded) throw new Error('No supported Stripe challenge found');
         setNetworkId(decoded.network_id);
 
         setStep('explain-402');
@@ -218,7 +222,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
           'POST',
           JSON.stringify({ amount: DEMO_SPT_AMOUNT }),
           undefined,
-          spendRequestRepo,
+          mpp,
         );
         setPayResult(payResponse);
         setStep('done');

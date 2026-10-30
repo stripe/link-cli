@@ -186,6 +186,61 @@ Use returned `approval_url` and `next_action.action_url` strings as-is. Do not
 manually append callback parameters when creation-time context was supplied.
 Retrieve the request to determine its status after a callback.
 
+## Machine payments (MPP)
+
+The [Machine Payments Protocol](https://mpp.dev) uses HTTP 402 challenges to
+describe a payment required by an API. `link.mpp` exposes two operations:
+`decode` probes a URL (no payment credentials) and `pay` re-verifies and pays
+a challenge with an approved Link spend request.
+
+`decode` returns `payment_required: false` with the plain response when no
+payment is needed, or `payment_required: true` with every supported challenge
+found — one header can advertise several payment methods. The current SDK
+recognizes Stripe charge and session challenges.
+
+```ts
+const request = {
+  url: 'https://merchant.example/api/purchase',
+  method: 'POST',
+  body: JSON.stringify({ sku: 'sku_123' }),
+  headers: { 'Content-Type': 'application/json' },
+};
+
+const decoded = await link.mpp.decode(request);
+if (!decoded.payment_required) throw new Error('No payment required');
+const challenge = decoded.challenges[0];
+if (!challenge) throw new Error('No supported Stripe challenge found');
+
+const paymentMethods = await link.paymentMethods.list();
+const spendRequest = await link.spendRequests.create({
+  payment_details: paymentMethods[0].id,
+  credential_type: 'shared_payment_token',
+  network_id: challenge.network_id,
+  amount: Number(challenge.request_json.amount),
+  currency: String(challenge.request_json.currency),
+  context:
+    'The user asked the agent to buy the selected item from Merchant after reviewing the Link approval.',
+  request_approval: true,
+});
+
+await sendToUser(spendRequest.approval_url!);
+```
+
+After confirming that the spend request is approved, pass `decoded.request`
+(the request after any redirects) and the spend request ID to `pay`. `pay`
+re-fetches the challenge and verifies its amount, currency, and network match
+the spend request before paying, so it's safe to retry with the same arguments
+after an uncertain result (e.g. a 503):
+
+```ts
+const paid = await link.mpp.pay(decoded.request, {
+  spendRequestId: spendRequest.id,
+});
+```
+
+Remote URLs must use HTTPS; plain HTTP is allowed only for loopback
+development.
+
 ## Configuration
 
 ```ts
@@ -293,3 +348,4 @@ try {
 - `balances` — list balances
 - `webBotAuth` — sign URLs for Web Bot Auth
 - `reports` — report agent outcomes
+- `mpp` — probe and pay Machine Payment Protocol endpoints with Link approval

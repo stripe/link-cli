@@ -158,6 +158,17 @@ export function createLinkTools<Context = unknown>(
       schemas.createReport,
       (link, input) => link.reports.create(input),
     ),
+    mpp_decode: tool(
+      'Probe a URL for a Machine Payment Protocol 402 challenge, without sending any payment credential. Returns payment_required: false with the response when no payment is needed, or the decoded challenges (amount, currency, network_id) otherwise. Create a shared_payment_token spend request using the decoded amount, currency, and network_id, then call mpp_pay with the returned request.',
+      schemas.mppDecode,
+      (link, input) => link.mpp.decode(input),
+    ),
+    mpp_pay: tool(
+      'Pay a Machine Payment Protocol challenge at url using an approved shared_payment_token spend request. Re-fetches the challenge and verifies its amount, currency, and network_id match the spend request before paying. After an uncertain result (e.g. a network error or 5xx), retry mpp_pay with the same request and spend_request_id rather than creating a new spend request.',
+      schemas.mppPay,
+      (link, { spend_request_id, ...request }) =>
+        link.mpp.pay(request, { spendRequestId: spend_request_id }),
+    ),
   };
 }
 

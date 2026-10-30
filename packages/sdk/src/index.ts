@@ -17,5 +17,6 @@ export {
 } from './resources/holder-jwk';
 export { InsightsResource } from './resources/insights';
 export * from './resources/interfaces';
+export { decodeMppChallenges } from './resources/mpp';
 export { getDuplicateSpendRequest } from './resources/spend-request';
 export * from './types/index';
