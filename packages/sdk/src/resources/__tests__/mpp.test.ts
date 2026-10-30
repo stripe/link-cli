@@ -227,10 +227,16 @@ describe('MppResource#decode', () => {
       .mockResolvedValueOnce(challengeResponse());
     const decoded = await resource(fetch).decode({
       url: 'https://redirector.example/start',
+      headers: { 'x-order': 'ord_1' },
     });
+    // A plain record, so the request survives JSON tool output unchanged.
     expect(decoded).toMatchObject({
       payment_required: true,
-      request: { url: 'https://merchant.example/pay', method: 'GET' },
+      request: {
+        url: 'https://merchant.example/pay',
+        method: 'GET',
+        headers: { 'x-order': 'ord_1' },
+      },
     });
   });
 

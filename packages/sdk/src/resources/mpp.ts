@@ -300,7 +300,7 @@ export class MppResource implements IMppResource {
         request: {
           url: probe.url,
           method: probe.method,
-          headers: probe.headers,
+          headers: Object.fromEntries(probe.headers),
           ...(probe.body !== undefined && { body: probe.body }),
         },
       };
