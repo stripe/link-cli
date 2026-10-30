@@ -98,7 +98,7 @@ export const checkoutCreateOptions = z.object({
     .union([z.string(), z.record(z.string(), z.unknown())])
     .optional()
     .describe(
-      'Buyer in key:value format or an object. Optional keys: first_name, last_name, email, phone. Example: "email:jane@example.com,first_name:Jane"',
+      'Buyer in key:value format or an object. Optional keys: first_name, last_name, email, phone_number. Example: "email:jane@example.com,first_name:Jane"',
     ),
   fulfillment: z
     .union([z.string(), z.record(z.string(), z.unknown())])

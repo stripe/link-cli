@@ -62,7 +62,7 @@ describe('UCP checkout schema', () => {
         '--line-item',
         'id:sku_2,quantity:2',
         '--buyer',
-        'first_name:Jane,last_name:Doe,email:jane@example.com,phone:+1234567890',
+        'first_name:Jane,last_name:Doe,email:jane@example.com,phone_number:+1234567890',
         flag,
         JSON.stringify(fulfillment),
       ]);
@@ -155,7 +155,7 @@ describe('UCP checkout schema', () => {
       '--line-item',
       'id:sku_1,quantity:3',
       '--buyer',
-      'email:jane@example.com',
+      'email:jane@example.com,phone_number:+1234567890',
       '--fulfillment',
       '{}',
     ]);
@@ -164,11 +164,34 @@ describe('UCP checkout schema', () => {
       {
         business: 'np_1',
         line_items: [{ item: { id: 'sku_1' }, quantity: 3 }],
-        buyer: { email: 'jane@example.com' },
+        buyer: { email: 'jane@example.com', phone_number: '+1234567890' },
         fulfillment: {},
       },
     );
   });
+
+  it.each(['create', 'update'] as const)(
+    'rejects the unsupported buyer phone field on %s',
+    async (operation) => {
+      const { repository, output } = await run([
+        operation,
+        ...(operation === 'update' ? ['checkout_1'] : []),
+        '--business',
+        'np_1',
+        '--line-item',
+        'id:sku_1',
+        '--buyer',
+        'phone:+1234567890',
+      ]);
+      expect(repository.createCheckout).not.toHaveBeenCalled();
+      expect(repository.updateCheckout).not.toHaveBeenCalled();
+      expect(output).toMatchObject({
+        code: 'INVALID_INPUT',
+        message:
+          '--buyer accepts optional string fields: first_name, last_name, email, phone_number',
+      });
+    },
+  );
 
   it.each([
     ['checkout_1'],

@@ -21,7 +21,7 @@ const buyerSchema = z.strictObject({
   first_name: z.string().optional(),
   last_name: z.string().optional(),
   email: z.string().optional(),
-  phone: z.string().optional(),
+  phone_number: z.string().optional(),
 });
 
 function parseLineItem(item: unknown): UcpLineItem {
@@ -42,11 +42,10 @@ function parseBuyer(buyer: string | Record<string, unknown>): UcpBuyer {
   );
   if (!result.success) {
     throw new Error(
-      '--buyer accepts optional string fields: first_name, last_name, email, phone',
+      '--buyer accepts optional string fields: first_name, last_name, email, phone_number',
     );
   }
-  const { phone, ...fields } = result.data;
-  return { ...fields, ...(phone !== undefined ? { phone_number: phone } : {}) };
+  return result.data;
 }
 
 export function parseCheckoutInput(

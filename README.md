@@ -694,12 +694,12 @@ Search a catalog, then use the returned business and SKU to create a UCP checkou
 link-cli ucp catalog search --query "running shoes" --format json
 link-cli ucp checkout create --business <business> \
   --line-item 'id:<sku>' \
-  --buyer 'first_name:Jane,email:jane@example.com,phone:+1234567890' \
+  --buyer 'first_name:Jane,email:jane@example.com,phone_number:+1234567890' \
   --fulfillment '{"methods":[{"type":"shipping","destinations":[{"street_address":"123 Main St","address_locality":"Springfield","address_region":"IL","postal_code":"62701","address_country":"US"}]}]}' \
   --format json
 ```
 
-`--line-item` is repeatable; `quantity` defaults to 1. All buyer fields are optional (`first_name`, `last_name`, `email`, `phone`). `--fulfillment` accepts the entire UCP JSON object; `--fullfilment` is an alternate spelling. Omit buyer or fulfillment to use saved Link details during creation. The seller determines the checkout currency.
+`--line-item` is repeatable; `quantity` defaults to 1. All buyer fields are optional (`first_name`, `last_name`, `email`, `phone_number`). `--fulfillment` accepts the entire UCP JSON object; `--fullfilment` is an alternate spelling. Omit buyer or fulfillment to use saved Link details during creation. The seller determines the checkout currency.
 
 Review the returned `messages`, `totals`, and fulfillment choices. Update the checkout as needed. Updates use PUT. Line items, buyer, and fulfillment are optional on update: omitted sections keep their existing checkout values. Updates do not reload saved Link wallet details.
 

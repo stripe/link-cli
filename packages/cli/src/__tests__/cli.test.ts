@@ -4520,7 +4520,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
           '--line-item',
           'id:sku_1',
           '--buyer',
-          'email:jane@example.com,phone:+1234567890',
+          'email:jane@example.com,phone_number:+1234567890',
           '--fulfillment',
           JSON.stringify(fulfillment),
           '--json',
