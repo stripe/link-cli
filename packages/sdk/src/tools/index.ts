@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import type { Link } from '../client';
+import { LinkApiError } from '../errors';
 import { linkToolSchemas as schemas } from './schemas';
 
 export { linkToolSchemas } from './schemas';
@@ -21,6 +22,12 @@ function defined<T>(value: T): Defined<T> {
     ) as Defined<T>;
   }
   return value as Defined<T>;
+}
+
+/** Matches the API's signal for "no approval policy has been configured". */
+function isApprovalPolicyNotFound(error: LinkApiError): boolean {
+  const details = error.details as { error?: { code?: string } } | undefined;
+  return details?.error?.code === 'approval_policy_not_found';
 }
 
 /**
@@ -77,7 +84,11 @@ export function createLinkTools<Context = unknown>(
     create_spend_request: tool(
       'Create a Link spend request for a one-time or recurring purchase. For recurring purchases, confirm the spending limit and cadence with the user. Show approval_url to the user; creating a request does not establish approval. Retrieve the same request after approval or required actions.',
       schemas.createSpendRequest,
-      (link, input) => link.spendRequests.create(input),
+      (link, input) =>
+        link.spendRequests.create({
+          ...input,
+          ...(input.use_approval_policy && { approve: true }),
+        }),
     ),
     retrieve_spend_request: tool(
       'Retrieve a Link spend request, its approval status, and requested credentials. Follow status_details.requires_action instructions; never assume approval from an earlier status. Recurring card requests remain active after individual charges; do not wait for succeeded after each payment.',
@@ -98,6 +109,24 @@ export function createLinkTools<Context = unknown>(
       'Cancel a Link spend request and revoke its payment credentials. This does not cancel a subscription with the merchant.',
       schemas.spendRequestId,
       (link, { id }) => link.spendRequests.cancel(id),
+    ),
+    retrieve_approval_policy: tool(
+      'Retrieve the approval policy configured for the current app and user, such as per-purchase limits and allowed payment methods. Returns null if no policy is configured.',
+      schemas.empty,
+      async (link) => {
+        try {
+          return await link.approvalPolicy.retrieve();
+        } catch (error) {
+          if (
+            error instanceof LinkApiError &&
+            error.status === 404 &&
+            isApprovalPolicyNotFound(error)
+          ) {
+            return null;
+          }
+          throw error;
+        }
+      },
     ),
     list_transactions: tool(
       'List Link transactions. Requires the user’s grant to include access to the requested sources.',
