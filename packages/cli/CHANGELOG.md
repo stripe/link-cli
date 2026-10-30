@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 1.1.0
+
+### Minor Changes
+
+- 56905f7: Request financial-insights source actions and the agentic payments scope by default during `auth login`, with independent opt-outs and validation for conflicting financial-insights flags. Guide payment agents to use available top-brand insights as optional merchant clues.
+
 ## 1.0.1
 
 ### Patch Changes
