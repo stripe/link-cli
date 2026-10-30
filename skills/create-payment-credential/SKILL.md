@@ -97,6 +97,10 @@ link-cli auth login --client-name "<your-agent-name>"
 
 Replace `<your-agent-name>` with the name of your agent or application (for example, `"Personal Assistant"`, `"Shopping Bot"`). This name appears in the user's Link app when they approve the connection. Use a clear, unique, identifiable name.
 
+New logins request the `userinfo:read` and `payment_methods.agentic` scopes and all four financial-insights source actions by default: `read_link_transactions`, `read_external_transactions`, `read_balances`, and `read_source_details`. If the user wants payment-only access, use `link-cli auth login --client-name "<your-agent-name>" --no-financial-insights`. If they want only certain actions, pass those `--source-actions` flags; an explicit list replaces the default. Do not combine explicit `--financial-insights` or `--no-financial-insights` with `--source-actions` or `--authorization-detail`. If the user does not want the default payment scope, pass `--no-agentic-payments`.
+
+If login initiation fails specifically because the extra source actions are unsupported or unavailable, explain that financial insights will be unavailable and retry once with `--no-financial-insights` when the payment still needs a Link connection. Do not automatically retry after the user declines or abandons approval.
+
 The response includes a `_next` command — run it to poll until authenticated. If your environment cannot relay the verification code while a separate polling command blocks I/O, use inline polling instead: `auth login --client-name "<name>" --interval 5 --timeout 300`. This yields the code immediately then polls in the same command.
 
 If the user's email is already known and no creation-time callback context was
@@ -107,11 +111,15 @@ DO NOT PROCEED until the user is authenticated with Link.
 
 Always check the current authentication status before starting a new login flow — the user might already be logged in.
 
-If the user is already authenticated but you need broader access (an additional `scope`, `--source-actions`, or `--authorization-detail`), use `auth upgrade` instead of `auth login`. It takes the same flags but, rather than stopping with an "already logged in" message, merges what you request with the current `scope`/`authorization_details` and starts a new approval for the superset — so existing access is never dropped. Check `auth status` first so you know what's already granted. The current session stays valid during the approval and is only replaced once the user approves the new one, so an abandoned upgrade leaves the existing session working.
+If the user is already authenticated but you need broader access (an additional `scope`, `--source-actions`, or `--authorization-detail`), use `auth upgrade` instead of `auth login`. It accepts the same explicit access flags but does not add the login-only financial-insights default. It merges what you request with the current `scope`/`authorization_details` and starts a new approval for the superset — so existing access is never dropped. Check `auth status` first so you know what's already granted. The current session stays valid during the approval and is only replaced once the user approves the new one, so an abandoned upgrade leaves the existing session working. Do not start an upgrade solely to fetch an optional brand insight for a purchase.
 
 Optionally, before a purchase, run `link-cli user-info retrieve` to inspect the address, applicable spend limits, and verification requirements. Finite limit values are cents, while `null` limit or remaining values mean unlimited. When `agent_wallet_verification_requirement.action_url` is present, direct the user there to complete the required action.
 
 ### Step 2: Evaluate the merchant site BEFORE creating a spend request
+
+If the user has not named a merchant, especially for a request such as "buy from my usual store," use an available Link top-brand insight as a clue before choosing a site. When the current connection has access and the commands are available, run `link-cli insights list-available-types --format json`, find a top-brand insight whose description matches the purchase category, then run `link-cli insights list --insight <returned_id> --format json`. Use only a `ready` result, and treat it as observed purchase history rather than a preference the user stated. An explicitly named merchant takes precedence.
+
+If the command is unavailable, access is missing, or the insight is pending, empty, or fails, continue with the user's other instructions or ask them which merchant to use. Do not upgrade access, repeatedly retry, or block the purchase solely for this optional clue.
 
 **CRITICAL:** Before calling `spend-request create` you must complete this checklist:
 1. Understand how the merchant accepts payments (cards or machine payments or other). **Do NOT** default to `card` credential type. The merchant determines the credential type — you cannot know it without checking first. Skipping this step will produce a spend request with the wrong credential type.

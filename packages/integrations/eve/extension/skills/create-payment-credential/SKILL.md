@@ -40,6 +40,16 @@ verification.
 
 ## 2. Confirm the spend-request inputs
 
+If the user leaves the merchant ambiguous, such as "my usual store," use an
+available top-brand insight as one clue. When the financial-insights tools are
+mounted and already accessible, call `list_available_insight_types`, find a
+top-brand insight for the purchase category, then call `list_insights` with only
+that returned ID. Use a `ready` result as observed purchase history, not a
+declared preference. The user's explicit merchant choice always takes priority.
+If a tool is missing, access requires another authorization, or the insight is
+pending, empty, or fails, continue from the user's other instructions or ask
+which merchant they want. Do not retry or delay payment for this optional clue.
+
 Use confirmed purchase details from the user or existing task context: the final
 total including taxes and shipping, items, quantities, and delivery choices.
 Ask for missing details before creating a request. Describe the actual purchase
