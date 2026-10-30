@@ -97,6 +97,13 @@ export interface CreateSpendRequestParams {
   approval_details?: ApprovalDetail;
   metadata?: Record<string, string>;
   recurring?: SpendRequestRecurringParams;
+  /** Create via the delegated approval flow, routing to /create_delegated. */
+  approve?: boolean;
+  /**
+   * Auto-approve within the user's configured approval policy, through the
+   * delegated approval flow (beta, available only to select OAuth clients).
+   */
+  use_approval_policy?: boolean;
 }
 
 export interface UpdateSpendRequestParams {
@@ -108,6 +115,13 @@ export interface UpdateSpendRequestParams {
   currency?: string;
   line_items?: LineItem[];
   totals?: Total[];
+  /** Update via the delegated approval flow, routing to /update_delegated. */
+  approve?: boolean;
+  /**
+   * Auto-approve within the user's configured approval policy, through the
+   * delegated approval flow (beta, available only to select OAuth clients).
+   */
+  use_approval_policy?: boolean;
 }
 
 export interface ISpendRequestResource {

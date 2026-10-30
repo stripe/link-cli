@@ -44,6 +44,7 @@ Mounting as `link` adds the `link__` prefix to these names:
 | `list_payment_methods`, `list_shipping_addresses` | Saved wallet details |
 | `list_spend_requests`, `create_spend_request`, `retrieve_spend_request`, `update_spend_request` | Purchase requests and their status |
 | `request_spend_approval`, `cancel_spend_request` | Request approval or cancel a request |
+| `retrieve_approval_policy` | Approval policy configured for the current app and user, or null if none |
 | `list_transactions`, `list_sources`, `list_balances` | Financial data permitted by the user's OAuth grant |
 | `list_available_insight_types` | Discover insight types and any `authorization_remediation` each needs |
 | `list_insights` | Computed insight results by ID, with `ready`, `pending`, or `no_data` status |
