@@ -30,6 +30,8 @@ function resource(
     searchCatalog: vi.fn(),
     createCheckout: vi.fn(),
     completeCheckout: vi.fn(),
+    cancelCheckout: vi.fn(),
+    updateCheckout: vi.fn(),
     retrieveCheckout,
   };
 }
@@ -70,9 +72,10 @@ describe('classifyUcpCheckout', () => {
     expect(
       classifyUcpCheckout(composite('completed', 'approved')).outcome,
     ).toBe('pending');
-    expect(classifyUcpCheckout(composite('open', 'succeeded')).outcome).toBe(
-      'pending',
-    );
+    expect(
+      classifyUcpCheckout(composite('complete_in_progress', 'succeeded'))
+        .outcome,
+    ).toBe('pending');
     expect(
       classifyUcpCheckout(composite('completed', 'succeeded')),
     ).toMatchObject({
@@ -84,9 +87,9 @@ describe('classifyUcpCheckout', () => {
   it.each(['created', 'pending_approval', 'approved'] as const)(
     'keeps authoritative nonterminal status %s pending',
     (status) => {
-      expect(classifyUcpCheckout(composite('open', status)).outcome).toBe(
-        'pending',
-      );
+      expect(
+        classifyUcpCheckout(composite('complete_in_progress', status)).outcome,
+      ).toBe('pending');
     },
   );
 
@@ -96,25 +99,27 @@ describe('classifyUcpCheckout', () => {
     ['failed', 'spend_request_failed'],
     ['canceled', 'spend_request_canceled'],
   ] as const)('classifies spend-request %s as %s', (status, reason) => {
-    expect(classifyUcpCheckout(composite('open', status))).toMatchObject({
+    expect(
+      classifyUcpCheckout(composite('complete_in_progress', status)),
+    ).toMatchObject({
       outcome: 'terminal_failure',
       reason,
     });
   });
 
-  it('classifies checkout expiry before the embedded state', () => {
+  it('classifies checkout cancellation before the embedded state', () => {
     expect(
-      classifyUcpCheckout(composite('expired', 'succeeded')),
+      classifyUcpCheckout(composite('canceled', 'succeeded')),
     ).toMatchObject({
       outcome: 'terminal_failure',
-      reason: 'checkout_expired',
+      reason: 'checkout_canceled',
     });
   });
 
   it('surfaces an auto-resume action for the user to complete', () => {
     expect(
       classifyUcpCheckout(
-        composite('requires_action', 'requires_action', 'auto_resume'),
+        composite('complete_in_progress', 'requires_action', 'auto_resume'),
       ),
     ).toMatchObject({
       outcome: 'action_required',
@@ -129,7 +134,7 @@ describe('classifyUcpCheckout', () => {
   });
 
   it('handles a requires action spend request without a next action', () => {
-    const value = composite('requires_action', 'requires_action');
+    const value = composite('complete_in_progress', 'requires_action');
     value.spend_request.status_details = undefined;
 
     expect(classifyUcpCheckout(value)).toMatchObject({
@@ -140,7 +145,7 @@ describe('classifyUcpCheckout', () => {
     expect(classifyUcpCheckout(value)).not.toHaveProperty('next_action');
   });
 
-  it.each(['open', 'completed'] as const)(
+  it.each(['complete_in_progress', 'completed'] as const)(
     'uses spend-request status as the source of truth for step-up when checkout is %s',
     (checkoutStatus) => {
       expect(
@@ -160,7 +165,7 @@ describe('classifyUcpCheckout', () => {
   ] as const)('stops for action resolution %s', (resolution) => {
     expect(
       classifyUcpCheckout(
-        composite('requires_action', 'requires_action', resolution),
+        composite('complete_in_progress', 'requires_action', resolution),
       ),
     ).toMatchObject({
       outcome: 'action_required',
@@ -170,7 +175,9 @@ describe('classifyUcpCheckout', () => {
   });
 
   it('includes the latest state in timeouts', () => {
-    expect(timedOutUcpCheckout(composite('open', 'approved'))).toMatchObject({
+    expect(
+      timedOutUcpCheckout(composite('complete_in_progress', 'approved')),
+    ).toMatchObject({
       outcome: 'timed_out',
       checkout: { id: 'dcs_1' },
       spend_request: { id: 'lsrq_1' },
@@ -199,6 +206,7 @@ describe('pollUcpCheckout', () => {
 
     const results = await collect(
       pollUcpCheckout(repository, 'dcs_1', {
+        business: 'np_1',
         spendRequestId: 'lsrq_1',
         interval: 0.001,
         timeout: 60,
@@ -215,7 +223,7 @@ describe('pollUcpCheckout', () => {
 
   it('keeps polling when the spend request succeeds before checkout completion', async () => {
     const states = [
-      composite('open', 'succeeded'),
+      composite('complete_in_progress', 'succeeded'),
       composite('completed', 'succeeded'),
     ];
     const repository = resource(
@@ -228,6 +236,7 @@ describe('pollUcpCheckout', () => {
 
     const results = await collect(
       pollUcpCheckout(repository, 'dcs_1', {
+        business: 'np_1',
         spendRequestId: 'lsrq_1',
         interval: 0.001,
         timeout: 60,
@@ -243,13 +252,14 @@ describe('pollUcpCheckout', () => {
 
   it('stops and surfaces both auto-resume and create-new actions', async () => {
     const autoState = composite(
-      'requires_action',
+      'complete_in_progress',
       'requires_action',
       'auto_resume',
     );
     const autoRepository = resource(vi.fn(async () => autoState));
     const autoResults = await collect(
       pollUcpCheckout(autoRepository, 'dcs_1', {
+        business: 'np_1',
         spendRequestId: 'lsrq_1',
         interval: 0.001,
         timeout: 60,
@@ -260,13 +270,14 @@ describe('pollUcpCheckout', () => {
     ]);
 
     const actionState = composite(
-      'requires_action',
+      'complete_in_progress',
       'requires_action',
       'create_new_spend_request',
     );
     const actionRepository = resource(vi.fn(async () => actionState));
     const actionResults = await collect(
       pollUcpCheckout(actionRepository, 'dcs_1', {
+        business: 'np_1',
         spendRequestId: 'lsrq_1',
         interval: 0.001,
         timeout: 60,
@@ -278,7 +289,7 @@ describe('pollUcpCheckout', () => {
 
   it('can keep polling through auto-resume actions for the interactive flow', async () => {
     const states = [
-      composite('requires_action', 'requires_action', 'auto_resume'),
+      composite('complete_in_progress', 'requires_action', 'auto_resume'),
       composite('completed', 'succeeded'),
     ];
     const repository = resource(
@@ -291,6 +302,7 @@ describe('pollUcpCheckout', () => {
 
     const results = await collect(
       pollUcpCheckout(repository, 'dcs_1', {
+        business: 'np_1',
         spendRequestId: 'lsrq_1',
         interval: 0.001,
         timeout: 60,
@@ -315,6 +327,7 @@ describe('pollUcpCheckout', () => {
     await expect(
       collect(
         pollUcpCheckout(repository, 'dcs_1', {
+          business: 'np_1',
           spendRequestId: 'lsrq_1',
           interval: 0.001,
           timeout: 60,
@@ -326,10 +339,11 @@ describe('pollUcpCheckout', () => {
 
   it('returns timeout with the latest composite state', async () => {
     const repository = resource(
-      vi.fn(async () => composite('open', 'approved')),
+      vi.fn(async () => composite('complete_in_progress', 'approved')),
     );
     const results = await collect(
       pollUcpCheckout(repository, 'dcs_1', {
+        business: 'np_1',
         spendRequestId: 'lsrq_1',
         interval: 0.001,
         timeout: 0.003,
@@ -348,23 +362,23 @@ describe('pollUcpCheckout', () => {
 describe('consolidated checkout retrieve mode', () => {
   it('returns the nested requires action spend request from checkout retrieval', async () => {
     const value = composite(
-      'requires_action',
+      'complete_in_progress',
       'requires_action',
       'auto_resume',
     );
     const repository = resource(vi.fn(async () => value));
 
     const result = runUcpCheckoutRetrieve(repository, 'dcs_1', {
+      business: 'np_1',
       spendRequestId: 'lsrq_1',
-      test: true,
       poll: false,
     });
 
     expect(Symbol.asyncIterator in result).toBe(false);
     await expect(result).resolves.toBe(value);
     expect(repository.retrieveCheckout).toHaveBeenCalledWith('dcs_1', {
+      business: 'np_1',
       spend_request_id: 'lsrq_1',
-      test: true,
     });
     expect(
       value.spend_request.status_details?.requires_action?.next_action,
@@ -379,6 +393,7 @@ describe('consolidated checkout retrieve mode', () => {
     const value = composite('completed', 'succeeded');
     const repository = resource(vi.fn(async () => value));
     const result = runUcpCheckoutRetrieve(repository, 'dcs_1', {
+      business: 'np_1',
       spendRequestId: 'lsrq_1',
       poll: false,
     });
@@ -395,6 +410,7 @@ describe('consolidated checkout retrieve mode', () => {
       vi.fn(async () => composite('completed', 'succeeded')),
     );
     const result = runUcpCheckoutRetrieve(repository, 'dcs_1', {
+      business: 'np_1',
       spendRequestId: 'lsrq_1',
       poll: true,
       timeout: 60,
@@ -410,6 +426,7 @@ describe('consolidated checkout retrieve mode', () => {
     expect(DEFAULT_UCP_POLL_TIMEOUT_SECONDS).toBe(600);
     expect(
       checkoutRetrieveOptions.safeParse({
+        business: 'np_1',
         spendRequestId: 'lsrq_1',
         poll: false,
         timeout: 10,
@@ -417,6 +434,7 @@ describe('consolidated checkout retrieve mode', () => {
     ).toBe(false);
     expect(
       checkoutRetrieveOptions.safeParse({
+        business: 'np_1',
         spendRequestId: 'lsrq_1',
         poll: true,
         timeout: 10,

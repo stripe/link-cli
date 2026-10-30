@@ -4294,7 +4294,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         expect(data[0].sku_id).toBe('sku_1');
       });
 
-      it('maps --business to the profile_id search parameter', async () => {
+      it('maps --business to the business search parameter', async () => {
         setNextResponse(200, {
           data: [],
           total_count: 0,
@@ -4313,7 +4313,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         );
 
         expect(result.exitCode).toBe(0);
-        expect(lastRequest.url).toContain('profile_id=np_1');
+        expect(lastRequest.url).toContain('business=np_1');
       });
 
       it('maps --id to the sku search parameter', async () => {
@@ -4397,12 +4397,12 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     });
 
     describe('checkout create', () => {
-      it('POSTs profile_id and parsed line items to /ucp/checkout', async () => {
+      it('POSTs business and parsed line items to /ucp/checkout', async () => {
         setNextResponse(200, {
           id: 'dcs_1',
-          status: 'open',
+          status: 'ready_for_complete',
           currency: 'usd',
-          amount_total: 5500,
+          totals: [{ type: 'total', amount: 5500 }],
         });
 
         const result = await runProdCli(
@@ -4420,10 +4420,12 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         expect(lastRequest.method).toBe('POST');
         expect(lastRequest.url).toBe('/ucp/checkout');
         const body = JSON.parse(lastRequest.body);
-        // Flag is --business; the wire field stays profile_id (UCP API contract).
-        expect(body.profile_id).toBe('np_1');
-        expect(body.line_items).toEqual([{ sku_id: 'sku_1', quantity: 2 }]);
-        expect(body.currency).toBe('usd');
+        expect(body.business).toBe('np_1');
+        expect(body.line_items).toEqual([
+          { item: { id: 'sku_1' }, quantity: 2 },
+        ]);
+        expect(body).not.toHaveProperty('currency');
+        expect(body).not.toHaveProperty('fulfillment_details');
 
         const output = parseJson(result.stdout) as Record<string, unknown>;
         expect(output.id).toBe('dcs_1');
@@ -4491,12 +4493,95 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       });
     });
 
+    describe('checkout update', () => {
+      it.each([
+        {
+          flags: ['--buyer', 'email:jane@example.com'],
+          sections: { buyer: { email: 'jane@example.com' } },
+        },
+        {
+          flags: ['--fulfillment', '{"methods":[]}'],
+          sections: { fulfillment: { methods: [] } },
+        },
+      ])('PUTs $flags without line items', async ({ flags, sections }) => {
+        const checkout = { id: 'checkout_1', status: 'ready_for_complete' };
+        setNextResponse(200, checkout);
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'update',
+          '--id',
+          'checkout_1',
+          '--business',
+          'np_1',
+          ...flags,
+          '--json',
+        );
+        expect(result.exitCode).toBe(0);
+        expect(requests).toHaveLength(1);
+        expect(lastRequest.method).toBe('PUT');
+        expect(lastRequest.url).toBe('/ucp/checkout/checkout_1');
+        expect(JSON.parse(lastRequest.body)).toEqual({
+          business: 'np_1',
+          ...sections,
+        });
+        expect(parseJson(result.stdout)).toEqual(checkout);
+      });
+
+      it('PUTs supplied checkout sections to the encoded checkout path', async () => {
+        const fulfillment = {
+          methods: [
+            {
+              id: 'shipping',
+              type: 'shipping',
+              selected_destination_id: 'home',
+              destinations: [{ id: 'home', address_country: 'US' }],
+              groups: [{ id: 'group_1', selected_option_id: 'express' }],
+            },
+          ],
+        };
+        const checkout = {
+          id: 'checkout/1',
+          status: 'ready_for_complete',
+          fulfillment,
+        };
+        setNextResponse(200, checkout);
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'update',
+          '--id',
+          'checkout/1',
+          '--business',
+          'np_1',
+          '--line-item',
+          'id:sku_1',
+          '--buyer',
+          'email:jane@example.com,phone_number:+1234567890',
+          '--fulfillment',
+          JSON.stringify(fulfillment),
+          '--json',
+        );
+        expect(result.exitCode).toBe(0);
+        expect(requests).toHaveLength(1);
+        expect(lastRequest.method).toBe('PUT');
+        expect(lastRequest.url).toBe('/ucp/checkout/checkout%2F1');
+        expect(JSON.parse(lastRequest.body)).toEqual({
+          business: 'np_1',
+          line_items: [{ item: { id: 'sku_1' }, quantity: 1 }],
+          buyer: { email: 'jane@example.com', phone_number: '+1234567890' },
+          fulfillment,
+        });
+        expect(parseJson(result.stdout)).toEqual(checkout);
+      });
+    });
+
     describe('checkout complete', () => {
-      it('POSTs the spend request and profile IDs to the confirm path', async () => {
+      it('POSTs the spend request and business IDs to the completion path', async () => {
         setNextResponse(200, {
           id: 'dcs_1',
           status: 'completed',
-          order_details: { status: 'confirmed' },
+          order: { id: 'order_confirmed' },
         });
 
         const result = await runProdCli(
@@ -4517,7 +4602,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         expect(lastRequest.url).toBe('/ucp/checkout/dcs_1/complete');
         expect(JSON.parse(lastRequest.body)).toEqual({
           spend_request_id: 'lsrq_1',
-          profile_id: 'np_1',
+          business: 'np_1',
         });
 
         const output = parseJson(result.stdout) as Record<string, unknown>;
@@ -4594,11 +4679,104 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       });
     });
 
+    describe('checkout cancel', () => {
+      it.each([['checkout/1'], ['--id', 'checkout/1']])(
+        'POSTs business to the encoded cancel path using %j',
+        async (...idArgs) => {
+          const checkout = {
+            id: 'checkout/1',
+            status: 'canceled',
+            totals: [{ type: 'total', amount: 5500 }],
+            messages: [],
+            ucp: { version: '2026-01-23' },
+          };
+          setNextResponse(200, checkout);
+          const result = await runProdCli(
+            'ucp',
+            'checkout',
+            'cancel',
+            ...idArgs,
+            '--business',
+            'np_1',
+            '--json',
+          );
+          expect(result.exitCode).toBe(0);
+          expect(requests).toHaveLength(1);
+          expect(lastRequest.method).toBe('POST');
+          expect(lastRequest.url).toBe('/ucp/checkout/checkout%2F1/cancel');
+          expect(lastRequest.headers.authorization).toBe(
+            'Bearer prod_test_access_token',
+          );
+          expect(JSON.parse(lastRequest.body)).toEqual({ business: 'np_1' });
+          expect(parseJson(result.stdout)).toEqual(checkout);
+        },
+      );
+
+      it('surfaces cancellation errors', async () => {
+        setNextResponse(409, {
+          error: { message: 'Checkout cannot be canceled' },
+        });
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'cancel',
+          'checkout_1',
+          '--business',
+          'np_1',
+          '--json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout + result.stderr).toContain(
+          'Checkout cannot be canceled',
+        );
+      });
+
+      it('requires authentication before canceling', async () => {
+        storage.clearTokens();
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'cancel',
+          'checkout_1',
+          '--business',
+          'np_1',
+          '--json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(requests).toHaveLength(0);
+        expect(result.stdout + result.stderr).toContain('Not authenticated');
+      });
+    });
+
     describe('checkout retrieve', () => {
+      it('retrieves before payment using --id and business without a spend request', async () => {
+        const checkout = {
+          id: 'checkout_1',
+          status: 'incomplete',
+          messages: [{ code: 'missing_fulfillment' }],
+        };
+        setNextResponse(200, checkout);
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'retrieve',
+          '--id',
+          'checkout_1',
+          '--business',
+          'np_1',
+          '--json',
+        );
+        expect(result.exitCode).toBe(0);
+        expect(requests).toHaveLength(1);
+        expect(lastRequest.method).toBe('GET');
+        expect(lastRequest.url).toBe('/ucp/checkout/checkout_1?business=np_1');
+        expect(parseJson(result.stdout)).toEqual(checkout);
+      });
+
       it('GETs the composite state once and preserves nested next_action output', async () => {
         setNextResponse(200, {
           id: 'dcs_1',
-          status: 'requires_action',
+          status: 'complete_in_progress',
           spend_request: {
             id: 'lsrq_1',
             status: 'requires_action',
@@ -4617,6 +4795,15 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
           },
         });
 
+        const { spend_request, ...checkout } = nextResponse.body as Record<
+          string,
+          unknown
+        >;
+        nextResponse.body = checkout;
+        responsesByUrl['/spend_requests/lsrq_1'] = {
+          status: 200,
+          body: spend_request,
+        };
         const result = await runProdCli(
           'ucp',
           'checkout',
@@ -4624,12 +4811,13 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
           'dcs_1',
           '--spend-request-id',
           'lsrq_1',
-          '--test',
+          '--business',
+          'np_1',
           '--json',
         );
 
         expect(result.exitCode).toBe(0);
-        expect(requests).toHaveLength(1);
+        expect(requests).toHaveLength(2);
         const checkoutRequest = requests[0];
         expect(checkoutRequest?.method).toBe('GET');
         expect(checkoutRequest?.body).toBe('');
@@ -4638,16 +4826,15 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
           'http://localhost',
         );
         expect(requestUrl.pathname).toBe('/ucp/checkout/dcs_1');
-        expect(requestUrl.searchParams.get('spend_request_id')).toBe('lsrq_1');
-        expect(requestUrl.searchParams.get('test')).toBe('true');
+        expect([...requestUrl.searchParams]).toEqual([['business', 'np_1']]);
         expect(
-          requests.some((request) => request.url.startsWith('/spend_requests')),
-        ).toBe(false);
+          requests.some((request) => request.url === '/spend_requests/lsrq_1'),
+        ).toBe(true);
 
         const output = parseJson(result.stdout) as Record<string, unknown>;
         expect(output).toMatchObject({
           id: 'dcs_1',
-          status: 'requires_action',
+          status: 'complete_in_progress',
           spend_request: {
             id: 'lsrq_1',
             status_details: {
@@ -4674,8 +4861,8 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
           ['ucp', 'checkout', 'retrieve', '', '--spend-request-id', 'lsrq_1'],
         ],
         [
-          'a missing spend request ID',
-          ['ucp', 'checkout', 'retrieve', 'dcs_1'],
+          'polling without a spend request ID',
+          ['ucp', 'checkout', 'retrieve', 'dcs_1', '--poll'],
         ],
         [
           'an empty spend request ID',
@@ -4695,7 +4882,12 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
           ],
         ],
       ])('rejects %s without making a request', async (_, args) => {
-        const result = await runProdCli(...args, '--json');
+        const result = await runProdCli(
+          ...args,
+          '--business',
+          'np_1',
+          '--json',
+        );
 
         expect(result.exitCode).toBe(1);
         expect(requests).toHaveLength(0);

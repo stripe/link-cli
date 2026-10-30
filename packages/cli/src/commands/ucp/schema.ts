@@ -83,62 +83,82 @@ export const catalogSearchOptions = z.object({
     ),
 });
 
+const checkoutLineItemOption = z.array(
+  z.union([z.string(), z.record(z.string(), z.unknown())]),
+);
+
 export const checkoutCreateOptions = z.object({
-  business: z.string().describe('Business target (required)'),
-  lineItem: z
-    .array(z.union([z.string(), z.record(z.string(), z.unknown())]))
+  business: z.string().trim().nonempty().describe('Business target (required)'),
+  lineItem: checkoutLineItemOption
     .default([])
     .describe(
-      'Line item (repeatable, key:value format). Keys: id (required), quantity (required, positive integer). Example: "id:sku_123,quantity:2"',
+      'Line item (repeatable, key:value format). Keys: id (required), quantity (positive integer, default 1). Example: "id:sku_123,quantity:2"',
     ),
-  currency: z
-    .string()
-    .length(3)
-    .default('usd')
-    .describe('Three-letter ISO currency code (default usd)'),
-  fulfillmentDetails: z
+  buyer: z
     .union([z.string(), z.record(z.string(), z.unknown())])
     .optional()
     .describe(
-      'Fulfillment details as a JSON object (MCP/agent) or JSON string (CLI), e.g. a shipping address',
+      'Buyer in key:value format or an object. Optional keys: first_name, last_name, email, phone_number. Example: "email:jane@example.com,first_name:Jane"',
     ),
-  test: z
-    .boolean()
-    .default(false)
+  fulfillment: z
+    .union([z.string(), z.record(z.string(), z.unknown())])
+    .optional()
     .describe(
-      'Use demo mode — returns a self-consistent session without a live checkout',
+      'Entire UCP fulfillment object as a JSON string (CLI) or object (MCP/agent)',
     ),
+  fullfilment: z
+    .union([z.string(), z.record(z.string(), z.unknown())])
+    .optional()
+    .describe('Alias for --fulfillment; supply the entire JSON object'),
+});
+
+export const checkoutUpdateOptions = checkoutCreateOptions.extend({
+  id: z.string().trim().nonempty().optional().describe('Checkout session ID'),
+  lineItem: checkoutLineItemOption
+    .optional()
+    .describe(
+      'Line item (repeatable, key:value format). Omit to keep existing items. Keys: id (required), quantity (positive integer, default 1). Example: "id:sku_123,quantity:2"',
+    ),
+});
+
+export const checkoutCancelOptions = z.object({
+  id: z.string().trim().nonempty().optional().describe('Checkout session ID'),
+  business: z.string().trim().nonempty().describe('Business target (required)'),
 });
 
 export const checkoutCompleteOptions = z.object({
   spendRequestId: z
     .string()
+    .trim()
     .nonempty()
     .describe(
       'Approved spend request ID that authorizes the payment (required). Create one with `spend-request create --credential-type shared_payment_token --network-id <business>`, using the same business value passed to UCP',
     ),
   business: z
     .string()
+    .trim()
     .nonempty()
     .describe(
       'Business target used to verify the spend request belongs to the same seller profile (required)',
     ),
-  test: z
-    .boolean()
-    .default(false)
-    .describe('Use demo mode — confirms the session without a live charge'),
 });
 
 export const checkoutRetrieveOptions = z
   .object({
+    id: z.string().trim().nonempty().optional().describe('Checkout session ID'),
+    business: z
+      .string()
+      .trim()
+      .nonempty()
+      .describe('Business target (required)'),
     spendRequestId: z
       .string()
+      .trim()
       .nonempty()
-      .describe('Associated spend request ID (required)'),
-    test: z
-      .boolean()
-      .default(false)
-      .describe('Use demo mode when retrieving the checkout'),
+      .optional()
+      .describe(
+        'Include payment state from this spend request; required for --poll',
+      ),
     poll: z
       .boolean()
       .default(false)
@@ -150,6 +170,13 @@ export const checkoutRetrieveOptions = z
       .describe('Polling deadline in seconds; requires --poll (default 600)'),
   })
   .superRefine((options, context) => {
+    if (options.poll && !options.spendRequestId) {
+      context.addIssue({
+        code: 'custom',
+        path: ['spendRequestId'],
+        message: '--poll requires --spend-request-id',
+      });
+    }
     if (!options.poll && options.timeout !== undefined) {
       context.addIssue({
         code: 'custom',

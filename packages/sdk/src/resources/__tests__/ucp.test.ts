@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LinkApiError } from '@/errors';
 import { UcpResource } from '@/resources/ucp';
 
 const mockFetch = vi.fn();
@@ -19,7 +18,7 @@ describe('UcpResource', () => {
 
   beforeEach(() => {
     vi.stubGlobal('fetch', mockFetch);
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     vi.stubEnv('LINK_API_BASE_URL', undefined);
     getAccessToken.mockResolvedValue('test_token');
     repo = new UcpResource({ getAccessToken });
@@ -42,6 +41,7 @@ describe('UcpResource', () => {
 
       const result = await repo.searchCatalog({
         query: 'sneakers',
+        business: 'np_1',
         brand: ['acme', 'beta'],
         limit: 5,
         include_facets: true,
@@ -53,6 +53,8 @@ describe('UcpResource', () => {
       const parsed = new URL(url);
       expect(parsed.pathname).toBe('/ucp/catalog/search');
       expect(parsed.searchParams.get('query')).toBe('sneakers');
+      expect(parsed.searchParams.get('business')).toBe('np_1');
+      expect(parsed.searchParams.has('profile_id')).toBe(false);
       expect(parsed.searchParams.getAll('brand[]')).toEqual(['acme', 'beta']);
       expect(parsed.searchParams.get('limit')).toBe('5');
       expect(parsed.searchParams.get('include_facets')).toBe('true');
@@ -86,108 +88,165 @@ describe('UcpResource', () => {
     });
   });
 
-  describe('createCheckout', () => {
-    it('POSTs profile_id and line_items and returns the session', async () => {
-      mockFetchResponse(200, {
-        id: 'dcs_1',
-        status: 'open',
-        amount_total: 5500,
+  describe('checkout requests', () => {
+    const fulfillment = {
+      methods: [
+        {
+          type: 'shipping',
+          destinations: [
+            { street_address: '123 Main St', address_country: 'US' },
+          ],
+          groups: [{ id: 'group_1', selected_option_id: 'express' }],
+        },
+      ],
+    };
+
+    it.each(['create', 'update'] as const)(
+      '%s sends the UCP state and preserves the complete response',
+      async (operation) => {
+        const checkout = {
+          id: 'checkout/1',
+          status: 'ready_for_complete',
+          currency: 'usd',
+          totals: [{ type: 'total', amount: 5500 }],
+          fulfillment,
+          ucp: { version: '2026-01-23' },
+        };
+        mockFetchResponse(200, checkout);
+        const params = {
+          business: 'np_1',
+          line_items: [{ item: { id: 'sku_1' } }],
+          buyer: { email: 'jane@example.com', phone_number: '+1234567890' },
+          fulfillment,
+        };
+        const result =
+          operation === 'create'
+            ? await repo.createCheckout(params)
+            : await repo.updateCheckout('checkout/1', params);
+        const [url, opts] = mockFetch.mock.calls[0]!;
+        expect(url).toBe(
+          operation === 'create'
+            ? 'https://api.link.com/ucp/checkout'
+            : 'https://api.link.com/ucp/checkout/checkout%2F1',
+        );
+        expect(opts.method).toBe(operation === 'create' ? 'POST' : 'PUT');
+        expect(opts.headers['Content-Type']).toBe('application/json');
+        expect(JSON.parse(opts.body)).toEqual({
+          ...params,
+          line_items: [{ item: { id: 'sku_1' }, quantity: 1 }],
+        });
+        expect(result).toEqual(checkout);
+      },
+    );
+
+    it('omits optional sections instead of applying update defaults', async () => {
+      mockFetchResponse(200, { id: 'checkout_1' });
+      await repo.updateCheckout('checkout_1', {
+        business: 'np_1',
+        line_items: [
+          {
+            id: 'line_1',
+            parent_id: 'parent_1',
+            item: { id: 'sku_1' },
+            quantity: 2,
+          },
+        ],
       });
-
-      const result = await repo.createCheckout({
-        profile_id: 'np_1',
-        line_items: [{ sku_id: 'sku_1', quantity: 2 }],
-        currency: 'usd',
-        test: true,
+      expect(JSON.parse(mockFetch.mock.calls[0]![1].body)).toEqual({
+        business: 'np_1',
+        line_items: [
+          {
+            id: 'line_1',
+            parent_id: 'parent_1',
+            item: { id: 'sku_1' },
+            quantity: 2,
+          },
+        ],
       });
-
-      const [url, opts] = mockFetch.mock.calls[0]!;
-      expect(url).toBe('https://api.link.com/ucp/checkout');
-      expect(opts.method).toBe('POST');
-      expect(opts.headers['Content-Type']).toBe('application/json');
-      const body = JSON.parse(opts.body);
-      expect(body.profile_id).toBe('np_1');
-      expect(body.line_items).toEqual([{ sku_id: 'sku_1', quantity: 2 }]);
-      expect(body.currency).toBe('usd');
-      expect(body.test).toBe(true);
-
-      expect(result.id).toBe('dcs_1');
-      expect(result.amount_total).toBe(5500);
     });
 
-    it('omits fulfillment_details and test when not provided', async () => {
-      mockFetchResponse(200, { id: 'dcs_1' });
+    it.each([{ buyer: { email: 'jane@example.com' } }, { fulfillment }, {}])(
+      'updates without sending omitted line items: %j',
+      async (sections) => {
+        mockFetchResponse(200, { id: 'checkout_1' });
+        await repo.updateCheckout('checkout_1', {
+          business: 'np_1',
+          ...sections,
+        });
+        expect(mockFetch).toHaveBeenCalledOnce();
+        const [url, opts] = mockFetch.mock.calls[0]!;
+        expect(url).toBe('https://api.link.com/ucp/checkout/checkout_1');
+        expect(opts.method).toBe('PUT');
+        expect(JSON.parse(opts.body)).toEqual({
+          business: 'np_1',
+          ...sections,
+        });
+      },
+    );
 
-      await repo.createCheckout({
-        profile_id: 'np_1',
-        line_items: [{ sku_id: 'sku_1', quantity: 1 }],
+    it('preserves an explicitly empty line-item list on update', async () => {
+      mockFetchResponse(200, { id: 'checkout_1' });
+      await repo.updateCheckout('checkout_1', {
+        business: 'np_1',
+        line_items: [],
       });
-
-      const body = JSON.parse(mockFetch.mock.calls[0]![1].body);
-      expect(body).not.toHaveProperty('fulfillment_details');
-      expect(body).not.toHaveProperty('test');
+      expect(JSON.parse(mockFetch.mock.calls[0]![1].body)).toEqual({
+        business: 'np_1',
+        line_items: [],
+      });
     });
 
-    it('throws on non-2xx', async () => {
-      mockFetchResponse(400, { error: { message: 'No such sku' } });
-
-      await expect(
-        repo.createCheckout({
-          profile_id: 'np_1',
-          line_items: [{ sku_id: 'bad', quantity: 1 }],
-        }),
-      ).rejects.toThrow('Failed to create UCP checkout (400): No such sku');
-    });
+    it.each(['create', 'update'] as const)(
+      'surfaces %s errors',
+      async (operation) => {
+        mockFetchResponse(400, { error: { message: 'No such sku' } });
+        const params = {
+          business: 'np_1',
+          line_items: [{ item: { id: 'bad' }, quantity: 1 }],
+        };
+        await expect(
+          operation === 'create'
+            ? repo.createCheckout(params)
+            : repo.updateCheckout('checkout_1', params),
+        ).rejects.toThrow(
+          `Failed to ${operation} UCP checkout (400): No such sku`,
+        );
+      },
+    );
   });
 
   describe('completeCheckout', () => {
-    it('POSTs the spend request and profile IDs to the confirm path', async () => {
+    it('POSTs only business and spend request IDs to the encoded completion path', async () => {
       mockFetchResponse(200, {
-        id: 'dcs_1',
+        id: 'checkout/1',
         status: 'completed',
-        order_details: { status: 'confirmed' },
+        order: { id: 'order_1' },
       });
-
-      const result = await repo.completeCheckout('dcs_1', {
+      const result = await repo.completeCheckout('checkout/1', {
         spend_request_id: 'lsrq_1',
-        profile_id: 'np_1',
-        test: true,
+        business: 'np_1',
       });
-
       const [url, opts] = mockFetch.mock.calls[0]!;
-      expect(url).toBe('https://api.link.com/ucp/checkout/dcs_1/complete');
+      expect(url).toBe(
+        'https://api.link.com/ucp/checkout/checkout%2F1/complete',
+      );
       expect(opts.method).toBe('POST');
       expect(JSON.parse(opts.body)).toEqual({
         spend_request_id: 'lsrq_1',
-        profile_id: 'np_1',
-        test: true,
+        business: 'np_1',
       });
-
       expect(result.status).toBe('completed');
-    });
-
-    it('URL-encodes the checkout id in the path', async () => {
-      mockFetchResponse(200, { id: 'dcs/weird' });
-
-      await repo.completeCheckout('dcs/weird', {
-        spend_request_id: 'lsrq_1',
-        profile_id: 'np_1',
-      });
-
-      expect(mockFetch.mock.calls[0]![0]).toBe(
-        'https://api.link.com/ucp/checkout/dcs%2Fweird/complete',
-      );
+      expect(result.order).toEqual({ id: 'order_1' });
     });
 
     it('surfaces an upstream card error via LinkApiError', async () => {
       mockFetchResponse(402, {
         error: { code: 'card_declined', message: 'Your card was declined.' },
       });
-
       await expect(
-        repo.completeCheckout('dcs_1', {
+        repo.completeCheckout('checkout_1', {
           spend_request_id: 'lsrq_1',
-          profile_id: 'np_1',
+          business: 'np_1',
         }),
       ).rejects.toThrow(
         'Failed to complete UCP checkout (402): Your card was declined.',
@@ -195,52 +254,118 @@ describe('UcpResource', () => {
     });
   });
 
-  describe('retrieveCheckout', () => {
-    it('GETs the encoded path with query parameters, no body, and parses the composite response', async () => {
-      mockFetchResponse(200, {
-        id: 'dcs/weird',
-        status: 'completed',
-        spend_request: {
-          id: 'lsrq_1',
-          status: 'succeeded',
-          created_at: '2026-01-01T00:00:00Z',
-          updated_at: '2026-01-01T00:00:01Z',
-        },
-      });
+  describe('cancelCheckout', () => {
+    it('POSTs business to the encoded cancel path and preserves the checkout response', async () => {
+      const checkout = {
+        id: 'checkout/1',
+        status: 'canceled',
+        currency: 'usd',
+        totals: [{ type: 'total', amount: 5500 }],
+        messages: [],
+        ucp: { version: '2026-01-23' },
+      };
+      mockFetchResponse(200, checkout);
 
-      const result = await repo.retrieveCheckout('dcs/weird', {
-        spend_request_id: 'lsrq_1',
-        test: true,
+      const result = await repo.cancelCheckout('checkout/1', {
+        business: 'np_1',
       });
 
       expect(mockFetch).toHaveBeenCalledOnce();
-      const [rawUrl, opts] = mockFetch.mock.calls[0]!;
-      const url = new URL(rawUrl);
-      expect(url.pathname).toBe('/ucp/checkout/dcs%2Fweird');
-      expect(url.searchParams.get('spend_request_id')).toBe('lsrq_1');
-      expect(url.searchParams.get('test')).toBe('true');
-      expect(opts.method).toBe('GET');
-      expect(opts.body).toBeUndefined();
-      expect(result.spend_request.status).toBe('succeeded');
+      const [url, opts] = mockFetch.mock.calls[0]!;
+      expect(url).toBe('https://api.link.com/ucp/checkout/checkout%2F1/cancel');
+      expect(opts.method).toBe('POST');
+      expect(opts.headers.Authorization).toBe('Bearer test_token');
+      expect(opts.headers['Content-Type']).toBe('application/json');
+      expect(JSON.parse(opts.body)).toEqual({ business: 'np_1' });
+      expect(result).toEqual(checkout);
     });
 
-    it('omits test mode when it is not requested', async () => {
-      mockFetchResponse(200, {
-        id: 'dcs_1',
-        spend_request: {
-          id: 'lsrq_1',
-          status: 'approved',
-          created_at: '2026-01-01T00:00:00Z',
-          updated_at: '2026-01-01T00:00:01Z',
-        },
-      });
+    it.each([
+      [404, 'Checkout not found'],
+      [409, 'Checkout cannot be canceled'],
+    ])('surfaces cancellation errors (%i)', async (status, message) => {
+      mockFetchResponse(status, { error: { message } });
+      await expect(
+        repo.cancelCheckout('checkout_1', { business: 'np_1' }),
+      ).rejects.toThrow(
+        `Failed to cancel UCP checkout (${status}): ${message}`,
+      );
+    });
+  });
 
-      await repo.retrieveCheckout('dcs_1', {
+  describe('retrieveCheckout', () => {
+    it('retrieves a checkout before payment using only business', async () => {
+      const checkout = {
+        id: 'checkout/1',
+        status: 'incomplete',
+        messages: [{ code: 'missing_fulfillment' }],
+      };
+      mockFetchResponse(200, checkout);
+      const result = await repo.retrieveCheckout('checkout/1', {
+        business: 'np_1',
+      });
+      expect(mockFetch).toHaveBeenCalledOnce();
+      const [rawUrl, opts] = mockFetch.mock.calls[0]!;
+      const url = new URL(rawUrl);
+      expect(url.pathname).toBe('/ucp/checkout/checkout%2F1');
+      expect([...url.searchParams]).toEqual([['business', 'np_1']]);
+      expect(opts.method).toBe('GET');
+      expect(opts.body).toBeUndefined();
+      expect(result).toEqual(checkout);
+    });
+
+    it('attaches separately retrieved payment state using the configured spend endpoint', async () => {
+      repo = new UcpResource({
+        getAccessToken,
+        spendRequestBaseUrl: 'https://spend.example.com',
+      });
+      const spendRequest = {
+        id: 'lsrq_1',
+        status: 'requires_action',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:01Z',
+        status_details: {
+          requires_action: { next_action: { resolution: 'auto_resume' } },
+        },
+      };
+      mockFetch.mockImplementation(
+        async (url: string) =>
+          new Response(
+            JSON.stringify(
+              url.includes('/spend_requests/')
+                ? spendRequest
+                : { id: 'checkout_1', status: 'completed' },
+            ),
+            { status: 200 },
+          ),
+      );
+      const result = await repo.retrieveCheckout('checkout_1', {
+        business: 'np_1',
         spend_request_id: 'lsrq_1',
       });
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch.mock.calls[0]![0]).toBe(
+        'https://api.link.com/ucp/checkout/checkout_1?business=np_1',
+      );
+      expect(mockFetch.mock.calls[1]![0]).toBe(
+        'https://spend.example.com/spend_requests/lsrq_1',
+      );
+      expect(result.spend_request).toEqual(spendRequest);
+    });
 
-      const url = new URL(mockFetch.mock.calls[0]![0]);
-      expect(url.searchParams.has('test')).toBe(false);
+    it('fails when the associated spend request is missing', async () => {
+      mockFetch.mockImplementation(
+        async (url: string) =>
+          new Response(JSON.stringify({ id: 'checkout_1' }), {
+            status: url.includes('/spend_requests/') ? 404 : 200,
+          }),
+      );
+      await expect(
+        repo.retrieveCheckout('checkout_1', {
+          business: 'np_1',
+          spend_request_id: 'missing',
+        }),
+      ).rejects.toThrow('Associated spend request not found');
     });
 
     it.each([400, 429, 502])(
@@ -250,17 +375,10 @@ describe('UcpResource', () => {
           error: { code: 'upstream_error', message: 'retrieval failed' },
         };
         mockFetchResponse(status, details);
-
-        let caught: unknown;
-        try {
-          await repo.retrieveCheckout('dcs_1', {
-            spend_request_id: 'lsrq_1',
-          });
-        } catch (error) {
-          caught = error;
-        }
-        expect(caught).toBeInstanceOf(LinkApiError);
-        expect(caught).toMatchObject({ status, details });
+        await expect(
+          repo.retrieveCheckout('checkout_1', { business: 'np_1' }),
+        ).rejects.toMatchObject({ status, details });
+        expect(mockFetch).toHaveBeenCalledOnce();
       },
     );
   });
