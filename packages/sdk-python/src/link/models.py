@@ -313,7 +313,7 @@ class CashBalance(LinkModel):
 
 
 class CreditBalance(LinkModel):
-    used: dict[str, int]
+    used: dict[str, int] | None
 
 
 class Balance(LinkModel):
