@@ -72,6 +72,35 @@ describe('balances list component', () => {
     });
   });
 
+  it.each([
+    [1000, 'jpy', '¥1,000'],
+    [1234, 'eur', '€12.34'],
+    [-1234, 'usd', '-$12.34'],
+  ])(
+    'formats a current balance of %d %s as %s',
+    async (current, currency, expected) => {
+      const resource = makeResource({
+        data: [
+          {
+            source_id: 'csmrpd_3',
+            type: 'cash',
+            current,
+            currency,
+            as_of: '2026-07-14T00:00:00Z',
+          },
+        ],
+      });
+
+      const { lastFrame } = render(
+        <BalancesList resource={resource} onComplete={() => {}} />,
+      );
+
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain(expected);
+      });
+    },
+  );
+
   it('renders an empty state when there are no balances', async () => {
     const resource = makeResource({ data: [] });
 

@@ -9,6 +9,7 @@ import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback } from 'react';
 import { useAsyncAction } from '../../hooks/use-async-action';
+import { formatAmount } from '../../utils/format-amount';
 
 interface BalancesListProps {
   resource: IBalancesResource;
@@ -39,12 +40,6 @@ function truncateCell(value: string, width: number): string {
 
 function formatCell(value: string, width: number): string {
   return truncateCell(value, width).padEnd(width);
-}
-
-function formatCents(cents: number): string {
-  const dollars = Math.abs(cents) / 100;
-  const formatted = `$${dollars.toFixed(2)}`;
-  return cents < 0 ? `-${formatted}` : formatted;
 }
 
 function sourceIdWidth(balances: Balance[]): number {
@@ -93,7 +88,9 @@ export const BalancesList: React.FC<BalancesListProps> = ({
       formatCell(balance.source_id ?? '-', idWidth),
       formatCell(balance.type ?? '-', TYPE_WIDTH),
       formatCell(
-        balance.current != null ? formatCents(balance.current) : '-',
+        balance.current != null
+          ? formatAmount(balance.current, balance.currency ?? '')
+          : '-',
         CURRENT_WIDTH,
       ),
       formatCell(balance.currency ?? '-', CURRENCY_WIDTH),
