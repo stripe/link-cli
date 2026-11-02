@@ -11,7 +11,7 @@ Set up and authenticate Link CLI for the user's intended use case. After setup, 
 
 Infer the use case only when the user's intent is explicit:
 
-- **Agent payments**: buying, paying, checking out, or obtaining a payment credential. This includes Link balance, which is not a separate use case.
+- **Agent payments**: buying, paying, checking out, or obtaining a payment credential.
 - **Financial insights**: reading precomputed purchase-pattern insights, transactions, balances, connected accounts, or spending patterns.
 - **Both**: enabling payments and financial insights.
 
