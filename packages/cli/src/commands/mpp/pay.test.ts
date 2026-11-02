@@ -1,5 +1,7 @@
 import type { ISpendRequestResource } from '@stripe/link-sdk';
 import { Challenge, Credential } from 'mppx';
+import { Mppx } from 'mppx/server/core';
+import { stripe } from 'mppx/stripe/server/spt';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildUserAgent } from '../../utils/user-agent';
 import {
@@ -289,20 +291,81 @@ describe('payWithSpt', () => {
     expect(credential.challenge.id).toBe('ch_002');
   });
 
-  it('passes delegated approval through when creating the spend request', async () => {
-    const repository = approvedRepository();
-    const fetcher = vi
-      .fn()
-      .mockResolvedValueOnce(challengeResponse())
-      .mockResolvedValueOnce(challengeResponse())
-      .mockResolvedValueOnce(new Response('paid'));
+  it.each([
+    { approve: false, useApprovalPolicy: false },
+    { approve: true, useApprovalPolicy: false },
+    { approve: false, useApprovalPolicy: true },
+    { approve: true, useApprovalPolicy: true },
+  ])(
+    'creates a spend request with approve=$approve and useApprovalPolicy=$useApprovalPolicy',
+    async ({ approve, useApprovalPolicy }) => {
+      const repository = approvedRepository();
+      const fetcher = vi
+        .fn()
+        .mockResolvedValueOnce(challengeResponse())
+        .mockResolvedValueOnce(challengeResponse())
+        .mockResolvedValueOnce(new Response('paid'));
+      vi.stubGlobal('fetch', fetcher);
+
+      await runFullFlow(repository, 1000, approve, useApprovalPolicy);
+
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          approve: approve || useApprovalPolicy || undefined,
+          use_approval_policy: useApprovalPolicy || undefined,
+        }),
+      );
+    },
+  );
+
+  it('pays an mppx seller with rotating issuance nonces', async () => {
+    const create = vi.fn().mockResolvedValue({
+      id: 'pi_test_123',
+      status: 'succeeded',
+    });
+    const seller = Mppx.create({
+      secretKey: 'test-secret-key-test-secret-key-32',
+      realm: STRIPE_CHALLENGE.realm,
+      methods: [
+        stripe.spt({
+          client: { paymentIntents: { create } },
+          networkId: 'profile_test_repro',
+          paymentMethodTypes: ['card'],
+        }),
+      ],
+    });
+    const handler = seller.charge({
+      amount: '0.75',
+      currency: 'usd',
+      decimals: 2,
+      meta: { order: 'order_123' },
+      expires: STRIPE_CHALLENGE.expires,
+    });
+    const challenges: Challenge.Challenge[] = [];
+    const fetcher = vi.fn<typeof fetch>(async (input, init) => {
+      const result = await handler(new Request(input, init));
+      if (result.status === 402) {
+        challenges.push(Challenge.fromResponse(result.challenge));
+        return result.challenge;
+      }
+      return result.withReceipt(new Response('paid'));
+    });
     vi.stubGlobal('fetch', fetcher);
 
-    await runFullFlow(repository, 1000, true);
+    await expect(runFullFlow(approvedRepository(), 75)).resolves.toMatchObject({
+      status: 200,
+      body: 'paid',
+    });
 
-    expect(repository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ approve: true }),
+    expect(challenges).toHaveLength(2);
+    expect(challenges[0]?.opaque).not.toBe(challenges[1]?.opaque);
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    const credential = Credential.deserialize(
+      new Headers(fetcher.mock.calls[2]?.[1]?.headers).get('authorization') ??
+        '',
     );
+    expect(credential.challenge).toEqual(challenges[1]);
+    expect(create).toHaveBeenCalledTimes(1);
   });
 
   it('accepts semantically identical request objects regardless of key order', async () => {
@@ -394,14 +457,33 @@ describe('payWithSpt', () => {
     ['request digest', { digest: 'sha-256=ZGlmZmVyZW50' }],
     ['credential header', { header: 'Payment-Credential' }],
     ['opaque metadata', { opaque: 'bWV0YWRhdGE' }],
+    [
+      'order metadata',
+      { meta: { order: 'two', _mppx_scope: 'paid', _mppx_nonce: 'new' } },
+    ],
+    [
+      'route scope',
+      { meta: { order: 'one', _mppx_scope: 'other', _mppx_nonce: 'new' } },
+    ],
   ])(
     'rejects a refreshed challenge with changed %s',
     async (_field, change) => {
       const repository = approvedRepository();
-      const refreshedResponse = challengeResponse(challengeWith(change));
+      const refreshedResponse = challengeResponse(
+        challengeWith({
+          meta: { order: 'one', _mppx_scope: 'paid', _mppx_nonce: 'new' },
+          ...change,
+        }),
+      );
       const fetcher = vi
         .fn()
-        .mockResolvedValueOnce(challengeResponse())
+        .mockResolvedValueOnce(
+          challengeResponse(
+            challengeWith({
+              meta: { order: 'one', _mppx_scope: 'paid', _mppx_nonce: 'old' },
+            }),
+          ),
+        )
         .mockResolvedValueOnce(refreshedResponse);
       vi.stubGlobal('fetch', fetcher);
 
@@ -576,6 +658,7 @@ function runFullFlow(
   repository: ISpendRequestResource,
   amountOverride = 1000,
   approve = false,
+  useApprovalPolicy = false,
 ) {
   return runMppPayFullFlow({
     url: 'https://merchant.example/challenge',
@@ -588,6 +671,7 @@ function runFullFlow(
     paymentMethodId: 'pd_test_123',
     test: true,
     approve,
+    useApprovalPolicy,
     repository,
     paymentMethodsFactory: vi.fn(),
   });

@@ -202,7 +202,7 @@ export const RetrieveSpendRequest: React.FC<RetrieveSpendRequestProps> = ({
           <Text color="cyan">
             <Spinner type="dots" />{' '}
             {resumingNextAction
-              ? 'Waiting for 3D Secure verification to complete...'
+              ? 'Waiting for a required action to complete...'
               : 'Awaiting approval...'}{' '}
             ({elapsed}s elapsed)
           </Text>

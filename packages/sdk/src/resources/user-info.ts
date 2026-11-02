@@ -59,7 +59,6 @@ const userInfoSchema = z
     last_name: z.string().nullable().optional(),
     phone: z.string().nullable().optional(),
     address: userInfoAddressSchema.nullable().optional(),
-    eligible_for_balance: z.boolean().optional(),
     default_spend_request_currency: z.string().optional(),
     agent_wallet_spend_limits: agentWalletSpendLimitsSchema.optional(),
     agent_wallet_step_up: agentWalletVerificationRequirementSchema.optional(),
@@ -73,7 +72,6 @@ const userInfoSchema = z
       last_name,
       phone,
       address,
-      eligible_for_balance,
       default_spend_request_currency,
       agent_wallet_spend_limits,
       agent_wallet_step_up,
@@ -85,7 +83,6 @@ const userInfoSchema = z
       last_name: last_name ?? null,
       phone: phone ?? null,
       ...(address === undefined ? {} : { address }),
-      ...(eligible_for_balance === undefined ? {} : { eligible_for_balance }),
       ...(default_spend_request_currency === undefined
         ? {}
         : { default_spend_request_currency }),

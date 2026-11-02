@@ -74,6 +74,7 @@ export function createMppCli(
             paymentMethodId={opts.paymentMethodId}
             test={opts.test}
             approve={opts.approve}
+            useApprovalPolicy={opts.useApprovalPolicy}
             repository={repository}
             paymentMethodsFactory={paymentMethodsFactory}
             onComplete={(result) => {
@@ -180,7 +181,8 @@ export function createMppCli(
         context: opts.context,
         request_approval: true,
         test: opts.test || undefined,
-        approve: opts.approve || undefined,
+        approve: opts.approve || opts.useApprovalPolicy || undefined,
+        use_approval_policy: opts.useApprovalPolicy || undefined,
       };
       const spendRequest = await repository.create(createParams);
 
@@ -202,6 +204,21 @@ export function createMppCli(
         nextArgs.push('-H', `${name}: ${value}`);
       }
       const payment = buildCommandContinuation('mpp', nextArgs);
+      if (spendRequest.status === 'approved') {
+        yield {
+          ...spendRequest,
+          instruction:
+            'Invoke _next.pay_argv directly without a shell to complete payment.',
+          _next: {
+            ...(payment.command !== undefined
+              ? { pay_command: payment.command, shell: payment.shell }
+              : {}),
+            pay_argv: payment.argv,
+          },
+        };
+        return;
+      }
+
       const poll = buildCommandContinuation('spend-request', [
         'retrieve',
         spendRequest.id,

@@ -6,8 +6,6 @@ description: |
   Also use available precomputed insights to answer questions about shopping preferences or identifying preferred businesses.
 allowed-tools:
  - Bash(link-cli:*)
- - Bash(npx --yes @stripe/link-cli:*)
- - Bash(npx @stripe/link-cli:*)
  - Bash(npm install -g @stripe/link-cli:*)
 license: Complete terms in LICENSE
 metadata:
@@ -59,11 +57,13 @@ link-cli auth status --format json
 
 When present, inspect `authorization_details` in the response for entries with `type: "source"` and the required actions. The field may be absent when the token endpoint did not return authorization details or when authentication comes from `LINK_ACCESS_TOKEN`; in that case, run only the minimum data command needed and handle a permission error as described below.
 
-If the user is not authenticated, start a login that requests only the source actions needed for the requested data. If the user is already authenticated but one or more required source actions are missing, use `auth upgrade` instead of `auth login`. `auth upgrade` preserves the current session while the user approves the additional access and replaces it only after approval succeeds.
+For a new connection, `auth login` requests the `userinfo:read` and `payment_methods.agentic` scopes and all four financial-insights source actions by default. The user must approve the connection; this request does not retrieve any financial data. If the user wants payment-only access, use `--no-financial-insights`. If they do not want the default payment scope, use `--no-agentic-payments`. If they want a narrower set of financial-data actions, pass only the desired `--source-actions` flags or `--authorization-detail` entries; either replaces the default. Do not combine either with an explicit `--financial-insights` or `--no-financial-insights` flag. An explicit `--scope` replaces the default scopes.
+
+If the user is already authenticated but an action needed for their financial-data request is missing, use `auth upgrade` with only that missing action instead of `auth login`. `auth upgrade` preserves the current session while the user approves the additional access and replaces it only after approval succeeds. Do not upgrade access solely for an optional insight during a purchase.
 
 The `insights` commands will indicate when the access token is insufficient to retrieve a particular insight in the list. It will provide `authorization_remediation` indicating required scopes and `authorization_details` when more access is needed. When `LINK_ACCESS_TOKEN` is set, explain the missing access but do not attempt to upgrade access through the CLI. Otherwise, upgrade to obtain the requisite access or skip using `insights`.
 
-Use the minimum required source actions:
+The financial-insights source actions are:
 
 - Transactions processed through Link: `read_link_transactions`
 - Transactions imported from bank connections: `read_external_transactions`
@@ -71,20 +71,21 @@ Use the minimum required source actions:
 - Data source details and descriptions: `read_source_details`. This action is broadly useful, for example if you will ever need to tie a transaction or balance to a particular account name.
 - Pre-computed aggregations: all of the above.
 
-If the user asks a question that requires multiple data types, request all relevant actions together.
 
-If this skill supports a purchase and the merchant is unspecified, identify the needed Link capabilities before login. Request transaction access with the payment scopes in one login when a purchase-pattern insight is likely to help. The current top-brand insight can use a source granting either `read_link_transactions` or `read_external_transactions`; requesting both covers both kinds of source. If already authenticated, consult `insights list-available-types` and request only the missing access it reports.
+When narrowing a new login or upgrading an existing one, request only the actions needed for the user's question.
 
-Example for a new login that needs all financial data types:
+During a purchase with an ambiguous merchant, use an available top-brand insight as one clue when the current connection already has access. If access is missing, continue without the optional insight; do not start an upgrade just for merchant selection.
+
+Recommended new login:
 
 ```bash
-link-cli auth login \
-  --client-name "<your-agent-name>" \
-  --source-actions read_link_transactions \
-  --source-actions read_balances \
-  --source-actions read_external_transactions \
-  --source-actions read_source_details \
-  --format json
+link-cli auth login --client-name "<your-agent-name>" --format json
+```
+
+Payment-only opt-out:
+
+```bash
+link-cli auth login --client-name "<your-agent-name>" --no-financial-insights --format json
 ```
 
 Example for adding balance access to an existing session:
@@ -119,7 +120,7 @@ Use the smallest command set that answers the user’s question.
 Examples:
 
 - “Which brands do I tend to shop at?” → Discover available insight types, then retrieve the relevant insight.
-- “Buy flour from my usual store.” → Use a relevant available insight to inform merchant selection; treat the result as a clue, not a guaranteed preference.
+- “Buy flour from my usual store.” → If available with the current access, check a relevant top-brand insight once. Treat the result as a clue, not a guaranteed preference; continue without it if unavailable.
 - “How much did I spend on restaurants last month?” → Use transactions only.
 - “What is my current checking account balance?” → Use balances only.
 - “Which accounts are connected?” → Use sources only.
@@ -151,7 +152,7 @@ Use precomputed insights when their descriptions match the user's question. Firs
 link-cli insights list-available-types --format json
 ```
 
-The response contains `data` entries with `id`, `description`, and optionally `authorization_remediation`, plus `has_more`. Continue with `--starting-after <last_id>` while `has_more` is true. An insight may be listed even when the current session lacks the access needed to retrieve its data. If the insight is needed, use the reported remediation with `auth upgrade` for a CLI-managed session; follow the environment-token rule above for `LINK_ACCESS_TOKEN`. Pass missing `scope` values as one space-separated `--scope` argument; for a source `authorization_details` entry, pass each listed action as a separate `--source-actions` flag. Do not guess insight IDs or assume that every listed insight has data for this user.
+The response contains `data` entries with `id`, `description`, and optionally `authorization_remediation`, plus `has_more`. Continue with `--starting-after <last_id>` while `has_more` is true. An insight may be listed even when the current session lacks the access needed to retrieve its data. For a direct financial-data request, use reported remediation with `auth upgrade` for a CLI-managed session; follow the environment-token rule above for `LINK_ACCESS_TOKEN`. Pass missing `scope` values as one space-separated `--scope` argument; for a source `authorization_details` entry, pass each listed action as a separate `--source-actions` flag. For an optional purchase clue, skip an insight that needs new access. Do not guess insight IDs or assume that every listed insight has data for this user.
 
 Retrieve only relevant IDs (repeat `--insight` for more than one), or omit the filter when the user needs all available insights:
 
@@ -167,7 +168,7 @@ Each retrieved insight has a `status`:
 - `pending`: the computation is not ready; suggest checking later.
 - `no_data`: inspect `error_code`, `error_message`, and `authorization_remediation`. For `missing_permissions`, follow the authentication guidance above; otherwise report that data is unavailable. In a purchase flow, continue without the insight when access is unavailable or the user declines to share data.
 
-Other value types or statuses may appear in future responses. Preserve their JSON rather than inventing a meaning. Treat purchase-pattern results as observed history, not a definitive statement of the user's preference. Use raw transactions only if the available insights cannot answer the question and transaction-level detail is needed.
+Other value types or statuses may appear in future responses. Preserve their JSON rather than inventing a meaning. Treat purchase-pattern results as observed history, not a definitive statement of the user's preference. For an ambiguous payment, check only a relevant category and use the result only if `ready`; an explicit merchant choice always wins. If insight discovery or retrieval fails, is pending, lacks access, or returns no useful data, continue from other task context or ask the user which merchant they want. Do not retry or delay a payment solely for an optional insight. Use raw transactions only if the user needs transaction-level detail to answer their question.
 
 ## Sources (concept)
 
@@ -325,11 +326,11 @@ You spent $342.18 on restaurants across 12 transactions in July. The largest res
 
 ## Error handling
 
-If authentication fails, ask the user to re-authenticate.
+If login initiation fails specifically because the default source actions are unsupported or unavailable, explain the reduced access and retry once with `auth login --no-financial-insights` when payment access is still needed. Do not automatically retry after the user declines or abandons approval. For other authentication failures, ask the user to re-authenticate.
 
 If a command returns no data, say that no matching Link financial data was available for the requested scope.
 
-If the CLI returns an error indicating missing permissions or source actions, request only the specific missing action. Use `auth upgrade` when a session is already authenticated and `auth login` when it is not, then wait for approval before retrying the data command once.
+For a direct financial-data request, if the CLI reports missing permissions, request only the specific missing action. Use `auth upgrade` when a session is already authenticated and `auth login` when it is not, then wait for approval before retrying the data command once. Skip an optional payment insight instead of escalating access.
 
 If data is incomplete or paginated, clearly state that the answer is based on the data retrieved so far.
 
@@ -341,7 +342,7 @@ Do not:
 - Initiate payments.
 - Modify financial sources.
 - Retrieve unrelated financial data.
-- Request broader source actions than needed.
+- Override the user's opt-out or explicit narrow access choice.
 - Expose credentials, tokens, or full payment details.
 - Present uncertain derived insights as definitive.
 
@@ -349,7 +350,7 @@ Do:
 
 - Use read-only commands.
 - Authenticate before retrieval.
-- Request the minimum required source actions.
+- Use the four-action default for a new login unless the user opts out or chooses narrower access.
 - Use `--format json` for parsing.
 - Retrieve only the data needed.
 - Summarize clearly and note limitations.

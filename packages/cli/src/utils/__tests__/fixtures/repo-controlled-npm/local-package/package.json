@@ -1,0 +1,7 @@
+{
+  "name": "@stripe/link-cli",
+  "version": "9.9.9",
+  "bin": {
+    "link-cli": "bin.sh"
+  }
+}

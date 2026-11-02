@@ -3,7 +3,6 @@ name: use-link-identity
 description: Use Link CLI's identity commands when a service requests a Link Agent Attestation Token (AAT) or signed user claims such as email. Covers acquiring and managing attestations, obtaining identity credentials, and presenting selected claims to a verifier through an HTTP client or browser automation.
 allowed-tools:
   - Bash(link-cli:*)
-  - Bash(npx --yes @stripe/link-cli:*)
   - Bash(npm install -g @stripe/link-cli:*)
 license: Complete terms at https://github.com/stripe/link-cli/blob/main/LICENSE
 metadata:

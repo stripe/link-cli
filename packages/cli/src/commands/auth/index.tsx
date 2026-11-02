@@ -10,14 +10,19 @@ import {
   type CliAuthStorage,
   storage as defaultStorage,
 } from '../../auth/storage';
-import type { IAuthResource, JsonValue, SourceAction } from '../../auth/types';
+import {
+  DEFAULT_FINANCIAL_INSIGHTS_SOURCE_ACTIONS,
+  type IAuthResource,
+  type JsonValue,
+  type SourceAction,
+} from '../../auth/types';
 import { pollUntil } from '../../utils/poll-until';
 import { renderInteractive } from '../../utils/render-interactive';
 import { sanitizeDeep } from '../../utils/sanitize-text';
 import type { UpdateInfoProvider } from '../../utils/update-info';
 import { Login } from './login';
 import { Logout } from './logout';
-import { loginOptions, statusOptions } from './schema';
+import { loginOptions, statusOptions, upgradeOptions } from './schema';
 import { AuthStatus } from './status';
 import { resolveAuthInfo } from './utils';
 
@@ -225,8 +230,12 @@ export function createAuthCli(
     outputPolicy: 'agent-only' as const,
     async *run(c) {
       const clientName = c.options.clientName?.trim();
-      const scope = normalizeScopeInput(c.options.scope);
-      let authorizationDetails: JsonValue[] | undefined;
+      const scope =
+        normalizeScopeInput(c.options.scope) ??
+        (c.options.scope === undefined && c.options.agenticPayments === false
+          ? 'userinfo:read'
+          : undefined);
+      let authorizationDetails: JsonValue[] = [];
       if (!clientName || clientName.length === 0) {
         return c.error({
           code: 'INVALID_INPUT',
@@ -239,6 +248,17 @@ export function createAuthCli(
           message: 'scope must be a non-empty string when provided',
         });
       }
+      if (
+        c.options.financialInsights !== undefined &&
+        (c.options.sourceActions.length > 0 ||
+          c.options.authorizationDetail.length > 0)
+      ) {
+        return c.error({
+          code: 'INVALID_ARGUMENT',
+          message:
+            "The --financial-insights parameter can't be used at the same time as --authorization-detail or --source-actions.",
+        });
+      }
       try {
         authorizationDetails = parseAuthorizationDetails(
           c.options.authorizationDetail,
@@ -249,6 +269,14 @@ export function createAuthCli(
           message: (error as Error).message,
         });
       }
+
+      // Explicit authorization details or source actions replace the default.
+      const sourceActions =
+        c.options.financialInsights !== false &&
+        c.options.sourceActions.length === 0 &&
+        authorizationDetails.length === 0
+          ? [...DEFAULT_FINANCIAL_INSIGHTS_SOURCE_ACTIONS]
+          : c.options.sourceActions;
 
       const existingAuth = storage.getTokens();
       if (existingAuth?.refresh_token) {
@@ -284,7 +312,7 @@ export function createAuthCli(
             authResource={authResource}
             clientName={clientName}
             scope={scope}
-            sourceActions={c.options.sourceActions}
+            sourceActions={sourceActions}
             authorizationDetails={authorizationDetails}
             authStorage={storage}
             onComplete={() => {}}
@@ -299,7 +327,7 @@ export function createAuthCli(
         {
           clientName,
           scope,
-          sourceActions: c.options.sourceActions,
+          sourceActions,
           authorizationDetails,
         },
         {
@@ -314,7 +342,7 @@ export function createAuthCli(
   cli.command('upgrade', {
     description:
       'Re-authenticate with Link, merging the requested access with your current access so the new session is a superset',
-    options: loginOptions,
+    options: upgradeOptions,
     outputPolicy: 'agent-only' as const,
     async *run(c) {
       const clientName = c.options.clientName?.trim();

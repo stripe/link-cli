@@ -36,6 +36,7 @@ let baseUrl: string;
 let directory: string;
 let createResponse: Record<string, unknown>;
 let createStatus: number;
+let createRequest: { path: string; body: Record<string, unknown> } | undefined;
 let paidRequest:
   | {
       authorization: string;
@@ -68,7 +69,12 @@ beforeAll(async () => {
         res.setHeader('www-authenticate', CHALLENGE);
         response = { error: 'payment required' };
       }
-    } else if (url.pathname === '/spend_requests' && req.method === 'POST') {
+    } else if (
+      (url.pathname === '/spend_requests' ||
+        url.pathname === '/spend_requests/create_delegated') &&
+      req.method === 'POST'
+    ) {
+      createRequest = { path: url.pathname, body: JSON.parse(body) };
       status = createStatus;
       response = createResponse;
     } else if (url.pathname.endsWith('/request_approval')) {
@@ -115,6 +121,7 @@ beforeAll(async () => {
 beforeEach(() => {
   createResponse = SPEND_REQUEST;
   createStatus = 200;
+  createRequest = undefined;
   paidRequest = undefined;
   completeBody = undefined;
 });
@@ -175,6 +182,93 @@ const createArgs = [
 ];
 
 describe('command continuations', () => {
+  const mppArgs = (flag: string) => [
+    'mpp',
+    'pay',
+    `${baseUrl}/seller`,
+    '--context',
+    CONTEXT,
+    '--payment-method-id',
+    'pd_synthetic',
+    flag,
+  ];
+
+  it.each(['--approve', '--use-approval-policy'])(
+    'returns only the payment continuation after immediate approval with %s',
+    async (flag) => {
+      createResponse = {
+        ...SPEND_REQUEST,
+        status: 'approved',
+        approval_url: undefined,
+      };
+      const [output] = await runCli(mppArgs(flag));
+      expect(createRequest).toMatchObject({
+        path: '/spend_requests/create_delegated',
+        body: {
+          request_approval: true,
+          amount: 1000,
+          network_id: 'net_security',
+        },
+      });
+      expect(createRequest?.body.use_approval_policy).toBe(
+        flag === '--use-approval-policy' ? true : undefined,
+      );
+      expect(output.status).toBe('approved');
+      expect(output._next).not.toHaveProperty('poll_argv');
+      expect(output._next).not.toHaveProperty('poll_command');
+      expect(output._next).not.toHaveProperty('until');
+      expect(output._next).not.toHaveProperty('argv');
+      expect(output.instruction).toContain('_next.pay_argv');
+      expect(output.instruction).not.toMatch(/approval_url|poll|Link app/);
+      const next = output._next.pay_argv as CommandArgv;
+      expect(next.args).toContain(CHALLENGE);
+      expect(next.args).toContain(SPEND_REQUEST.id);
+      if (process.platform === 'win32') {
+        expect(output._next).not.toHaveProperty('pay_command');
+        expect(output._next).not.toHaveProperty('shell');
+      } else {
+        expect(output._next.pay_command).toContain('mpp pay');
+        expect(output._next.shell).toBe('posix');
+      }
+      const [paid] = await runCli([next.command, ...next.args]);
+      expect(paid.status).toBe(200);
+      expect(paidRequest).toBeDefined();
+    },
+    10_000,
+  );
+
+  it.each(['pending_approval', 'requires_action'])(
+    'preserves polling and payment continuations for %s with approval policy',
+    async (status) => {
+      createResponse = { ...SPEND_REQUEST, status };
+      const [output] = await runCli(mppArgs('--use-approval-policy'));
+      expect(createRequest?.body.use_approval_policy).toBe(true);
+      expect(output.status).toBe(status);
+      expect(output._next.poll_argv).toEqual({
+        command: 'spend-request',
+        args: [
+          'retrieve',
+          SPEND_REQUEST.id,
+          '--interval',
+          '2',
+          '--max-attempts',
+          '300',
+        ],
+      });
+      expect(output._next.pay_argv.command).toBe('mpp');
+      expect(output._next.pay_argv.args).toContain(SPEND_REQUEST.id);
+      expect(output._next.pay_argv.args).toContain(CHALLENGE);
+      expect(output._next).not.toHaveProperty('argv');
+      expect(output._next.until).toBe(
+        'status changes from pending_approval, then run pay_argv',
+      );
+      expect(output.instruction).toContain('Present the approval_url');
+      expect(output.instruction).toContain('_next.poll_argv');
+      expect(output.instruction).toContain('_next.pay_argv');
+      expect(paidRequest).toBeUndefined();
+    },
+  );
+
   it('accepts the malicious challenge and completes MPP using argv without executing it', async () => {
     expect(decodeStripeChallenge(CHALLENGE)).toMatchObject({
       description:

@@ -16,7 +16,7 @@ export function createUserInfoCli(
 
   cli.command('retrieve', {
     description:
-      'Retrieve user info, including optional address, balance eligibility, Agent Wallet spend limits, and verification requirements',
+      'Retrieve user info, including optional address, Agent Wallet spend limits, and verification requirements',
     outputPolicy: 'agent-only' as const,
     middleware: [requireAuth(authStorage, envAccessToken)],
     async run(c) {

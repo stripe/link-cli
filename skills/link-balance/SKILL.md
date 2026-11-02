@@ -5,8 +5,6 @@ description: |
   Sets up and uses Link balance, a payment method that holds money in the user's Link account, and the approval preference that lets an agent spend it without the user approving each purchase. Use when a purchase should happen later ("approve now, buy later"), repeatedly on a schedule (separate one-time purchases, not a merchant subscription), while the user is away or asleep and cannot approve a SpendRequest, when the user simply wants to stop approving each purchase manually, or when you're considering a purchase on your own initiative that the user has said they want; when the user asks about Link balance; or when you need to check whether Link balance is set up, whether this agent has an approval preference, or how to send the user to set either up. Link balance is part of agent payments, not financial insights.
 allowed-tools:
   - Bash(link-cli:*)
-  - Bash(npx --yes @stripe/link-cli:*)
-  - Bash(npx @stripe/link-cli:*)
   - Bash(npm install -g @stripe/link-cli:*)
 license: Complete terms in LICENSE
 metadata:
