@@ -175,7 +175,7 @@ When you plan to spend without requesting approval, it's important to check the 
 - **The total must be below the approval threshold.**
 - **The total must fit the account limits** in `create-payment-credential`: $500 per spend request and $500 per day across all purchases. A higher approval threshold doesn't change these.
 
-If anything falls short, explain it with real numbers and send a setup link with only the parameters that need to change. For example: "Your Link balance is $12.00 and this purchase is about $40.00. Add at least $29 to make this purchase." That link uses `desired_balance_amount=4000`, which is the target, not the difference. Don't treat the plan as agreed until the user has finished and you've re-run the checks.
+If anything falls short, explain it with real numbers and send a setup link with only the parameters that need to change. For example: "Your Link balance is $12.35 and this purchase is about $40.00. Add at least $28 to make this purchase." That link uses `desired_balance_amount=4000`, which is the target, not the difference. Don't treat the plan as agreed until the user has finished and you've re-run the checks.
 
 If the user won't add money or raise the approval threshold, offer a purchase that needs their approval instead, and make clear it can't happen while they're away.
 
