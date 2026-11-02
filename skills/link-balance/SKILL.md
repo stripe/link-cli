@@ -36,9 +36,11 @@ The balance belongs to the user's Link account. The approval policy belongs to o
 
 Link balance is part of agent payments. It is unrelated to financial insights and to the bank balances from `link-cli balances list`. It needs no extra scopes or source actions. Neither Link balance nor an approval policy is part of the initial `link-cli` setup. Never assume they exist, and never block a normal approved payment on them.
 
-## What your OAuth client allows
+## Who can use it
 
-Any agent can pay with Link balance: if the user already has it set up, it's one of their payment methods. Setup URLs and approval policies are only available to agents with a confidential Link OAuth client ID. If you don't have one, you can still pay with Link balance the user already has, with normal approval, but don't send setup URLs or pass `--use-approval-policy`.
+Link balance is only available in the US, and not in New York State. Don't suggest setting it up to a user you know is outside the US or in New York.
+
+Any agent can pay with Link balance: if the user already has it set up, it's one of their payment methods. Setup URLs and approval policies are only available to agents with a confidential Link OAuth client ID. The shared client that `link-cli auth login` uses is not eligible. If you don't have a confidential client ID, you can still pay with Link balance the user already has, with normal approval, but don't send setup URLs or pass `--use-approval-policy`.
 
 ## When to use it
 
