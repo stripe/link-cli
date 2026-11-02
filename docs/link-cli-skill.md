@@ -116,7 +116,6 @@ If approval is denied, expires, or times out, report that outcome. Do not repeat
 Authentication alone does not authorize an individual purchase and does not answer a financial-data question.
 
 - For purchases and payment credentials, use the `create-payment-credential` skill.
+- For users who want you to make purchases without asking for their approval each time, such as while they're away, on a schedule, or on your own when you know they want something, use the `link-balance` skill. Set it up after basic payments work, and don't request extra scopes or block setup on it.
 - For precomputed insights, transactions, balances, and sources, use the `financial-insights` skill. Discover available insight IDs with `insights list-available-types` before retrieving relevant ones with `insights list`.
 - For users who selected both, load the relevant downstream skill for each subsequent task.
-
-Link balance is a payment method that holds money in the user's Link account. The user sets it up once, separately and after this initial setup, and it can then be used on any spend request. To let you skip approval on a purchase, the user must also set up an approval preference for you, which sets an approval threshold: purchases below that amount don't need their approval. Neither is part of this initial setup. Do not request extra scopes or financial-insights source actions for them, and do not block basic payments on them. If the user says during setup that they want purchases to happen while they are away or on a schedule, that they want to stop approving each purchase manually, or that they want you to buy things for them on your own, tell them Link balance with an approval preference can enable that, and offer to set it up after basic payments work.
