@@ -84,6 +84,8 @@ class CreateSpendRequestParams(TypedDict, total=False):
     test: bool | None
     approval_details: ApprovalDetailParams | None
     metadata: Mapping[str, str] | None
+    # Request expiry in Unix seconds for delayed merchant charges; see create().
+    expires_at: int | None
     recurring: SpendRequestRecurringParams | None
 
 

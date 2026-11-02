@@ -190,6 +190,53 @@ Keep returned card and payment-token credentials out of model context, logs,
 and user-visible messages. Credential fields are omitted from model `repr`,
 but `model_dump()` and `model_dump_json()` include them.
 
+## Expiration and delayed merchant charges
+
+Pass the optional `expires_at` keyword argument to `spend_requests.create`.
+Synchronous and asynchronous clients both support it. It is available to all
+OAuth clients and can only be set at creation. For example, add this to a
+preorder request for a 90-day expiry (using `import time`):
+
+```python
+expires_at=int(time.time()) + 90 * 24 * 60 * 60,
+```
+
+`expires_at` is the spend request's expiry, expressed as an integer Unix
+timestamp in seconds. Set it when the merchant may charge later, such as for a
+preorder, booking, or payment due after delivery. Choose a deadline that covers
+the expected charge date and explain the timing in `context`. Omit it for an
+ordinary purchase.
+
+This supports deferred authorization: for eligible card flows, Link can wait
+to fund the payment until the merchant charges. The merchant controls charge
+timing; `expires_at` does not schedule a payment.
+
+The server applies these limits when creating a request:
+
+- One-time requests default to 7 days and allow an explicit expiry up to 365 days.
+- Recurring requests default to their maximum, up to 1,827 days (about 5 years).
+  Set an earlier expiry to end the spending permission sooner. `recurring`
+  controls the spending-limit reset period; `expires_at` controls its end date.
+- An explicit expiry must be at least 3 hours in the future. Country limits
+  apply to both request types: Japan is capped at 180 days, and an unknown
+  account country uses a 180-day cap. The API validates the applicable limit.
+
+Approval is still required within 30 minutes of requesting it. A later
+`expires_at` does not extend that approval window.
+
+For card credentials subject to the initial authorization window, the merchant
+must make the first payment or card-verification authorization within 48 hours
+of the first card retrieval, and before `expires_at`. This binds the card to the
+merchant for later charges. Retrieve the card only when ready to submit it to
+checkout; retrieving it again does not reset the window. If the window ends
+without a qualifying authorization, the request expires and its credentials
+are revoked. SPT credentials are not subject to this card-retrieval window.
+
+Follow the normal approval flow and check the current request status and
+returned credential `valid_until` before use. A later request expiry does not
+guarantee payment: funds and payment-method checks can still fail when the
+merchant charges. It also does not make a one-time SPT reusable.
+
 ## Recurring payments
 
 Pass `recurring` when the user has agreed to recurring spending:

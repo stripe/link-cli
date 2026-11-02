@@ -95,3 +95,29 @@ func TestSpendRequestCallbackRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateSpendRequestExpiration(t *testing.T) {
+	expiresAt := int64(1_800_000_000)
+	client, err := NewClient(Options{
+		AccessToken: "token",
+		HTTPClient: &http.Client{Transport: callbackTestTransport(func(request *http.Request) (*http.Response, error) {
+			var body map[string]any
+			assertNoError(t, json.NewDecoder(request.Body).Decode(&body))
+			if body["expires_at"] != float64(expiresAt) {
+				t.Fatalf("expires_at = %v, want %d", body["expires_at"], expiresAt)
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK, Header: make(http.Header),
+				Body: io.NopCloser(strings.NewReader(`{"id":"sr_expiry","status":"created","expires_at":1800000000}`)),
+			}, nil
+		})},
+	})
+	assertNoError(t, err)
+	result, err := client.SpendRequests.Create(context.Background(), CreateSpendRequestParams{
+		Context: "preorder", ExpiresAt: &expiresAt,
+	})
+	assertNoError(t, err)
+	if result.ExpiresAt == nil || *result.ExpiresAt != expiresAt {
+		t.Fatalf("unexpected response expiry: %#v", result.ExpiresAt)
+	}
+}

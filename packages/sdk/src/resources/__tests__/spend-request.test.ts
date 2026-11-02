@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LinkApiError } from '@/errors';
-import type { CreateSpendRequestParams } from '@/resources/interfaces';
+import type {
+  CreateSpendRequestParams,
+  ISpendRequestResource,
+} from '@/resources/interfaces';
 import {
   getDuplicateSpendRequest,
   SpendRequestResource,
@@ -68,6 +71,17 @@ describe('SpendRequestResource', () => {
   });
 
   describe('createSpendRequest', () => {
+    it('supports request expiry through the public resource interface', async () => {
+      const expires_at = 1_800_000_000;
+      mockFetchResponse(200, { ...spendRequestResponse, expires_at });
+      const resource: ISpendRequestResource = repo;
+      const result = await resource.create({ ...validParams, expires_at });
+      expect(JSON.parse(mockFetch.mock.calls[0]![1].body).expires_at).toBe(
+        expires_at,
+      );
+      expect(result.expires_at).toBe(expires_at);
+    });
+
     it.each([false, true])(
       'passes callback context unchanged with delegated approval=%s',
       async (approve) => {

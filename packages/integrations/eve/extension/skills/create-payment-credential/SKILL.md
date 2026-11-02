@@ -120,6 +120,25 @@ prices yourself. If the currency is not supported, the API rejects the request.
 currency's smallest unit (e.g. cents): `4200` is $42.00 USD or €42.00 EUR. Some
 currencies have no minor unit, so `4200` in `jpy` is ¥4,200.
 
+For delayed merchant charges (preorders, bookings, or payment after delivery),
+pass `expires_at` to `create_spend_request` as an integer Unix timestamp in
+seconds. Cover the expected charge date and explain the timing in `context`.
+Omit it for ordinary purchases. One-time requests default to 7 days and allow
+up to 365 days. Recurring requests default to their maximum, up to 1,827 days;
+an earlier expiry ends spending permission without changing its reset cadence.
+An explicit expiry must be at least 3 hours ahead. Japan and unknown account
+countries have a 180-day cap. The API validates country limits.
+
+A later expiry does not extend the 30-minute approval window. For cards subject
+to the initial authorization window, the merchant must make the first payment
+or card-verification authorization within 48 hours of first card retrieval and
+before request expiry. This binds the card to the merchant for later charges.
+Retrieve the card only when ready for checkout; retrieving again does not reset
+the window. Without a qualifying authorization, the request expires and its
+credentials are revoked. SPT credentials do not have this card-retrieval window.
+Check current status and credential `valid_until` before use. Later expiry does
+not guarantee funds or make a one-time SPT reusable.
+
 For recurring purchases, confirm the user's spending limit, currency, and
 cadence from their request or existing context. Add
 `"recurring": { "interval": "month" }` for a monthly limit. Supported intervals

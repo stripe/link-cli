@@ -29,6 +29,24 @@ const purchase = {
 };
 
 describe('Link tools', () => {
+  it('passes explicit request expiry through the agent tool to HTTP', async () => {
+    const { tools, fetch } = fixture();
+    const expires_at = 1_800_000_000;
+    await tools.create_spend_request.execute(
+      { ...purchase, expires_at },
+      context,
+    );
+    expect(JSON.parse(String(fetch.mock.calls[0]![1]?.body)).expires_at).toBe(
+      expires_at,
+    );
+    expect(
+      linkToolSchemas.createSpendRequest.safeParse({
+        ...purchase,
+        expires_at: expires_at + 0.5,
+      }).success,
+    ).toBe(false);
+  });
+
   it.each([' opaque+nonce ', 'a'.repeat(512), '\u{10000}'.repeat(256)])(
     'passes callback context unchanged through the tool to HTTP %#',
     async (nonce) => {
@@ -218,7 +236,7 @@ describe('Link tools', () => {
       properties: { interval: { enum: ['day', 'week', 'month', 'year'] } },
       required: ['interval'],
     });
-    expect(JSON.stringify(schema)).not.toContain('hour');
+    expect(JSON.stringify(schema.properties?.recurring)).not.toContain('hour');
   });
 
   it.each(['', 'jp', 'usdd'])(

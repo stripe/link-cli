@@ -165,6 +165,7 @@ export interface SpendRequest {
   link_transaction_id?: string;
   activity_url?: string;
   metadata?: Record<string, string>;
+  /** Request expiry in Unix seconds. Also respect credential valid_until. */
   expires_at?: number;
   recurring?: SpendRequestRecurring | null;
   created_at: string;

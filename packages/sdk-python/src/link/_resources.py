@@ -76,12 +76,17 @@ class SpendRequestsResource:
         test: bool | None = None,
         approval_details: ApprovalDetailParams | None = None,
         metadata: Mapping[str, str] | None = None,
+        expires_at: int | None = None,
         recurring: SpendRequestRecurringParams | None = None,
     ) -> SpendRequest:
         """Create a spend request.
 
         Supply completion_callback_url and nonce together for callback context.
         Save the nonce unchanged and verify an exact match on callback.
+        expires_at sets request expiry in Unix seconds for delayed merchant charges.
+        Use at least 3 hours ahead, up to 365 days one-time or 1827 days recurring,
+        subject to country limits. Omit for 7 days one-time or the country maximum
+        recurring. Approval and first-card-authorization windows still apply.
         """
         params: CreateSpendRequestParams = {
             "context": context,
@@ -102,6 +107,7 @@ class SpendRequestsResource:
             "test": test,
             "approval_details": approval_details,
             "metadata": metadata,
+            "expires_at": expires_at,
             "recurring": recurring,
         }
         return self._transport.request(op.spend_create(params))

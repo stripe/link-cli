@@ -154,6 +154,13 @@ export const linkToolSchemas = {
             'At most 50 metadata entries',
           )
           .optional(),
+        expires_at: z
+          .number()
+          .int()
+          .optional()
+          .describe(
+            'Spend request expiry as a Unix timestamp in seconds. Use for delayed merchant charges (preorders or bookings). At least 3 hours ahead; maximum 365 days for one-time requests or 1827 days for recurring requests, subject to country limits. Omit for the server default (7 days for one-time requests; country maximum for recurring requests). Does not extend the approval or first-card-authorization window.',
+          ),
         recurring: z
           .strictObject({
             interval: z.enum(['day', 'week', 'month', 'year']),

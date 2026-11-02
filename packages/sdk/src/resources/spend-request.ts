@@ -56,7 +56,6 @@ const duplicateSpendRequestErrorSchema = z.looseObject({
 type InternalCreateSpendRequestParams = CreateSpendRequestParams & {
   approve?: boolean;
   use_approval_policy?: boolean;
-  expires_at?: number;
 };
 
 type InternalUpdateSpendRequestParams = UpdateSpendRequestParams & {

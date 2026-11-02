@@ -33,13 +33,14 @@ describe('recurring interval', () => {
     });
     expect(help).toContain('--recurring-interval');
     expect(help).toContain('day, week, month, or year');
-    expect(help).not.toContain('hour');
 
     const schema = z.toJSONSchema(createOptions);
     expect(schema.properties?.recurringInterval).toMatchObject({
       enum: ['day', 'week', 'month', 'year'],
     });
-    expect(JSON.stringify(schema)).not.toContain('hour');
+    expect(JSON.stringify(schema.properties?.recurringInterval)).not.toContain(
+      'hour',
+    );
   });
 });
 
