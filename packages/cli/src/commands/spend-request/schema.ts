@@ -113,7 +113,7 @@ export const createOptions = z
       .boolean()
       .default(false)
       .describe(
-        'Use approval policy through the delegated approval flow (beta, available only to select OAuth clients)',
+        'Use approval policy through the delegated approval flow (requires a confidential OAuth client; not available with `link-cli auth login`)',
       ),
     outputFile: z
       .string()
@@ -249,6 +249,6 @@ export const updateOptions = z.object({
     .boolean()
     .default(false)
     .describe(
-      'Use approval policy through the delegated approval flow (beta, available only to select OAuth clients)',
+      'Use approval policy through the delegated approval flow (requires a confidential OAuth client; not available with `link-cli auth login`)',
     ),
 });
