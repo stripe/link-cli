@@ -115,7 +115,7 @@ If approval is denied, expires, or times out, report that outcome. Do not repeat
 
 Authentication alone does not authorize an individual purchase and does not answer a financial-data question.
 
-- For purchases and payment credentials, use the `create-payment-credential` skill. That skill will direct you to the `link-balance` skill when a purchase needs Link balance or needs to happen without the user approving it (for example a delayed or recurring purchase).
+- For purchases and payment credentials, use the `create-payment-credential` skill.
 - For precomputed insights, transactions, balances, and sources, use the `financial-insights` skill. Discover available insight IDs with `insights list-available-types` before retrieving relevant ones with `insights list`.
 - For users who selected both, load the relevant downstream skill for each subsequent task.
 
