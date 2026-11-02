@@ -8,7 +8,6 @@ dist/
 CLAUDE.local.md
 docs/*
 !docs/link-cli-skill.md
-!docs/link-balance-integration-guide.md
 packages/cli/README.md
 .claude/
 .codex/
