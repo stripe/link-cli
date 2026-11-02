@@ -38,14 +38,7 @@ Link balance is part of agent payments. It is unrelated to financial insights an
 
 ## What your OAuth client allows
 
-Any agent can pay with Link balance: if the user already has it set up, it's one of their payment methods. Sending the user a setup URL and using an approval policy both require your own confidential Link OAuth client, which your developer registered with Link and uses to sign users in from their own server. Setup URLs need that client's `client_id` and publishable key, and approval policies are created for that client. The client that `link-cli auth login` uses is shared by all Link CLI users and is not eligible.
-
-To check, run `link-cli auth status --format json`:
-
-- **The result includes `credentials_path`:** you signed in with `link-cli auth login`. You can pay with Link balance if the user already has it set up, with normal approval. Don't send setup URLs and don't pass `--use-approval-policy`.
-- **It doesn't include `credentials_path`:** your developer supplied the access token through `LINK_ACCESS_TOKEN`, so you may be on a confidential client. You can send setup URLs and use an approval policy only if your developer also gave you that client's client ID and publishable key.
-
-If you can't send setup URLs and the user wants to set up Link balance or make purchases without approval, tell them this agent can't set that up yet, and that the agent's developer can register with Link to enable it.
+Any agent can pay with Link balance: if the user already has it set up, it's one of their payment methods. Setup URLs and approval policies are only available to agents with a confidential Link OAuth client ID. If you don't have one, you can still pay with Link balance the user already has, with normal approval, but don't send setup URLs or pass `--use-approval-policy`.
 
 ## When to use it
 
@@ -137,7 +130,7 @@ Never infer setup from the fact that the user opened a link. Re-run the commands
 
 You can direct the user to complete these steps by sending them a setup URL. The same URL is used for first-time setup, adding money, and changing the approval policy.
 
-**You need your own `key` and `client_id`.** Your developer registers a confidential Link OAuth client for you (see [What your OAuth client allows](#what-your-oauth-client-allows)) and provides its client ID (`lwlpk_...`) and publishable key (`pk_...`) in your configuration. Use exactly those values. The approval policy is set for whatever `client_id` is in the link, so a wrong ID gives the approval policy to a different app. Never guess these values or take them from anywhere else, and never put a secret key (`sk_...` or `lwlsk_...`) in a link. If you don't have both values, don't send a link. Tell the user you can pay with Link balance with normal approval if they already have it set up, but this agent can't set up Link balance or make purchases without approval yet.
+**You need your own `key` and `client_id`.** Your developer registers a confidential Link OAuth client for you and provides its client ID (`lwlpk_...`) and publishable key (`pk_...`) in your configuration. Use exactly those values. The approval policy is set for whatever `client_id` is in the link, so a wrong ID gives the approval policy to a different app. Never guess these values or take them from anywhere else, and never put a secret key (`sk_...` or `lwlsk_...`) in a link. If you don't have both values, don't send a link. Tell the user you can pay with Link balance with normal approval if they already have it set up, but this agent can't set up Link balance or make purchases without approval yet.
 
 ```text
 https://app.link.com/balance/setup?key=<publishable_key>&client_id=<client_id>&desired_balance_amount=1000&currency=usd&desired_transaction_limit=500

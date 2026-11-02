@@ -209,7 +209,7 @@ merchant's network profile. Keep the card's merchant name and URL parameters.
 
 **Paying with Link balance:** pass the Link balance payment method's ID with `--payment-method-id` and do not rely on the default payment method. The user approves the request as usual unless you pass `--use-approval-policy`. To be approved automatically, all of these must be true:
 
-- Your session uses an eligible confidential OAuth client, not `link-cli auth login`. See the `link-balance` skill.
+- You have a confidential Link OAuth client ID. See the `link-balance` skill.
 - The request uses the Link balance payment method's ID as `--payment-method-id`.
 - The final total, including tax, shipping, and fees, is below the approval threshold: the `limits.per_purchase` amount of the `spend_request_create` rule returned by `approval-policy retrieve`.
 - If that rule lists `allowed_payment_methods`, the Link balance ID is in it.
