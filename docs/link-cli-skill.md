@@ -1,6 +1,6 @@
 ---
 name: link-cli
-description: Install and authenticate Link CLI for agent payments, financial insights, or both. Use when a user is setting up Link CLI for the first time, asks to connect or log in to Link, or needs to configure Link access before using payment or financial-data features.
+description: Install and authenticate Link CLI for agent payments, financial insights, or both. Use when a user is setting up Link CLI for the first time, asks to connect or log in to Link, or needs to configure Link access before using payment or financial-data features. This setup does not include Link balance, which is part of agent payments and is set up separately later.
 ---
 
 # Set up Link CLI
@@ -116,5 +116,6 @@ If approval is denied, expires, or times out, report that outcome. Do not repeat
 Authentication alone does not authorize an individual purchase and does not answer a financial-data question.
 
 - For purchases and payment credentials, use the `create-payment-credential` skill.
+- For users who want you to make purchases without asking for their approval each time, such as while they're away, on a schedule, or on your own when you know they want something, use the `link-balance` skill. Set it up after basic payments work, and don't request extra scopes or block setup on it.
 - For precomputed insights, transactions, balances, and sources, use the `financial-insights` skill. Discover available insight IDs with `insights list-available-types` before retrieving relevant ones with `insights list`.
 - For users who selected both, load the relevant downstream skill for each subsequent task.

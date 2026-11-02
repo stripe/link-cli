@@ -2,7 +2,7 @@
 version: 0.28.0
 name: create-payment-credential
 description: |
-  Gets secure payment credentials (cards, tokens) from a Link wallet for one-time purchases and recurring payments. Use when the user says "get me a card", "buy something", "pay for X", "make a purchase", "I need to pay", "complete checkout", or asks to set up a subscription or transact on a merchant site. Use when the user asks to connect or log in to or sign up for their Link account.
+  Gets secure payment credentials (cards, tokens) from a Link wallet for one-time purchases and recurring payments. Use when the user says "get me a card", "buy something", "pay for X", "make a purchase", "I need to pay", "complete checkout", or asks to set up a subscription or transact on a merchant site. Use when the user asks to connect or log in to or sign up for their Link account. For purchases that should happen later, repeatedly on a schedule (separate one-time purchases, not a merchant subscription), while the user is away and cannot approve them, when the user simply does not want to manually approve purchases because it's tedious, when paying with Link balance, or when considering a purchase on your own initiative that the user has said they want, also use the `link-balance` skill.
 allowed-tools:
  - Bash(link-cli:*)
  - Bash(npm install -g @stripe/link-cli:*)
@@ -152,6 +152,12 @@ Link will automatically use the default payment method on the account. If the us
 link-cli payment-methods list
 ```
 
+**Link balance:** the list can include a Link balance payment method, identified by `"type": "BALANCE"` and a `balance_details` object. It holds money in the user's Link account and is set up once, through a separate onboarding flow rather than the initial `link-cli` setup. After that it is one of the user's payment methods and can be used on any spend request, including a normal one the user approves.
+
+- If Link balance is listed, `balance_details.available_balance` shows the user's current balance. This does not mean you have an approval policy: permission to create spend requests that skip approval when the individual purchase is below the user's approval threshold. Check that with `link-cli approval-policy retrieve --format json`, which returns an error if you have no policy.
+- If the purchase should happen without approval because it needs to happen later, repeatedly on a schedule, while the user is away or asleep, because the user wants to avoid the friction of manual approval, or because it's a proactive purchase you know the user wants, then the user must have an approval policy for you. Load the `link-balance` skill before agreeing to the purchase. It covers checking the current balance and approval threshold against the expected total, flagging any shortfall to the user, and sending them to set up Link balance, add money to it, or raise the threshold.
+- If the user is present, can approve the purchase, and has not said they want to stop approving purchases manually, you do not need an approval policy. Do not push Link balance on every purchase.
+
 Only rename or clear a payment-method nickname when the user explicitly asks.
 Never infer that a nickname should change. If the target ID is not known, run
 `payment-methods list` first and identify the intended method using only its
@@ -201,6 +207,16 @@ link-cli spend-request create \
 Card requests may also include `--network-id <network_id>` to identify the
 merchant's network profile. Keep the card's merchant name and URL parameters.
 
+**Paying with Link balance:** pass the Link balance payment method's ID with `--payment-method-id` and do not rely on the default payment method. The user approves the request as usual unless you pass `--use-approval-policy`. To be approved automatically, all of these must be true:
+
+- You have a confidential Link OAuth client ID. See the `link-balance` skill.
+- The request uses the Link balance payment method's ID as `--payment-method-id`.
+- The final total, including tax, shipping, and fees, is below the approval threshold: the `limits.per_purchase` amount of the `spend_request_create` rule returned by `approval-policy retrieve`.
+- If that rule lists `allowed_payment_methods`, the Link balance ID is in it.
+- The available Link balance covers the full total.
+
+Pass `--use-approval-policy` only in that case, and see the `link-balance` skill for the full checks. Do not use the delegated-approval `--approve` flag or `--approval-detail` for this. Those state that you already collected the user's approval. After creating the request, read its `status`. Only `approved` means approval was skipped. `created` or `pending_approval` means the user still has to approve it. Do not tell the user a purchase will happen unattended until those checks pass. The account limits in [Limits](#limits) apply whether or not approval is skipped.
+
 **Completion callbacks (optional):** If your application has a callback destination,
 generate an opaque, unpredictable nonce (for example, `NONCE="$(openssl rand -hex 32)"`)
 and add both flags to the create command above:
@@ -225,6 +241,14 @@ context was supplied. Retrieve the request to check its status after a callback.
 the subscription or recurring purchase. Confirm the spending limit, currency,
 and cadence from the user or existing task context. Describe these terms in
 `context` so the user can review them during approval.
+
+Recurring payments are for merchant subscriptions, where the merchant keeps one
+card on file and charges it each period (for example, a software subscription).
+They are not supported with Link balance. For something the user wants bought
+repeatedly that is not a merchant subscription (for example, reordering an item
+every month, possibly from a different merchant each time), create a separate
+one-time spend request for each purchase instead. To make those purchases
+without the user approving each one, use the `link-balance` skill.
 
 Add `--recurring-interval day|week|month|year` to `spend-request create`.
 `--recurring-interval-count` is an optional positive integer; the server defaults
@@ -520,6 +544,8 @@ Notes:
 | Rolling creation rate | 200 per 60 days |
 
 Dollar limits are enforced as the USD equivalent for spend requests in other currencies.
+
+These limits also apply to spend requests created with `--use-approval-policy`. An approval threshold set higher than $500 does not allow a single spend request above $500, and several automatically approved purchases on the same day still count toward the daily limit.
 
 If a spend request is created but approval is not requested within the window, or the user does not approve within 30 minutes, the request expires. Create a new one. Do not poll indefinitely — if the approval window is nearly exhausted and the user hasn't responded, surface this to the user.
 
