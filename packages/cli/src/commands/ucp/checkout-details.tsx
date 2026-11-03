@@ -108,12 +108,12 @@ export function CheckoutFulfillment({ checkout }: { checkout: UcpCheckout }) {
             paddingLeft={2}
           >
             <Text>
-              {textField(method.type) ?? 'Method'}
-              {textField(method.id) ? ` — ${method.id}` : ''}
+              Method: {textField(method.type) ?? 'Not specified'}
+              {textField(method.id) ? ` (ID: ${method.id})` : ''}
             </Text>
             <Text>
               {destinationId
-                ? `Destination: ${destinationId} (selected)`
+                ? `Selected destination ID: ${destinationId}`
                 : 'No destination selected'}
             </Text>
             {destination && (
@@ -153,20 +153,28 @@ export function CheckoutFulfillment({ checkout }: { checkout: UcpCheckout }) {
               const amount =
                 typeof total?.amount === 'number' ? total.amount : undefined;
               return (
-                <Text key={textField(group.id) ?? groupIndex}>
-                  {textField(group.id) ? `Group ${group.id}: ` : ''}
-                  {optionId ? (
-                    <>
-                      Selected option: {optionId}
-                      {textField(option?.title) ? ` — ${option?.title}` : ''}
-                      {amount !== undefined
-                        ? ` — ${formatAmount(amount, checkout.currency ?? 'usd')}`
-                        : ''}
-                    </>
-                  ) : (
-                    `No ${method.type === 'shipping' ? 'shipping' : 'fulfillment'} option selected`
+                <Box
+                  key={textField(group.id) ?? groupIndex}
+                  flexDirection="column"
+                >
+                  {textField(group.id) && (
+                    <Text>Fulfillment group ID: {textField(group.id)}</Text>
                   )}
-                </Text>
+                  <Text>
+                    {optionId ? (
+                      <>
+                        Selected option
+                        {textField(option?.title) ? `: ${option?.title}` : ''}{' '}
+                        (ID: {optionId})
+                        {amount !== undefined
+                          ? ` — ${formatAmount(amount, checkout.currency ?? 'usd')}`
+                          : ''}
+                      </>
+                    ) : (
+                      `No ${method.type === 'shipping' ? 'shipping' : 'fulfillment'} option selected`
+                    )}
+                  </Text>
+                </Box>
               );
             })}
           </Box>

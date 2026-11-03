@@ -94,17 +94,16 @@ describe('checkout details', () => {
       'Jane Doe',
       'jane@example.com',
       '+15555550123',
-      'shipping_1',
-      'destination_2 (selected)',
+      'Method: shipping (ID: shipping_1)',
+      'Selected destination ID: destination_2',
       '123 Main St',
       'Apt 2',
       'Springfield',
       'IL',
       '62701',
       'US',
-      'group_1',
-      'standard',
-      'Standard shipping',
+      'Fulfillment group ID: group_1',
+      'Selected option: Standard shipping (ID: standard)',
       '$5.00',
     ])
       expect(frame).toContain(value);
@@ -169,8 +168,8 @@ describe('checkout details', () => {
         }}
       />,
     );
-    expect(lastFrame()).toContain('Destination: store_1 (selected)');
-    expect(lastFrame()).toContain('Selected option: pickup_1');
+    expect(lastFrame()).toContain('Selected destination ID: store_1');
+    expect(lastFrame()).toContain('Selected option (ID: pickup_1)');
   });
 
   it('shows absent buyer and fulfillment details explicitly', () => {
