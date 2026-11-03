@@ -5,6 +5,8 @@
 
 Update UCP checkout commands to be more compliant with the UCP specification, covering checkout creation, retrieval, completion, updates, and cancellation.
 
+All UCP commands show an interactive terminal view by default. Use `--format json` for the full JSON response. Interactive completion waits for the payment outcome; JSON completion returns immediately and can be followed with `checkout retrieve --poll --format json`. Retrieval polling shows progress and payment actions in the terminal, or structured results with an explicit format. Piped output and MCP remain structured.
+
 - `checkout create` requires `--business` and at least one `--line-item` with an `id` and optional positive integer `quantity` (default 1). Buyer and fulfillment are optional.
 - `checkout retrieve` requires a checkout ID and `--business`. Optional `--spend-request-id` includes payment state and is required for `--poll`.
 - `checkout complete` requires a positional checkout ID, `--business`, and an approved `--spend-request-id` for the same business.

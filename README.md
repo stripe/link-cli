@@ -688,6 +688,10 @@ link-cli mpp decode \
 
 ### UCP checkout
 
+All UCP commands show an interactive summary when run in a terminal without a format flag. Add `--format json` to any catalog or checkout command to return the full JSON response, including messages, fulfillment choices, capability metadata, and other returned fields. Use this flag for scripts and agents. Other explicit formats remain supported; piped output and MCP use structured output.
+
+Interactive `checkout complete` also waits for the checkout and payment outcome. With `--format json`, completion returns its response immediately; use `checkout retrieve --poll --format json` to follow payment progress. Interactive retrieval with `--poll` shows progress, required actions, and the final outcome.
+
 Search a catalog, then use the returned business and SKU to create a UCP checkout:
 
 ```bash
