@@ -513,7 +513,7 @@ link-cli spend-request create \
   --merchant-name "Example Shop" \
   --merchant-url "https://shop.example.com" \
   --amount 4200 --currency usd \
-  --context 'Preorder the selected book for $42 including tax and shipping. The merchant will verify the card now and charge when it ships within 90 days.' \
+  --context 'Preorder the selected book for $42 including tax and shipping. The merchant will charge when the book ships within 90 days.' \
   --expires-at "$EXPIRES_AT"
 ```
 
@@ -539,14 +539,6 @@ The server applies these limits when creating a request:
 
 Approval is still required within 30 minutes of requesting it. A later
 `expires_at` does not extend that approval window.
-
-For card credentials subject to the initial authorization window, the merchant
-must make the first payment or card-verification authorization within 48 hours
-of the first card retrieval, and before `expires_at`. This binds the card to the
-merchant for later charges. Retrieve the card only when ready to submit it to
-checkout; retrieving it again does not reset the window. If the window ends
-without a qualifying authorization, the request expires and its credentials
-are revoked. SPT credentials are not subject to this card-retrieval window.
 
 Follow the normal approval flow and check the current request status and
 returned credential `valid_until` before use. A later request expiry does not
@@ -716,7 +708,6 @@ request.
 | Max amount per spend request | $500 (50,000 cents) |
 | Approval window | 30 minutes — user must approve within 30 min of `request-approval` |
 | Spend request expiry (`expires_at`) | 7 days by default for one-time requests; up to 365 days one-time or 1,827 days recurring, subject to country limits |
-| Initial card authorization | Where applicable, within 48 hours of first card retrieval and before request expiry |
 | Credential validity | Check returned `valid_until` and current request status |
 | Daily spend | $500 |
 | Monthly spend (30 days) | $20,000 |

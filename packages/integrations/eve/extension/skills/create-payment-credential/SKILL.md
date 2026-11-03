@@ -129,13 +129,7 @@ an earlier expiry ends spending permission without changing its reset cadence.
 An explicit expiry must be at least 3 hours ahead. Japan and unknown account
 countries have a 180-day cap. The API validates country limits.
 
-A later expiry does not extend the 30-minute approval window. For cards subject
-to the initial authorization window, the merchant must make the first payment
-or card-verification authorization within 48 hours of first card retrieval and
-before request expiry. This binds the card to the merchant for later charges.
-Retrieve the card only when ready for checkout; retrieving again does not reset
-the window. Without a qualifying authorization, the request expires and its
-credentials are revoked. SPT credentials do not have this card-retrieval window.
+A later expiry does not extend the 30-minute approval window.
 Check current status and credential `valid_until` before use. Later expiry does
 not guarantee funds or make a one-time SPT reusable.
 

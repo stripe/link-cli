@@ -101,7 +101,7 @@ export interface CreateSpendRequestParams {
    * At least 3 hours ahead; at most 365 days for one-time or 1827 days for
    * recurring requests, subject to country limits. Defaults to 7 days for
    * one-time requests or the country maximum for recurring requests.
-   * Does not extend approval or first-card-authorization windows.
+   * Does not extend the approval window.
    */
   expires_at?: number;
   recurring?: SpendRequestRecurringParams;

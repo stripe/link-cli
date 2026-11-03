@@ -86,7 +86,7 @@ class SpendRequestsResource:
         expires_at sets request expiry in Unix seconds for delayed merchant charges.
         Use at least 3 hours ahead, up to 365 days one-time or 1827 days recurring,
         subject to country limits. Omit for 7 days one-time or the country maximum
-        recurring. Approval and first-card-authorization windows still apply.
+        recurring. The approval window still applies.
         """
         params: CreateSpendRequestParams = {
             "context": context,

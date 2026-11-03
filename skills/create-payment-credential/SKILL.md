@@ -231,15 +231,9 @@ changing the reset cadence. An explicit timestamp must be at least 3 hours in
 the future. Country caps apply: Japan and unknown account countries use a
 180-day cap. The API validates the applicable limit.
 
-The 30-minute approval window still applies. For cards subject to the initial
-authorization window, the merchant must make the first payment or card-verification
-authorization within 48 hours of first card retrieval and before request expiry.
-This binds the card to the merchant for later charges. Retrieve the card only
-when ready for checkout; repeated retrieval does not reset the window. Otherwise,
-the request expires and its credentials are revoked. SPT credentials do not have
-this card-retrieval window. Always check current status and credential
-`valid_until`. A later expiry does not guarantee funds or make a one-time SPT
-reusable.
+The 30-minute approval window still applies. Always check current status and
+credential `valid_until`. A later expiry does not guarantee funds or make a
+one-time SPT reusable.
 
 **Recurring payments:** Use recurring terms only when the user's request covers
 the subscription or recurring purchase. Confirm the spending limit, currency,
@@ -532,7 +526,6 @@ Notes:
 | Max amount per spend request | $500 (50,000 cents) |
 | Approval window | 30 minutes — user must approve within 30 min of `spend-request request-approval` |
 | Spend request expiry (`expires_at`) | 7 days by default one-time; up to 365 days one-time or 1,827 days recurring, subject to country limits |
-| Initial card authorization | Where applicable, within 48 hours of first card retrieval and before request expiry |
 | Credential validity | Check returned `valid_until` and current request status |
 | Daily spend per account | $500 |
 | Monthly spend per account (30 days) | $20,000 |

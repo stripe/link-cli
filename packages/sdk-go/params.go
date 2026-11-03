@@ -40,7 +40,7 @@ type CreateSpendRequestParams struct {
 	// ExpiresAt is the request expiry in Unix seconds, for delayed merchant charges.
 	// At least 3 hours ahead; up to 365 days one-time or 1827 days recurring,
 	// subject to country limits. Omit for 7 days one-time or the country maximum recurring.
-	// Does not extend approval or first-card-authorization windows.
+	// Does not extend the approval window.
 	ExpiresAt *int64 `json:"expires_at,omitempty"`
 }
 

@@ -224,14 +224,6 @@ The server applies these limits when creating a request:
 Approval is still required within 30 minutes of requesting it. A later
 `expires_at` does not extend that approval window.
 
-For card credentials subject to the initial authorization window, the merchant
-must make the first payment or card-verification authorization within 48 hours
-of the first card retrieval, and before `expires_at`. This binds the card to the
-merchant for later charges. Retrieve the card only when ready to submit it to
-checkout; retrieving it again does not reset the window. If the window ends
-without a qualifying authorization, the request expires and its credentials
-are revoked. SPT credentials are not subject to this card-retrieval window.
-
 Follow the normal approval flow and check the current request status and
 returned credential `valid_until` before use. A later request expiry does not
 guarantee payment: funds and payment-method checks can still fail when the

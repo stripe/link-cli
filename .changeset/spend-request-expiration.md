@@ -5,5 +5,4 @@
 ---
 
 Expose spend request `expires_at` in the public SDK and agent tools. Document
-expiry limits, delayed merchant charges, and the first card authorization window
-in CLI help and purchase guides.
+expiry limits and delayed merchant charges in CLI help and purchase guides.
