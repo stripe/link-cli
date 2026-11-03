@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { LinkOptions } from '@/config';
-import { LinkApiError } from '@/errors';
+import { LinkApiError, LinkSdkError } from '@/errors';
 import { BaseResource } from '@/resources/base';
 import type {
   CreateSpendRequestParams,
@@ -22,6 +22,14 @@ const spendRequestSchema = z.looseObject({
   totals: z.array(z.unknown()).optional(),
   created_at: z.string(),
   updated_at: z.string(),
+  expires_at: z
+    .number()
+    .int()
+    .transform((value) =>
+      new Date(value * 1000).toISOString().replace('.000Z', 'Z'),
+    )
+    .nullable()
+    .optional(),
   shared_payment_token: sharedPaymentTokenSchema.nullable().optional(),
   // interval_count defaults to 1 server-side and may be omitted.
   recurring: z
@@ -56,7 +64,6 @@ const duplicateSpendRequestErrorSchema = z.looseObject({
 type InternalCreateSpendRequestParams = CreateSpendRequestParams & {
   approve?: boolean;
   use_approval_policy?: boolean;
-  expires_at?: number;
 };
 
 type InternalUpdateSpendRequestParams = UpdateSpendRequestParams & {
@@ -112,6 +119,15 @@ export class SpendRequestResource
     params: InternalCreateSpendRequestParams,
   ): Promise<SpendRequest> {
     const { approve, ...body } = params;
+    if (typeof body.expires_at === 'string') {
+      const expiry = z.iso.datetime().safeParse(body.expires_at);
+      if (!expiry.success) {
+        throw new LinkSdkError(
+          'expires_at must be Unix seconds or an ISO 8601 timestamp ending in Z (UTC)',
+        );
+      }
+      body.expires_at = Math.floor(Date.parse(expiry.data) / 1000);
+    }
     const url = approve ? `${this.endpoint}/create_delegated` : this.endpoint;
     const { status, data, rawBody } = await this.apiFetch({
       method: 'POST',

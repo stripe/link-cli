@@ -221,6 +221,23 @@ context was supplied. Retrieve the request to check its status after a callback.
 
 **Amounts** (`--amount`, `unit_amount`, and `--total` amounts) are integers in the currency's smallest unit (e.g. cents): `1999` is $19.99 USD or €19.99 EUR. Some currencies have no minor unit, so `1999` in `jpy` is ¥1,999.
 
+**Delayed merchant charges:** `spend-request create --expires-at <timestamp>`
+accepts Unix seconds or an ISO 8601 timestamp ending in `Z` (UTC), such as
+`2027-02-01T12:00:00Z`. The CLI converts ISO input to Unix seconds for the API. Returned request `expires_at` is an ISO
+8601 timestamp ending in `Z` (UTC).
+This sets the request expiry at creation. Use it for a preorder, booking, or charge
+after delivery. Cover the expected charge date and explain the timing in
+`context`; omit it for an ordinary purchase. One-time requests default to 7 days
+and allow up to 365 days. Recurring requests default to their maximum, up to
+1,827 days; an earlier expiry ends the spending permission sooner without
+changing the reset cadence. An explicit timestamp must be at least 3 hours in
+the future. Country caps apply: Japan and unknown account countries use a
+180-day cap. The API validates the applicable limit.
+
+The 30-minute approval window still applies. Always check current status and
+credential `valid_until`. A later expiry does not guarantee funds or make a
+one-time SPT reusable.
+
 **Recurring payments:** Use recurring terms only when the user's request covers
 the subscription or recurring purchase. Confirm the spending limit, currency,
 and cadence from the user or existing task context. Describe these terms in
@@ -511,7 +528,8 @@ Notes:
 |-------|-------|
 | Max amount per spend request | $500 (50,000 cents) |
 | Approval window | 30 minutes — user must approve within 30 min of `spend-request request-approval` |
-| Card / SPT validity (`valid_until`) | 48 hours from spend request creation |
+| Spend request expiry (`expires_at`) | 7 days by default one-time; up to 365 days one-time or 1,827 days recurring, subject to country limits |
+| Credential validity | Check returned `valid_until` and current request status |
 | Daily spend per account | $500 |
 | Monthly spend per account (30 days) | $20,000 |
 | Concurrent active requests (created + approved) | 30 |
@@ -521,7 +539,7 @@ Notes:
 
 Dollar limits are enforced as the USD equivalent for spend requests in other currencies.
 
-If a spend request is created but approval is not requested within the window, or the user does not approve within 30 minutes, the request expires. Create a new one. Do not poll indefinitely — if the approval window is nearly exhausted and the user hasn't responded, surface this to the user.
+Request approval before `expires_at`. If the user does not approve within 30 minutes of the approval request, the request expires. Create a new one. Do not poll indefinitely — if the approval window is nearly exhausted and the user hasn't responded, surface this to the user.
 
 ## Errors
 

@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LinkApiError } from '@/errors';
-import type { CreateSpendRequestParams } from '@/resources/interfaces';
+import type {
+  CreateSpendRequestParams,
+  ISpendRequestResource,
+} from '@/resources/interfaces';
 import {
   getDuplicateSpendRequest,
   SpendRequestResource,
@@ -68,6 +71,37 @@ describe('SpendRequestResource', () => {
   });
 
   describe('createSpendRequest', () => {
+    it.each([
+      1_800_000_000,
+      '2027-01-15T08:00:00Z',
+      '2027-01-15T08:00:00.999Z',
+    ])(
+      'converts request expiry %s through the public resource interface',
+      async (expires_at) => {
+        mockFetchResponse(200, {
+          ...spendRequestResponse,
+          expires_at: 1_800_000_000,
+        });
+        const resource: ISpendRequestResource = repo;
+        const result = await resource.create({ ...validParams, expires_at });
+        expect(JSON.parse(mockFetch.mock.calls[0]![1].body).expires_at).toBe(
+          1_800_000_000,
+        );
+        expect(result.expires_at).toBe('2027-01-15T08:00:00Z');
+      },
+    );
+
+    it.each([
+      '2027-01-15T08:00:00',
+      '2027-01-15T08:00:00+00:00',
+      '2027-02-30T08:00:00Z',
+    ])('rejects invalid or non-Z expiry %s before HTTP', async (expires_at) => {
+      await expect(repo.create({ ...validParams, expires_at })).rejects.toThrow(
+        'ending in Z',
+      );
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
     it.each([false, true])(
       'passes callback context unchanged with delegated approval=%s',
       async (approve) => {
@@ -766,6 +800,22 @@ describe('SpendRequestResource', () => {
   });
 
   describe('listSpendRequests', () => {
+    it('converts expiry to ISO while preserving null and omitted values', async () => {
+      mockFetchResponse(200, {
+        data: [
+          { ...spendRequestResponse, expires_at: 1_800_000_000 },
+          { ...spendRequestResponse, expires_at: null },
+          spendRequestResponse,
+        ],
+      });
+      const result = await repo.list();
+      expect(result.map((request) => request.expires_at)).toEqual([
+        '2027-01-15T08:00:00Z',
+        null,
+        undefined,
+      ]);
+    });
+
     it('sends GET to correct endpoint with Bearer auth header', async () => {
       mockFetchResponse(200, { data: [spendRequestResponse] });
 
@@ -848,12 +898,15 @@ describe('getDuplicateSpendRequest', () => {
           code: 'spend_request_rate_limited',
           message: 'You cannot submit duplicate spend requests...',
           retry_after: 1699999999,
-          duplicate_spend_request: duplicate,
+          duplicate_spend_request: { ...duplicate, expires_at: 1_800_000_000 },
         },
       },
     });
 
-    expect(getDuplicateSpendRequest(err)).toEqual(duplicate);
+    expect(getDuplicateSpendRequest(err)).toEqual({
+      ...duplicate,
+      expires_at: '2027-01-15T08:00:00Z',
+    });
   });
 
   it('extracts a sparse duplicate spend request', () => {

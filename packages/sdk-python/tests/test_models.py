@@ -100,7 +100,10 @@ def test_spend_request_full_response() -> None:
         "updated_at": "later",
     }
     request = SpendRequest.model_validate(data)
-    assert request.model_dump(exclude_unset=True) == data
+    assert request.model_dump(exclude_unset=True) == {
+        **data,
+        "expires_at": "1970-01-01T00:13:09Z",
+    }
     for secret in ("4242424242424242", "spt_secret", "lpt_secret"):
         assert secret not in repr(request)
 
@@ -217,3 +220,16 @@ def test_optional_field_presence_and_future_status_are_preserved() -> None:
     assert "amount" in explicit.model_fields_set
     assert "amount" not in omitted.model_dump(exclude_unset=True)
     assert explicit.model_dump(exclude_unset=True)["amount"] is None
+
+
+@pytest.mark.parametrize("expires_at", [None, 0, 1_800_000_000])
+def test_request_expiry_serialization(expires_at: int | None) -> None:
+    request = SpendRequest.model_validate({**SPEND, "expires_at": expires_at})
+    expected = {
+        None: None,
+        0: "1970-01-01T00:00:00Z",
+        1_800_000_000: "2027-01-15T08:00:00Z",
+    }[expires_at]
+    assert request.expires_at == expected
+    assert request.model_dump()["expires_at"] == expected
+    assert SpendRequest.model_validate_json(request.model_dump_json()) == request

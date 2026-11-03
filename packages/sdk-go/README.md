@@ -126,6 +126,61 @@ with status 404.
 policy, err := client.ApprovalPolicy.Retrieve(ctx)
 ```
 
+## Expiration and delayed merchant charges
+
+Set the optional `ExpiresAt` field on `CreateSpendRequestParams`. It can only
+be set at creation. For example, add this to a preorder request for a 90-day
+expiry (using the `time` package):
+
+```go
+expiresAt := time.Now().Add(90 * 24 * time.Hour).Unix()
+params.ExpiresAt = &expiresAt // params is your CreateSpendRequestParams.
+```
+
+Go keeps the creation input `ExpiresAt` as `*int64`. The response field is
+`*string` with an ISO timestamp ending in `Z` (UTC). To use an ISO timestamp,
+parse it with the standard `time` package and convert it to Unix seconds:
+
+```go
+expiry, err := time.Parse("2006-01-02T15:04:05Z", "2027-02-01T12:00:00Z")
+if err != nil {
+    return err
+}
+expiresAt := expiry.Unix()
+params.ExpiresAt = &expiresAt
+```
+
+This layout requires a trailing `Z` (UTC).
+
+`expires_at` is the spend request's expiry. The API uses integer Unix seconds;
+the CLI and SDK responses convert it to an ISO 8601 timestamp ending in `Z`
+(UTC), such as `"2027-02-01T12:00:00Z"`. Set it when the merchant may charge
+later, such as for a preorder, booking, or payment due after delivery. Choose a deadline that covers
+the expected charge date and explain the timing in `context`. Omit it for an
+ordinary purchase.
+
+This supports deferred authorization: for eligible card flows, Link can wait
+to fund the payment until the merchant charges. The merchant controls charge
+timing; `expires_at` does not schedule a payment.
+
+The server applies these limits when creating a request:
+
+- One-time requests default to 7 days and allow an explicit expiry up to 365 days.
+- Recurring requests default to their maximum, up to 1,827 days (about 5 years).
+  Set an earlier expiry to end the spending permission sooner. `recurring`
+  controls the spending-limit reset period; `expires_at` controls its end date.
+- An explicit expiry must be at least 3 hours in the future. Country limits
+  apply to both request types: Japan is capped at 180 days, and an unknown
+  account country uses a 180-day cap. The API validates the applicable limit.
+
+Approval is still required within 30 minutes of requesting it. A later
+`expires_at` does not extend that approval window.
+
+Follow the normal approval flow and check the current request status and
+returned credential `valid_until` before use. A later request expiry does not
+guarantee payment: funds and payment-method checks can still fail when the
+merchant charges. It also does not make a one-time SPT reusable.
+
 ## Recurring payments
 
 Set `Recurring` on `CreateSpendRequestParams` for a recurring purchase approved

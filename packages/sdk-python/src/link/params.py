@@ -84,6 +84,8 @@ class CreateSpendRequestParams(TypedDict, total=False):
     test: bool | None
     approval_details: ApprovalDetailParams | None
     metadata: Mapping[str, str] | None
+    # Unix seconds or ISO timestamp ending in Z (UTC); see create().
+    expires_at: int | str | None
     recurring: SpendRequestRecurringParams | None
 
 

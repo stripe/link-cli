@@ -165,7 +165,8 @@ export interface SpendRequest {
   link_transaction_id?: string;
   activity_url?: string;
   metadata?: Record<string, string>;
-  expires_at?: number;
+  /** Request expiry as an ISO 8601 timestamp ending in Z (UTC). */
+  expires_at?: string | null;
   recurring?: SpendRequestRecurring | null;
   created_at: string;
   updated_at: string;

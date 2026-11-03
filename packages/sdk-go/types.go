@@ -3,6 +3,7 @@ package link
 import (
 	"encoding/json"
 	"errors"
+	"time"
 )
 
 // JSONPrimitive represents a JSON primitive value.
@@ -285,10 +286,43 @@ type SpendRequest struct {
 	LinkTransactionID    *string                    `json:"link_transaction_id,omitempty"`
 	ActivityURL          *string                    `json:"activity_url,omitempty"`
 	Metadata             map[string]string          `json:"metadata,omitempty"`
-	ExpiresAt            *int64                     `json:"expires_at,omitempty"`
-	Recurring            *SpendRequestRecurring     `json:"recurring,omitempty"`
-	CreatedAt            string                     `json:"created_at"`
-	UpdatedAt            string                     `json:"updated_at"`
+	// ExpiresAt is the request expiry as an ISO 8601 timestamp ending in Z (UTC).
+	ExpiresAt *string                `json:"expires_at,omitempty"`
+	Recurring *SpendRequestRecurring `json:"recurring,omitempty"`
+	CreatedAt string                 `json:"created_at"`
+	UpdatedAt string                 `json:"updated_at"`
+}
+
+// UnmarshalJSON converts the API's Unix expiry to an ISO timestamp in UTC.
+func (request *SpendRequest) UnmarshalJSON(data []byte) error {
+	type wire SpendRequest
+	var decoded struct {
+		wire
+		ExpiresAt json.RawMessage `json:"expires_at"`
+	}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	if len(decoded.ExpiresAt) > 0 && string(decoded.ExpiresAt) != "null" {
+		var expiry string
+		if decoded.ExpiresAt[0] == '"' {
+			if err := json.Unmarshal(decoded.ExpiresAt, &expiry); err != nil {
+				return err
+			}
+			if _, err := time.Parse("2006-01-02T15:04:05Z", expiry); err != nil {
+				return err
+			}
+		} else {
+			var seconds int64
+			if err := json.Unmarshal(decoded.ExpiresAt, &seconds); err != nil {
+				return err
+			}
+			expiry = time.Unix(seconds, 0).UTC().Format(time.RFC3339)
+		}
+		decoded.wire.ExpiresAt = &expiry
+	}
+	*request = SpendRequest(decoded.wire)
+	return nil
 }
 
 // MarshalJSON preserves explicitly present empty collections returned by Link.
