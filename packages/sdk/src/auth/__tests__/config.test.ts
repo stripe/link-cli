@@ -24,7 +24,7 @@ describe('resolveAuthResourceConfig', () => {
 
     expect(config.clientId).toBe(CLIENT_ID);
     expect(config.verbose).toBe(false);
-    expect(config.clientName).toBe('Link CLI');
+    expect(config.clientName).toBe('Link SDK');
     expect(config.authBaseUrl).toBe('https://login.link.com');
     expect(config.logger).toBeDefined();
   });

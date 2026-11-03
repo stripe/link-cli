@@ -28,7 +28,7 @@ export interface ResolvedAuthResourceConfig {
 }
 
 const DEFAULT_AUTH_BASE_URL = 'https://login.link.com';
-const DEFAULT_CLIENT_NAME = 'Link CLI';
+const DEFAULT_CLIENT_NAME = 'Link SDK';
 
 function createDefaultLogger(verbose: boolean): LinkSdkLogger {
   return {
