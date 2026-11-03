@@ -221,8 +221,10 @@ context was supplied. Retrieve the request to check its status after a callback.
 
 **Amounts** (`--amount`, `unit_amount`, and `--total` amounts) are integers in the currency's smallest unit (e.g. cents): `1999` is $19.99 USD or €19.99 EUR. Some currencies have no minor unit, so `1999` in `jpy` is ¥1,999.
 
-**Delayed merchant charges:** `spend-request create --expires-at <unix_seconds>`
-sets the request expiry at creation. Use it for a preorder, booking, or charge
+**Delayed merchant charges:** `spend-request create --expires-at <timestamp>`
+accepts Unix seconds or an ISO 8601 timestamp ending in `Z` (UTC), such as
+`2027-02-01T12:00:00Z`. The CLI converts ISO input to Unix seconds for the API.
+This sets the request expiry at creation. Use it for a preorder, booking, or charge
 after delivery. Cover the expected charge date and explain the timing in
 `context`; omit it for an ordinary purchase. One-time requests default to 7 days
 and allow up to 365 days. Recurring requests default to their maximum, up to

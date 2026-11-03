@@ -503,8 +503,11 @@ stored currency.
 
 #### Expiration and delayed merchant charges
 
-Use `spend-request create --expires-at <unix_seconds>` to set the expiry,
-including in direct CLI integrations. This option can only be set at creation.
+Use `spend-request create --expires-at <timestamp>` to set the expiry,
+including in direct CLI integrations. Accepts Unix seconds or an ISO 8601
+timestamp ending in `Z` (UTC), such as `2027-02-01T12:00:00Z`. The CLI converts
+ISO input to integer Unix seconds for the API. This option can only be set at
+creation.
 
 ```bash
 # Allow a preorder charge for up to 90 days.

@@ -137,12 +137,24 @@ export const createOptions = z
       .describe(
         'Metadata key:value pair (repeatable). Attaches arbitrary string data to the spend request. Max 50 keys, key <= 40 chars, value <= 500 chars. Example: "order_id:ord_123"',
       ),
-    expiresAt: z.coerce
-      .number()
-      .int()
+    expiresAt: z
+      .union(
+        [
+          z.coerce.number().int(),
+          z.iso
+            .datetime()
+            .transform((value) => Math.floor(Date.parse(value) / 1000))
+            .pipe(z.number().int())
+            .meta({ type: 'string', format: 'date-time', pattern: 'Z$' }),
+        ],
+        {
+          error:
+            'Expiry must be Unix seconds or an ISO 8601 timestamp ending in Z (UTC)',
+        },
+      )
       .optional()
       .describe(
-        'Spend request expiry as a Unix timestamp in seconds. Use for delayed merchant charges (preorders or bookings). At least 3 hours ahead; maximum 365 days for one-time requests or 1827 days for recurring requests, subject to country limits. Omit for the server default (7 days for one-time requests; country maximum for recurring requests). Does not extend the approval window.',
+        'Spend request expiry as Unix seconds or an ISO 8601 timestamp ending in Z (UTC), e.g. 2027-02-01T12:00:00Z. ISO input is converted to Unix seconds for the API. Use for delayed merchant charges (preorders or bookings). At least 3 hours ahead; maximum 365 days for one-time requests or 1827 days for recurring requests, subject to country limits. Omit for the server default (7 days for one-time requests; country maximum for recurring requests). Does not extend the approval window.',
       ),
     recurringInterval: z
       .string()
