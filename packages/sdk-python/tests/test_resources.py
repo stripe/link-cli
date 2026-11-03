@@ -430,7 +430,9 @@ async def test_create_expiry(api: API, expires_at: int | str) -> None:
 )
 async def test_create_invalid_expiry(api: API, expires_at: str) -> None:
     with pytest.raises(ValueError):
-        await api.call("spend_requests", "create", context=CONTEXT, expires_at=expires_at)
+        await api.call(
+            "spend_requests", "create", context=CONTEXT, expires_at=expires_at
+        )
     assert not api.requests
 
 
