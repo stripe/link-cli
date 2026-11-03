@@ -155,11 +155,10 @@ export const linkToolSchemas = {
           )
           .optional(),
         expires_at: z
-          .number()
-          .int()
+          .union([z.number().int(), z.iso.datetime()])
           .optional()
           .describe(
-            'Spend request expiry as a Unix timestamp in seconds. Use for delayed merchant charges (preorders or bookings). At least 3 hours ahead; maximum 365 days for one-time requests or 1827 days for recurring requests, subject to country limits. Omit for the server default (7 days for one-time requests; country maximum for recurring requests). Does not extend the approval window.',
+            'Spend request expiry as Unix seconds or an ISO 8601 timestamp ending in Z (UTC). ISO input is converted to Unix seconds for the API. Use for delayed merchant charges (preorders or bookings). At least 3 hours ahead; maximum 365 days for one-time requests or 1827 days for recurring requests, subject to country limits. Omit for the server default (7 days for one-time requests; country maximum for recurring requests). Does not extend the approval window.',
           ),
         recurring: z
           .strictObject({

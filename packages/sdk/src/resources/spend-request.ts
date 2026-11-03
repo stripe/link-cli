@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { LinkOptions } from '@/config';
-import { LinkApiError } from '@/errors';
+import { LinkApiError, LinkSdkError } from '@/errors';
 import { BaseResource } from '@/resources/base';
 import type {
   CreateSpendRequestParams,
@@ -111,6 +111,15 @@ export class SpendRequestResource
     params: InternalCreateSpendRequestParams,
   ): Promise<SpendRequest> {
     const { approve, ...body } = params;
+    if (typeof body.expires_at === 'string') {
+      const expiry = z.iso.datetime().safeParse(body.expires_at);
+      if (!expiry.success) {
+        throw new LinkSdkError(
+          'expires_at must be Unix seconds or an ISO 8601 timestamp ending in Z (UTC)',
+        );
+      }
+      body.expires_at = Math.floor(Date.parse(expiry.data) / 1000);
+    }
     const url = approve ? `${this.endpoint}/create_delegated` : this.endpoint;
     const { status, data, rawBody } = await this.apiFetch({
       method: 'POST',

@@ -71,15 +71,35 @@ describe('SpendRequestResource', () => {
   });
 
   describe('createSpendRequest', () => {
-    it('supports request expiry through the public resource interface', async () => {
-      const expires_at = 1_800_000_000;
-      mockFetchResponse(200, { ...spendRequestResponse, expires_at });
-      const resource: ISpendRequestResource = repo;
-      const result = await resource.create({ ...validParams, expires_at });
-      expect(JSON.parse(mockFetch.mock.calls[0]![1].body).expires_at).toBe(
-        expires_at,
+    it.each([
+      1_800_000_000,
+      '2027-01-15T08:00:00Z',
+      '2027-01-15T08:00:00.999Z',
+    ])(
+      'converts request expiry %s through the public resource interface',
+      async (expires_at) => {
+        mockFetchResponse(200, {
+          ...spendRequestResponse,
+          expires_at: 1_800_000_000,
+        });
+        const resource: ISpendRequestResource = repo;
+        const result = await resource.create({ ...validParams, expires_at });
+        expect(JSON.parse(mockFetch.mock.calls[0]![1].body).expires_at).toBe(
+          1_800_000_000,
+        );
+        expect(result.expires_at).toBe(1_800_000_000);
+      },
+    );
+
+    it.each([
+      '2027-01-15T08:00:00',
+      '2027-01-15T08:00:00+00:00',
+      '2027-02-30T08:00:00Z',
+    ])('rejects invalid or non-Z expiry %s before HTTP', async (expires_at) => {
+      await expect(repo.create({ ...validParams, expires_at })).rejects.toThrow(
+        'ending in Z',
       );
-      expect(result.expires_at).toBe(expires_at);
+      expect(mockFetch).not.toHaveBeenCalled();
     });
 
     it.each([false, true])(

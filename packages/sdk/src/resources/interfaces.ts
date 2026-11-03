@@ -97,13 +97,14 @@ export interface CreateSpendRequestParams {
   approval_details?: ApprovalDetail;
   metadata?: Record<string, string>;
   /**
-   * Spend request expiry in Unix seconds. Set for delayed merchant charges.
+   * Spend request expiry in Unix seconds or an ISO 8601 timestamp ending in Z (UTC).
+   * ISO input is converted to Unix seconds. Set for delayed merchant charges.
    * At least 3 hours ahead; at most 365 days for one-time or 1827 days for
    * recurring requests, subject to country limits. Defaults to 7 days for
    * one-time requests or the country maximum for recurring requests.
    * Does not extend the approval window.
    */
-  expires_at?: number;
+  expires_at?: number | string;
   recurring?: SpendRequestRecurringParams;
 }
 

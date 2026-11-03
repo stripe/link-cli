@@ -121,8 +121,10 @@ currency's smallest unit (e.g. cents): `4200` is $42.00 USD or €42.00 EUR. Som
 currencies have no minor unit, so `4200` in `jpy` is ¥4,200.
 
 For delayed merchant charges (preorders, bookings, or payment after delivery),
-pass `expires_at` to `create_spend_request` as an integer Unix timestamp in
-seconds. Cover the expected charge date and explain the timing in `context`.
+pass `expires_at` to `create_spend_request` as integer Unix seconds or an ISO
+8601 timestamp ending in `Z` (UTC), such as `"2027-02-01T12:00:00Z"`. ISO input
+is converted to Unix seconds for the API. Cover the expected charge date and
+explain the timing in `context`.
 Omit it for ordinary purchases. One-time requests default to 7 days and allow
 up to 365 days. Recurring requests default to their maximum, up to 1,827 days;
 an earlier expiry ends spending permission without changing its reset cadence.

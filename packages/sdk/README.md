@@ -222,7 +222,10 @@ await link.paymentMethods.update('pd_123', {
 ## Expiration and delayed merchant charges
 
 Pass `expires_at` to `spendRequests.create` or the `create_spend_request` agent
-tool. This optional field can only be set at creation. For example, add this to
+tool. Accepts integer Unix seconds or an ISO 8601 timestamp ending in `Z` (UTC),
+such as `"2027-02-01T12:00:00Z"`. ISO input is converted to Unix seconds for the
+API; responses return Unix seconds. This optional field can only be set at creation.
+For example, add this to
 a preorder request for a 90-day expiry:
 
 ```ts
