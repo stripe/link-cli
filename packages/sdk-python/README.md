@@ -193,9 +193,9 @@ but `model_dump()` and `model_dump_json()` include them.
 ## Expiration and delayed merchant charges
 
 Pass the optional `expires_at` keyword argument to `spend_requests.create`.
-Synchronous and asynchronous clients both support it. It is available to all
-OAuth clients and can only be set at creation. For example, add this to a
-preorder request for a 90-day expiry (using `import time`):
+Synchronous and asynchronous clients both support it. This field can only be
+set at creation. For example, add this to a preorder request for a 90-day expiry
+(using `import time`):
 
 ```python
 expires_at=int(time.time()) + 90 * 24 * 60 * 60,

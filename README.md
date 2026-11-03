@@ -503,8 +503,8 @@ stored currency.
 
 #### Expiration and delayed merchant charges
 
-Use `spend-request create --expires-at <unix_seconds>` to set the expiry. This
-is available to all OAuth clients and can only be set at creation.
+Use `spend-request create --expires-at <unix_seconds>` to set the expiry,
+including in direct CLI integrations. This option can only be set at creation.
 
 ```bash
 # Allow a preorder charge for up to 90 days.

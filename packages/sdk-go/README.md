@@ -128,9 +128,9 @@ policy, err := client.ApprovalPolicy.Retrieve(ctx)
 
 ## Expiration and delayed merchant charges
 
-Set the optional `ExpiresAt` field on `CreateSpendRequestParams`. It is
-available to all OAuth clients and can only be set at creation. For example,
-add this to a preorder request for a 90-day expiry (using the `time` package):
+Set the optional `ExpiresAt` field on `CreateSpendRequestParams`. It can only
+be set at creation. For example, add this to a preorder request for a 90-day
+expiry (using the `time` package):
 
 ```go
 expiresAt := time.Now().Add(90 * 24 * time.Hour).Unix()

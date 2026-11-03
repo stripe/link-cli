@@ -222,8 +222,8 @@ await link.paymentMethods.update('pd_123', {
 ## Expiration and delayed merchant charges
 
 Pass `expires_at` to `spendRequests.create` or the `create_spend_request` agent
-tool. This optional field is available to all OAuth clients and can only be set
-at creation. For example, add this to a preorder request for a 90-day expiry:
+tool. This optional field can only be set at creation. For example, add this to
+a preorder request for a 90-day expiry:
 
 ```ts
 expires_at: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60,
