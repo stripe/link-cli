@@ -137,8 +137,9 @@ expiresAt := time.Now().Add(90 * 24 * time.Hour).Unix()
 params.ExpiresAt = &expiresAt // params is your CreateSpendRequestParams.
 ```
 
-Go keeps `ExpiresAt` as `*int64`. To use an ISO timestamp, parse it with the
-standard `time` package and convert it to Unix seconds:
+Go keeps the creation input `ExpiresAt` as `*int64`. The response field is
+`*string` with an ISO timestamp ending in `Z` (UTC). To use an ISO timestamp,
+parse it with the standard `time` package and convert it to Unix seconds:
 
 ```go
 expiry, err := time.Parse("2006-01-02T15:04:05Z", "2027-02-01T12:00:00Z")
@@ -151,9 +152,10 @@ params.ExpiresAt = &expiresAt
 
 This layout requires a trailing `Z` (UTC).
 
-`expires_at` is the spend request's expiry, expressed as an integer Unix
-timestamp in seconds. Set it when the merchant may charge later, such as for a
-preorder, booking, or payment due after delivery. Choose a deadline that covers
+`expires_at` is the spend request's expiry. The API uses integer Unix seconds;
+the CLI and SDK responses convert it to an ISO 8601 timestamp ending in `Z`
+(UTC), such as `"2027-02-01T12:00:00Z"`. Set it when the merchant may charge
+later, such as for a preorder, booking, or payment due after delivery. Choose a deadline that covers
 the expected charge date and explain the timing in `context`. Omit it for an
 ordinary purchase.
 

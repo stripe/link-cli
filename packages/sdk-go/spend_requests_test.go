@@ -117,7 +117,39 @@ func TestCreateSpendRequestExpiration(t *testing.T) {
 		Context: "preorder", ExpiresAt: &expiresAt,
 	})
 	assertNoError(t, err)
-	if result.ExpiresAt == nil || *result.ExpiresAt != expiresAt {
+	if result.ExpiresAt == nil || *result.ExpiresAt != "2027-01-15T08:00:00Z" {
 		t.Fatalf("unexpected response expiry: %#v", result.ExpiresAt)
+	}
+}
+
+func TestSpendRequestExpirySerialization(t *testing.T) {
+	for _, input := range []string{`{}`, `{"expires_at":null}`, `{"expires_at":0}`, `{"expires_at":1800000000}`} {
+		t.Run(input, func(t *testing.T) {
+			var request SpendRequest
+			assertNoError(t, json.Unmarshal([]byte(input), &request))
+			output, err := json.Marshal(request)
+			assertNoError(t, err)
+			var body map[string]any
+			assertNoError(t, json.Unmarshal(output, &body))
+			switch input {
+			case `{"expires_at":0}`:
+				if body["expires_at"] != "1970-01-01T00:00:00Z" {
+					t.Fatalf("unexpected expiry: %v", body["expires_at"])
+				}
+			case `{"expires_at":1800000000}`:
+				if body["expires_at"] != "2027-01-15T08:00:00Z" {
+					t.Fatalf("unexpected expiry: %v", body["expires_at"])
+				}
+			default:
+				if request.ExpiresAt != nil {
+					t.Fatalf("expected no expiry: %v", request.ExpiresAt)
+				}
+			}
+			var roundtrip SpendRequest
+			assertNoError(t, json.Unmarshal(output, &roundtrip))
+			if !reflect.DeepEqual(request, roundtrip) {
+				t.Fatalf("roundtrip changed request: %#v", roundtrip)
+			}
+		})
 	}
 }

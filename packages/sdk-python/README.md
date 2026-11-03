@@ -195,9 +195,8 @@ but `model_dump()` and `model_dump_json()` include them.
 Pass the optional `expires_at` keyword argument to `spend_requests.create`.
 Synchronous and asynchronous clients both accept integer Unix seconds or an ISO
 8601 timestamp ending in `Z` (UTC), such as `"2027-02-01T12:00:00Z"`. ISO input
-is converted to Unix seconds for the API; responses return Unix seconds.
-This field can only be
-set at creation. For a 90-day preorder expiry, calculate the timestamp below
+is converted to Unix seconds for the API. This field can only be set at
+creation. For a 90-day preorder expiry, calculate the timestamp below
 and pass `expires_at=expires_at` in the creation call:
 
 ```python
@@ -206,9 +205,10 @@ import time
 expires_at = int(time.time()) + 90 * 24 * 60 * 60
 ```
 
-`expires_at` is the spend request's expiry, expressed as an integer Unix
-timestamp in seconds. Set it when the merchant may charge later, such as for a
-preorder, booking, or payment due after delivery. Choose a deadline that covers
+`expires_at` is the spend request's expiry. The API uses integer Unix seconds;
+the CLI and SDK responses convert it to an ISO 8601 timestamp ending in `Z`
+(UTC), such as `"2027-02-01T12:00:00Z"`. Set it when the merchant may charge
+later, such as for a preorder, booking, or payment due after delivery. Choose a deadline that covers
 the expected charge date and explain the timing in `context`. Omit it for an
 ordinary purchase.
 

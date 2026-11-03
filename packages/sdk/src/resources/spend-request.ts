@@ -22,6 +22,14 @@ const spendRequestSchema = z.looseObject({
   totals: z.array(z.unknown()).optional(),
   created_at: z.string(),
   updated_at: z.string(),
+  expires_at: z
+    .number()
+    .int()
+    .transform((value) =>
+      new Date(value * 1000).toISOString().replace('.000Z', 'Z'),
+    )
+    .nullable()
+    .optional(),
   shared_payment_token: sharedPaymentTokenSchema.nullable().optional(),
   // interval_count defaults to 1 server-side and may be omitted.
   recurring: z

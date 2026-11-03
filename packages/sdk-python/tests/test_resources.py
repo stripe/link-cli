@@ -419,8 +419,11 @@ async def test_create_recurring_terms(
     "expires_at", [1_800_000_000, "2027-01-15T08:00:00Z", "2027-01-15T08:00:00.999Z"]
 )
 async def test_create_expiry(api: API, expires_at: int | str) -> None:
-    api.respond(SPEND)
-    await api.call("spend_requests", "create", context=CONTEXT, expires_at=expires_at)
+    api.respond({**SPEND, "expires_at": 1_800_000_000})
+    result = await api.call(
+        "spend_requests", "create", context=CONTEXT, expires_at=expires_at
+    )
+    assert result.expires_at == "2027-01-15T08:00:00Z"
     assert json.loads(api.requests[0].content)["expires_at"] == 1_800_000_000
 
 

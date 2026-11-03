@@ -223,7 +223,8 @@ context was supplied. Retrieve the request to check its status after a callback.
 
 **Delayed merchant charges:** `spend-request create --expires-at <timestamp>`
 accepts Unix seconds or an ISO 8601 timestamp ending in `Z` (UTC), such as
-`2027-02-01T12:00:00Z`. The CLI converts ISO input to Unix seconds for the API.
+`2027-02-01T12:00:00Z`. The CLI converts ISO input to Unix seconds for the API. Returned request `expires_at` is an ISO
+8601 timestamp ending in `Z` (UTC).
 This sets the request expiry at creation. Use it for a preorder, booking, or charge
 after delivery. Cover the expected charge date and explain the timing in
 `context`; omit it for an ordinary purchase. One-time requests default to 7 days

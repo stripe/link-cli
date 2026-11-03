@@ -520,9 +520,10 @@ link-cli spend-request create \
   --expires-at "$EXPIRES_AT"
 ```
 
-`expires_at` is the spend request's expiry, expressed as an integer Unix
-timestamp in seconds. Set it when the merchant may charge later, such as for a
-preorder, booking, or payment due after delivery. Choose a deadline that covers
+`expires_at` is the spend request's expiry. The API uses integer Unix seconds;
+the CLI and SDK responses convert it to an ISO 8601 timestamp ending in `Z`
+(UTC), such as `"2027-02-01T12:00:00Z"`. Set it when the merchant may charge
+later, such as for a preorder, booking, or payment due after delivery. Choose a deadline that covers
 the expected charge date and explain the timing in `context`. Omit it for an
 ordinary purchase.
 

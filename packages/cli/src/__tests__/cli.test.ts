@@ -1063,7 +1063,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     it.each(['1800000000', '2027-01-15T08:00:00Z'])(
       'sends Unix seconds in POST body for --expires-at %s',
       async (expiresAt) => {
-        setNextResponse(200, BASE_REQUEST);
+        setNextResponse(200, { ...BASE_REQUEST, expires_at: 1800000000 });
 
         const result = await runProdCli(
           'spend-request',
@@ -1087,6 +1087,9 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         expect(result.exitCode).toBe(0);
         const sentBody = JSON.parse(lastRequest.body);
         expect(sentBody.expires_at).toBe(1800000000);
+        expect(JSON.parse(result.stdout)[0].expires_at).toBe(
+          '2027-01-15T08:00:00Z',
+        );
       },
     );
 

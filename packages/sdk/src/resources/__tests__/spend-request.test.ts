@@ -87,7 +87,7 @@ describe('SpendRequestResource', () => {
         expect(JSON.parse(mockFetch.mock.calls[0]![1].body).expires_at).toBe(
           1_800_000_000,
         );
-        expect(result.expires_at).toBe(1_800_000_000);
+        expect(result.expires_at).toBe('2027-01-15T08:00:00Z');
       },
     );
 
@@ -800,6 +800,22 @@ describe('SpendRequestResource', () => {
   });
 
   describe('listSpendRequests', () => {
+    it('converts expiry to ISO while preserving null and omitted values', async () => {
+      mockFetchResponse(200, {
+        data: [
+          { ...spendRequestResponse, expires_at: 1_800_000_000 },
+          { ...spendRequestResponse, expires_at: null },
+          spendRequestResponse,
+        ],
+      });
+      const result = await repo.list();
+      expect(result.map((request) => request.expires_at)).toEqual([
+        '2027-01-15T08:00:00Z',
+        null,
+        undefined,
+      ]);
+    });
+
     it('sends GET to correct endpoint with Bearer auth header', async () => {
       mockFetchResponse(200, { data: [spendRequestResponse] });
 
@@ -882,12 +898,15 @@ describe('getDuplicateSpendRequest', () => {
           code: 'spend_request_rate_limited',
           message: 'You cannot submit duplicate spend requests...',
           retry_after: 1699999999,
-          duplicate_spend_request: duplicate,
+          duplicate_spend_request: { ...duplicate, expires_at: 1_800_000_000 },
         },
       },
     });
 
-    expect(getDuplicateSpendRequest(err)).toEqual(duplicate);
+    expect(getDuplicateSpendRequest(err)).toEqual({
+      ...duplicate,
+      expires_at: '2027-01-15T08:00:00Z',
+    });
   });
 
   it('extracts a sparse duplicate spend request', () => {

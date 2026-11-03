@@ -224,17 +224,17 @@ await link.paymentMethods.update('pd_123', {
 Pass `expires_at` to `spendRequests.create` or the `create_spend_request` agent
 tool. Accepts integer Unix seconds or an ISO 8601 timestamp ending in `Z` (UTC),
 such as `"2027-02-01T12:00:00Z"`. ISO input is converted to Unix seconds for the
-API; responses return Unix seconds. This optional field can only be set at creation.
-For example, add this to
+API. This optional field can only be set at creation. For example, add this to
 a preorder request for a 90-day expiry:
 
 ```ts
 expires_at: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60,
 ```
 
-`expires_at` is the spend request's expiry, expressed as an integer Unix
-timestamp in seconds. Set it when the merchant may charge later, such as for a
-preorder, booking, or payment due after delivery. Choose a deadline that covers
+`expires_at` is the spend request's expiry. The API uses integer Unix seconds;
+the CLI and SDK responses convert it to an ISO 8601 timestamp ending in `Z`
+(UTC), such as `"2027-02-01T12:00:00Z"`. Set it when the merchant may charge
+later, such as for a preorder, booking, or payment due after delivery. Choose a deadline that covers
 the expected charge date and explain the timing in `context`. Omit it for an
 ordinary purchase.
 
