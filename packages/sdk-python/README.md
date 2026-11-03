@@ -194,11 +194,13 @@ but `model_dump()` and `model_dump_json()` include them.
 
 Pass the optional `expires_at` keyword argument to `spend_requests.create`.
 Synchronous and asynchronous clients both support it. This field can only be
-set at creation. For example, add this to a preorder request for a 90-day expiry
-(using `import time`):
+set at creation. For a 90-day preorder expiry, calculate the timestamp below
+and pass `expires_at=expires_at` in the creation call:
 
 ```python
-expires_at=int(time.time()) + 90 * 24 * 60 * 60,
+import time
+
+expires_at = int(time.time()) + 90 * 24 * 60 * 60
 ```
 
 `expires_at` is the spend request's expiry, expressed as an integer Unix
