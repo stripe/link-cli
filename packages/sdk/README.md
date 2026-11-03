@@ -3,9 +3,10 @@
 Node.js SDK for agents that use Link. It provides typed resources for Link APIs
 and accepts an access token from your application.
 
-The SDK does not perform login, persist credentials, or own refresh tokens.
-Authentication state and user-facing authorization flows belong to the CLI or
-application embedding the SDK.
+The SDK provides the reusable pieces of Link's device-authorization sign-in
+flow (`LinkAuthResource`, `createAccessTokenProvider`; see "Sign in" below),
+but does not persist credentials or drive the user-facing login UI — your
+application supplies storage and presents the verification code.
 
 For services verifying credentials presented by agents, use the separate [Agent Identity SDK](../agent-identity/README.md). This package calls Link APIs on behalf of an agent.
 
@@ -58,6 +59,41 @@ const link = new Link({
 The credential manager should coalesce concurrent refreshes if several
 requests can receive a 401 at the same time. A client configured with a fixed
 `accessToken` does not retry a 401 because it cannot obtain a different token.
+
+## Sign in
+
+`LinkAuthResource` implements the same device-authorization OAuth flow
+`link-cli auth login` uses. `clientId` is required — register your own OAuth
+client rather than reusing another app's. `createAccessTokenProvider` wraps it
+into a `getAccessToken` for the `Link` client, auto-refreshing shortly before
+expiry and coalescing concurrent refreshes into a single call (Link rotates
+the refresh token on every use, so two parallel refreshes would otherwise race
+and break the session).
+
+Your application supplies an `AuthStorage` (`getTokens`, `setTokens`,
+`clearTokens`) to persist tokens — the SDK does not write them anywhere:
+
+```ts
+import {
+  createAccessTokenProvider,
+  Link,
+  LinkAuthResource,
+} from '@stripe/link-sdk';
+
+const authResource = new LinkAuthResource({ clientId: 'your_oauth_client_id' });
+const storage = myAppAuthStorage; // implements AuthStorage
+
+const authRequest = await authResource.initiateDeviceAuth();
+await showUser(authRequest.verification_url_complete, authRequest.user_code);
+
+// Poll until the user approves in the Link app, then persist the tokens.
+const tokens = await pollUntilApproved(authResource, authRequest.device_code);
+await storage.setTokens(tokens);
+
+const link = new Link({
+  getAccessToken: createAccessTokenProvider(authResource, storage),
+});
+```
 
 ## Agent tools
 

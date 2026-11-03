@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import type { AuthStorage, AuthTokens } from '@stripe/link-sdk';
 import Conf from 'conf';
-import type { AuthStorage, AuthTokens } from './types';
 
 export interface PendingDeviceAuth {
   device_code: string;

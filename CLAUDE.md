@@ -65,9 +65,13 @@ Defined in `packages/sdk/src/resources/interfaces.ts`:
 - `IIdentityCredentialsResource` — signed user info issuance
 - `ISpendRequestResource` — CRUD + request-approval for spend requests
 
-The SDK only accepts credentials. Device authorization, refresh-token
-persistence, login state, and auth-specific errors live under
-`packages/cli/src/auth/`.
+`packages/sdk/src/auth/` owns the reusable device-authorization OAuth client
+(`LinkAuthResource`, required `clientId`), token refresh (`createAccessTokenProvider`,
+coalescing concurrent refreshes since Link rotates the refresh token on every
+use), and auth-specific errors/types, all exported from `@stripe/link-sdk`.
+It does not persist credentials — callers supply an `AuthStorage`. The CLI's
+own credential file, pending-device-auth workflow state, and `auth upgrade`
+merge logic remain CLI-specific, under `packages/cli/src/auth/`.
 
 The Go SDK currently mirrors the Link API resources exposed by the TypeScript
 SDK. Until a server-owned OpenAPI schema is available, keep API changes aligned
@@ -107,7 +111,7 @@ Input is passed via flags. Define options in the command's zod schema — incur 
 - `auth login --client-name <name>` — optional flag to identify the agent or app; shown in the user's Link app as `<name> on <hostname>`. Defined in `loginOptions` in `packages/cli/src/commands/auth/schema.ts`.
 - `auth login --interval <seconds> [--timeout <seconds>] [--max-attempts <n>]` — when `--interval` is provided, the command yields the verification code immediately then polls inline until authenticated or timed out. Without `--interval`, returns the code with a `_next` hint for separate polling via `auth status`.
 - The token endpoint echoes `scope` and `authorization_details` back with the tokens on login/refresh. These are persisted in the credential file (part of `AuthTokens`) and surfaced on `auth status` in both interactive and JSON modes, only when present.
-- `packages/cli/src/auth/auth-resource.ts` owns device authorization, token parsing, refresh, and revocation. `ResourceFactory` exposes the resulting access token to SDK resources through `getAccessToken`.
+- The SDK's `LinkAuthResource` (`packages/sdk/src/auth/auth-resource.ts`) owns device authorization, token parsing, refresh, and revocation; `ResourceFactory` constructs it with the CLI's own `clientId` and `clientName`, then exposes the resulting access token to SDK resources through `getAccessToken` via the SDK's `createAccessTokenProvider`. The CLI's `packages/cli/src/auth/session.ts` wraps that call with the CLI's exact user-facing messages.
 
 ### auth upgrade
 

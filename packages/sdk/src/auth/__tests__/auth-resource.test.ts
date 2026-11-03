@@ -1,7 +1,7 @@
 import { hostname } from 'node:os';
-import { LinkApiError, LinkTransportError } from '@stripe/link-sdk';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { LinkAuthResource } from '../auth-resource';
+import { LinkAuthResource } from '@/auth/auth-resource';
+import { LinkApiError, LinkTransportError } from '@/errors';
 
 const mockFetch = vi.fn();
 
@@ -14,8 +14,11 @@ function mockFetchResponse(status: number, body: Record<string, unknown>) {
   });
 }
 
+const CLIENT_ID = 'lwlpk_U7Qy7ThG69STZk';
+
 function createResource() {
   return new LinkAuthResource({
+    clientId: CLIENT_ID,
     fetch: mockFetch,
     authBaseUrl: 'https://auth.test',
   });
@@ -69,7 +72,7 @@ describe('LinkAuthResource', () => {
       const resource = createResource();
       await resource.initiateDeviceAuth();
 
-      const body = mockFetch.mock.calls[0][1].body as string;
+      const body = mockFetch.mock.calls[0]![1].body as string;
       const params = new URLSearchParams(body);
       expect(params.get('scope')).toBe('userinfo:read payment_methods.agentic');
     });
@@ -89,7 +92,7 @@ describe('LinkAuthResource', () => {
         scope: 'userinfo:read spend_requests:approve',
       });
 
-      const body = mockFetch.mock.calls[0][1].body as string;
+      const body = mockFetch.mock.calls[0]![1].body as string;
       const params = new URLSearchParams(body);
       expect(params.get('scope')).toBe('userinfo:read spend_requests:approve');
       expect(params.get('authorization_details')).toBeNull();
@@ -111,7 +114,7 @@ describe('LinkAuthResource', () => {
         sourceActions: ['read_source_details', 'read_balances'],
       });
 
-      const body = mockFetch.mock.calls[0][1].body as string;
+      const body = mockFetch.mock.calls[0]![1].body as string;
       const params = new URLSearchParams(body);
       expect(params.get('scope')).toBe('userinfo:read payment_methods.agentic');
       expect(params.get('authorization_details')).toBeNull();
@@ -147,7 +150,7 @@ describe('LinkAuthResource', () => {
         ],
       });
 
-      const body = mockFetch.mock.calls[0][1].body as string;
+      const body = mockFetch.mock.calls[0]![1].body as string;
       const params = new URLSearchParams(body);
       expect(params.get('authorization_details')).toBeNull();
       expect(params.getAll('authorization_details[][type]')).toEqual([
@@ -179,7 +182,7 @@ describe('LinkAuthResource', () => {
       const resource = createResource();
       await resource.initiateDeviceAuth({ clientName: 'My Agent' });
 
-      const body = mockFetch.mock.calls[0][1].body as string;
+      const body = mockFetch.mock.calls[0]![1].body as string;
       const params = new URLSearchParams(body);
       expect(params.get('connection_label')).toBe(`My Agent on ${hostname()}`);
       expect(params.get('client_hint')).toBe('My Agent');
@@ -351,12 +354,12 @@ describe('LinkAuthResource', () => {
       await resource.revokeToken('rt_to_revoke');
 
       expect(mockFetch).toHaveBeenCalledOnce();
-      const [url, opts] = mockFetch.mock.calls[0];
+      const [url, opts] = mockFetch.mock.calls[0]!;
       expect(url).toBe('https://auth.test/device/revoke');
       expect(opts.method).toBe('POST');
 
       const params = new URLSearchParams(opts.body as string);
-      expect(params.get('client_id')).toBe('lwlpk_U7Qy7ThG69STZk');
+      expect(params.get('client_id')).toBe(CLIENT_ID);
       expect(params.get('token')).toBe('rt_to_revoke');
     });
 

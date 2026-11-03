@@ -1,10 +1,10 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { AuthTokens } from '@stripe/link-sdk';
 import Conf from 'conf';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { type PendingDeviceAuth, Storage } from '../storage';
-import type { AuthTokens } from '../types';
 
 interface LegacyStorageSchema {
   auth: AuthTokens | null;

@@ -1,3 +1,4 @@
+import type { IAuthResource } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
@@ -6,7 +7,6 @@ import {
   type CliAuthStorage,
   storage as defaultStorage,
 } from '../../auth/storage';
-import type { IAuthResource } from '../../auth/types';
 import { useAsyncAction } from '../../hooks/use-async-action';
 
 interface LogoutProps {

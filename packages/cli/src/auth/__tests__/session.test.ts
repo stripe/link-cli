@@ -1,7 +1,6 @@
+import type { AuthStorage, AuthTokens, IAuthResource } from '@stripe/link-sdk';
 import { describe, expect, it, vi } from 'vitest';
-import { LinkAuthenticationError } from '../errors';
 import { createAccessTokenProvider } from '../session';
-import type { AuthStorage, AuthTokens, IAuthResource } from '../types';
 
 class MemoryAuthStorage implements AuthStorage {
   private tokens: AuthTokens | null;
@@ -23,86 +22,35 @@ class MemoryAuthStorage implements AuthStorage {
   }
 }
 
-function createMockAuthRepo(
-  refreshResult = {
-    access_token: 'at_refreshed',
-    refresh_token: 'rt_refreshed',
-    expires_in: 3600,
-    token_type: 'Bearer',
-  },
-): IAuthResource {
+function createMockAuthRepo(): IAuthResource {
   return {
     initiateDeviceAuth: vi.fn(),
     pollDeviceAuth: vi.fn(),
-    refreshToken: vi.fn(async () => refreshResult),
+    refreshToken: vi.fn(async () => ({
+      access_token: 'at_refreshed',
+      refresh_token: 'rt_refreshed',
+      expires_in: 3600,
+      token_type: 'Bearer',
+    })),
     revokeToken: vi.fn(async () => {}),
   };
 }
 
-describe('createAccessTokenProvider', () => {
-  it('throws LinkAuthenticationError with not_authenticated code when no auth stored', async () => {
+// The business logic (expiry, refresh, concurrent-refresh dedup) is covered
+// by the SDK's own `createAccessTokenProvider` tests. This file only checks
+// that the CLI's thin wrapper preserves its exact, pre-move user-facing
+// messages.
+describe('createAccessTokenProvider (CLI wrapper)', () => {
+  it('keeps the CLI "not authenticated" message', async () => {
     const storage = new MemoryAuthStorage(null);
-    const repo = createMockAuthRepo();
-    const provider = createAccessTokenProvider(repo, storage);
+    const provider = createAccessTokenProvider(createMockAuthRepo(), storage);
 
-    await expect(provider()).rejects.toThrow(LinkAuthenticationError);
-    try {
-      await provider();
-    } catch (err) {
-      expect((err as LinkAuthenticationError).code).toBe('not_authenticated');
-    }
+    await expect(provider()).rejects.toThrow(
+      'Not authenticated. Run "link-cli auth login" first.',
+    );
   });
 
-  it('returns cached token when not expired', async () => {
-    const storage = new MemoryAuthStorage({
-      access_token: 'at_cached',
-      refresh_token: 'rt_123',
-      expires_in: 3600,
-      token_type: 'Bearer',
-      expires_at: Date.now() + 3_600_000,
-    });
-    const repo = createMockAuthRepo();
-    const provider = createAccessTokenProvider(repo, storage);
-
-    expect(await provider()).toBe('at_cached');
-    expect(repo.refreshToken).not.toHaveBeenCalled();
-  });
-
-  it('refreshes token when expired (within 60s buffer)', async () => {
-    const storage = new MemoryAuthStorage({
-      access_token: 'at_old',
-      refresh_token: 'rt_123',
-      expires_in: 30,
-      token_type: 'Bearer',
-      expires_at: Date.now() + 30_000,
-    });
-    const repo = createMockAuthRepo();
-    const provider = createAccessTokenProvider(repo, storage);
-
-    const token = await provider();
-
-    expect(token).toBe('at_refreshed');
-    expect(repo.refreshToken).toHaveBeenCalledWith('rt_123');
-  });
-
-  it('refreshes token when forceRefresh is true', async () => {
-    const storage = new MemoryAuthStorage({
-      access_token: 'at_cached',
-      refresh_token: 'rt_123',
-      expires_in: 3600,
-      token_type: 'Bearer',
-      expires_at: Date.now() + 3_600_000,
-    });
-    const repo = createMockAuthRepo();
-    const provider = createAccessTokenProvider(repo, storage);
-
-    const token = await provider({ forceRefresh: true });
-
-    expect(token).toBe('at_refreshed');
-    expect(repo.refreshToken).toHaveBeenCalledWith('rt_123');
-  });
-
-  it('throws when noRefresh is true and token is expired', async () => {
+  it('keeps the CLI "token expired" message when noRefresh is set', async () => {
     const storage = new MemoryAuthStorage({
       access_token: 'at_old',
       refresh_token: 'rt_123',
@@ -110,31 +58,12 @@ describe('createAccessTokenProvider', () => {
       token_type: 'Bearer',
       expires_at: Date.now() + 30_000,
     });
-    const repo = createMockAuthRepo();
-    const provider = createAccessTokenProvider(repo, storage, {
+    const provider = createAccessTokenProvider(createMockAuthRepo(), storage, {
       noRefresh: true,
     });
 
-    await expect(provider()).rejects.toThrow(LinkAuthenticationError);
-    expect(repo.refreshToken).not.toHaveBeenCalled();
-  });
-
-  it('throws when noRefresh is true and forceRefresh is requested', async () => {
-    const storage = new MemoryAuthStorage({
-      access_token: 'at_cached',
-      refresh_token: 'rt_123',
-      expires_in: 3600,
-      token_type: 'Bearer',
-      expires_at: Date.now() + 3_600_000,
-    });
-    const repo = createMockAuthRepo();
-    const provider = createAccessTokenProvider(repo, storage, {
-      noRefresh: true,
-    });
-
-    await expect(provider({ forceRefresh: true })).rejects.toThrow(
-      LinkAuthenticationError,
+    await expect(provider()).rejects.toThrow(
+      'Access token expired. Re-authenticate with "link-cli auth login".',
     );
-    expect(repo.refreshToken).not.toHaveBeenCalled();
   });
 });

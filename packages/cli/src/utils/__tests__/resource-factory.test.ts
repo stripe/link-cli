@@ -1,7 +1,6 @@
+import type { IAuthResource } from '@stripe/link-sdk';
+import { LinkAuthenticationError, LinkAuthResource } from '@stripe/link-sdk';
 import { describe, expect, it, vi } from 'vitest';
-import { LinkAuthResource } from '../../auth/auth-resource';
-import { LinkAuthenticationError } from '../../auth/errors';
-import type { IAuthResource } from '../../auth/types';
 import { ResourceFactory } from '../resource-factory';
 
 function createMockAuthResource(

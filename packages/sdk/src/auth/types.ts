@@ -1,4 +1,4 @@
-import type { JsonValue as LinkJsonValue } from '@stripe/link-sdk';
+import type { JsonValue } from '@/types/index';
 
 export const SOURCE_ACTIONS = [
   'read_balances',
@@ -26,7 +26,7 @@ export interface AuthTokens {
   /** Absolute epoch-ms when the access token expires. */
   expires_at?: number;
   scope?: string;
-  authorization_details?: LinkJsonValue[];
+  authorization_details?: JsonValue[];
 }
 
 export interface AuthStorage {
@@ -43,8 +43,6 @@ export interface DeviceAuthRequest {
   expires_in: number;
   interval: number;
 }
-
-export type JsonValue = LinkJsonValue;
 
 export interface InitiateDeviceAuthOptions {
   clientName?: string;

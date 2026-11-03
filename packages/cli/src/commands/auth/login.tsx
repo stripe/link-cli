@@ -1,16 +1,18 @@
+import {
+  type IAuthResource,
+  type JsonValue,
+  LinkAuthorizationDeclinedError,
+  type ScopeEligibility,
+  type SourceAction,
+} from '@stripe/link-sdk';
 import { Box, Text, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import {
-  LinkAuthorizationDeclinedError,
-  type ScopeEligibility,
-} from '../../auth/errors';
-import {
   type CliAuthStorage,
   storage as defaultStorage,
 } from '../../auth/storage';
-import type { IAuthResource, JsonValue, SourceAction } from '../../auth/types';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { openUrl } from '../../utils/open-url';
 

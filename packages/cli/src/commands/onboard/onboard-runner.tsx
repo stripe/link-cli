@@ -1,4 +1,5 @@
 import type {
+  IAuthResource,
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
@@ -9,7 +10,6 @@ import {
   type CliAuthStorage,
   storage as defaultStorage,
 } from '../../auth/storage';
-import type { IAuthResource } from '../../auth/types';
 import { Login } from '../auth/login';
 import { ONBOARD as O } from '../demo/content';
 import { DemoRunner } from '../demo/demo-runner';

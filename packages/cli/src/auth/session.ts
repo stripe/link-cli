@@ -1,39 +1,26 @@
-import type { AccessTokenProvider } from '@stripe/link-sdk';
-import { LinkAuthenticationError } from './errors';
+import {
+  type AccessTokenProvider,
+  type AuthStorage,
+  createAccessTokenProvider as createSdkAccessTokenProvider,
+  type IAuthResource,
+} from '@stripe/link-sdk';
 import { storage } from './storage';
-import type { AuthStorage, IAuthResource } from './types';
 
-const EXPIRY_BUFFER_MS = 60_000;
-
+// Thin wrapper around the SDK's reusable `createAccessTokenProvider`: supplies
+// the CLI's own `link-cli auth login` messaging (via the SDK's message
+// options) so the CLI's user-facing error text is unchanged by the move, and
+// defaults `authStorage` to the CLI's singleton `Storage` instance, which the
+// SDK (used by other apps too) cannot default on its own.
 export function createAccessTokenProvider(
   authResource: IAuthResource,
   authStorage: AuthStorage = storage,
   options: { noRefresh?: boolean } = {},
 ): AccessTokenProvider {
-  return async ({ forceRefresh } = {}) => {
-    const auth = await authStorage.getTokens();
-    if (!auth) {
-      throw new LinkAuthenticationError(
-        'Not authenticated. Run "link-cli auth login" first.',
-      );
-    }
-
-    const isExpired =
-      auth.expires_at != null &&
-      Date.now() >= auth.expires_at - EXPIRY_BUFFER_MS;
-
-    if (!forceRefresh && !isExpired) {
-      return auth.access_token;
-    }
-
-    if (options.noRefresh) {
-      throw new LinkAuthenticationError(
-        'Access token expired. Re-authenticate with "link-cli auth login".',
-      );
-    }
-
-    const refreshed = await authResource.refreshToken(auth.refresh_token);
-    await authStorage.setTokens(refreshed);
-    return refreshed.access_token;
-  };
+  return createSdkAccessTokenProvider(authResource, authStorage, {
+    ...options,
+    notAuthenticatedMessage:
+      'Not authenticated. Run "link-cli auth login" first.',
+    tokenExpiredMessage:
+      'Access token expired. Re-authenticate with "link-cli auth login".',
+  });
 }

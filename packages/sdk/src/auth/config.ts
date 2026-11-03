@@ -1,6 +1,14 @@
-import { LinkConfigurationError, type LinkSdkLogger } from '@stripe/link-sdk';
+import type { LinkSdkLogger } from '@/config';
+import { requireFetchImplementation } from '@/config';
+import { LinkConfigurationError } from '@/errors';
 
 export interface AuthResourceOptions {
+  /**
+   * OAuth client_id to authenticate device-authorization requests as. Required
+   * so an SDK-based app can't silently pose as another OAuth client (e.g.
+   * link-cli).
+   */
+  clientId: string;
   verbose?: boolean;
   clientName?: string;
   defaultHeaders?: Record<string, string>;
@@ -10,6 +18,7 @@ export interface AuthResourceOptions {
 }
 
 export interface ResolvedAuthResourceConfig {
+  clientId: string;
   verbose: boolean;
   clientName: string;
   defaultHeaders: Record<string, string>;
@@ -19,6 +28,7 @@ export interface ResolvedAuthResourceConfig {
 }
 
 const DEFAULT_AUTH_BASE_URL = 'https://login.link.com';
+const DEFAULT_CLIENT_NAME = 'Link CLI';
 
 function createDefaultLogger(verbose: boolean): LinkSdkLogger {
   return {
@@ -33,16 +43,21 @@ function createDefaultLogger(verbose: boolean): LinkSdkLogger {
 }
 
 export function resolveAuthResourceConfig(
-  options: AuthResourceOptions = {},
+  options: AuthResourceOptions,
   defaults: Pick<ResolvedAuthResourceConfig, 'authBaseUrl'> = {
     authBaseUrl: DEFAULT_AUTH_BASE_URL,
   },
 ): ResolvedAuthResourceConfig {
+  if (!options.clientId) {
+    throw new LinkConfigurationError('`clientId` is required.');
+  }
+
   const verbose = options.verbose ?? false;
 
   return {
+    clientId: options.clientId,
     verbose,
-    clientName: options.clientName ?? 'Link CLI',
+    clientName: options.clientName ?? DEFAULT_CLIENT_NAME,
     defaultHeaders: options.defaultHeaders ?? {},
     fetch: options.fetch ?? globalThis.fetch,
     authBaseUrl:
@@ -53,14 +68,7 @@ export function resolveAuthResourceConfig(
   };
 }
 
-export function requireFetchImplementation(
-  config: Pick<ResolvedAuthResourceConfig, 'fetch'>,
-): typeof globalThis.fetch {
-  if (!config.fetch) {
-    throw new LinkConfigurationError(
-      'No fetch implementation available. Pass `fetch` in auth resource options.',
-    );
-  }
-
-  return config.fetch;
-}
+// Auth resources need only `fetch` to resolve one, so the SDK's own
+// `requireFetchImplementation` (from `@/config`) is reused as-is rather than
+// duplicated here.
+export { requireFetchImplementation };

@@ -1,25 +1,23 @@
 import { hostname } from 'node:os';
-import { LinkApiError, LinkTransportError } from '@stripe/link-sdk';
-import { buildAuthorizationDetails } from './authorization-details';
+import { buildAuthorizationDetails } from '@/auth/authorization-details';
 import {
   type AuthResourceOptions,
   type ResolvedAuthResourceConfig,
   requireFetchImplementation,
   resolveAuthResourceConfig,
-} from './config';
+} from '@/auth/config';
 import {
   LinkAuthorizationDeclinedError,
   type ScopeEligibility,
-} from './errors';
-import { DEFAULT_SCOPE } from './scopes';
+} from '@/auth/errors';
+import { DEFAULT_SCOPE } from '@/auth/scopes';
 import type {
   DeviceAuthRequest,
   IAuthResource,
   InitiateDeviceAuthOptions,
-  JsonValue,
-} from './types';
-
-const CLIENT_ID = 'lwlpk_U7Qy7ThG69STZk';
+} from '@/auth/types';
+import { LinkApiError, LinkTransportError } from '@/errors';
+import type { JsonValue } from '@/types/index';
 
 interface DeviceCodeResponse {
   device_code: string;
@@ -70,6 +68,17 @@ function formatOAuthError(
   return `${prefix} (${status}): ${extractOAuthErrorMessage(err) ?? (rawBody || 'unknown error')}`;
 }
 
+// `exactOptionalPropertyTypes` rejects `code: undefined`, so omit the key
+// entirely when there's no OAuth error code to report.
+function oauthErrorOptions(
+  status: number,
+  code: string | undefined,
+  rawBody: string,
+  details: unknown,
+): { status: number; code?: string; rawBody: string; details: unknown } {
+  return { status, ...(code !== undefined && { code }), rawBody, details };
+}
+
 function appendAuthorizationDetailValue(
   params: URLSearchParams,
   key: string,
@@ -93,12 +102,13 @@ function appendAuthorizationDetailValue(
 }
 
 function buildDeviceCodeForm(
+  clientId: string,
   clientName: string,
   options: InitiateDeviceAuthOptions,
 ): URLSearchParams {
   const connectionLabel = `${clientName} on ${hostname()}`;
   const params = new URLSearchParams({
-    client_id: CLIENT_ID,
+    client_id: clientId,
     scope: options.scope ?? DEFAULT_SCOPE,
     connection_label: connectionLabel,
     client_hint: clientName,
@@ -140,7 +150,7 @@ export class LinkAuthResource implements IAuthResource {
   private readonly config: ResolvedAuthResourceConfig;
   private readonly fetchImpl: typeof globalThis.fetch;
 
-  constructor(options: AuthResourceOptions = {}) {
+  constructor(options: AuthResourceOptions) {
     this.config = resolveAuthResourceConfig(options);
     this.fetchImpl = requireFetchImplementation(this.config);
   }
@@ -195,7 +205,11 @@ export class LinkAuthResource implements IAuthResource {
     options: InitiateDeviceAuthOptions = {},
   ): Promise<DeviceAuthRequest> {
     const effectiveName = options.clientName ?? this.config.clientName;
-    const params = buildDeviceCodeForm(effectiveName, options);
+    const params = buildDeviceCodeForm(
+      this.config.clientId,
+      effectiveName,
+      options,
+    );
     const { status, data, rawBody } = await this.postForm(
       `${this.config.authBaseUrl}/device/code`,
       params,
@@ -230,7 +244,7 @@ export class LinkAuthResource implements IAuthResource {
       {
         grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
         device_code: deviceCode,
-        client_id: CLIENT_ID,
+        client_id: this.config.clientId,
       },
     );
 
@@ -257,20 +271,23 @@ export class LinkAuthResource implements IAuthResource {
         case 'expired_token':
           throw new LinkApiError(
             'Device code expired. Please restart the login flow.',
-            {
+            oauthErrorOptions(
               status,
-              code: extractOAuthErrorCode(err),
+              extractOAuthErrorCode(err),
               rawBody,
-              details: data,
-            },
+              data,
+            ),
           );
         case 'access_denied':
-          throw new LinkApiError('Authorization denied by user.', {
-            status,
-            code: extractOAuthErrorCode(err),
-            rawBody,
-            details: data,
-          });
+          throw new LinkApiError(
+            'Authorization denied by user.',
+            oauthErrorOptions(
+              status,
+              extractOAuthErrorCode(err),
+              rawBody,
+              data,
+            ),
+          );
         case 'authorization_failed':
           throw new LinkAuthorizationDeclinedError(err.scope_eligibility ?? {});
       }
@@ -278,12 +295,12 @@ export class LinkAuthResource implements IAuthResource {
 
     throw new LinkApiError(
       formatOAuthError('Token poll failed', status, data, rawBody),
-      {
+      oauthErrorOptions(
         status,
-        code: extractOAuthErrorCode(data as OAuthError | null),
+        extractOAuthErrorCode(data as OAuthError | null),
         rawBody,
-        details: data,
-      },
+        data,
+      ),
     );
   }
 
@@ -291,7 +308,7 @@ export class LinkAuthResource implements IAuthResource {
     const { status, data, rawBody } = await this.postForm(
       `${this.config.authBaseUrl}/device/revoke`,
       {
-        client_id: CLIENT_ID,
+        client_id: this.config.clientId,
         token,
       },
     );
@@ -299,12 +316,12 @@ export class LinkAuthResource implements IAuthResource {
     if (status < 200 || status >= 300) {
       throw new LinkApiError(
         formatOAuthError('Token revocation failed', status, data, rawBody),
-        {
+        oauthErrorOptions(
           status,
-          code: extractOAuthErrorCode(data as OAuthError | null),
+          extractOAuthErrorCode(data as OAuthError | null),
           rawBody,
-          details: data,
-        },
+          data,
+        ),
       );
     }
   }
@@ -315,19 +332,19 @@ export class LinkAuthResource implements IAuthResource {
       {
         grant_type: 'refresh_token',
         refresh_token: refreshToken,
-        client_id: CLIENT_ID,
+        client_id: this.config.clientId,
       },
     );
 
     if (status < 200 || status >= 300) {
       throw new LinkApiError(
         formatOAuthError('Token refresh failed', status, data, rawBody),
-        {
+        oauthErrorOptions(
           status,
-          code: extractOAuthErrorCode(data as OAuthError | null),
+          extractOAuthErrorCode(data as OAuthError | null),
           rawBody,
-          details: data,
-        },
+          data,
+        ),
       );
     }
 

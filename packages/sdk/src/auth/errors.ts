@@ -1,4 +1,4 @@
-import { LinkSdkError } from '@stripe/link-sdk';
+import { LinkSdkError } from '@/errors';
 
 export class LinkAuthenticationError extends LinkSdkError {
   constructor(message: string, options?: { cause?: unknown }) {

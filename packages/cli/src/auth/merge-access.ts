@@ -2,8 +2,7 @@
 // `auth upgrade`: the union of scopes and of authorization_details. Action-based
 // details (`{ type, actions }`, e.g. `source`) are unioned per type so no
 // already-granted action is dropped; opaque details are preserved verbatim.
-import { DEFAULT_SCOPE } from './scopes';
-import type { JsonValue } from './types';
+import { DEFAULT_SCOPE, type JsonValue } from '@stripe/link-sdk';
 
 const DEFAULT_SCOPE_TOKENS = DEFAULT_SCOPE.split(' ');
 

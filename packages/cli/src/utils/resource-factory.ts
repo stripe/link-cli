@@ -2,6 +2,7 @@ import {
   type AccessTokenProvider,
   type IApprovalPolicyResource,
   type IAttestationsResource,
+  type IAuthResource,
   type IBalancesResource,
   type IIdentityCredentialsResource,
   type IInsightsResource,
@@ -15,14 +16,13 @@ import {
   type IUserInfoResource,
   type IWebBotAuthResource,
   default as Link,
+  LinkAuthenticationError,
+  LinkAuthResource,
   LinkConfigurationError,
   type LinkOptions,
 } from '@stripe/link-sdk';
-import { LinkAuthResource } from '../auth/auth-resource';
-import { LinkAuthenticationError } from '../auth/errors';
 import { createAccessTokenProvider } from '../auth/session';
 import type { CliAuthStorage } from '../auth/storage';
-import type { IAuthResource } from '../auth/types';
 import {
   type ITestHelpersSpendRequestResource,
   TestHelpersSpendRequestResource,
@@ -176,6 +176,10 @@ export class ResourceFactory {
 
     this._authResource = sanitizeResource(
       new LinkAuthResource({
+        // link-cli's own OAuth client_id and connection-label name — not the
+        // SDK's defaults, so this stays explicit rather than relying on them.
+        clientId: 'lwlpk_U7Qy7ThG69STZk',
+        clientName: 'Link CLI',
         verbose: this.verbose,
         defaultHeaders: this.defaultHeaders,
       }),

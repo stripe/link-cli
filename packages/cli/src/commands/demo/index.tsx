@@ -1,10 +1,10 @@
 import type {
+  IAuthResource,
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
 import { Cli, z } from 'incur';
 import type { CliAuthStorage } from '../../auth/storage';
-import type { IAuthResource } from '../../auth/types';
 import { renderInteractive } from '../../utils/render-interactive';
 import { DemoRunner } from './demo-runner';
 

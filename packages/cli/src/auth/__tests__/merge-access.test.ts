@@ -1,6 +1,6 @@
+import type { JsonValue } from '@stripe/link-sdk';
 import { describe, expect, it } from 'vitest';
 import { computeMergedAccess } from '../merge-access';
-import type { JsonValue } from '../types';
 
 describe('computeMergedAccess', () => {
   it('returns the requested access unchanged when it already covers the existing access', () => {

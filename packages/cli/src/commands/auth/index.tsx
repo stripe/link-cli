@@ -1,21 +1,19 @@
-import { Cli } from 'incur';
-import { Text } from 'ink';
 import {
   buildAuthorizationDetails,
-  parseAuthorizationDetails,
-} from '../../auth/authorization-details';
+  DEFAULT_FINANCIAL_INSIGHTS_SOURCE_ACTIONS,
+  type IAuthResource,
+  type JsonValue,
+  normalizeScopeInput,
+  type SourceAction,
+} from '@stripe/link-sdk';
+import { Cli } from 'incur';
+import { Text } from 'ink';
+import { parseAuthorizationDetails } from '../../auth/authorization-details';
 import { computeMergedAccess } from '../../auth/merge-access';
-import { normalizeScopeInput } from '../../auth/scopes';
 import {
   type CliAuthStorage,
   storage as defaultStorage,
 } from '../../auth/storage';
-import {
-  DEFAULT_FINANCIAL_INSIGHTS_SOURCE_ACTIONS,
-  type IAuthResource,
-  type JsonValue,
-  type SourceAction,
-} from '../../auth/types';
 import { pollUntil } from '../../utils/poll-until';
 import { renderInteractive } from '../../utils/render-interactive';
 import { sanitizeDeep } from '../../utils/sanitize-text';
