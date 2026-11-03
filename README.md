@@ -616,10 +616,10 @@ link-cli mpp decode \
   --challenge 'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge", request="..."'
 ```
 
-Use `mpp pay` to complete purchases: 
+Use `pay` to complete purchases:
 
 ```bash
-link-cli mpp pay https://climate.stripe.dev/api/contribute \
+link-cli pay https://climate.stripe.dev/api/contribute \
   --spend-request-id lsrq_001 \
   --method POST \
   --data '{"amount":100}' \
@@ -673,17 +673,17 @@ request.
 
 Dollar limits are enforced as the USD equivalent for spend requests in other currencies.
 
-Use `mpp pay` to complete purchases on merchants that use the [Machine Payments Protocol](https://mpp.dev). The spend request must use `credential_type: "shared_payment_token"` and you must approve it before paying. Requests created by `mpp pay` are for one-time payments; consumed SPTs require a new spend request.
+Use `pay` to complete purchases on merchants that use the [Machine Payments Protocol](https://mpp.dev). The spend request must use `credential_type: "shared_payment_token"` and you must approve it before paying. Requests created by `pay` are for one-time payments; consumed SPTs require a new spend request.
 
 ```bash
-link-cli mpp pay https://climate.stripe.dev/api/contribute \
+link-cli pay https://climate.stripe.dev/api/contribute \
   --spend-request-id lsrq_001 \
   --method POST \
   --data '{"amount":100}' \
   --header "X-Custom: value"
 ```
 
-In agent mode (`--format json`), the full flow returns `_next.pay_argv` (`{ "command": "mpp", "args": [...] }`) to complete payment. If the new spend request is already approved, it omits polling instructions and `_next.poll_argv`. Otherwise, it also returns `_next.poll_argv` to wait for approval before paying. Invoke continuations directly without a shell. `command` is a Link CLI subcommand, not an executable; pass it and each `args` entry as separate arguments to your trusted CLI entrypoint:
+In agent mode (`--format json`), the full flow returns `_next.pay_argv` (`{ "command": "pay", "args": [...] }`) to complete payment. If the new spend request is already approved, it omits polling instructions and `_next.poll_argv`. Otherwise, it also returns `_next.poll_argv` to wait for approval before paying. Invoke continuations directly without a shell. `command` is a Link CLI subcommand, not an executable; pass it and each `args` entry as separate arguments to your trusted CLI entrypoint:
 
 ```js
 import { execFile } from 'node:child_process';

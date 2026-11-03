@@ -33,19 +33,27 @@ export function resolveInteractivePayResult(
   return result;
 }
 
-export function createMppCli(
+/**
+ * Builds the `pay` command definition shared by the top-level `pay` command
+ * and `mpp pay`. MPP is currently the only supported payment protocol, so
+ * this is the single dispatch point that would grow a protocol branch if
+ * another one were added later — no registry needed for one protocol.
+ *
+ * `continuationCommand` controls which CLI subcommand the generated
+ * continuation (`_next.pay_argv`/`pay_command`) invokes, so a flow started
+ * via `pay` continues via `pay`, and one started via `mpp pay` continues via
+ * `mpp pay`.
+ */
+export function createPayCommandDefinition(
   repository: ISpendRequestResource,
   paymentMethodsFactory: () => IPaymentMethodsResource,
+  continuationCommand: 'mpp' | 'pay',
+  description: string,
   authStorage?: CliAuthStorage,
   envAccessToken?: string,
 ) {
-  const cli = Cli.create('mpp', {
-    description: 'Machine payment protocol (MPP) commands',
-  });
-
-  cli.command('pay', {
-    description:
-      'Pay a URL via the Machine Payment Protocol. Handles the full 402 flow: probes the URL, parses the challenge, creates a spend request, gets approval, and pays with the SPT. Pass --spend-request-id to skip creation and use a pre-approved spend request.',
+  return Cli.command({
+    description,
     args: z.object({
       url: z.string().describe('URL to pay'),
     }),
@@ -190,7 +198,6 @@ export function createMppCli(
       // may have changed its URL, method, body, or safe-to-forward headers.
       // Merchant-controlled values remain data in the structured continuation.
       const nextArgs = [
-        'pay',
         probe.url,
         '--spend-request-id',
         spendRequest.id,
@@ -203,7 +210,10 @@ export function createMppCli(
       for (const [name, value] of probe.headers) {
         nextArgs.push('-H', `${name}: ${value}`);
       }
-      const payment = buildCommandContinuation('mpp', nextArgs);
+      const payment = buildCommandContinuation(
+        continuationCommand,
+        continuationCommand === 'mpp' ? ['pay', ...nextArgs] : nextArgs,
+      );
       if (spendRequest.status === 'approved') {
         yield {
           ...spendRequest,
@@ -248,6 +258,32 @@ export function createMppCli(
       };
     },
   });
+}
+
+const MPP_PAY_DESCRIPTION =
+  'Pay a URL via the Machine Payment Protocol. Handles the full 402 flow: probes the URL, parses the challenge, creates a spend request, gets approval, and pays with the SPT. Pass --spend-request-id to skip creation and use a pre-approved spend request.';
+
+export function createMppCli(
+  repository: ISpendRequestResource,
+  paymentMethodsFactory: () => IPaymentMethodsResource,
+  authStorage?: CliAuthStorage,
+  envAccessToken?: string,
+) {
+  const cli = Cli.create('mpp', {
+    description: 'Machine payment protocol (MPP) commands',
+  });
+
+  cli.command(
+    'pay',
+    createPayCommandDefinition(
+      repository,
+      paymentMethodsFactory,
+      'mpp',
+      MPP_PAY_DESCRIPTION,
+      authStorage,
+      envAccessToken,
+    ),
+  );
 
   cli.command('decode', {
     description:

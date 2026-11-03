@@ -92,7 +92,7 @@ Commands in `packages/cli/src/cli.tsx` (incur framework). Each has two output mo
 - **Interactive** (default): Ink/React components from `packages/cli/src/commands/`
 - **JSON** (`--format json`): JSON to stdout, errors as JSON with `code` and `message` fields with exit code 1
 
-Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list|retrieve|add|update`, `shipping-address list`, `mpp pay|decode`, `identity attestations request|list|pop`, `identity credentials request|list|present`, `report`, `serve`.
+Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list|retrieve|add|update`, `shipping-address list`, `pay`, `mpp pay|decode`, `identity attestations request|list|pop`, `identity credentials request|list|present`, `report`, `serve`.
 
 The CLI also runs as an MCP server (`--mcp`) and serves skill files via `skills` subcommand, both provided by incur.
 
@@ -155,14 +155,15 @@ Key input field notes:
 - Enrichment fields can be omitted when enrichment is disabled or unavailable. Do not interpret omission as an empty address, unlimited spend, or a default verification status.
 - Verification status is one of `not_required`, `ssn_verification`, `identity_verification`, `contact_support`, or `complete`. `action_url` is nullable and directs the user to the required action when present. This is informational and does not change spend-request or `requires_action` handling.
 
-### mpp pay
+### pay
 
-- `mpp pay <url> --context <ctx> [-X <method>] [-d <body>] [-H <header>]... [--amount <cents>] [--payment-method-id <id>] [--test]` — handles the full MPP flow end-to-end: probes the URL for a 402 challenge, parses the `www-authenticate` header to extract network_id and amount, creates a spend request (credential_type: shared_payment_token), gets user approval, retrieves the SPT, and pays. Amount/currency are derived from the 402 challenge; `--amount` overrides. `--context` is required (min 100 chars) — describe the purchase and rationale. Default payment method is used unless `--payment-method-id` is specified.
-- `mpp pay <url> --spend-request-id <id> [--method <method>] [--data <body>] [--header <header>]...` — backward-compat mode: uses a pre-approved spend request directly, skipping creation/approval.
+- `pay <url> --context <ctx> [-X <method>] [-d <body>] [-H <header>]... [--amount <cents>] [--payment-method-id <id>] [--test]` — top-level command so agents don't need to know which payment protocol a URL uses. MPP (an HTTP 402 challenge) is the only supported protocol today, so `pay` handles the full MPP flow end-to-end: probes the URL for a 402 challenge, parses the `www-authenticate` header to extract network_id and amount, creates a spend request (credential_type: shared_payment_token), gets user approval, retrieves the SPT, and pays. Amount/currency are derived from the 402 challenge; `--amount` overrides. `--context` is required (min 100 chars) — describe the purchase and rationale. Default payment method is used unless `--payment-method-id` is specified.
+- `pay <url> --spend-request-id <id> [--method <method>] [--data <body>] [--header <header>]...` — backward-compat mode: uses a pre-approved spend request directly, skipping creation/approval.
 - `--header` is repeatable and uses `"Name: Value"` format. `Content-Type: application/json` is auto-applied when `--data` is provided; user-provided headers take precedence.
-- The SPT is one-time-use — a failed payment requires running `mpp pay` again (creates a new spend request).
-- In agent mode the full flow yields `_next.pay_argv` (`{ command: 'mpp', args: [...] }`) alongside `_next.pay_command`. **`pay_argv` is authoritative** — it holds the raw values and is meant to be invoked without a shell. `pay_command` is the compatibility string and every dynamic part of it (url, method, body, each header, spend-request id) must go through `shellQuote` from `packages/cli/src/utils/shell-quote.ts`. See "Security: shell-quoting command strings".
-- Implemented in `packages/cli/src/commands/mpp/` — pay.tsx (logic), schema.ts (input/output schema), index.tsx (incur registration).
+- The SPT is one-time-use — a failed payment requires running `pay` again (creates a new spend request).
+- In agent mode the full flow yields `_next.pay_argv` (`{ command: 'pay', args: [...] }`) alongside `_next.pay_command`. **`pay_argv` is authoritative** — it holds the raw values and is meant to be invoked without a shell. `pay_command` is the compatibility string and every dynamic part of it (url, method, body, each header, spend-request id) must go through `shellQuote` from `packages/cli/src/utils/shell-quote.ts`. See "Security: shell-quoting command strings".
+- `createPayCommandDefinition()` in `packages/cli/src/commands/mpp/index.tsx` builds this command's definition and is shared by both `pay` (registered directly on the root CLI in `cli.tsx`) and `mpp pay` (registered on the `mpp` command group) — it is the single dispatch point for a future second protocol. A `continuationCommand` parameter (`'pay'` or `'mpp'`) makes a flow continue through the same top-level command it started from.
+- `mpp pay`/`mpp decode` remain available under the `mpp` command group for direct MPP access and are unchanged. Implemented in `packages/cli/src/commands/mpp/` — pay.tsx (logic), schema.ts (input/output schema), index.tsx (incur registration, including `createPayCommandDefinition`).
 
 ### demo command
 

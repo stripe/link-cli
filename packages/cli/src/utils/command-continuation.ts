@@ -2,7 +2,7 @@ import { posixShellCommand } from './shell-quote';
 
 export interface CommandArgv {
   // A trusted Link CLI subcommand, not an executable name.
-  command: 'mpp' | 'ucp' | 'spend-request' | 'auth';
+  command: 'mpp' | 'pay' | 'ucp' | 'spend-request' | 'auth';
   args: string[];
 }
 

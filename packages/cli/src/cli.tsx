@@ -6,7 +6,7 @@ import { createBalancesCli } from './commands/balances';
 import { createDemoCli } from './commands/demo';
 import { createIdentityCli } from './commands/identity';
 import { createInsightsCli } from './commands/insights';
-import { createMppCli } from './commands/mpp';
+import { createMppCli, createPayCommandDefinition } from './commands/mpp';
 import { createOnboardCli } from './commands/onboard';
 import { createPaymentMethodsCli } from './commands/payment-methods';
 import { createReportCli } from './commands/report';
@@ -165,6 +165,20 @@ cli.command(
   createMppCli(
     spendRequestRepo,
     () => factory.createPaymentMethodsResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+// Top-level `pay`: agents shouldn't need to know which payment protocol a
+// URL uses. MPP is the only one implemented today, so this delegates
+// straight to its handler; `mpp pay`/`mpp decode` remain for direct access.
+cli.command(
+  'pay',
+  createPayCommandDefinition(
+    spendRequestRepo,
+    () => factory.createPaymentMethodsResource(),
+    'pay',
+    'Pay a URL. Handles the full payment flow automatically: detects the payment challenge, creates a spend request, gets approval, and pays with the resulting credential. Currently supports the Machine Payment Protocol (MPP) for HTTP 402 challenges. Pass --spend-request-id to skip creation and use a pre-approved spend request.',
     authStorage,
     envAccessToken,
   ),

@@ -4363,6 +4363,95 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     });
   });
 
+  describe('pay (top-level)', () => {
+    const APPROVED_SPT_REQUEST = {
+      ...BASE_REQUEST,
+      id: 'lsrq_spt_pay_001',
+      status: 'approved',
+      credential_type: 'shared_payment_token',
+      shared_payment_token: 'spt_test_abc123',
+      network_id: 'net_001',
+    };
+
+    const WWW_AUTHENTICATE_STRIPE = [
+      'Payment id="ch_001",',
+      'realm="127.0.0.1",',
+      'method="stripe",',
+      'intent="charge",',
+      `request="${Buffer.from(JSON.stringify({ networkId: 'net_001', amount: '1000', currency: 'usd', decimals: 2, paymentMethodTypes: ['card'] })).toString('base64')}",`,
+      'expires="2099-01-01T00:00:00Z"',
+    ].join(' ');
+
+    it('reaches the same flow as mpp pay for a pre-approved spend request', async () => {
+      setNextResponse(200, APPROVED_SPT_REQUEST);
+      setMerchantResponse(402, '{"error":"payment required"}', {
+        'www-authenticate': WWW_AUTHENTICATE_STRIPE,
+      });
+      setMerchantResponse(200, '{"success":true}');
+
+      const result = await runProdCli(
+        'pay',
+        `http://127.0.0.1:${merchantPort}/api/charge`,
+        '--spend-request-id',
+        'lsrq_spt_pay_001',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const output = parseJson(result.stdout) as Array<{
+        status: number;
+        body: string;
+      }>;
+      expect(output[0].status).toBe(200);
+      expect(output[0].body).toContain('success');
+      expect(merchantRequests).toHaveLength(2);
+      expect(merchantRequests[1].headers.authorization).toMatch(/^Payment /);
+    });
+
+    it('continues the full flow via pay, not mpp pay', async () => {
+      const pendingSpendRequest = {
+        ...BASE_REQUEST,
+        id: 'lsrq_spt_pay_002',
+        status: 'pending_approval',
+        credential_type: 'shared_payment_token',
+        network_id: 'net_001',
+        approval_url: 'https://link.com/approve/lsrq_spt_pay_002',
+      };
+      setNextResponse(200, pendingSpendRequest);
+      setMerchantResponse(402, '{"error":"payment required"}', {
+        'www-authenticate': WWW_AUTHENTICATE_STRIPE,
+      });
+
+      const result = await runProdCli(
+        'pay',
+        `http://127.0.0.1:${merchantPort}/api/charge`,
+        '--context',
+        VALID_CONTEXT,
+        '--payment-method-id',
+        'pd_prod_test',
+        '--format',
+        'json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const output = parseJson(result.stdout) as Array<{
+        _next: {
+          pay_command: string;
+          pay_argv: { command: string; args: string[] };
+        };
+      }>;
+      const next = output[0]._next;
+
+      expect(next.pay_argv.command).toBe('pay');
+      expect(next.pay_argv.args[0]).toBe(
+        `http://127.0.0.1:${merchantPort}/api/charge`,
+      );
+      expect(next.pay_argv.args).toContain('--spend-request-id');
+      expect(next.pay_argv.args).toContain('lsrq_spt_pay_002');
+      expect(next.pay_command?.startsWith('pay ')).toBe(true);
+    });
+  });
+
   describe('mpp decode', () => {
     const WWW_AUTHENTICATE_MULTI = [
       'Bearer realm="merchant.example",',
