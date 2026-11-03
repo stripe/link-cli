@@ -388,6 +388,8 @@ report `blocked`. Do not reuse the LPT at a different checkout surface.
 
 Always pass `--format json` to UCP commands when running them as an agent. This returns the full response, including checkout messages, fulfillment choices, and capability metadata. Without an explicit format, terminal invocations show an interactive UI. Interactive completion also polls payment automatically; with `--format json`, completion returns immediately, so follow the retrieve and polling steps below. Piped output and MCP remain structured.
 
+The terminal UI shows buyer details, selected fulfillment destinations and options, and UCP messages. Use JSON to inspect available choices. Inspect the completion response's `messages` even after an HTTP success: error messages or `requires_escalation` mean the checkout needs attention. Resolve those messages or follow `continue_url`; do not treat the response as payment success or blindly repeat completion. Retrieval polling stops on checkout errors or required intervention. Saved shipping addresses are used during creation only when a complete address is marked as the wallet default.
+
 The Universal Commerce Protocol (UCP) commands let you shop a business's catalog and check out programmatically, without a browser or a merchant checkout page. Pass the business target from catalog search to checkout creation and completion.
 
 Catalog search supports `--test` for synthetic search results. Checkout commands use the UCP API and do not accept `--test`; their currency is determined by the seller.

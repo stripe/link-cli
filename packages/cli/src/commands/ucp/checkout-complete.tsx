@@ -10,10 +10,12 @@ import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import {
+  checkoutCompletionIssue,
   DEFAULT_UCP_POLL_TIMEOUT_SECONDS,
   pollUcpCheckout,
   UCP_POLL_INTERVAL_SECONDS,
   type UcpCheckoutWaitReason,
+  type UcpCheckoutWaitResult,
 } from './checkout-state';
 import { CheckoutSummary } from './checkout-summary';
 
@@ -21,7 +23,10 @@ interface CheckoutCompleteProps {
   repository: IUcpResource;
   id: string;
   params: CompleteUcpCheckoutParams;
-  onComplete: (result: UcpCheckout | null) => void;
+  onComplete: (
+    result: UcpCheckout | null,
+    outcome: UcpCheckoutWaitResult['outcome'],
+  ) => void;
   /** Internal test override; interactive CLI polling uses the shared default. */
   pollInterval?: number;
   /** Internal test override; interactive CLI polling uses the shared default. */
@@ -56,8 +61,8 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
   const completionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const wrappedOnComplete = useCallback(
-    (result: UcpCheckout | null) => {
-      onComplete(result);
+    (result: UcpCheckout | null, outcome: UcpCheckoutWaitResult['outcome']) => {
+      onComplete(result, outcome);
       exit();
     },
     [onComplete, exit],
@@ -66,9 +71,12 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
   useEffect(() => {
     let cancelled = false;
 
-    const finish = (result: UcpCheckout | null) => {
+    const finish = (
+      result: UcpCheckout | null,
+      outcome: UcpCheckoutWaitResult['outcome'],
+    ) => {
       completionTimerRef.current = setTimeout(
-        () => wrappedOnComplete(result),
+        () => wrappedOnComplete(result, outcome),
         DISPLAY_DELAY_MS,
       );
     };
@@ -78,6 +86,17 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
         const submitted = await repository.completeCheckout(id, params);
         if (cancelled) return;
         setCheckout(submitted);
+        const issue = checkoutCompletionIssue(submitted);
+        if (issue) {
+          setFailureReason(issue.reason);
+          setPhase(
+            issue.outcome === 'action_required'
+              ? 'action_required'
+              : 'terminal_failure',
+          );
+          finish(submitted, issue.outcome);
+          return;
+        }
         setPhase('checking');
 
         for await (const state of pollUcpCheckout(repository, id, {
@@ -100,24 +119,24 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
               setPhase('awaiting_action');
             } else {
               setPhase('action_required');
-              finish(state.checkout);
+              finish(state.checkout, state.outcome);
             }
           } else if (state.outcome === 'success') {
             setPhase('success');
-            finish(state.checkout);
+            finish(state.checkout, state.outcome);
           } else if (state.outcome === 'terminal_failure') {
             setPhase('terminal_failure');
-            finish(state.checkout);
+            finish(state.checkout, state.outcome);
           } else {
             setPhase('timed_out');
-            finish(state.checkout);
+            finish(state.checkout, state.outcome);
           }
         }
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : JSON.stringify(err));
         setPhase('error');
-        finish(null);
+        finish(null, 'terminal_failure');
       }
     };
 
@@ -164,6 +183,7 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
             </Text>
           )}
         </Box>
+        {checkout && <CheckoutSummary checkout={checkout} />}
       </Box>
     );
   }
@@ -171,9 +191,19 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
   if (phase === 'action_required') {
     return (
       <Box flexDirection="column">
-        <Text color="yellow">⚠ Payment action required</Text>
+        <Text color="yellow">
+          ⚠{' '}
+          {failureReason === 'checkout_requires_escalation'
+            ? 'Checkout action required'
+            : 'Payment action required'}
+        </Text>
         <Box flexDirection="column" marginTop={1} paddingX={2}>
-          {nextAction ? (
+          {failureReason === 'checkout_requires_escalation' ? (
+            <Text>
+              Follow the checkout messages and continuation URL to resolve the
+              required action.
+            </Text>
+          ) : nextAction ? (
             <>
               <Text>
                 Type: <Text bold>{nextAction.type}</Text>
@@ -195,6 +225,7 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
             </Text>
           )}
         </Box>
+        {checkout && <CheckoutSummary checkout={checkout} />}
       </Box>
     );
   }
@@ -202,7 +233,12 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
   if (phase === 'terminal_failure') {
     return (
       <Box flexDirection="column">
-        <Text color="red">✗ Checkout payment failed</Text>
+        <Text color="red">
+          ✗{' '}
+          {failureReason?.startsWith('checkout_')
+            ? 'Checkout could not be completed'
+            : 'Checkout payment failed'}
+        </Text>
         <Text color="red">Reason: {failureReason}</Text>
         {checkout && <CheckoutSummary checkout={checkout} />}
       </Box>
@@ -230,6 +266,7 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
       <Box flexDirection="column">
         <Text color="red">✗ Failed to complete checkout</Text>
         <Text color="red">{error}</Text>
+        {checkout && <CheckoutSummary checkout={checkout} />}
       </Box>
     );
   }

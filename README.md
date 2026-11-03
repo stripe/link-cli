@@ -692,6 +692,8 @@ All UCP commands show an interactive summary when run in a terminal without a fo
 
 Interactive `checkout complete` also waits for the checkout and payment outcome. With `--format json`, completion returns its response immediately; use `checkout retrieve --poll --format json` to follow payment progress. Interactive retrieval with `--poll` shows progress, required actions, and the final outcome.
 
+Checkout summaries show buyer details, UCP messages (including error codes, severity, field paths, and recovery URLs), and selected fulfillment destinations and options. Available fulfillment choices remain in JSON output. Missing buyer details, destinations, or shipping selections are shown explicitly. Interactive completion checks the initial response for checkout errors before polling and preserves those messages. Completion and retrieval polling stop when checkout errors or required buyer intervention are returned; warnings and informational messages do not stop an otherwise processing checkout. Interactive failures and unresolved actions exit with a nonzero status.
+
 Search a catalog, then use the returned business and SKU to create a UCP checkout:
 
 ```bash
@@ -703,7 +705,7 @@ link-cli ucp checkout create --business <business> \
   --format json
 ```
 
-`--line-item` is repeatable; `quantity` defaults to 1. All buyer fields are optional (`first_name`, `last_name`, `email`, `phone_number`). `--fulfillment` accepts the entire UCP JSON object; `--fullfilment` is an alternate spelling. Omit buyer or fulfillment to use saved Link details during creation. The seller determines the checkout currency.
+`--line-item` is repeatable; `quantity` defaults to 1. All buyer fields are optional (`first_name`, `last_name`, `email`, `phone_number`). `--fulfillment` accepts the entire UCP JSON object; `--fullfilment` is an alternate spelling. Omit buyer to use saved Link buyer details during creation. Omitted fulfillment uses a complete saved default shipping address when available; a saved address that is not marked as default is not selected automatically. The seller determines the checkout currency.
 
 Review the returned `messages`, `totals`, and fulfillment choices. Update the checkout as needed. Updates use PUT. Line items, buyer, and fulfillment are optional on update: omitted sections keep their existing checkout values. Updates do not reload saved Link wallet details.
 

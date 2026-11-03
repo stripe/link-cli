@@ -93,6 +93,7 @@ const cases = [
 ];
 
 const originalTty = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY');
+const originalExitCode = process.exitCode;
 
 function setTty(tty: boolean) {
   Object.defineProperty(process.stdout, 'isTTY', {
@@ -128,8 +129,42 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 afterEach(() => {
+  process.exitCode = originalExitCode;
   if (originalTty) Object.defineProperty(process.stdout, 'isTTY', originalTty);
   else Reflect.deleteProperty(process.stdout, 'isTTY');
+});
+
+it('exits unsuccessfully for rejected interactive completion without appending JSON', async () => {
+  setTty(true);
+  vi.mocked(renderInteractive).mockImplementationOnce(
+    async (element, getResult) => {
+      const props = (
+        element as ReactElement<{
+          onComplete: (result: UcpCheckout, outcome: string) => void;
+        }>
+      ).props;
+      props.onComplete(
+        {
+          id: 'checkout_1',
+          status: 'incomplete',
+          messages: [{ type: 'error', content: 'Select shipping' }],
+        },
+        'terminal_failure',
+      );
+      return getResult?.();
+    },
+  );
+  const { output } = await run([
+    'checkout',
+    'complete',
+    'checkout_1',
+    '--business',
+    'np_1',
+    '--spend-request-id',
+    'lsrq_1',
+  ]);
+  expect(process.exitCode).toBe(1);
+  expect(output).toBe('');
 });
 
 describe.each(cases)('$name output', ({ args, component, result }) => {

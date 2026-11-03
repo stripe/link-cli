@@ -6,11 +6,15 @@ import type {
   UcpCheckoutWithSpendRequest,
 } from '@stripe/link-sdk';
 import { pollUntil } from '../../utils/poll-until';
+import { checkoutMessages } from './checkout-messages';
 
 export type UcpCheckoutWaitReason =
   | 'checkout_completed_and_spend_request_succeeded'
   | 'spend_request_requires_action'
   | 'checkout_canceled'
+  | 'checkout_errors'
+  | 'checkout_not_ready'
+  | 'checkout_requires_escalation'
   | 'spend_request_expired'
   | 'spend_request_denied'
   | 'spend_request_failed'
@@ -31,6 +35,34 @@ export interface UcpCheckoutWaitResult {
   next_action?: NextAction;
 }
 
+/** A successful HTTP response may still reject completion at the checkout level. */
+export function checkoutCompletionIssue(
+  checkout: UcpCheckout,
+):
+  | Pick<UcpCheckoutWaitResult, 'outcome' | 'reason' | 'resolution'>
+  | undefined {
+  if (checkout.status === 'canceled') {
+    return { outcome: 'terminal_failure', reason: 'checkout_canceled' };
+  }
+  if (checkout.status === 'requires_escalation') {
+    return {
+      outcome: 'action_required',
+      reason: 'checkout_requires_escalation',
+      resolution: 'checkout',
+    };
+  }
+  if (checkoutMessages(checkout).some((message) => message.type === 'error')) {
+    return { outcome: 'terminal_failure', reason: 'checkout_errors' };
+  }
+  if (
+    checkout.status === 'incomplete' ||
+    checkout.status === 'ready_for_complete'
+  ) {
+    return { outcome: 'terminal_failure', reason: 'checkout_not_ready' };
+  }
+  return undefined;
+}
+
 function splitComposite(
   composite?: UcpCheckoutWithSpendRequest,
 ): Pick<UcpCheckoutWaitResult, 'checkout' | 'spend_request'> {
@@ -45,13 +77,8 @@ export function classifyUcpCheckout(
   const state = splitComposite(composite);
   const spendRequest = composite.spend_request;
 
-  if (composite.status === 'canceled') {
-    return {
-      outcome: 'terminal_failure',
-      reason: 'checkout_canceled',
-      ...state,
-    };
-  }
+  const checkoutIssue = checkoutCompletionIssue(composite);
+  if (checkoutIssue) return { ...checkoutIssue, ...state };
 
   const spendFailureReasons: Partial<
     Record<SpendRequest['status'], UcpCheckoutWaitReason>

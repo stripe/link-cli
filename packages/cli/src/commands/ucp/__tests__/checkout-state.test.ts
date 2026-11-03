@@ -68,6 +68,58 @@ function composite(
 }
 
 describe('classifyUcpCheckout', () => {
+  it.each(['incomplete', 'ready_for_complete'] as const)(
+    'stops when checkout is %s instead of processing completion',
+    (status) => {
+      expect(classifyUcpCheckout(composite(status, 'approved'))).toMatchObject({
+        outcome: 'terminal_failure',
+        reason: 'checkout_not_ready',
+      });
+    },
+  );
+
+  it('surfaces checkout escalation as an action instead of waiting for payment', () => {
+    expect(
+      classifyUcpCheckout(composite('requires_escalation', 'approved')),
+    ).toMatchObject({
+      outcome: 'action_required',
+      reason: 'checkout_requires_escalation',
+      resolution: 'checkout',
+    });
+  });
+
+  it('treats error messages as blocking and preserves them in the result', () => {
+    const value = {
+      ...composite('complete_in_progress', 'approved'),
+      messages: [
+        {
+          type: 'error',
+          code: 'invalid_address',
+          content: 'Fix the address',
+          severity: 'recoverable',
+        },
+      ],
+    };
+    expect(classifyUcpCheckout(value)).toMatchObject({
+      outcome: 'terminal_failure',
+      reason: 'checkout_errors',
+      checkout: { messages: value.messages },
+    });
+  });
+
+  it('does not classify warnings, info or unfamiliar messages as failures', () => {
+    expect(
+      classifyUcpCheckout({
+        ...composite('complete_in_progress', 'approved'),
+        messages: [
+          { type: 'warning', content: 'Review delivery' },
+          { type: 'info', content: 'Processing' },
+          null,
+          { code: 'future' },
+        ],
+      }),
+    ).toMatchObject({ outcome: 'pending' });
+  });
   it('requires both success predicates', () => {
     expect(
       classifyUcpCheckout(composite('completed', 'approved')).outcome,
@@ -190,6 +242,27 @@ describe('classifyUcpCheckout', () => {
 });
 
 describe('pollUcpCheckout', () => {
+  it('stops at an error even when automatic action resumption is enabled', async () => {
+    const repository = resource(
+      vi.fn().mockResolvedValue({
+        ...composite('complete_in_progress', 'approved'),
+        messages: [{ type: 'error', content: 'Address is invalid' }],
+      }),
+    );
+    const results = await collect(
+      pollUcpCheckout(repository, 'checkout_1', {
+        business: 'np_1',
+        spendRequestId: 'lsrq_1',
+        interval: 0.001,
+        timeout: 60,
+        continueAutoResume: true,
+      }),
+    );
+    expect(results).toMatchObject([
+      { outcome: 'terminal_failure', reason: 'checkout_errors' },
+    ]);
+    expect(repository.retrieveCheckout).toHaveBeenCalledOnce();
+  });
   it('waits through asymmetric success states and deduplicates unchanged output', async () => {
     const states = [
       composite('completed', 'approved'),

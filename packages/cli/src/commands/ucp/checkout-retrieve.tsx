@@ -133,6 +133,8 @@ export function CheckoutRetrieve({
   }
 
   const outcome = state ? outcomes[state.outcome] : undefined;
+  const checkoutIssue =
+    state?.reason?.startsWith('checkout_') && state.outcome !== 'success';
   const pending = loading || state?.outcome === 'pending';
   const nextAction = spendRequest?.status_details?.requires_action?.next_action;
 
@@ -142,7 +144,9 @@ export function CheckoutRetrieve({
         {pending && <Spinner type="dots" />}{' '}
         {loading
           ? 'Retrieving checkout...'
-          : (outcome?.text ?? '✓ Checkout retrieved')}
+          : checkoutIssue
+            ? '⚠ Checkout needs attention'
+            : (outcome?.text ?? '✓ Checkout retrieved')}
       </Text>
       {checkout && <CheckoutSummary checkout={checkout} />}
       {spendRequest && (
