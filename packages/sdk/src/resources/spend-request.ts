@@ -61,7 +61,6 @@ const duplicateSpendRequestErrorSchema = z.looseObject({
   }),
 });
 
-// `approve` uses the delegated endpoint with no policy. It stays internal for link-cli's `--approve`.
 type InternalCreateSpendRequestParams = CreateSpendRequestParams & {
   approve?: boolean;
 };
