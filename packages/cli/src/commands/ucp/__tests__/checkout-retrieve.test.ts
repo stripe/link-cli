@@ -78,29 +78,26 @@ async function retrieve(
 }
 
 describe('ucp checkout retrieve output', () => {
-  it.each([true, false])(
-    'prints checkout, spend request, and action details without a format flag (TTY: %s)',
-    async (tty) => {
-      const retrieveCheckout = vi.fn(async () => checkout);
-      const output = await retrieve(retrieveCheckout, tty);
+  it('prints checkout, spend request, and action details when piped', async () => {
+    const retrieveCheckout = vi.fn(async () => checkout);
+    const output = await retrieve(retrieveCheckout, false);
 
-      expect(retrieveCheckout).toHaveBeenCalledExactlyOnceWith('dcs_1', {
-        business: 'np_1',
-        spend_request_id: 'lsrq_1',
-      });
-      for (const value of [
-        'dcs_1',
-        'lsrq_1',
-        'requires_action',
-        'three_d_secure',
-        'auto_resume',
-        'Complete verification',
-        'https://example.com/action',
-      ]) {
-        expect(output).toContain(value);
-      }
-    },
-  );
+    expect(retrieveCheckout).toHaveBeenCalledExactlyOnceWith('dcs_1', {
+      business: 'np_1',
+      spend_request_id: 'lsrq_1',
+    });
+    for (const value of [
+      'dcs_1',
+      'lsrq_1',
+      'requires_action',
+      'three_d_secure',
+      'auto_resume',
+      'Complete verification',
+      'https://example.com/action',
+    ]) {
+      expect(output).toContain(value);
+    }
+  });
 
   it.each([true, false])(
     'preserves the full JSON response (TTY: %s)',
@@ -115,7 +112,7 @@ describe('ucp checkout retrieve output', () => {
     },
   );
 
-  it('prints polling updates and the final outcome in a terminal', async () => {
+  it('preserves structured polling updates when piped', async () => {
     const retrieveCheckout = vi
       .fn<IUcpResource['retrieveCheckout']>()
       .mockResolvedValueOnce({
@@ -128,7 +125,7 @@ describe('ucp checkout retrieve output', () => {
         status: 'completed',
         spend_request: { ...checkout.spend_request, status: 'succeeded' },
       });
-    const output = await retrieve(retrieveCheckout, true, ['--poll']);
+    const output = await retrieve(retrieveCheckout, false, ['--poll']);
 
     expect(retrieveCheckout).toHaveBeenCalledTimes(2);
     expect(output).toContain('outcome: pending');

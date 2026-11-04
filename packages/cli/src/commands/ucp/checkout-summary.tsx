@@ -15,7 +15,7 @@ interface CheckoutSummaryProps {
   checkout: UcpCheckout;
 }
 
-/** Shared presentational summary of a UCP checkout session (create + complete). */
+/** Shared presentational summary of a UCP checkout session. */
 export const CheckoutSummary: React.FC<CheckoutSummaryProps> = ({
   checkout,
 }) => {

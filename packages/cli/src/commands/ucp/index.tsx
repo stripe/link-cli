@@ -15,6 +15,7 @@ import {
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
 import { CatalogSearch } from './catalog-search';
+import { CheckoutAction } from './checkout-action';
 import { CheckoutComplete } from './checkout-complete';
 import { CheckoutCreate } from './checkout-create';
 import {
@@ -22,6 +23,10 @@ import {
   parseCheckoutInput,
   parseCheckoutUpdateInput,
 } from './checkout-input';
+import {
+  CheckoutRetrieve,
+  type CheckoutRetrieveResult,
+} from './checkout-retrieve';
 import { runUcpCheckoutRetrieve } from './checkout-state';
 import {
   catalogSearchOptions,
@@ -189,6 +194,7 @@ export function createUcpCli(
         .describe('Checkout session ID'),
     }),
     options: checkoutUpdateOptions,
+    outputPolicy: 'agent-only' as const,
     middleware: [requireAuth(authStorage, envAccessToken)],
     async run(c) {
       let id: string;
@@ -202,7 +208,24 @@ export function createUcpCli(
           message: (err as Error).message,
         });
       }
-      return repositoryFactory().updateCheckout(id, params);
+      const repository = repositoryFactory();
+      if (!c.agent && !c.formatExplicit) {
+        let capturedResult: UcpCheckout | null = null;
+        return renderInteractive(
+          <CheckoutAction
+            action={() => repository.updateCheckout(id, params)}
+            operation="update"
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => {
+            if (!capturedResult) throw new Error('Failed to update checkout');
+            return capturedResult;
+          },
+        );
+      }
+      return repository.updateCheckout(id, params);
     },
   });
 
@@ -258,6 +281,7 @@ export function createUcpCli(
         .describe('Checkout session ID'),
     }),
     options: checkoutCancelOptions,
+    outputPolicy: 'agent-only' as const,
     middleware: [requireAuth(authStorage, envAccessToken)],
     run(c) {
       let id: string;
@@ -269,9 +293,25 @@ export function createUcpCli(
           message: (err as Error).message,
         });
       }
-      return repositoryFactory().cancelCheckout(id, {
-        business: c.options.business,
-      });
+      const repository = repositoryFactory();
+      const params = { business: c.options.business };
+      if (!c.agent && !c.formatExplicit) {
+        let capturedResult: UcpCheckout | null = null;
+        return renderInteractive(
+          <CheckoutAction
+            action={() => repository.cancelCheckout(id, params)}
+            operation="cancel"
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => {
+            if (!capturedResult) throw new Error('Failed to cancel checkout');
+            return capturedResult;
+          },
+        );
+      }
+      return repository.cancelCheckout(id, params);
     },
   });
 
@@ -287,6 +327,7 @@ export function createUcpCli(
         .describe('Checkout session ID'),
     }),
     options: checkoutRetrieveOptions,
+    outputPolicy: 'agent-only' as const,
     middleware: [requireAuth(authStorage, envAccessToken)],
     run(c) {
       let id: string;
@@ -299,6 +340,26 @@ export function createUcpCli(
         });
       }
       const repository = repositoryFactory();
+      if (!c.agent && !c.formatExplicit) {
+        let capturedResult: CheckoutRetrieveResult | null = null;
+        return renderInteractive(
+          <CheckoutRetrieve
+            repository={repository}
+            id={id}
+            business={c.options.business}
+            spendRequestId={c.options.spendRequestId}
+            poll={c.options.poll}
+            timeout={c.options.timeout}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => {
+            if (!capturedResult) throw new Error('Failed to retrieve checkout');
+            return capturedResult;
+          },
+        );
+      }
       if (!c.options.spendRequestId) {
         return repository.retrieveCheckout(id, {
           business: c.options.business,
