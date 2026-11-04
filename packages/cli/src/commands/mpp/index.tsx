@@ -66,7 +66,6 @@ export function createMppCli(
           <MppPay
             url={url}
             spendRequestId={opts.spendRequestId}
-            approvedChallenge={opts.approvedChallenge}
             method={method}
             data={data}
             headers={headers}
