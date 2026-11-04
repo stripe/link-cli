@@ -37,7 +37,10 @@ function createDefaultHeadersFetch(
   defaultHeaders: Record<string, string>,
 ): typeof globalThis.fetch {
   return ((input: RequestInfo | URL, init?: RequestInit) => {
-    const headers = new Headers(init?.headers);
+    // A Request input carries its own headers; init.headers would replace them.
+    const headers = new Headers(
+      init?.headers ?? (input instanceof Request ? input.headers : undefined),
+    );
     for (const [key, value] of Object.entries(defaultHeaders)) {
       if (!headers.has(key)) {
         headers.set(key, value);

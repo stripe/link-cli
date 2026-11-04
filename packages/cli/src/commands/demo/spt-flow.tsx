@@ -1,4 +1,5 @@
 import type {
+  IMppResource,
   IPaymentMethodsResource,
   ISpendRequestResource,
   PaymentMethod,
@@ -37,6 +38,7 @@ type Step =
 interface SptFlowProps {
   spendRequestRepo: ISpendRequestResource;
   paymentMethodsResource: IPaymentMethodsResource;
+  mpp: IMppResource;
   paymentMethodId?: string;
   onComplete: (success: boolean) => void;
 }
@@ -44,6 +46,7 @@ interface SptFlowProps {
 export const SptFlow: React.FC<SptFlowProps> = ({
   spendRequestRepo,
   paymentMethodsResource,
+  mpp,
   paymentMethodId: initialPaymentMethodId,
   onComplete,
 }) => {
@@ -218,7 +221,7 @@ export const SptFlow: React.FC<SptFlowProps> = ({
           'POST',
           JSON.stringify({ amount: DEMO_SPT_AMOUNT }),
           undefined,
-          spendRequestRepo,
+          mpp,
         );
         setPayResult(payResponse);
         setStep('done');

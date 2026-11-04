@@ -29,6 +29,9 @@ const SPEND_REQUEST = {
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
   approval_url: 'https://link.example/approve',
+  amount: 1000,
+  currency: 'usd',
+  network_id: 'net_security',
 };
 
 let server: http.Server;
@@ -221,7 +224,6 @@ describe('command continuations', () => {
       expect(output.instruction).toContain('_next.pay_argv');
       expect(output.instruction).not.toMatch(/approval_url|poll|Link app/);
       const next = output._next.pay_argv as CommandArgv;
-      expect(next.args).toContain(CHALLENGE);
       expect(next.args).toContain(SPEND_REQUEST.id);
       if (process.platform === 'win32') {
         expect(output._next).not.toHaveProperty('pay_command');
@@ -257,7 +259,6 @@ describe('command continuations', () => {
       });
       expect(output._next.pay_argv.command).toBe('mpp');
       expect(output._next.pay_argv.args).toContain(SPEND_REQUEST.id);
-      expect(output._next.pay_argv.args).toContain(CHALLENGE);
       expect(output._next).not.toHaveProperty('argv');
       expect(output._next.until).toBe(
         'status changes from pending_approval, then run pay_argv',
@@ -298,11 +299,6 @@ describe('command continuations', () => {
       shell?: string;
     };
     expect(next.pay_argv.command).toBe('mpp');
-    expect(
-      next.pay_argv.args[
-        next.pay_argv.args.indexOf('--approved-challenge') + 1
-      ],
-    ).toBe(CHALLENGE);
     expect(next.pay_argv.args).toContain(data);
     expect(next.pay_argv.args).toContain(
       'x-custom: %LINK_REFRESH_TOKEN% & echo unsafe',
@@ -328,7 +324,7 @@ describe('command continuations', () => {
       expect(next).not.toHaveProperty('poll_command');
       expect(next).not.toHaveProperty('shell');
     } else {
-      expect(next.pay_command).toContain('--approved-challenge');
+      expect(next.pay_command).toContain('mpp pay');
       expect(next.poll_command).toContain('spend-request retrieve');
       expect(next.shell).toBe('posix');
     }

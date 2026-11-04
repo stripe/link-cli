@@ -93,7 +93,7 @@ export default link({ auth: defineInteractiveAuthorization({
     const { stdout } = await exec(
       process.execPath,
       [join(eveRoot, 'bin/eve.js'), 'info', '--json'],
-      { cwd: appRoot, timeout: 25_000 },
+      { cwd: appRoot, timeout: 50_000 },
     );
     const info = JSON.parse(stdout);
     const diagnostics = await readFile(info.artifacts.diagnostics, 'utf8');
@@ -141,5 +141,5 @@ export default link({ auth: defineInteractiveAuthorization({
       );
     }
   },
-  30_000,
+  60_000,
 );

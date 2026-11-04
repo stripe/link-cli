@@ -129,6 +129,17 @@ export function createLinkTools<Context = unknown>(
       schemas.createReport,
       (link, input) => link.reports.create(input),
     ),
+    mpp_decode: tool(
+      'Probe a URL for a Machine Payment Protocol challenge without paying. Returns the decoded challenges and the request to pay, or the response if no payment is needed. To pay, create a shared_payment_token spend request for the challenge amount, currency, and network_id, then call mpp_pay.',
+      schemas.mppDecode,
+      (link, input) => link.mpp.decode(input),
+    ),
+    mpp_pay: tool(
+      'Pay a Machine Payment Protocol challenge with an approved shared_payment_token spend request and return the merchant’s response. Pass the request returned by mpp_decode. After a network error or 5xx, retry with the same arguments instead of creating a new spend request.',
+      schemas.mppPay,
+      (link, { spend_request_id, ...request }) =>
+        link.mpp.pay(request, { spendRequestId: spend_request_id }),
+    ),
   };
 }
 
