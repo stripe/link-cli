@@ -380,52 +380,6 @@ describe('Link tools', () => {
     );
   });
 
-  it('returns null from retrieve_approval_policy when no policy is configured', async () => {
-    const { tools, fetch } = fixture();
-    fetch.mockImplementation(async () =>
-      Response.json(
-        {
-          error: {
-            message: 'No approval policy has been configured',
-            code: 'approval_policy_not_found',
-          },
-        },
-        { status: 404 },
-      ),
-    );
-
-    await expect(
-      tools.retrieve_approval_policy.execute({}, context),
-    ).resolves.toBeNull();
-  });
-
-  it('rethrows a 404 that is not the "not configured" signal', async () => {
-    const { tools, fetch } = fixture();
-    fetch.mockImplementation(async () =>
-      Response.json({ error: { message: 'boom' } }, { status: 404 }),
-    );
-
-    await expect(
-      tools.retrieve_approval_policy.execute({}, context),
-    ).rejects.toThrow('Failed to retrieve approval policy (404): boom');
-  });
-
-  it('rethrows non-404 errors from retrieve_approval_policy', async () => {
-    const { tools, fetch } = fixture();
-    fetch.mockImplementation(async () =>
-      Response.json(
-        { error: { code: 'feature_unavailable' } },
-        { status: 403 },
-      ),
-    );
-
-    await expect(
-      tools.retrieve_approval_policy.execute({}, context),
-    ).rejects.toThrow(
-      'Failed to retrieve approval policy (403): feature_unavailable',
-    );
-  });
-
   it('keeps reports with long attempt traces valid', () => {
     expect(
       linkToolSchemas.createReport.safeParse({

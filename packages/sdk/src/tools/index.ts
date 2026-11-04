@@ -1,6 +1,5 @@
 import type { z } from 'zod';
 import type { Link } from '../client';
-import { LinkApiError } from '../errors';
 import { linkToolSchemas as schemas } from './schemas';
 
 export { linkToolSchemas } from './schemas';
@@ -22,12 +21,6 @@ function defined<T>(value: T): Defined<T> {
     ) as Defined<T>;
   }
   return value as Defined<T>;
-}
-
-/** Matches the API's signal for "no approval policy has been configured". */
-function isApprovalPolicyNotFound(error: LinkApiError): boolean {
-  const details = error.details as { error?: { code?: string } } | undefined;
-  return details?.error?.code === 'approval_policy_not_found';
 }
 
 /**
@@ -107,22 +100,9 @@ export function createLinkTools<Context = unknown>(
       (link, { id }) => link.spendRequests.cancel(id),
     ),
     retrieve_approval_policy: tool(
-      'Retrieve the approval policy configured for the current app and user, such as per-purchase limits and allowed payment methods. Returns null if no policy is configured.',
+      'Retrieve the approval policy configured for the current app and user, such as per-purchase limits and allowed payment methods.',
       schemas.empty,
-      async (link) => {
-        try {
-          return await link.approvalPolicy.retrieve();
-        } catch (error) {
-          if (
-            error instanceof LinkApiError &&
-            error.status === 404 &&
-            isApprovalPolicyNotFound(error)
-          ) {
-            return null;
-          }
-          throw error;
-        }
-      },
+      (link) => link.approvalPolicy.retrieve(),
     ),
     list_transactions: tool(
       'List Link transactions. Requires the user’s grant to include access to the requested sources.',
