@@ -1,4 +1,5 @@
 import type { ISpendRequestResource } from '@stripe/link-sdk';
+import { render } from 'ink-testing-library';
 import { Challenge, Credential } from 'mppx';
 import { Mppx } from 'mppx/server/core';
 import { stripe } from 'mppx/stripe/server/spt';
@@ -6,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildUserAgent } from '../../utils/user-agent';
 import {
   buildHeaders,
+  MppPay,
   payWithSpt,
   runMppPayFullFlow,
   runMppPayWithSpendRequest,
@@ -556,6 +558,79 @@ describe('payWithSpt', () => {
       new Headers(fetcher.mock.calls[0][1]?.headers).has('authorization'),
     ).toBe(false);
     expect(refreshedResponse.bodyUsed).toBe(true);
+  });
+
+  it('signs the approved challenge when several stripe challenges are offered', async () => {
+    const repository = {
+      retrieve: vi.fn().mockResolvedValue({
+        id: 'lsrq_123',
+        status: 'approved',
+        credential_type: 'shared_payment_token',
+        shared_payment_token: { id: 'spt_test_123' },
+      }),
+    } as unknown as ISpendRequestResource;
+    const other = challengeWith({
+      id: 'ch_other',
+      request: { ...STRIPE_REQUEST, externalId: 'order_other' },
+    });
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        challengeResponse(`${WWW_AUTHENTICATE_STRIPE}, ${other}`),
+      )
+      .mockResolvedValueOnce(new Response('paid'));
+    vi.stubGlobal('fetch', fetcher);
+
+    await runMppPayWithSpendRequest(
+      'https://merchant.example/challenge',
+      'lsrq_123',
+      'GET',
+      undefined,
+      undefined,
+      repository,
+      WWW_AUTHENTICATE_STRIPE,
+    );
+
+    const credential = Credential.deserialize(
+      new Headers(fetcher.mock.calls[1][1]?.headers).get('authorization') ?? '',
+    );
+    expect(credential.challenge.id).toBe('ch_001');
+  });
+
+  it('keeps the approved challenge pin in the interactive continuation', async () => {
+    const repository = {
+      retrieve: vi.fn().mockResolvedValue({
+        id: 'lsrq_123',
+        status: 'approved',
+        credential_type: 'shared_payment_token',
+        shared_payment_token: { id: 'spt_test_123' },
+      }),
+    } as unknown as ISpendRequestResource;
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        challengeResponse(
+          challengeWith({ request: { ...STRIPE_REQUEST, amount: '2000' } }),
+        ),
+      );
+    vi.stubGlobal('fetch', fetcher);
+    const onComplete = vi.fn();
+
+    const { lastFrame } = render(
+      <MppPay
+        url="https://merchant.example/challenge"
+        spendRequestId="lsrq_123"
+        approvedChallenge={WWW_AUTHENTICATE_STRIPE}
+        method="GET"
+        repository={repository}
+        paymentMethodsFactory={vi.fn()}
+        onComplete={onComplete}
+      />,
+    );
+
+    await vi.waitFor(() => expect(onComplete).toHaveBeenCalledWith(null));
+    expect(lastFrame()).toMatch(/challenge changed after approval/);
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
   it('waits for SPT propagation when continuing an approved spend request', async () => {
