@@ -99,6 +99,11 @@ export function createLinkTools<Context = unknown>(
       schemas.spendRequestId,
       (link, { id }) => link.spendRequests.cancel(id),
     ),
+    retrieve_approval_policy: tool(
+      'Retrieve the approval policy configured for the current app and user, such as per-purchase limits and allowed payment methods.',
+      schemas.empty,
+      (link) => link.approvalPolicy.retrieve(),
+    ),
     list_transactions: tool(
       'List Link transactions. Requires the user’s grant to include access to the requested sources.',
       schemas.listTransactions,

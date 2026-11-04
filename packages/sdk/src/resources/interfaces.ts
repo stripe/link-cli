@@ -106,6 +106,11 @@ export interface CreateSpendRequestParams {
    */
   expires_at?: number | string;
   recurring?: SpendRequestRecurringParams;
+  /**
+   * Auto-approve within the user's configured approval policy, through the
+   * delegated approval flow (beta, available only to select OAuth clients).
+   */
+  use_approval_policy?: boolean;
 }
 
 export interface UpdateSpendRequestParams {
@@ -117,6 +122,11 @@ export interface UpdateSpendRequestParams {
   currency?: string;
   line_items?: LineItem[];
   totals?: Total[];
+  /**
+   * Auto-approve within the user's configured approval policy, through the
+   * delegated approval flow (beta, available only to select OAuth clients).
+   */
+  use_approval_policy?: boolean;
 }
 
 export interface ISpendRequestResource {

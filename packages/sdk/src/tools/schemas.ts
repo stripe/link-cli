@@ -147,6 +147,12 @@ export const linkToolSchemas = {
           .boolean()
           .default(false)
           .describe('Create test credentials instead of live credentials.'),
+        use_approval_policy: z
+          .boolean()
+          .optional()
+          .describe(
+            'Auto-approve within the user’s configured approval policy, through the delegated approval flow (beta, available only to select OAuth clients).',
+          ),
         metadata: z
           .record(z.string().max(40), z.string().max(500))
           .refine(

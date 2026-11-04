@@ -420,6 +420,19 @@ describe('SpendRequestResource', () => {
       });
     });
 
+    it('sends use_approval_policy creations to create_delegated without the approve routing flag', async () => {
+      mockFetchResponse(200, spendRequestResponse);
+
+      await repo.create({ ...validParams, use_approval_policy: true });
+
+      const [url, opts] = mockFetch.mock.calls[0]!;
+      expect(url).toBe('https://api.link.com/spend_requests/create_delegated');
+      expect(JSON.parse(opts.body)).toEqual({
+        ...validParams,
+        use_approval_policy: true,
+      });
+    });
+
     it('keeps an incomplete keyed creation 409 as a LinkApiError', async () => {
       mockFetchResponse(409, {
         error: { message: 'The keyed creation is still in progress' },
@@ -496,6 +509,19 @@ describe('SpendRequestResource', () => {
         approve: true,
         use_approval_policy: true,
       });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.link.com/spend_requests/si_123/update_delegated',
+        expect.objectContaining({
+          body: JSON.stringify({ amount: 6000, use_approval_policy: true }),
+        }),
+      );
+    });
+
+    it('sends use_approval_policy updates to update_delegated without the approve routing flag', async () => {
+      mockFetchResponse(200, { ...spendRequestResponse, amount: 6000 });
+
+      await repo.update('si_123', { amount: 6000, use_approval_policy: true });
 
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.link.com/spend_requests/si_123/update_delegated',
