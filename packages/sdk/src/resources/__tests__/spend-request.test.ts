@@ -420,7 +420,7 @@ describe('SpendRequestResource', () => {
       });
     });
 
-    it('sends use_approval_policy to create_delegated without approve', async () => {
+    it('sends to /spend_requests/create_delegated when only use_approval_policy is set', async () => {
       mockFetchResponse(200, spendRequestResponse);
 
       await repo.create({ ...validParams, use_approval_policy: true });
@@ -518,7 +518,7 @@ describe('SpendRequestResource', () => {
       );
     });
 
-    it('sends use_approval_policy to update_delegated without approve', async () => {
+    it('sends updates to update_delegated when only use_approval_policy is set', async () => {
       mockFetchResponse(200, { ...spendRequestResponse, amount: 6000 });
 
       await repo.update('si_123', { amount: 6000, use_approval_policy: true });
