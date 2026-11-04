@@ -87,9 +87,12 @@ Alternatively, use `serve` to expose link-cli as an MCP endpoint over HTTP.
 link-cli serve            # binds 127.0.0.1:54321 (loopback only)
 link-cli serve --port 8080
 link-cli serve --host 0.0.0.0   # expose beyond localhost (see warning below)
+link-cli serve --allow-origin http://localhost:3000   # trust a specific browser app
 ```
 
 The server handles `POST /mcp` and `GET` skill discovery at `/.well-known/skills/index.json` and `/.well-known/skills/{skill-name}/SKILL.md`, with `OPTIONS` preflight support. Other paths return `404`, unsupported methods return `405`, and malformed or ambiguous request paths return `400`. It binds to `127.0.0.1` by default so only the local host can reach it. Anyone who can reach the port can use this CLI's authenticated Link session, so only override `--host` on a trusted, isolated network — doing so prints a warning.
+
+A browser attaches an `Origin` header; MCP clients and `curl` do not. Because any JavaScript on any `http://localhost:*` page the user visits would satisfy a bare "loopback origin" check without being the authenticated CLI owner, `serve` **rejects every browser `Origin` by default** (`403`, no CORS header) and validates the `Host` header against loopback to block DNS rebinding. Requests without an `Origin` (ordinary MCP clients) are unaffected. To integrate a browser app you control, allow its exact origin with `--allow-origin` (repeatable); only that origin is reflected in `Access-Control-Allow-Origin`.
 
 ## Quickstart
 
