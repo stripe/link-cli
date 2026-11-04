@@ -401,12 +401,11 @@ describe('SpendRequestResource', () => {
       expect(sentBody.idempotency_key).toBe('delegated-key');
     });
 
-    it('includes use_approval_policy in the delegated creation body without the approve routing flag', async () => {
+    it('routes use_approval_policy to create_delegated and keeps it in the body', async () => {
       mockFetchResponse(200, spendRequestResponse);
 
       await repo.create({
         ...validParams,
-        approve: true,
         use_approval_policy: true,
         idempotency_key: 'delegated-key',
       });
@@ -484,7 +483,7 @@ describe('SpendRequestResource', () => {
       );
     });
 
-    it('includes use_approval_policy in the delegated update body without the approve routing flag', async () => {
+    it('routes use_approval_policy to update_delegated and keeps it in the body', async () => {
       mockFetchResponse(200, {
         ...spendRequestResponse,
         amount: 6000,
@@ -493,7 +492,6 @@ describe('SpendRequestResource', () => {
 
       await repo.update('si_123', {
         amount: 6000,
-        approve: true,
         use_approval_policy: true,
       });
 

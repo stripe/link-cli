@@ -61,6 +61,15 @@ const duplicateSpendRequestErrorSchema = z.looseObject({
   }),
 });
 
+// `approve` uses the delegated endpoint with no policy. It stays internal for link-cli's `--approve`.
+type InternalCreateSpendRequestParams = CreateSpendRequestParams & {
+  approve?: boolean;
+};
+
+type InternalUpdateSpendRequestParams = UpdateSpendRequestParams & {
+  approve?: boolean;
+};
+
 /** Normalizes the legacy string SPT response into the current object shape. */
 function parseSpendRequest(value: unknown): SpendRequest {
   return spendRequestSchema.parse(value) as SpendRequest;
@@ -105,7 +114,9 @@ export class SpendRequestResource
     );
   }
 
-  async create(params: CreateSpendRequestParams): Promise<SpendRequest> {
+  async create(
+    params: InternalCreateSpendRequestParams,
+  ): Promise<SpendRequest> {
     const { approve, ...body } = params;
     if (typeof body.expires_at === 'string') {
       const expiry = z.iso.datetime().safeParse(body.expires_at);
@@ -116,7 +127,10 @@ export class SpendRequestResource
       }
       body.expires_at = Math.floor(Date.parse(expiry.data) / 1000);
     }
-    const url = approve ? `${this.endpoint}/create_delegated` : this.endpoint;
+    const url =
+      approve || body.use_approval_policy
+        ? `${this.endpoint}/create_delegated`
+        : this.endpoint;
     const { status, data, rawBody } = await this.apiFetch({
       method: 'POST',
       url,
@@ -134,12 +148,13 @@ export class SpendRequestResource
 
   async update(
     id: string,
-    params: UpdateSpendRequestParams,
+    params: InternalUpdateSpendRequestParams,
   ): Promise<SpendRequest> {
     const { approve, ...body } = params;
-    const url = approve
-      ? `${this.endpoint}/${id}/update_delegated`
-      : `${this.endpoint}/${id}`;
+    const url =
+      approve || body.use_approval_policy
+        ? `${this.endpoint}/${id}/update_delegated`
+        : `${this.endpoint}/${id}`;
     const { status, data, rawBody } = await this.apiFetch({
       method: 'POST',
       url,
