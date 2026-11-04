@@ -6,6 +6,7 @@ import {
 import { LinkApiError, LinkTransportError } from '@/errors';
 import type {
   AccessTokenProvider,
+  CancelUcpCheckoutParams,
   CompleteUcpCheckoutParams,
   CreateUcpCheckoutParams,
   IUcpResource,
@@ -273,6 +274,27 @@ export class UcpResource implements IUcpResource {
     if (status < 200 || status >= 300) {
       throw new LinkApiError(
         `Failed to complete UCP checkout (${status}): ${extractApiError(data, rawBody)}`,
+        { status, rawBody, details: data },
+      );
+    }
+
+    return normalizeCheckout(data);
+  }
+
+  async cancelCheckout(
+    id: string,
+    params: CancelUcpCheckoutParams,
+  ): Promise<UcpCheckout> {
+    const { status, data, rawBody } = await this.apiFetch({
+      method: 'POST',
+      url: `${this.ucpEndpoint}/checkout/${encodeURIComponent(id)}/cancel`,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ business: params.business }),
+    });
+
+    if (status < 200 || status >= 300) {
+      throw new LinkApiError(
+        `Failed to cancel UCP checkout (${status}): ${extractApiError(data, rawBody)}`,
         { status, rawBody, details: data },
       );
     }
