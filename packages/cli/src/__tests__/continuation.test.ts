@@ -91,8 +91,8 @@ beforeAll(async () => {
     } else if (url.pathname === '/ucp/checkout') {
       response = {
         id: CHECKOUT_ID,
-        status: 'requires_payment',
-        amount_total: 1000,
+        status: 'ready_for_complete',
+        totals: [{ type: 'total', amount: 1000 }],
         currency: 'usd',
       };
     } else if (
@@ -347,49 +347,42 @@ describe('command continuations', () => {
     expect(existsSync(join(directory, 'proof.txt'))).toBe(false);
   }, 10_000);
 
-  it.each([false, true])(
-    'preserves UCP values and replaces only the spend-request argument (test: %s)',
-    async (test) => {
-      const output = await runCli([
-        'ucp',
+  it('preserves UCP values and replaces only the spend-request argument', async () => {
+    const output = await runCli([
+      'ucp',
+      'checkout',
+      'create',
+      '--business',
+      BUSINESS,
+      '--line-item',
+      'id:sku_synthetic,quantity:1',
+    ]);
+    const next = output._next as CommandContinuation;
+    expectPlatformPolicy(next);
+    expect(next.argv).toEqual({
+      command: 'ucp',
+      args: [
         'checkout',
-        'create',
+        'complete',
+        CHECKOUT_ID,
+        '--spend-request-id',
+        '<spend_request_id>',
         '--business',
         BUSINESS,
-        '--line-item',
-        'id:sku_synthetic,quantity:1',
-        ...(test ? ['--test'] : []),
-      ]);
-      const next = output._next as CommandContinuation;
-      expectPlatformPolicy(next);
-      expect(next.argv).toEqual({
-        command: 'ucp',
-        args: [
-          'checkout',
-          'complete',
-          CHECKOUT_ID,
-          '--spend-request-id',
-          '<spend_request_id>',
-          '--business',
-          BUSINESS,
-          ...(test ? ['--test'] : []),
-        ],
-      });
-      expect(output.instruction).toContain(
-        'Replace only the <spend_request_id> argument',
-      );
-      const args = [...next.argv.args];
-      args[args.indexOf('--spend-request-id') + 1] = SPEND_REQUEST.id;
-      await runCli([next.argv.command, ...args]);
-      expect(completeBody).toEqual({
-        profile_id: BUSINESS,
-        spend_request_id: SPEND_REQUEST.id,
-        ...(test ? { test: true } : {}),
-      });
-      expect(existsSync(join(directory, 'proof.txt'))).toBe(false);
-    },
-    10_000,
-  );
+      ],
+    });
+    expect(output.instruction).toContain(
+      'Replace only the <spend_request_id> argument',
+    );
+    const args = [...next.argv.args];
+    args[args.indexOf('--spend-request-id') + 1] = SPEND_REQUEST.id;
+    await runCli([next.argv.command, ...args]);
+    expect(completeBody).toEqual({
+      business: BUSINESS,
+      spend_request_id: SPEND_REQUEST.id,
+    });
+    expect(existsSync(join(directory, 'proof.txt'))).toBe(false);
+  }, 10_000);
 
   it.each(['pending_approval', 'requires_action'])(
     'returns structured spend-request polling for %s',
