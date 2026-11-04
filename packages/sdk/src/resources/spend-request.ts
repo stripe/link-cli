@@ -105,9 +105,7 @@ export class SpendRequestResource
     );
   }
 
-  async create(
-    params: CreateSpendRequestParams,
-  ): Promise<SpendRequest> {
+  async create(params: CreateSpendRequestParams): Promise<SpendRequest> {
     const { approve, ...body } = params;
     if (typeof body.expires_at === 'string') {
       const expiry = z.iso.datetime().safeParse(body.expires_at);
