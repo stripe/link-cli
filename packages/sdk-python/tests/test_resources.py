@@ -415,10 +415,35 @@ async def test_create_recurring_terms(
         assert body["recurring"] == recurring
 
 
+@pytest.mark.parametrize(
+    "expires_at", [1_800_000_000, "2027-01-15T08:00:00Z", "2027-01-15T08:00:00.999Z"]
+)
+async def test_create_expiry(api: API, expires_at: int | str) -> None:
+    api.respond({**SPEND, "expires_at": 1_800_000_000})
+    result = await api.call(
+        "spend_requests", "create", context=CONTEXT, expires_at=expires_at
+    )
+    assert result.expires_at == "2027-01-15T08:00:00Z"
+    assert json.loads(api.requests[0].content)["expires_at"] == 1_800_000_000
+
+
+@pytest.mark.parametrize(
+    "expires_at",
+    ["2027-01-15T08:00:00", "2027-01-15T08:00:00+00:00", "2027-02-30T08:00:00Z"],
+)
+async def test_create_invalid_expiry(api: API, expires_at: str) -> None:
+    with pytest.raises(ValueError):
+        await api.call(
+            "spend_requests", "create", context=CONTEXT, expires_at=expires_at
+        )
+    assert not api.requests
+
+
 async def test_create_all_fields_and_nested_omission(api: API) -> None:
     params = {
         "context": CONTEXT,
         "idempotency_key": "idem-1",
+        "expires_at": 1_800_000_000,
         "completion_callback_url": "https://agent.example.com/link/callback?return=%2fcheckout",
         "nonce": " opaque+nonce ",
         "payment_details": "pm_1",

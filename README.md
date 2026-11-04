@@ -490,7 +490,7 @@ DOM-derived `merchant_account_id`, and Link supplies their canonical merchant
 identity. Card requests may also include `--network-id` to identify the merchant's
 network profile.
 
-**Constraints:** `context` must be at least 100 characters; `amount` is an integer in the currency's smallest unit (e.g. cents) and must not exceed 50000 USD cents equivalent; `currency` can be any supported 3-letter ISO code. The user has 30 minutes from when approval is requested to approve. Approved credentials (card or SPT) are valid for 48 hours from spend request creation.
+**Constraints:** `context` must be at least 100 characters; `amount` is an integer in the currency's smallest unit (e.g. cents) and must not exceed 50000 USD cents equivalent; `currency` can be any supported 3-letter ISO code. The user has 30 minutes from when approval is requested to approve.
 
 Omitting currency uses the consumer's default spend-request currency, reported by
 `userinfo.default_spend_request_currency` (`user-info retrieve` in the CLI).
@@ -500,6 +500,54 @@ the selected currency's minor units: `100` means ¥100 in JPY or $1 in USD.
 The client passes amounts through unchanged and performs no FX conversion.
 This default applies to newly created requests; existing requests retain their
 stored currency.
+
+#### Expiration and delayed merchant charges
+
+Use `spend-request create --expires-at <timestamp>` to set the expiry,
+including in direct CLI integrations. Accepts Unix seconds or an ISO 8601
+timestamp ending in `Z` (UTC), such as `2027-02-01T12:00:00Z`. The CLI converts
+ISO input to integer Unix seconds for the API. This option can only be set at
+creation.
+
+```bash
+# Allow a preorder charge for up to 90 days.
+EXPIRES_AT=$(node -e 'console.log(Math.floor(Date.now() / 1000) + 90 * 86400)')
+link-cli spend-request create \
+  --merchant-name "Example Shop" \
+  --merchant-url "https://shop.example.com" \
+  --amount 4200 --currency usd \
+  --context 'Preorder the selected book for $42 including tax and shipping. The merchant will charge when the book ships within 90 days.' \
+  --expires-at "$EXPIRES_AT"
+```
+
+`expires_at` is the spend request's expiry. The API uses integer Unix seconds;
+the CLI and SDK responses convert it to an ISO 8601 timestamp ending in `Z`
+(UTC), such as `"2027-02-01T12:00:00Z"`. Set it when the merchant may charge
+later, such as for a preorder, booking, or payment due after delivery. Choose a deadline that covers
+the expected charge date and explain the timing in `context`. Omit it for an
+ordinary purchase.
+
+This supports deferred authorization: for eligible card flows, Link can wait
+to fund the payment until the merchant charges. The merchant controls charge
+timing; `expires_at` does not schedule a payment.
+
+The server applies these limits when creating a request:
+
+- One-time requests default to 7 days and allow an explicit expiry up to 365 days.
+- Recurring requests default to their maximum, up to 1,827 days (about 5 years).
+  Set an earlier expiry to end the spending permission sooner. `recurring`
+  controls the spending-limit reset period; `expires_at` controls its end date.
+- An explicit expiry must be at least 3 hours in the future. Country limits
+  apply to both request types: Japan is capped at 180 days, and an unknown
+  account country uses a 180-day cap. The API validates the applicable limit.
+
+Approval is still required within 30 minutes of requesting it. A later
+`expires_at` does not extend that approval window.
+
+Follow the normal approval flow and check the current request status and
+returned credential `valid_until` before use. A later request expiry does not
+guarantee payment: funds and payment-method checks can still fail when the
+merchant charges. It also does not make a one-time SPT reusable.
 
 #### Completion callbacks
 
@@ -663,7 +711,8 @@ request.
 |-------|-------|
 | Max amount per spend request | $500 (50,000 cents) |
 | Approval window | 30 minutes — user must approve within 30 min of `request-approval` |
-| Card / SPT validity | 48 hours from spend request creation |
+| Spend request expiry (`expires_at`) | 7 days by default for one-time requests; up to 365 days one-time or 1,827 days recurring, subject to country limits |
+| Credential validity | Check returned `valid_until` and current request status |
 | Daily spend | $500 |
 | Monthly spend (30 days) | $20,000 |
 | Concurrent active requests (created + approved) | 30 |

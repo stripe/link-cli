@@ -1060,32 +1060,38 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       expect(sentBody.metadata).toBeUndefined();
     });
 
-    it('sends expires_at in POST body when --expires-at is used', async () => {
-      setNextResponse(200, BASE_REQUEST);
+    it.each(['1800000000', '2027-01-15T08:00:00Z'])(
+      'sends Unix seconds in POST body for --expires-at %s',
+      async (expiresAt) => {
+        setNextResponse(200, { ...BASE_REQUEST, expires_at: 1800000000 });
 
-      const result = await runProdCli(
-        'spend-request',
-        'create',
-        '--payment-method-id',
-        'pd_prod_test',
-        '--merchant-name',
-        'Test Merchant',
-        '--merchant-url',
-        'https://example.com',
-        '--context',
-        VALID_CONTEXT,
-        '--amount',
-        '5000',
-        '--expires-at',
-        '1720100000',
-        '--no-request-approval',
-        '--json',
-      );
+        const result = await runProdCli(
+          'spend-request',
+          'create',
+          '--payment-method-id',
+          'pd_prod_test',
+          '--merchant-name',
+          'Test Merchant',
+          '--merchant-url',
+          'https://example.com',
+          '--context',
+          VALID_CONTEXT,
+          '--amount',
+          '5000',
+          '--expires-at',
+          expiresAt,
+          '--no-request-approval',
+          '--json',
+        );
 
-      expect(result.exitCode).toBe(0);
-      const sentBody = JSON.parse(lastRequest.body);
-      expect(sentBody.expires_at).toBe(1720100000);
-    });
+        expect(result.exitCode).toBe(0);
+        const sentBody = JSON.parse(lastRequest.body);
+        expect(sentBody.expires_at).toBe(1800000000);
+        expect(JSON.parse(result.stdout)[0].expires_at).toBe(
+          '2027-01-15T08:00:00Z',
+        );
+      },
+    );
 
     it('does not include expires_at in POST body when --expires-at is omitted', async () => {
       setNextResponse(200, BASE_REQUEST);
