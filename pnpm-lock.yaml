@@ -60,9 +60,6 @@ importers:
       ink-spinner:
         specifier: ^5.0.0
         version: 5.0.0(ink@8.0.0(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
-      mppx:
-        specifier: 0.13.4
-        version: 0.13.4(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.6.7))(express@5.2.1)(hono@4.13.13)(next@16.3.8(@types/node@26.6.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(typescript@7.0.2)(viem@2.57.5(typescript@7.0.2)(zod@4.6.7))
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
@@ -103,6 +100,9 @@ importers:
       ink-testing-library:
         specifier: ^4.0.0
         version: 4.0.0(@types/react@19.3.0)
+      mppx:
+        specifier: 0.13.4
+        version: 0.13.4(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.6.7))(express@5.2.1)(hono@4.13.13)(next@16.3.8(@types/node@26.6.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(typescript@7.0.2)(viem@2.57.5(typescript@7.0.2)(zod@4.6.7))
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(postcss@8.5.29)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1)
@@ -258,6 +258,9 @@ importers:
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.5
+      mppx:
+        specifier: 0.13.4
+        version: 0.13.4(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.6.7))(express@5.2.1)(hono@4.13.13)(next@16.3.8(@types/node@26.6.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(typescript@7.0.2)(viem@2.57.5(typescript@7.0.2)(zod@4.6.7))
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(postcss@8.5.29)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1)

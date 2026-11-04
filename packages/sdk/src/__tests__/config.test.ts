@@ -50,6 +50,27 @@ describe('resolveLinkSdkConfig', () => {
       expect(headers.get('User-Agent')).toBe('custom-agent');
     });
 
+    it('keeps the headers of a Request input', async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValue({ status: 200, text: async () => '{}' });
+      const config = resolveLinkSdkConfig({
+        accessToken: 'test_token',
+        fetch: mockFetch,
+        defaultHeaders: { 'User-Agent': 'link-cli/0.1.0' },
+      });
+
+      await config.fetch?.(
+        new Request('https://example.com', {
+          headers: { 'User-Agent': 'custom-agent', 'X-Custom': 'hello' },
+        }),
+      );
+
+      const headers = captureHeaders(mockFetch) as Headers;
+      expect(headers.get('User-Agent')).toBe('custom-agent');
+      expect(headers.get('X-Custom')).toBe('hello');
+    });
+
     it('does not wrap fetch when defaultHeaders is not provided', () => {
       const mockFetch = vi.fn();
       const config = resolveLinkSdkConfig({
