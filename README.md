@@ -257,6 +257,14 @@ link-cli spend-request retrieve lsrq_001 --include card --output-file /tmp/link-
 
 The file is created with `0600` permissions. If the file already exists, the command fails unless `--force` is passed. When `--output-file` is set, the JSON output replaces the `card` object with redacted fields and adds a `card_output_file` path.
 
+To inspect only the existing user action in one snapshot:
+
+```bash
+link-cli spend-request retrieve lsrq_001 --next-action --format json
+```
+
+This returns one JSON result item, `[{"next_action": <server action or null>}]`, including actions on `requires_action` and `failed` requests. It does not poll or return credentials. `--include`, `--output-file`, `--force`, and nonzero `--interval`/`--max-attempts` are incompatible; `--timeout` is ignored. Human TTY invocations require an explicit format. Use ordinary retrieve to inspect status or poll.
+
 For agent polling, pass `--interval` and optionally `--max-attempts`:
 
 ```bash
@@ -786,9 +794,31 @@ Outcomes: `success`, `blocked`, `abandoned`. Tags: `stripe_checkout`, `captcha`,
 
 ### Handle step-ups 
 
-If the created spend request comes back with `status: "requires_action"`, no approval is needed yet — the payment method or account needs attention first. Check `status_details.requires_action.next_action` for `type`, `display_message`, `action_url`, and `resolution`.
+Actions can appear at creation or on later retrieves, under `status_details.requires_action.next_action` or `status_details.failed.next_action`. Inspect the current action with:
 
-For 3D Secure (`resolution: "auto_resume"`), keep polling `spend-request retrieve` — the request resolves on its own once the challenge is completed. For any other resolution, complete the indicated action and create a new spend request.
+```bash
+link-cli spend-request retrieve lsrq_001 --next-action --format json
+```
+
+The JSON output is an array containing one projected result, for example:
+
+```json
+[
+  {
+    "next_action": {
+      "type": "ssn_verification",
+      "resolution": "create_new_spend_request_after_completion",
+      "display_message": "Additional identity verification is required.",
+      "action_url": "https://example.com/verify?step=ssn",
+      "expires_at": null
+    }
+  }
+]
+```
+
+Values come from the server; the example URL is synthetic. The action's expiry is a string or null, and older responses may omit it. `[{"next_action": null}]` means no action is exposed in this snapshot; it does not establish approval or rule out later verification. A missing/inaccessible request still returns an error. Snapshot mode neither forces verification nor completes or approves a request, and adds no continuation instructions.
+
+Show the server's message and exact non-null URL to the user, who completes verification themselves. Follow `resolution`: for `auto_resume`, keep the same request and inspect it after each user completion. A Visa OTP action can become `partner_create_card_enrollment` without changing status or URL. Use another snapshot or ordinary retrieve without polling to inspect the latest action; ordinary retrieve with `--interval` waits for status changes. For `create_new_spend_request` or `create_new_spend_request_after_completion`, follow the indicated action and user-completion requirements, then create a new request. Never attempt to resume a terminal failed request.
 
 ### Line items and totals
 

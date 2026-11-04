@@ -68,7 +68,8 @@ export type NextActionType =
   | 'three_d_secure'
   | 'three_d_secure_retry'
   | 'partner_auth_challenge'
-  | 'partner_auth_challenge_retry';
+  | 'partner_auth_challenge_retry'
+  | 'partner_create_card_enrollment';
 
 export type NextActionResolution =
   | 'auto_resume'
@@ -76,18 +77,22 @@ export type NextActionResolution =
   | 'create_new_spend_request_after_completion';
 
 export interface NextAction {
-  type: NextActionType;
+  type: NextActionType | null;
   resolution: NextActionResolution;
   display_message: string;
   action_url: string | null;
-  expires_at?: number | null;
+  expires_at?: string | null;
 }
 
 export interface SpendRequestStatusDetails {
+  failed?: {
+    code: string;
+    next_action?: NextAction | null;
+  } | null;
   requires_action?: {
-    failure_code?: string;
-    next_action: NextAction;
-  };
+    failure_code?: string | null;
+    next_action?: NextAction | null;
+  } | null;
 }
 
 export type CredentialType = 'shared_payment_token' | 'card' | 'link_pay_token';

@@ -288,11 +288,20 @@ Recommend the user approves with the [Link app](https://link.com/download). Show
 
 **Metadata:** Attach arbitrary string data with the repeatable `--metadata "key:value"` flag (CLI) or a `{ key: value }` object (MCP/agent). Max 50 keys, key ≤ 40 chars, value ≤ 500 chars. Example: `--metadata "order_id:ord_123" --metadata "team:growth"`.
 
-If the response has `status: "requires_action"`, read `status_details.requires_action.next_action` (`type`, `display_message`, `action_url`, `resolution`). Show `display_message` to the user; present `action_url` clearly if present.
-- If `resolution` is `auto_resume` (`three_d_secure`, `partner_auth_challenge`), show `action_url` to the user and invoke the returned `_next.argv` directly without a shell (poll `spend-request retrieve <id> --interval 2 --max-attempts 300`) yourself — do not create a new spend request. The user completes the bank's 3D Secure challenge, or for `partner_auth_challenge` the verification in the Link app. Polling returns when the status changes; inspect the result, which may be `approved`, `submitted`, or `succeeded`.
-- Otherwise (`resolution` is `create_new_spend_request` or `create_new_spend_request_after_completion` — covers `ssn_verification`, `identity_verification`, `contact_support`, `select_payment_method`, `add_payment_method`, `update_payment_method`, `re_authorize`, `three_d_secure_retry`, `partner_auth_challenge_retry`), have the user complete the indicated action, then create a **new** spend request — the old one will expire on its own.
+Actions can appear at creation or later, on both `requires_action` and terminal `failed` requests. Inspect the current action with:
 
-This same `requires_action` status can also appear later from `spend-request retrieve` in Step 5 — `update_payment_method`, `re_authorize`, `three_d_secure_retry`, and `partner_auth_challenge_retry` only ever surface this way, and they all use `create_new_spend_request`. Apply the same `resolution`-based branching there.
+```bash
+link-cli spend-request retrieve <id> --next-action --format json
+```
+
+The stable JSON contract is one array item: `[{"next_action": <server action or null>}]`. Read `type`, `display_message`, `action_url`, `resolution`, and optional `expires_at` (string or null). A null action means none is exposed in this snapshot; it does not establish approval or exclude later verification. Missing/inaccessible requests remain errors. This command does not poll, force verification, return credentials, complete an action, approve, or recreate a request, and adds no `_next` continuation. Do not combine it with `--include`, `--output-file`, `--force`, or nonzero `--interval`/`--max-attempts`; `--timeout` is ignored. Human TTY use requires an explicit format.
+
+Show `display_message` and the exact non-null server `action_url` to the user. The user opens the URL and completes OTP/identity verification themselves; the agent must not complete these checks or reconstruct the URL.
+
+- For `auto_resume`, keep the same request. After each user completion, inspect a new snapshot or ordinary retrieve without polling for subsequent actions. Visa `partner_auth_challenge` can become `partner_create_card_enrollment` while status remains `requires_action` and the URL stays unchanged; present the updated action for the user to complete. Ordinary retrieve with `--interval 2 --max-attempts 300` can wait for a status change, but OTP submission or one status change does not establish approval. Inspect the actual result until final success or terminal failure.
+- For `create_new_spend_request` or `create_new_spend_request_after_completion`, follow the indicated action and user-completion requirements, then create a **new** spend request. Asynchronous identity verification must reach its actual outcome before treating it as complete. Never attempt to resume a terminal failed request.
+
+Apply this resolution-based guidance to actions appearing later in Step 5 as well. Snapshot mode only exposes an existing server action; it does not guarantee that any particular request needs verification.
 
 ### Step 5: Complete payment
 

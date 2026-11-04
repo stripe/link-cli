@@ -1737,6 +1737,237 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
   });
 
   describe('spend-request retrieve', () => {
+    describe('next-action snapshot', () => {
+      const nextAction = {
+        type: 'partner_auth_challenge',
+        resolution: 'auto_resume',
+        display_message: 'Complete verification',
+        action_url:
+          'https://example.com/verify?nonce=a%2Bb&callback=%2Fdone#step',
+        expires_at: '2026-11-05T12:00:00Z',
+      };
+
+      it.each(['requires_action', 'failed'])(
+        'projects only the %s action through the authenticated GET',
+        async (status) => {
+          setNextResponse(200, {
+            ...BASE_REQUEST,
+            status,
+            status_details: {
+              [status]: { code: 'verification', next_action: nextAction },
+            },
+            shared_payment_token: { id: 'secret-token' },
+            card: {
+              id: 'card_secret',
+              brand: 'Visa',
+              exp_month: 12,
+              exp_year: 2027,
+              number: '4000009990001984',
+            },
+          });
+          const result = await runProdCli(
+            'spend-request',
+            'retrieve',
+            BASE_REQUEST.id,
+            '--next-action',
+            '--format',
+            'json',
+          );
+          expect(result.exitCode).toBe(0);
+          expect(parseJson(result.stdout)).toEqual([
+            { next_action: nextAction },
+          ]);
+          expect(requests).toHaveLength(1);
+          expect(lastRequest.method).toBe('GET');
+          expect(lastRequest.url).toBe(`/spend_requests/${BASE_REQUEST.id}`);
+          expect(lastRequest.headers.authorization).toBe(
+            `Bearer ${PROD_AUTH_TOKENS.access_token}`,
+          );
+          expect(result.stderr).not.toContain(nextAction.action_url);
+        },
+      );
+
+      it('returns one null item when no current action exists', async () => {
+        setNextResponse(200, {
+          ...BASE_REQUEST,
+          status: 'approved',
+          status_details: { requires_action: { next_action: nextAction } },
+        });
+        const result = await runProdCli(
+          'spend-request',
+          'retrieve',
+          BASE_REQUEST.id,
+          '--next-action',
+          '--format',
+          'json',
+        );
+        expect(result.exitCode).toBe(0);
+        expect(parseJson(result.stdout)).toEqual([{ next_action: null }]);
+        expect(requests).toHaveLength(1);
+      });
+
+      it('preserves sanitization and URL query/fragment in the compiled CLI', async () => {
+        setNextResponse(200, {
+          ...BASE_REQUEST,
+          status: 'requires_action',
+          status_details: {
+            requires_action: {
+              next_action: {
+                ...nextAction,
+                display_message: '\u001b[31mVerify\u001b[0m\u0007',
+              },
+            },
+          },
+        });
+        const result = await runProdCli(
+          'spend-request',
+          'retrieve',
+          BASE_REQUEST.id,
+          '--next-action',
+          '--format',
+          'json',
+        );
+        expect(result.exitCode).toBe(0);
+        expect(parseJson(result.stdout)).toEqual([
+          { next_action: { ...nextAction, display_message: 'Verify' } },
+        ]);
+      });
+
+      it.each([
+        ['--include', 'card'],
+        ['--output-file', '/tmp/unused-card.json'],
+        ['--force'],
+        ['--interval', '-1'],
+        ['--max-attempts', '1'],
+      ])('rejects incompatible %j without HTTP', async (...extra) => {
+        const result = await runProdCli(
+          'spend-request',
+          'retrieve',
+          BASE_REQUEST.id,
+          '--next-action',
+          ...extra,
+          '--format',
+          'json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(parseJson(result.stdout)).toHaveProperty(
+          'code',
+          'INVALID_INPUT',
+        );
+        expect(requests).toHaveLength(0);
+      });
+
+      it('retains NOT_FOUND rather than returning a null action for 404', async () => {
+        setNextResponse(404, { error: { message: 'Missing' } });
+        const result = await runProdCli(
+          'spend-request',
+          'retrieve',
+          BASE_REQUEST.id,
+          '--next-action',
+          '--format',
+          'json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(parseJson(result.stdout)).toHaveProperty('code', 'NOT_FOUND');
+      });
+
+      it.each([403, 500])('retains API errors for HTTP %s', async (status) => {
+        setNextResponse(status, {
+          error: { code: 'test_error', message: 'Test failure' },
+        });
+        const result = await runProdCli(
+          'spend-request',
+          'retrieve',
+          BASE_REQUEST.id,
+          '--next-action',
+          '--format',
+          'json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(parseJson(result.stdout)).toHaveProperty('code');
+        expect(result.stdout).not.toContain('next_action');
+      });
+
+      it('retains authentication errors before retrieving', async () => {
+        storage.clearAll();
+        const result = await runProdCli(
+          'spend-request',
+          'retrieve',
+          BASE_REQUEST.id,
+          '--next-action',
+          '--format',
+          'json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(parseJson(result.stdout)).toHaveProperty(
+          'code',
+          'NOT_AUTHENTICATED',
+        );
+        expect(requests).toHaveLength(0);
+      });
+
+      it.skipIf(process.platform === 'win32')(
+        'handles human TTY implicit and explicit formats without Ink',
+        async () => {
+          setNextResponse(200, {
+            ...BASE_REQUEST,
+            status: 'requires_action',
+            status_details: { requires_action: { next_action: nextAction } },
+          });
+          async function runTty(explicit: boolean) {
+            const argv = [
+              process.execPath,
+              CLI_PATH,
+              'spend-request',
+              'retrieve',
+              BASE_REQUEST.id,
+              '--next-action',
+              ...(explicit ? ['--format', 'json'] : []),
+            ];
+            const runner = new URL('./fixtures/run-in-pty.py', import.meta.url)
+              .pathname;
+            try {
+              const result = await execFileAsync('python3', [runner, ...argv], {
+                env: {
+                  ...process.env,
+                  ...EMPTY_AGENT_ENV,
+                  LINK_API_BASE_URL: `http://127.0.0.1:${serverPort}`,
+                  LINK_AUTH_BASE_URL: `http://127.0.0.1:${serverPort}`,
+                  LINK_AUTH_FILE: TEST_AUTH_FILE,
+                  XDG_DATA_HOME: '/tmp/link-cli-test-empty',
+                },
+                timeout: CLI_TIMEOUT_MS,
+              });
+              return { stdout: result.stdout, exitCode: 0 };
+            } catch (err) {
+              const failure = err as {
+                stdout?: string;
+                stderr?: string;
+                code?: number;
+              };
+              return {
+                stdout: failure.stdout ?? '',
+                exitCode: failure.code ?? 1,
+              };
+            }
+          }
+          const implicit = await runTty(false);
+          expect(implicit.exitCode).toBe(1);
+          expect(implicit.stdout).toContain('INVALID_INPUT');
+          expect(implicit.stdout).toContain(
+            'Use --next-action with --format json',
+          );
+          expect(requests).toHaveLength(0);
+          const explicit = await runTty(true);
+          expect(explicit.exitCode).toBe(0);
+          expect(parseJson(explicit.stdout)).toEqual([
+            { next_action: nextAction },
+          ]);
+          expect(requests).toHaveLength(1);
+        },
+      );
+    });
+
     it('sends GET to /spend-requests/:id', async () => {
       const result = await runProdCli(
         'spend-request',
