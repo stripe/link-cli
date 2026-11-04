@@ -142,7 +142,7 @@ What you find determines which credential type to use:
 | HTTP 402 with `method="stripe"` in `www-authenticate` | `shared_payment_token` | Shared payment token (SPT) |
 | HTTP 402 without `method="stripe"` in `www-authenticate` | not supported | Do not continue |
 
-**For 402 responses:** Use `pay` — it handles the entire flow automatically (probes URL, parses challenge, picks payment method, creates spend request, gets approval, and pays). See Step 5.
+**For 402 responses:** Use `pay` — it handles the entire flow automatically (probes URL, parses challenge, picks payment method, creates spend request, gets approval, and pays). See Step 5. If `pay` is not a recognized command, your link-cli is older: use `mpp pay` with the same arguments.
 
 ### Step 3: Confirm payment method and potentially shipping addresses
 
