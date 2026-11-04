@@ -401,11 +401,12 @@ describe('SpendRequestResource', () => {
       expect(sentBody.idempotency_key).toBe('delegated-key');
     });
 
-    it('routes use_approval_policy to create_delegated and keeps it in the body', async () => {
+    it('includes use_approval_policy in the delegated creation body without the approve routing flag', async () => {
       mockFetchResponse(200, spendRequestResponse);
 
       await repo.create({
         ...validParams,
+        approve: true,
         use_approval_policy: true,
         idempotency_key: 'delegated-key',
       });
@@ -416,6 +417,19 @@ describe('SpendRequestResource', () => {
         ...validParams,
         use_approval_policy: true,
         idempotency_key: 'delegated-key',
+      });
+    });
+
+    it('sends use_approval_policy to create_delegated without approve', async () => {
+      mockFetchResponse(200, spendRequestResponse);
+
+      await repo.create({ ...validParams, use_approval_policy: true });
+
+      const [url, opts] = mockFetch.mock.calls[0]!;
+      expect(url).toBe('https://api.link.com/spend_requests/create_delegated');
+      expect(JSON.parse(opts.body)).toEqual({
+        ...validParams,
+        use_approval_policy: true,
       });
     });
 
@@ -483,7 +497,7 @@ describe('SpendRequestResource', () => {
       );
     });
 
-    it('routes use_approval_policy to update_delegated and keeps it in the body', async () => {
+    it('includes use_approval_policy in the delegated update body without the approve routing flag', async () => {
       mockFetchResponse(200, {
         ...spendRequestResponse,
         amount: 6000,
@@ -492,8 +506,22 @@ describe('SpendRequestResource', () => {
 
       await repo.update('si_123', {
         amount: 6000,
+        approve: true,
         use_approval_policy: true,
       });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.link.com/spend_requests/si_123/update_delegated',
+        expect.objectContaining({
+          body: JSON.stringify({ amount: 6000, use_approval_policy: true }),
+        }),
+      );
+    });
+
+    it('sends use_approval_policy to update_delegated without approve', async () => {
+      mockFetchResponse(200, { ...spendRequestResponse, amount: 6000 });
+
+      await repo.update('si_123', { amount: 6000, use_approval_policy: true });
 
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.link.com/spend_requests/si_123/update_delegated',
