@@ -109,6 +109,26 @@ describe('native RSA key validation', () => {
     );
   });
 
+  it('rejects a signature missing a leading zero octet', async () => {
+    // This valid PSS signature starts with 0x00. OpenSSL also accepts it with
+    // that octet removed, so a generated signature makes this test flaky.
+    const spki = fromBase64(
+      'MIIBVjBBBgkqhkiG9w0BAQowNKAPMA0GCWCGSAFlAwQCAgUAoRwwGgYJKoZIhvcNAQEIMA0GCWCGSAFlAwQCAgUAogMCATADggEPADCCAQoCggEBAMndgJNQpNQy6HCnMX-iLjRMu9kx-z5V_BouL9anHyfez_UiMkRYwg4PRIjqGp8D59hu8PFA1pC476Z13oHHu2HYFRUGtVxwD-TWqWeuIWeOZbM2HfSgvmku8D-eREjDwkjIvfsyn6YzwhUC3vxesY-wSikHBjAWrgJ2EmR52mVHmHkJASTiiI3Pa3NYQ9PbtUzHF9rtzOH-9nQPUmTRnGnUfRFQMGPZTdpJ2taUi8K1Pc-G7EsIOAJ7vC0SajmSzwn-UnaHRQE1YGKb2qAP2ru45KlaaaMGA0wavA6Oy1Kcg6tqS7MK63Ub2JwxzaDfCDR0QhVGK3Y2Abp1Lbz18zkCAwEAAQ',
+    );
+    const signature = fromBase64(
+      'APSsRsi6d6vPWtWt_EmZkyxbyfpevK4_81DG_meJD3wNZsvDuf6WyLId3o540UI0VRJiNtoRlHLTOHinPQexFoVzrORzR6c_BduDtKmNejK77aYTGpIfQ0LyEnXuHzHtfi1RIhl1aqRQumVbQu-rPE4CkVFwW20fLfwSFpCGAFhxmRQeaX1GdIa5O3cBQuXuy5rY2GDXSts3_Rj_wLt0Op6v5Y1Y27xXP2Nmm6Y6leGCcJTuu4t2NTV5q1YxMX-sUptul_l_J1rNxn-hIsnRmCvt3BnoL5ADs5MvqX4JhCEzMlvyJpWOlo_0ZuTbEn7INEiiPSP7EkV32CNNOZF9tA',
+    );
+    const key = await importTokenKey(spki);
+    assert.ok(typeof key !== 'string');
+    assert.equal(signature.length, 256);
+    assert.equal(signature[0], 0);
+    assert.equal(await verifyRsaPss(key, signature, message), true);
+    assert.equal(
+      await verifyRsaPss(key, signature.subarray(1), message),
+      false,
+    );
+  });
+
   it('checks the PSS trailer field that Node does not report', async () => {
     const parsed = parseRsaSpki(spki);
     assert.ok(typeof parsed !== 'string');
