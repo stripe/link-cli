@@ -106,7 +106,10 @@ export interface CreateSpendRequestParams {
    */
   expires_at?: number | string;
   recurring?: SpendRequestRecurringParams;
-  /** Create via the delegated approval flow, routing to /create_delegated. */
+  /**
+   * Create via the delegated approval flow, routing to /create_delegated.
+   * Skips user approval; prefer `use_approval_policy` to stay within the user's limits.
+   */
   approve?: boolean;
   /**
    * Auto-approve within the user's configured approval policy, through the
@@ -124,7 +127,10 @@ export interface UpdateSpendRequestParams {
   currency?: string;
   line_items?: LineItem[];
   totals?: Total[];
-  /** Update via the delegated approval flow, routing to /update_delegated. */
+  /**
+   * Update via the delegated approval flow, routing to /update_delegated.
+   * Skips user approval; prefer `use_approval_policy` to stay within the user's limits.
+   */
   approve?: boolean;
   /**
    * Auto-approve within the user's configured approval policy, through the
