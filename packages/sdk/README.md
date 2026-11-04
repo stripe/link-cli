@@ -344,7 +344,7 @@ const updated = await link.ucp.updateCheckout(checkout.id, {
 });
 ```
 
-Omit buyer or fulfillment during creation to use saved Link details. Review the returned messages, fulfillment choices, and totals. The seller determines currency; checkout requests do not accept `test` or `currency`.
+Omit buyer during creation to use saved Link buyer details. Omitted fulfillment uses a complete saved default shipping address when available; other saved addresses are not selected automatically. Review the returned messages, fulfillment choices, and totals. The seller determines currency; checkout requests do not accept `test` or `currency`.
 
 When the checkout is ready, create and approve a `shared_payment_token` spend request for the final total, using the business as its `network_id`. Pass the approved request ID to `completeCheckout(id, { business, spend_request_id })`. Use `retrieveCheckout(id, { business })` to check the checkout's current status.
 

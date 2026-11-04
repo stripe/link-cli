@@ -454,6 +454,8 @@ report `blocked`. Do not reuse the LPT at a different checkout surface.
 
 ## Shop a catalog (UCP)
 
+The terminal UI shows buyer details, selected fulfillment destinations and options, and UCP messages. Use JSON to inspect available choices. Saved shipping addresses are used during creation only when a complete address is marked as the wallet default.
+
 The Universal Commerce Protocol (UCP) commands let you shop a business's catalog and check out programmatically, without a browser or a merchant checkout page. Pass the business target from catalog search to checkout creation and completion.
 
 Catalog search supports `--test` for synthetic search results. Checkout commands use the UCP API and do not accept `--test`; their currency is determined by the seller.

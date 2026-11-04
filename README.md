@@ -770,6 +770,8 @@ link-cli mpp decode \
 
 All UCP commands show an interactive summary when run in a terminal without a format flag. Add `--format json` to any catalog or checkout command to return the full JSON response, including messages, fulfillment choices, capability metadata, and other returned fields. Use this flag for scripts and agents. Other explicit formats remain supported; piped output and MCP use structured output.
 
+Checkout summaries show buyer details, UCP messages (including error codes, severity, field paths, and recovery URLs), and selected fulfillment destinations and options. Available fulfillment choices remain in JSON output. Missing buyer details, destinations, or shipping selections are shown explicitly.
+
 Search a catalog, then use the returned business and SKU to create a UCP checkout:
 
 ```bash
@@ -781,7 +783,7 @@ link-cli ucp checkout create --business <business> \
   --format json
 ```
 
-`--line-item` is repeatable; `quantity` defaults to 1. All buyer fields are optional (`first_name`, `last_name`, `email`, `phone_number`). `--fulfillment` accepts the entire UCP JSON object; `--fullfilment` is an alternate spelling. Omit buyer or fulfillment to use saved Link details during creation. The seller determines the checkout currency.
+`--line-item` is repeatable; `quantity` defaults to 1. All buyer fields are optional (`first_name`, `last_name`, `email`, `phone_number`). `--fulfillment` accepts the entire UCP JSON object; `--fullfilment` is an alternate spelling. Omit buyer to use saved Link buyer details during creation. Omitted fulfillment uses a complete saved default shipping address when available; a saved address that is not marked as default is not selected automatically. The seller determines the checkout currency.
 
 Review the returned `messages`, `totals`, and fulfillment choices. Update the checkout as needed.
 
