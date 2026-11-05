@@ -258,6 +258,10 @@ Rules:
 - Naive `'${value}'` wrapping is **not** quoting — a single `'` in the value closes it and escapes.
 - Regression coverage lives in `packages/cli/src/utils/__tests__/shell-quote.test.ts` (bash round-trip) and the `_next continuation quoting` block in `packages/cli/src/__tests__/cli.test.ts`.
 
+## Security: Launching External Programs
+
+`openUrl()` (`packages/cli/src/utils/open-url.ts`) is the only place the CLI spawns OS programs. Windows resolves bare executable names against the current directory before `PATH`, so a planted `cmd.exe` in a repository would run. Launch OS binaries by absolute path (`%SystemRoot%\System32\rundll32.exe url.dll,FileProtocolHandler <url>` on Windows, `/usr/bin/open` on macOS). Never route a URL through `cmd`: it parses `&`, `|`, `^`, and `%` inside server-supplied URLs. Covered by `utils/__tests__/open-url.test.ts`.
+
 ## Environment Variables
 
 | Variable | Effect |
