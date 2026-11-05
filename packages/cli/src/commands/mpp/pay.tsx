@@ -242,6 +242,7 @@ export async function payWithSpt(
 async function submitMppPayment(
   challenge: MppProbe,
   spt: string,
+  approvedChallenge?: Challenge.Challenge,
 ): Promise<PayResult> {
   // Credential creation needs only the challenge status and headers. Keep the
   // untrusted response body out of signing and release its stream separately.
@@ -252,6 +253,18 @@ async function submitMppPayment(
   });
   const payment =
     await createStripePaymentClient(spt).preparePayment(credentialResponse);
+  // Sign only the challenge that was compared, even if mppx selects among
+  // several offered challenges differently from our resolver.
+  if (
+    approvedChallenge &&
+    comparableChallenge(payment.challenge) !==
+      comparableChallenge(approvedChallenge)
+  ) {
+    await challenge.response.body?.cancel();
+    throw new Error(
+      'MPP challenge changed after approval; refusing to use the approved payment credential',
+    );
+  }
   const credential = await payment.createCredential();
   await challenge.response.body?.cancel();
 
@@ -309,7 +322,7 @@ async function payPinnedChallengeWithSpt(
       );
     }
   }
-  return submitMppPayment(refreshed, spt);
+  return submitMppPayment(refreshed, spt, approvedChallenge);
 }
 
 function comparableChallenge(challenge: Challenge.Challenge): string {
@@ -515,6 +528,7 @@ export function MppApprovalPrompt({ approvalUrl }: { approvalUrl: string }) {
 export function MppPay({
   url,
   spendRequestId,
+  approvedChallenge,
   method,
   data,
   headers,
@@ -530,6 +544,7 @@ export function MppPay({
 }: {
   url: string;
   spendRequestId?: string;
+  approvedChallenge?: string;
   method?: string;
   data?: string;
   headers?: string[];
@@ -564,6 +579,7 @@ export function MppPay({
             data,
             headers,
             repository,
+            approvedChallenge,
           );
         } else {
           if (!context) {
@@ -600,6 +616,7 @@ export function MppPay({
   }, [
     url,
     spendRequestId,
+    approvedChallenge,
     method,
     data,
     headers,

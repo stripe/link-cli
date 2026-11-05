@@ -1,5 +1,30 @@
 # @stripe/link-sdk
 
+## 2.1.0
+
+### Minor Changes
+
+- 9537851: Add `use_approval_policy` to `create_spend_request` and a `retrieve_approval_policy` tool, letting SDK and Eve agents create policy-approved spend requests and read the configured approval policy — the same balance-backed flow `link-cli` already supports.
+
+## 2.0.0
+
+### Major Changes
+
+- 6489245: Add `spend-request retrieve <id> --next-action --format json` to return one snapshot of the server's existing action, including actions on failed requests, or null. This mode does not poll or return payment credentials.
+  
+  Correct TypeScript spend-request response types: status branches and their actions can be absent or null, action type can be null, and optional action expiry is a string or null rather than a number. Consumers must handle these nullable fields and string expiry. Add the existing `partner_create_card_enrollment` action type.
+
+### Minor Changes
+
+- 5d4eb12: Expose spend request `expires_at` in the public SDK and agent tools. Document
+  expiry limits and delayed merchant charges in CLI help and purchase guides.
+  The CLI, TypeScript SDK and tools, and Python SDK accept Unix seconds or ISO
+  8601 expiry timestamps ending in `Z` (UTC) and convert ISO input to Unix seconds
+  for the API.
+  
+  Convert spend-request `expires_at` responses from API Unix seconds to ISO 8601
+  timestamps ending in `Z` (UTC) in the CLI and all SDKs.
+
 ## 1.0.0
 
 ### Major Changes

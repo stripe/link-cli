@@ -155,7 +155,7 @@ describe('SpendRequestResource', () => {
             : await repo.retrieve('si_123');
         expect(result?.approval_url).toBe(approval_url);
         expect(
-          result?.status_details?.requires_action?.next_action.action_url,
+          result?.status_details?.requires_action?.next_action?.action_url,
         ).toBe(action_url);
       },
     );
@@ -420,6 +420,19 @@ describe('SpendRequestResource', () => {
       });
     });
 
+    it('sends use_approval_policy creations to create_delegated without the approve routing flag', async () => {
+      mockFetchResponse(200, spendRequestResponse);
+
+      await repo.create({ ...validParams, use_approval_policy: true });
+
+      const [url, opts] = mockFetch.mock.calls[0]!;
+      expect(url).toBe('https://api.link.com/spend_requests/create_delegated');
+      expect(JSON.parse(opts.body)).toEqual({
+        ...validParams,
+        use_approval_policy: true,
+      });
+    });
+
     it('keeps an incomplete keyed creation 409 as a LinkApiError', async () => {
       mockFetchResponse(409, {
         error: { message: 'The keyed creation is still in progress' },
@@ -496,6 +509,19 @@ describe('SpendRequestResource', () => {
         approve: true,
         use_approval_policy: true,
       });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.link.com/spend_requests/si_123/update_delegated',
+        expect.objectContaining({
+          body: JSON.stringify({ amount: 6000, use_approval_policy: true }),
+        }),
+      );
+    });
+
+    it('sends use_approval_policy updates to update_delegated without the approve routing flag', async () => {
+      mockFetchResponse(200, { ...spendRequestResponse, amount: 6000 });
+
+      await repo.update('si_123', { amount: 6000, use_approval_policy: true });
 
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.link.com/spend_requests/si_123/update_delegated',
@@ -665,6 +691,61 @@ describe('SpendRequestResource', () => {
   });
 
   describe('getSpendRequest', () => {
+    it.each(['requires_action', 'failed'] as const)(
+      'preserves all next-action fields on %s without normalization',
+      async (status) => {
+        for (const next_action of [
+          {
+            type: 'partner_create_card_enrollment',
+            resolution: 'auto_resume',
+            display_message: 'Confirm enrollment',
+            action_url:
+              'https://example.com/verify?callback=%2Fdone&nonce=a%2Bb#step',
+            expires_at: '2026-11-05T12:00:00Z',
+            additional_field: 'future',
+          },
+          {
+            type: null,
+            resolution: 'create_new_spend_request',
+            display_message: 'Verify',
+            action_url: null,
+            expires_at: null,
+          },
+          {
+            type: 'future_action',
+            resolution: 'auto_resume',
+            display_message: 'Verify',
+            action_url: null,
+          },
+          null,
+          undefined,
+        ]) {
+          const details = {
+            [status]: { code: 'verification', failure_code: null, next_action },
+          };
+          mockFetchResponse(200, {
+            ...spendRequestResponse,
+            status,
+            status_details: details,
+          });
+          const result = await repo.retrieve('si_123');
+          expect(result?.status_details).toEqual(
+            JSON.parse(JSON.stringify(details)),
+          );
+        }
+      },
+    );
+
+    it.each([undefined, null, {}, { requires_action: null }, { failed: null }])(
+      'preserves absent/null status details: %j',
+      async (status_details) => {
+        mockFetchResponse(200, { ...spendRequestResponse, status_details });
+        expect((await repo.retrieve('si_123'))?.status_details).toEqual(
+          status_details,
+        );
+      },
+    );
+
     it('sends GET to retrieve endpoint', async () => {
       mockFetchResponse(200, spendRequestResponse);
 

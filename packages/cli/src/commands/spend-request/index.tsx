@@ -22,6 +22,7 @@ import { shouldPollSpendRequest } from '../../utils/should-poll-spend-request';
 import { CancelSpendRequest } from './cancel';
 import { CreateSpendRequest } from './create';
 import { SpendRequestList } from './list';
+import { getSpendRequestNextAction } from './next-action';
 import { RequestApproval } from './request-approval';
 import { RetrieveSpendRequest } from './retrieve';
 import {
@@ -30,6 +31,11 @@ import {
   retrieveOptions,
   updateOptions,
 } from './schema';
+import { registerSimulate } from './simulate';
+import {
+  FixtureSpendRequestSimulationResource,
+  type ISpendRequestSimulationResource,
+} from './simulation-resource';
 import { UpdateSpendRequest } from './update';
 
 function buildPollContinuation(id: string) {
@@ -89,11 +95,20 @@ export function createSpendRequestCli(
   repository: ISpendRequestResource,
   authStorage?: CliAuthStorage,
   envAccessToken?: string,
-  { usedRemovedExecutionMethod = false } = {},
+  {
+    usedRemovedExecutionMethod = false,
+    createSimulationResource = () =>
+      new FixtureSpendRequestSimulationResource(),
+  }: {
+    usedRemovedExecutionMethod?: boolean;
+    createSimulationResource?: () => ISpendRequestSimulationResource;
+  } = {},
 ) {
   const cli = Cli.create('spend-request', {
     description: 'Spend request management commands',
   });
+
+  registerSimulate(cli, createSimulationResource, authStorage, envAccessToken);
 
   cli.command('list', {
     description:
@@ -545,7 +560,21 @@ export function createSpendRequestCli(
     options: retrieveOptions,
     outputPolicy: 'agent-only' as const,
     async *run(c) {
-      requireAuthGuard(c, authStorage, envAccessToken);
+      // Incur returns an error sentinel instead of throwing. Return the guard's
+      // sentinel in snapshot mode before validation or resource access.
+      let authError: unknown;
+      requireAuthGuard(
+        {
+          error: (error) => {
+            const result = c.error(error);
+            authError = result;
+            return result;
+          },
+        },
+        authStorage,
+        envAccessToken,
+      );
+      if (c.options.nextAction && authError) return authError;
 
       const id = c.args.id;
       const opts = c.options;
@@ -556,6 +585,37 @@ export function createSpendRequestCli(
       const include = includeArr?.length ? includeArr : undefined;
       const outputFile = opts.outputFile;
       const forceOverwrite = opts.force;
+
+      if (opts.nextAction) {
+        if (!c.agent && !c.formatExplicit) {
+          return c.error({
+            code: 'INVALID_INPUT',
+            message: 'Use --next-action with --format json',
+          });
+        }
+        if (
+          includeArr.length > 0 ||
+          outputFile !== undefined ||
+          forceOverwrite ||
+          interval !== 0 ||
+          maxAttempts !== 0
+        ) {
+          return c.error({
+            code: 'INVALID_INPUT',
+            message:
+              '--next-action cannot be combined with --include, --output-file, --force, or nonzero --interval or --max-attempts',
+          });
+        }
+        const request = await repository.retrieve(id);
+        if (request === null) {
+          return c.error({
+            code: 'NOT_FOUND',
+            message: `Spend request ${id} not found`,
+          });
+        }
+        yield { next_action: getSpendRequestNextAction(request) };
+        return;
+      }
 
       if (!c.agent && !c.formatExplicit) {
         let capturedResult: SpendRequest | null = null;

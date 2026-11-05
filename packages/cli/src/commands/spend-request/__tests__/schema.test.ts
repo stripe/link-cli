@@ -1,6 +1,6 @@
 import { Cli, z } from 'incur';
 import { describe, expect, it } from 'vitest';
-import { createOptions } from '../schema';
+import { createOptions, retrieveOptions } from '../schema';
 
 describe('recurring interval', () => {
   it('accepts known intervals through the CLI parser and rejects unknown intervals', async () => {
@@ -148,6 +148,28 @@ describe('spend-request callback context', () => {
     },
   ])('rejects invalid callback context %#', (input) => {
     expect(createOptions.safeParse({ ...purchase, ...input }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe('retrieve snapshot options', () => {
+  it('preserves ordinary retrieve defaults', () => {
+    expect(retrieveOptions.parse({})).toEqual({
+      nextAction: false,
+      timeout: 600,
+      interval: 0,
+      maxAttempts: 0,
+      include: [],
+      force: false,
+    });
+  });
+
+  it('accepts the boolean flag without cross-option schema refinements', () => {
+    expect(
+      retrieveOptions.parse({ nextAction: true, include: ['card'] }).nextAction,
+    ).toBe(true);
+    expect(retrieveOptions.safeParse({ nextAction: 'true' }).success).toBe(
       false,
     );
   });
