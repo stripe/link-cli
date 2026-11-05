@@ -7,6 +7,7 @@ import { createDemoCli } from './commands/demo';
 import { createIdentityCli } from './commands/identity';
 import { createInsightsCli } from './commands/insights';
 import { createMppCli } from './commands/mpp';
+import { createNextActionCli } from './commands/next-action';
 import { createOnboardCli } from './commands/onboard';
 import { createPaymentMethodsCli } from './commands/payment-methods';
 import { createReportCli } from './commands/report';
@@ -77,7 +78,37 @@ const factory = new ResourceFactory({
 const authRepo = factory.createAuthResource();
 const spendRequestRepo = factory.createSpendRequestResource();
 
+// Global --verbose/--auth have already been consumed. Match command tokens,
+// never scenario/option values containing the command names.
+const startupArgs = process.argv.slice(2);
+let commandIndex = 0;
+while (commandIndex < startupArgs.length) {
+  const token = startupArgs[commandIndex] ?? '';
+  if (
+    ['--format', '--filter-output', '--token-limit', '--token-offset'].includes(
+      token,
+    )
+  )
+    commandIndex += 2;
+  else if (
+    [
+      '--json',
+      '--full-output',
+      '--token-count',
+      '--help',
+      '-h',
+      '--schema',
+    ].includes(token)
+  )
+    commandIndex += 1;
+  else break;
+}
+const isNextActionSimulation =
+  startupArgs[commandIndex] === 'next-action' &&
+  startupArgs[commandIndex + 1] === 'simulate';
+
 const cli = Cli.create('link-cli', {
+  ...(isNextActionSimulation ? { update: false as const } : {}),
   description:
     'Create a secure, one-time payment credential from a Link wallet to let agents complete purchases on behalf of users.',
   version: cliVersion,
@@ -97,13 +128,15 @@ const agentUpdateInfoProvider = createAgentUpdateInfoProvider(
 );
 let getUpdateInfo = agentUpdateInfoProvider;
 
-if (!isAgent && process.stdout.isTTY) {
+if (!isNextActionSimulation && !isAgent && process.stdout.isTTY) {
   const updateInfo = await agentUpdateInfoProvider({ polling: false });
   getUpdateInfo = createInteractiveUpdateInfoProvider(updateInfo);
   if (updateInfo) {
     process.stderr.write(renderInteractiveUpdateNotice(updateInfo));
   }
 }
+
+cli.command(createNextActionCli());
 
 cli.command(
   createIdentityCli({

@@ -5113,3 +5113,140 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     });
   });
 });
+
+describe('offline next-action simulation binary', () => {
+  const preload = new URL('./helpers/simulation-offline.mjs', import.meta.url)
+    .pathname;
+
+  async function simulate(args: string[], human = false) {
+    const home = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'link-simulation-home-'),
+    );
+    const authFile = path.join(home, 'credentials.json');
+    // Deliberately invalid: simulation must neither parse nor modify this file.
+    fs.writeFileSync(authFile, 'no session; must not be read');
+    const env = {
+      ...process.env,
+      ...EMPTY_AGENT_ENV,
+      HOME: home,
+      XDG_CONFIG_HOME: home,
+      XDG_CACHE_HOME: home,
+      LINK_AUTH_FILE: authFile,
+      LINK_ACCESS_TOKEN: '',
+      LINK_REFRESH_TOKEN: '',
+      LINK_SIMULATION_TEST_TTY: human ? '1' : '',
+      // Ensure disabling update checks comes from the command, not the environment.
+      NO_UPDATE_NOTIFIER: '',
+      CI: '',
+    };
+    try {
+      const result = await execFileAsync(
+        process.execPath,
+        ['--import', preload, CLI_PATH, ...args],
+        { env, timeout: CLI_TIMEOUT_MS },
+      );
+      expect(result.stderr).not.toContain('SIMULATION_FORBIDDEN');
+      expect(fs.readdirSync(home)).toEqual(['credentials.json']);
+      expect(fs.readFileSync(authFile, 'utf8')).toBe(
+        'no session; must not be read',
+      );
+      return result;
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  }
+
+  it.each([
+    'ssn_verification',
+    'partner_auth_challenge',
+    'visa_otp',
+    'reauthorize_additional_scope',
+    'no_next_action',
+  ])('runs %s without a session, egress, or state writes', async (scenario) => {
+    const result = await simulate([
+      'next-action',
+      'simulate',
+      '--scenario',
+      scenario,
+      '--format',
+      'json',
+    ]);
+    const payload = JSON.parse(result.stdout);
+    expect(payload).toHaveLength(1);
+    expect(payload[0]).toHaveProperty('next_action');
+    expect(result.stderr).toBe(
+      'Simulation only: no request or verification session was created; URLs are synthetic.\n',
+    );
+    if (scenario === 'visa_otp')
+      expect(payload[0].next_action.type).toBe('partner_auth_challenge');
+    if (scenario === 'reauthorize_additional_scope')
+      expect(payload[0].next_action).not.toHaveProperty('action_url');
+    if (scenario === 'no_next_action')
+      expect(payload[0].next_action).toBeNull();
+  });
+
+  it('renders true human startup with both update mechanisms disabled', async () => {
+    const result = await simulate(
+      ['next-action', 'simulate', '--scenario', 'ssn_verification'],
+      true,
+    );
+    expect(result.stdout).toContain(
+      'https://example.invalid/link-simulation/finish_setup?verify=ssn_collection&intended_email=agent%2Bsimulation%40example.invalid&fromEmail=agent%2Bsimulation%40example.invalid',
+    );
+    expect(result.stdout).toContain(
+      'create_new_spend_request_after_completion',
+    );
+  });
+
+  it('recognizes leading global flags and lists the shipped catalog offline', async () => {
+    const result = await simulate(
+      ['--json', 'next-action', 'simulate', '--list-scenarios'],
+      true,
+    );
+    expect(JSON.parse(result.stdout)).toHaveLength(34);
+    expect(result.stderr).toBe('');
+  });
+
+  it('documents the test command in help', async () => {
+    const result = await simulate(['next-action', 'simulate', '--help']);
+    expect(result.stdout).toContain('Testing only');
+    expect(result.stdout).toContain('--list-scenarios');
+  });
+
+  it('does not expose simulation in compiled MCP tool discovery', async () => {
+    const script = `
+      await import(${JSON.stringify(preload)});
+      const { default: cli } = await import(${JSON.stringify(CLI_PATH)});
+      for (const [method, params] of [['tools/list', {}], ['tools/call', {name: 'search_tools', arguments: {query: 'simulate'}}]]) {
+        const response = await cli.fetch(new Request('http://localhost/mcp', {method: 'POST', headers: {'Content-Type': 'application/json', Accept: 'application/json, text/event-stream'}, body: JSON.stringify({jsonrpc: '2.0', id: 1, method, params})}));
+        console.log(JSON.stringify(await response.json()));
+      }
+    `;
+    const result = await execFileAsync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        script,
+        '--',
+        'next-action',
+        'simulate',
+        '--help',
+      ],
+      { timeout: CLI_TIMEOUT_MS },
+    );
+    expect(result.stderr).not.toContain('SIMULATION_FORBIDDEN');
+    const responses = result.stdout
+      .split('\n')
+      .filter((line) => line.startsWith('{'))
+      .map((line) => JSON.parse(line));
+    expect(responses).toHaveLength(2);
+    expect(
+      responses[0].result.tools.some((tool: { name: string }) =>
+        /simulate/.test(tool.name),
+      ),
+    ).toBe(false);
+    const catalog = JSON.parse(responses[1].result.content[0].text);
+    expect(catalog.tools).toEqual([]);
+  });
+});

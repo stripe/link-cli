@@ -102,6 +102,35 @@ The plugin MCP config (`.mcp.json`, shared by `plugins/link/`) and the generated
 
 Input is passed via flags. Define options in the command's zod schema — incur registers CLI flags automatically from the schema.
 
+### next-action simulation (engineering evaluation only)
+
+`next-action simulate --scenario <id> --format json` and
+`next-action simulate --list-scenarios --format json` are local engineering
+fixtures in `packages/cli/src/commands/next-action/`. Exactly one selector is
+required. The 34 canonical scenarios cover 17 declared backend types and four
+resolutions; `visa_otp` aliases `partner_auth_challenge`. A selected fixture
+returns exactly one `{next_action: actionOrNull}` item using Incur formatting,
+with `outputPolicy: 'all'`, `mcp: false`, and a stderr simulation warning.
+URL fixtures preserve verified route suffixes and query names under the
+synthetic `example.invalid/link-simulation` namespace, including encoded fake
+email fields and `lsrq_simulation`. Challenge/enrollment deliberately share a URL.
+No auth/resource dependencies, requests, OTP sending, link opening, network,
+or persisted state are permitted. Skip both startup update mechanisms for the
+actual simulation command tokens, leaving other commands unchanged.
+
+The CLI-local schema permits null/unknown control types and optional/null URL
+and expiry fields without expanding the real SDK union. Null/absent URLs still
+require presenting the message and resolution; scope reauthorization omits URL
+and expiry and originates in an error envelope, not necessarily retrieve.
+Documented partner retry compatibility has no verified active constructor.
+Keep provenance in catalog descriptors, never in `next_action`.
+
+Before merge, independently recheck backend type/resolution enums, producers,
+and serializer semantics; update the pinned inventory, independently maintained
+coverage tests, catalog counts and [engineering evaluation guide](packages/cli/src/commands/next-action/SIMULATION.md)
+together. This engineering-only feature is intentionally excluded from README
+and the payment skill. Real create/retrieve/auth flows remain unchanged.
+
 ### auth login
 
 - `auth login --client-name <name>` — optional flag to identify the agent or app; shown in the user's Link app as `<name> on <hostname>`. Defined in `loginOptions` in `packages/cli/src/commands/auth/schema.ts`.
