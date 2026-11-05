@@ -17,7 +17,7 @@
     "@stripe/link-integrations-eve": "workspace:*",
     "ai": "^7.0.137",
     "better-auth": "1.7.16",
-    "eve": "0.79.0",
+    "eve": "1.0.0-rc.5",
     "zod": "4.6.5"
   },
   "devDependencies": {
