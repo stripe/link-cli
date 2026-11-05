@@ -14,13 +14,7 @@ import type {
   SearchUcpCatalogParams,
   UpdateUcpCheckoutParams,
 } from '@/resources/interfaces';
-import { SpendRequestResource } from '@/resources/spend-request';
-import type {
-  UcpCheckout,
-  UcpCheckoutWithSpendRequest,
-  UcpProduct,
-  UcpSearchResult,
-} from '@/types/index';
+import type { UcpCheckout, UcpProduct, UcpSearchResult } from '@/types/index';
 
 interface ApiFetchOptions {
   method: string;
@@ -49,7 +43,9 @@ function normalizeSearchResult(data: unknown): UcpSearchResult {
 }
 
 function normalizeCheckout(data: unknown): UcpCheckout {
-  const body = (data ?? {}) as Record<string, unknown>;
+  const body = { ...((data ?? {}) as Record<string, unknown>) };
+  // Payment details belong to the spend-request resource, not checkout output.
+  delete body.spend_request;
   return { ...body, id: String(body.id ?? '') } as UcpCheckout;
 }
 
@@ -64,7 +60,6 @@ export class UcpResource implements IUcpResource {
   private readonly fetchImpl: typeof globalThis.fetch;
   private readonly ucpEndpoint: string;
   private readonly logger: { debug(message: string): void };
-  private readonly spendRequests: SpendRequestResource;
 
   constructor(options: LinkOptions) {
     const config = resolveLinkSdkConfig(options);
@@ -73,7 +68,6 @@ export class UcpResource implements IUcpResource {
     this.fetchImpl = requireFetchImplementation(config);
     this.ucpEndpoint = `${config.apiBaseUrl}/ucp`;
     this.logger = config.logger;
-    this.spendRequests = new SpendRequestResource(options);
   }
 
   private async rawFetch(
@@ -304,14 +298,6 @@ export class UcpResource implements IUcpResource {
 
   async retrieveCheckout(
     id: string,
-    params: RetrieveUcpCheckoutParams & { spend_request_id: string },
-  ): Promise<UcpCheckoutWithSpendRequest>;
-  async retrieveCheckout(
-    id: string,
-    params: RetrieveUcpCheckoutParams,
-  ): Promise<UcpCheckout>;
-  async retrieveCheckout(
-    id: string,
     params: RetrieveUcpCheckoutParams,
   ): Promise<UcpCheckout> {
     const url = new URL(
@@ -331,17 +317,6 @@ export class UcpResource implements IUcpResource {
       );
     }
 
-    const checkout = normalizeCheckout(data);
-    if (params.spend_request_id === undefined) return checkout;
-
-    const spendRequest = await this.spendRequests.retrieve(
-      params.spend_request_id,
-    );
-    if (!spendRequest) {
-      throw new LinkApiError('Associated spend request not found', {
-        status: 404,
-      });
-    }
-    return { ...checkout, spend_request: spendRequest };
+    return normalizeCheckout(data);
   }
 }

@@ -314,58 +314,28 @@ describe('UcpResource', () => {
       expect(result).toEqual(checkout);
     });
 
-    it('attaches separately retrieved payment state using the configured spend endpoint', async () => {
-      repo = new UcpResource({
-        getAccessToken,
-        spendRequestBaseUrl: 'https://spend.example.com',
-      });
-      const spendRequest = {
-        id: 'lsrq_1',
-        status: 'requires_action',
-        created_at: '2026-01-01T00:00:00Z',
-        updated_at: '2026-01-01T00:00:01Z',
-        status_details: {
-          requires_action: { next_action: { resolution: 'auto_resume' } },
+    it('omits a spend request supplied in the checkout response and performs only the checkout request', async () => {
+      mockFetchResponse(200, {
+        id: 'checkout_1',
+        status: 'completed',
+        messages: [{ content: 'Review order' }],
+        spend_request: {
+          id: 'lsrq_1',
+          status: 'succeeded',
+          card: { number: 'sensitive-card' },
+          shared_payment_token: { id: 'sensitive-token' },
         },
-      };
-      mockFetch.mockImplementation(
-        async (url: string) =>
-          new Response(
-            JSON.stringify(
-              url.includes('/spend_requests/')
-                ? spendRequest
-                : { id: 'checkout_1', status: 'completed' },
-            ),
-            { status: 200 },
-          ),
-      );
+      });
       const result = await repo.retrieveCheckout('checkout_1', {
         business: 'np_1',
-        spend_request_id: 'lsrq_1',
       });
-      expect(mockFetch).toHaveBeenCalledTimes(2);
-      expect(mockFetch.mock.calls[0]![0]).toBe(
-        'https://api.link.com/ucp/checkout/checkout_1?business=np_1',
-      );
-      expect(mockFetch.mock.calls[1]![0]).toBe(
-        'https://spend.example.com/spend_requests/lsrq_1',
-      );
-      expect(result.spend_request).toEqual(spendRequest);
-    });
-
-    it('fails when the associated spend request is missing', async () => {
-      mockFetch.mockImplementation(
-        async (url: string) =>
-          new Response(JSON.stringify({ id: 'checkout_1' }), {
-            status: url.includes('/spend_requests/') ? 404 : 200,
-          }),
-      );
-      await expect(
-        repo.retrieveCheckout('checkout_1', {
-          business: 'np_1',
-          spend_request_id: 'missing',
-        }),
-      ).rejects.toThrow('Associated spend request not found');
+      expect(mockFetch).toHaveBeenCalledOnce();
+      expect(result).toEqual({
+        id: 'checkout_1',
+        status: 'completed',
+        messages: [{ content: 'Review order' }],
+      });
+      expect(result).not.toHaveProperty('spend_request');
     });
 
     it.each([400, 429, 502])(

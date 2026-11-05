@@ -1,5 +1,6 @@
 import type {
   CreateUcpCheckoutParams,
+  ISpendRequestResource,
   IUcpResource,
   SearchUcpCatalogParams,
   UcpCheckout,
@@ -27,7 +28,10 @@ import {
   CheckoutRetrieve,
   type CheckoutRetrieveResult,
 } from './checkout-retrieve';
-import { runUcpCheckoutRetrieve } from './checkout-state';
+import {
+  DEFAULT_UCP_POLL_TIMEOUT_SECONDS,
+  pollUcpCheckout,
+} from './checkout-state';
 import {
   catalogSearchOptions,
   checkoutCancelOptions,
@@ -41,7 +45,13 @@ export function createUcpCli(
   repositoryFactory: () => IUcpResource,
   authStorage?: CliAuthStorage,
   envAccessToken?: string,
+  spendRequestRepositoryFactory?: () => Pick<ISpendRequestResource, 'retrieve'>,
 ) {
+  const paymentRepository = () => {
+    if (!spendRequestRepositoryFactory)
+      throw new Error('Payment polling resource is required');
+    return spendRequestRepositoryFactory();
+  };
   const catalog = Cli.create('catalog', {
     description: 'Search the UCP product catalog',
   });
@@ -252,6 +262,7 @@ export function createUcpCli(
         return renderInteractive(
           <CheckoutComplete
             repository={repository}
+            spendRequests={paymentRepository()}
             id={id}
             params={params}
             onComplete={(result) => {
@@ -317,7 +328,7 @@ export function createUcpCli(
 
   checkout.command('retrieve', {
     description:
-      'Retrieve a UCP checkout by ID and business. Add --spend-request-id to include payment state, or --poll to wait for a payment outcome.',
+      'Retrieve a UCP checkout by ID and business. Add --poll and --spend-request-id to wait for a payment outcome. Spend-request details are not included.',
     args: z.object({
       id: z
         .string()
@@ -348,6 +359,7 @@ export function createUcpCli(
             id={id}
             business={c.options.business}
             spendRequestId={c.options.spendRequestId}
+            spendRequests={c.options.poll ? paymentRepository() : undefined}
             poll={c.options.poll}
             timeout={c.options.timeout}
             onComplete={(result) => {
@@ -360,16 +372,18 @@ export function createUcpCli(
           },
         );
       }
-      if (!c.options.spendRequestId) {
+      if (!c.options.poll) {
         return repository.retrieveCheckout(id, {
           business: c.options.business,
         });
       }
-      return runUcpCheckoutRetrieve(repository, id, {
+      if (!c.options.spendRequestId)
+        throw new Error('--poll requires --spend-request-id');
+      return pollUcpCheckout(repository, id, {
         business: c.options.business,
         spendRequestId: c.options.spendRequestId,
-        poll: c.options.poll,
-        timeout: c.options.timeout,
+        spendRequests: paymentRepository(),
+        timeout: c.options.timeout ?? DEFAULT_UCP_POLL_TIMEOUT_SECONDS,
       });
     },
   });

@@ -114,7 +114,12 @@ async function run(args: string[]) {
   };
   let output = '';
   const exit = vi.fn();
-  await createUcpCli(() => repository, undefined, 'test-token').serve(args, {
+  await createUcpCli(
+    () => repository,
+    undefined,
+    'test-token',
+    () => ({ retrieve: vi.fn() }),
+  ).serve(args, {
     stdout: (chunk) => {
       output += chunk;
     },

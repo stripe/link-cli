@@ -1,26 +1,30 @@
 import type {
+  ISpendRequestResource,
   IUcpResource,
-  UcpCheckoutWithSpendRequest,
+  SpendRequest,
+  UcpCheckout,
 } from '@stripe/link-sdk';
 import { describe, expect, it, vi } from 'vitest';
 import { createUcpCli } from '..';
 
-const checkout: UcpCheckoutWithSpendRequest = {
+const checkout: UcpCheckout = {
   id: 'dcs_1',
-  status: 'complete_in_progress',
-  spend_request: {
-    id: 'lsrq_1',
-    status: 'requires_action',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:01Z',
-    status_details: {
-      requires_action: {
-        next_action: {
-          type: 'three_d_secure',
-          resolution: 'auto_resume',
-          display_message: 'Complete verification',
-          action_url: 'https://example.com/action',
-        },
+  status: 'completed',
+  messages: [{ content: 'Review order' }],
+};
+const spendRequest: SpendRequest = {
+  id: 'lsrq_1',
+  status: 'requires_action',
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:01Z',
+  shared_payment_token: { id: 'sensitive-token' },
+  status_details: {
+    requires_action: {
+      next_action: {
+        type: 'three_d_secure',
+        resolution: 'auto_resume',
+        display_message: 'Private action message',
+        action_url: 'https://example.com/private-action',
       },
     },
   },
@@ -30,6 +34,9 @@ async function retrieve(
   retrieveCheckout: IUcpResource['retrieveCheckout'],
   tty: boolean,
   flags: string[] = [],
+  spendRequests: Pick<ISpendRequestResource, 'retrieve'> = {
+    retrieve: vi.fn(async () => spendRequest),
+  },
 ) {
   const originalTty = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY');
   Object.defineProperty(process.stdout, 'isTTY', {
@@ -45,7 +52,12 @@ async function retrieve(
       updateCheckout: vi.fn(),
       retrieveCheckout,
     };
-    const cli = createUcpCli(() => repository, undefined, 'test-access-token');
+    const cli = createUcpCli(
+      () => repository,
+      undefined,
+      'test-access-token',
+      () => spendRequests,
+    );
     let output = '';
     const exit = vi.fn();
     await cli.serve(
@@ -69,69 +81,78 @@ async function retrieve(
     expect(exit.mock.calls.every(([code]) => code === 0)).toBe(true);
     return output;
   } finally {
-    if (originalTty) {
+    if (originalTty)
       Object.defineProperty(process.stdout, 'isTTY', originalTty);
-    } else {
-      Reflect.deleteProperty(process.stdout, 'isTTY');
-    }
+    else Reflect.deleteProperty(process.stdout, 'isTTY');
   }
+}
+function expectNoPaymentDetails(output: string) {
+  expect(output).not.toMatch(
+    /spend_request|lsrq_1|sensitive-token|Private action|private-action|three_d_secure|auto_resume|status_details/,
+  );
 }
 
 describe('ucp checkout retrieve output', () => {
-  it('prints checkout, spend request, and action details when piped', async () => {
+  it('prints checkout only when piped, without fetching payment', async () => {
     const retrieveCheckout = vi.fn(async () => checkout);
-    const output = await retrieve(retrieveCheckout, false);
-
+    const spendRequests = { retrieve: vi.fn(async () => spendRequest) };
+    const output = await retrieve(retrieveCheckout, false, [], spendRequests);
     expect(retrieveCheckout).toHaveBeenCalledExactlyOnceWith('dcs_1', {
       business: 'np_1',
-      spend_request_id: 'lsrq_1',
     });
-    for (const value of [
-      'dcs_1',
-      'lsrq_1',
-      'requires_action',
-      'three_d_secure',
-      'auto_resume',
-      'Complete verification',
-      'https://example.com/action',
-    ]) {
-      expect(output).toContain(value);
-    }
+    expect(spendRequests.retrieve).not.toHaveBeenCalled();
+    expect(output).toContain('dcs_1');
+    expectNoPaymentDetails(output);
   });
-
   it.each([true, false])(
-    'preserves the full JSON response (TTY: %s)',
+    'returns only checkout JSON (TTY: %s)',
     async (tty) => {
       const output = await retrieve(
         vi.fn(async () => checkout),
         tty,
         ['--format', 'json'],
       );
-
       expect(JSON.parse(output)).toEqual(checkout);
+      expectNoPaymentDetails(output);
     },
   );
-
-  it('preserves structured polling updates when piped', async () => {
-    const retrieveCheckout = vi
-      .fn<IUcpResource['retrieveCheckout']>()
-      .mockResolvedValueOnce({
-        id: 'dcs_1',
-        status: 'complete_in_progress',
-        spend_request: { ...checkout.spend_request, status: 'approved' },
-      })
-      .mockResolvedValueOnce({
-        id: 'dcs_1',
-        status: 'completed',
-        spend_request: { ...checkout.spend_request, status: 'succeeded' },
-      });
-    const output = await retrieve(retrieveCheckout, false, ['--poll']);
-
-    expect(retrieveCheckout).toHaveBeenCalledTimes(2);
-    expect(output).toContain('outcome: pending');
-    expect(output).toContain('outcome: success');
-    expect(output).toContain('checkout_completed_and_spend_request_succeeded');
-    expect(output).toContain('dcs_1');
-    expect(output).toContain('lsrq_1');
+  it.each([{ format: [] }, { format: ['--format', 'json'] }])(
+    'returns polling updates without spend-request fields (%j)',
+    async ({ format }) => {
+      const retrieveCheckout = vi.fn(async () => checkout);
+      const spendRequests = {
+        retrieve: vi
+          .fn()
+          .mockResolvedValueOnce({ ...spendRequest, status: 'approved' })
+          .mockResolvedValueOnce({ ...spendRequest, status: 'succeeded' }),
+      };
+      const output = await retrieve(
+        retrieveCheckout,
+        false,
+        ['--poll', ...format],
+        spendRequests,
+      );
+      expect(retrieveCheckout).toHaveBeenCalledTimes(2);
+      expect(spendRequests.retrieve).toHaveBeenCalledTimes(2);
+      expect(output).toContain('pending');
+      expect(output).toContain('success');
+      expect(output).toContain('dcs_1');
+      expectNoPaymentDetails(output);
+    },
+  );
+  it('stops at a payment action and returns a generic outcome with checkout only', async () => {
+    const output = await retrieve(
+      vi.fn(async () => checkout),
+      false,
+      ['--poll', '--format', 'json'],
+    );
+    expect(JSON.parse(output)).toEqual([
+      {
+        outcome: 'action_required',
+        reason: 'payment_action_required',
+        checkout,
+      },
+    ]);
+    expectNoPaymentDetails(output);
   });
 });

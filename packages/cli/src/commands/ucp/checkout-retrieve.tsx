@@ -1,4 +1,8 @@
-import type { IUcpResource, SpendRequest, UcpCheckout } from '@stripe/link-sdk';
+import type {
+  ISpendRequestResource,
+  IUcpResource,
+  UcpCheckout,
+} from '@stripe/link-sdk';
 import { Box, Text, useApp } from 'ink';
 import Spinner from 'ink-spinner';
 import { useEffect, useState } from 'react';
@@ -17,6 +21,7 @@ interface CheckoutRetrieveProps {
   id: string;
   business: string;
   spendRequestId?: string;
+  spendRequests?: Pick<ISpendRequestResource, 'retrieve'>;
   poll: boolean;
   timeout?: number;
   onComplete: (result: CheckoutRetrieveResult | null) => void;
@@ -40,6 +45,7 @@ export function CheckoutRetrieve({
   id,
   business,
   spendRequestId,
+  spendRequests,
   poll,
   timeout = DEFAULT_UCP_POLL_TIMEOUT_SECONDS,
   onComplete,
@@ -49,7 +55,6 @@ export function CheckoutRetrieve({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [checkout, setCheckout] = useState<UcpCheckout | null>(null);
-  const [spendRequest, setSpendRequest] = useState<SpendRequest | null>(null);
   const [state, setState] = useState<UcpCheckoutWaitResult | null>(null);
 
   useEffect(() => {
@@ -67,33 +72,24 @@ export function CheckoutRetrieve({
         if (poll) {
           if (!spendRequestId)
             throw new Error('--poll requires --spend-request-id');
+          if (!spendRequests)
+            throw new Error('Payment polling resource is required');
           for await (const current of pollUcpCheckout(repository, id, {
             business,
             spendRequestId,
+            spendRequests,
             timeout,
             ...(pollInterval !== undefined ? { interval: pollInterval } : {}),
           })) {
             if (cancelled) return;
             setCheckout(current.checkout);
-            setSpendRequest(current.spend_request);
             setState(current);
             setLoading(false);
             if (current.outcome !== 'pending') finish(current);
           }
         } else {
-          let result: UcpCheckout;
-          if (spendRequestId) {
-            const composite = await repository.retrieveCheckout(id, {
-              business,
-              spend_request_id: spendRequestId,
-            });
-            if (cancelled) return;
-            result = composite;
-            setSpendRequest(composite.spend_request);
-          } else {
-            result = await repository.retrieveCheckout(id, { business });
-            if (cancelled) return;
-          }
+          const result = await repository.retrieveCheckout(id, { business });
+          if (cancelled) return;
           setCheckout(result);
           setLoading(false);
           finish(result);
@@ -116,6 +112,7 @@ export function CheckoutRetrieve({
     id,
     business,
     spendRequestId,
+    spendRequests,
     poll,
     timeout,
     pollInterval,
@@ -134,7 +131,6 @@ export function CheckoutRetrieve({
 
   const outcome = state ? outcomes[state.outcome] : undefined;
   const pending = loading || state?.outcome === 'pending';
-  const nextAction = spendRequest?.status_details?.requires_action?.next_action;
 
   return (
     <Box flexDirection="column">
@@ -145,40 +141,6 @@ export function CheckoutRetrieve({
           : (outcome?.text ?? '✓ Checkout retrieved')}
       </Text>
       {checkout && <CheckoutSummary checkout={checkout} />}
-      {spendRequest && (
-        <Box flexDirection="column" marginTop={1} paddingX={2}>
-          <Text>
-            Spend request: <Text bold>{spendRequest.id}</Text>
-          </Text>
-          <Text>
-            Payment status: <Text bold>{spendRequest.status}</Text>
-          </Text>
-          {spendRequest.status === 'requires_action' && (
-            <>
-              <Text color="yellow">⚠ Payment action required</Text>
-              {nextAction ? (
-                <>
-                  <Text>Type: {nextAction.type}</Text>
-                  <Text>Resolution: {nextAction.resolution}</Text>
-                  <Text>{nextAction.display_message}</Text>
-                  {nextAction.action_url && (
-                    <Text>URL: {nextAction.action_url}</Text>
-                  )}
-                  <Text dimColor>
-                    {nextAction.resolution === 'auto_resume'
-                      ? 'Complete this action, then retrieve this checkout with --poll.'
-                      : 'Complete this action and follow its recovery instructions.'}
-                  </Text>
-                </>
-              ) : (
-                <Text color="red">
-                  No payment action details were returned.
-                </Text>
-              )}
-            </>
-          )}
-        </Box>
-      )}
       {state?.reason && state.outcome !== 'pending' && (
         <Text dimColor>Reason: {state.reason}</Text>
       )}

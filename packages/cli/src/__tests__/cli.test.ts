@@ -5311,37 +5311,15 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         expect(parseJson(result.stdout)).toEqual(checkout);
       });
 
-      it('GETs the composite state once and preserves nested next_action output', async () => {
+      it('returns checkout only without retrieving or surfacing payment details', async () => {
+        const checkout = { id: 'dcs_1', status: 'complete_in_progress' };
         setNextResponse(200, {
-          id: 'dcs_1',
-          status: 'complete_in_progress',
+          ...checkout,
           spend_request: {
             id: 'lsrq_1',
-            status: 'requires_action',
-            created_at: '2026-03-10T00:00:00Z',
-            updated_at: '2026-03-10T00:00:01Z',
-            status_details: {
-              requires_action: {
-                next_action: {
-                  type: 'three_d_secure',
-                  resolution: 'auto_resume',
-                  display_message: 'Complete verification',
-                  action_url: 'https://example.com/action',
-                },
-              },
-            },
+            shared_payment_token: { id: 'sensitive-token' },
           },
         });
-
-        const { spend_request, ...checkout } = nextResponse.body as Record<
-          string,
-          unknown
-        >;
-        nextResponse.body = checkout;
-        responsesByUrl['/spend_requests/lsrq_1'] = {
-          status: 200,
-          body: spend_request,
-        };
         const result = await runProdCli(
           'ucp',
           'checkout',
@@ -5353,40 +5331,63 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
           'np_1',
           '--json',
         );
-
         expect(result.exitCode).toBe(0);
-        expect(requests).toHaveLength(2);
-        const checkoutRequest = requests[0];
-        expect(checkoutRequest?.method).toBe('GET');
-        expect(checkoutRequest?.body).toBe('');
-        const requestUrl = new URL(
-          checkoutRequest?.url ?? '',
-          'http://localhost',
+        expect(requests).toHaveLength(1);
+        expect(lastRequest.method).toBe('GET');
+        expect(lastRequest.url).toBe('/ucp/checkout/dcs_1?business=np_1');
+        expect(parseJson(result.stdout)).toEqual(checkout);
+        expect(result.stdout).not.toMatch(
+          /spend_request|lsrq_1|sensitive-token/,
         );
-        expect(requestUrl.pathname).toBe('/ucp/checkout/dcs_1');
-        expect([...requestUrl.searchParams]).toEqual([['business', 'np_1']]);
-        expect(
-          requests.some((request) => request.url === '/spend_requests/lsrq_1'),
-        ).toBe(true);
+      });
 
-        const output = parseJson(result.stdout) as Record<string, unknown>;
-        expect(output).toMatchObject({
-          id: 'dcs_1',
-          status: 'complete_in_progress',
-          spend_request: {
+      it('polls payment internally and returns no spend-request or action details', async () => {
+        const checkout = { id: 'dcs_1', status: 'completed' };
+        setNextResponse(200, checkout);
+        responsesByUrl['/spend_requests/lsrq_1'] = {
+          status: 200,
+          body: {
             id: 'lsrq_1',
+            status: 'requires_action',
+            created_at: '2026-03-10T00:00:00Z',
+            updated_at: '2026-03-10T00:00:01Z',
+            shared_payment_token: { id: 'sensitive-token' },
             status_details: {
               requires_action: {
                 next_action: {
                   type: 'three_d_secure',
                   resolution: 'auto_resume',
-                  display_message: 'Complete verification',
-                  action_url: 'https://example.com/action',
+                  display_message: 'Private action message',
+                  action_url: 'https://example.com/private-action',
                 },
               },
             },
           },
-        });
+        };
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'retrieve',
+          'dcs_1',
+          '--spend-request-id',
+          'lsrq_1',
+          '--business',
+          'np_1',
+          '--poll',
+          '--json',
+        );
+        expect(result.exitCode).toBe(0);
+        expect(requests).toHaveLength(2);
+        expect(parseJson(result.stdout)).toEqual([
+          {
+            outcome: 'action_required',
+            reason: 'payment_action_required',
+            checkout,
+          },
+        ]);
+        expect(result.stdout).not.toMatch(
+          /spend_request|lsrq_1|sensitive-token|Private action|private-action|three_d_secure|auto_resume/,
+        );
       });
 
       it.each([

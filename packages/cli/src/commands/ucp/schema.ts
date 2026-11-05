@@ -157,12 +157,14 @@ export const checkoutRetrieveOptions = z
       .nonempty()
       .optional()
       .describe(
-        'Include payment state from this spend request; required for --poll',
+        'Spend request to check internally when polling; required for --poll',
       ),
     poll: z
       .boolean()
       .default(false)
-      .describe('Poll until the composite checkout reaches an outcome'),
+      .describe(
+        'Poll checkout and payment until an outcome; returns no spend-request details',
+      ),
     timeout: z.coerce
       .number()
       .nonnegative()

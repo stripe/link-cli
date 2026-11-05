@@ -1,20 +1,16 @@
 import type {
+  ISpendRequestResource,
   IUcpResource,
-  NextAction,
   SpendRequest,
   UcpCheckout,
-  UcpCheckoutWithSpendRequest,
 } from '@stripe/link-sdk';
 import { pollUntil } from '../../utils/poll-until';
 
 export type UcpCheckoutWaitReason =
-  | 'checkout_completed_and_spend_request_succeeded'
-  | 'spend_request_requires_action'
+  | 'payment_succeeded'
+  | 'payment_action_required'
   | 'checkout_canceled'
-  | 'spend_request_expired'
-  | 'spend_request_denied'
-  | 'spend_request_failed'
-  | 'spend_request_canceled'
+  | 'payment_failed'
   | 'timeout';
 
 export interface UcpCheckoutWaitResult {
@@ -26,76 +22,47 @@ export interface UcpCheckoutWaitResult {
     | 'timed_out';
   reason?: UcpCheckoutWaitReason;
   checkout: UcpCheckout | null;
-  spend_request: SpendRequest | null;
-  resolution?: string;
-  next_action?: NextAction;
 }
 
-function splitComposite(
-  composite?: UcpCheckoutWithSpendRequest,
-): Pick<UcpCheckoutWaitResult, 'checkout' | 'spend_request'> {
-  if (!composite) return { checkout: null, spend_request: null };
-  const { spend_request, ...checkout } = composite;
-  return { checkout, spend_request };
-}
-
+/** Payment state is used for classification only and never attached to output. */
 export function classifyUcpCheckout(
-  composite: UcpCheckoutWithSpendRequest,
+  checkout: UcpCheckout,
+  paymentStatus: SpendRequest['status'],
 ): UcpCheckoutWaitResult {
-  const state = splitComposite(composite);
-  const spendRequest = composite.spend_request;
-
-  if (composite.status === 'canceled') {
+  if (checkout.status === 'canceled') {
     return {
       outcome: 'terminal_failure',
       reason: 'checkout_canceled',
-      ...state,
+      checkout,
     };
   }
 
-  const spendFailureReasons: Partial<
-    Record<SpendRequest['status'], UcpCheckoutWaitReason>
-  > = {
-    expired: 'spend_request_expired',
-    denied: 'spend_request_denied',
-    failed: 'spend_request_failed',
-    canceled: 'spend_request_canceled',
-  };
-  const failureReason = spendFailureReasons[spendRequest.status];
-  if (failureReason) {
-    return { outcome: 'terminal_failure', reason: failureReason, ...state };
+  if (['expired', 'denied', 'failed', 'canceled'].includes(paymentStatus)) {
+    return { outcome: 'terminal_failure', reason: 'payment_failed', checkout };
   }
 
-  if (spendRequest.status === 'requires_action') {
-    const nextAction =
-      spendRequest.status_details?.requires_action?.next_action;
+  if (paymentStatus === 'requires_action') {
     return {
       outcome: 'action_required',
-      reason: 'spend_request_requires_action',
-      resolution: nextAction?.resolution ?? 'unknown',
-      ...(nextAction ? { next_action: nextAction } : {}),
-      ...state,
+      reason: 'payment_action_required',
+      checkout,
     };
   }
 
-  if (composite.status === 'completed' && spendRequest.status === 'succeeded') {
-    return {
-      outcome: 'success',
-      reason: 'checkout_completed_and_spend_request_succeeded',
-      ...state,
-    };
+  if (checkout.status === 'completed' && paymentStatus === 'succeeded') {
+    return { outcome: 'success', reason: 'payment_succeeded', checkout };
   }
 
-  return { outcome: 'pending', ...state };
+  return { outcome: 'pending', checkout };
 }
 
 export function timedOutUcpCheckout(
-  composite?: UcpCheckoutWithSpendRequest,
+  checkout?: UcpCheckout,
 ): UcpCheckoutWaitResult {
   return {
     outcome: 'timed_out',
     reason: 'timeout',
-    ...splitComposite(composite),
+    checkout: checkout ?? null,
   };
 }
 
@@ -105,46 +72,10 @@ export const DEFAULT_UCP_POLL_TIMEOUT_SECONDS = 600;
 export interface PollUcpCheckoutOptions {
   business: string;
   spendRequestId: string;
+  spendRequests: Pick<ISpendRequestResource, 'retrieve'>;
   /** Internal test override; the CLI always uses UCP_POLL_INTERVAL_SECONDS. */
   interval?: number;
   timeout: number;
-  /** Keep polling while an action can resume the same spend request. */
-  continueAutoResume?: boolean;
-}
-
-export interface RunUcpCheckoutRetrieveOptions
-  extends Omit<PollUcpCheckoutOptions, 'timeout'> {
-  poll: boolean;
-  timeout?: number;
-}
-
-function retrieveUcpCheckoutState(
-  repository: IUcpResource,
-  id: string,
-  options: Pick<PollUcpCheckoutOptions, 'spendRequestId' | 'business'>,
-): Promise<UcpCheckoutWithSpendRequest> {
-  return repository.retrieveCheckout(id, {
-    spend_request_id: options.spendRequestId,
-    business: options.business,
-  });
-}
-
-export function runUcpCheckoutRetrieve(
-  repository: IUcpResource,
-  id: string,
-  options: RunUcpCheckoutRetrieveOptions,
-):
-  | Promise<UcpCheckoutWithSpendRequest>
-  | AsyncGenerator<UcpCheckoutWaitResult> {
-  if (!options.poll) {
-    return retrieveUcpCheckoutState(repository, id, options);
-  }
-
-  return pollUcpCheckout(repository, id, {
-    spendRequestId: options.spendRequestId,
-    business: options.business,
-    timeout: options.timeout ?? DEFAULT_UCP_POLL_TIMEOUT_SECONDS,
-  });
 }
 
 export async function* pollUcpCheckout(
@@ -153,26 +84,27 @@ export async function* pollUcpCheckout(
   options: PollUcpCheckoutOptions,
 ): AsyncGenerator<UcpCheckoutWaitResult> {
   for await (const result of pollUntil({
-    fn: () => retrieveUcpCheckoutState(repository, id, options),
-    isTerminal: (composite) => {
-      const classified = classifyUcpCheckout(composite);
-      if (classified.outcome === 'pending') return false;
-      return !(
-        options.continueAutoResume &&
-        classified.outcome === 'action_required' &&
-        classified.resolution === 'auto_resume'
+    fn: async () => {
+      const checkout = await repository.retrieveCheckout(id, {
+        business: options.business,
+      });
+      const spendRequest = await options.spendRequests.retrieve(
+        options.spendRequestId,
       );
+      if (!spendRequest) throw new Error('Unable to verify checkout payment');
+      return classifyUcpCheckout(checkout, spendRequest.status);
     },
+    isTerminal: (state) => state.outcome !== 'pending',
     interval: options.interval ?? UCP_POLL_INTERVAL_SECONDS,
     timeout: options.timeout,
     maxAttempts: 0,
   })) {
     if (result.reason) {
-      yield timedOutUcpCheckout(result.value);
+      yield timedOutUcpCheckout(result.value.checkout ?? undefined);
       return;
     }
 
-    yield classifyUcpCheckout(result.value);
+    yield result.value;
     if (result.terminal) return;
   }
 }

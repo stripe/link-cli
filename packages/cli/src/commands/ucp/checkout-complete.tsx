@@ -1,7 +1,7 @@
 import type {
   CompleteUcpCheckoutParams,
+  ISpendRequestResource,
   IUcpResource,
-  NextAction,
   UcpCheckout,
 } from '@stripe/link-sdk';
 import { Box, Text, useApp } from 'ink';
@@ -13,12 +13,12 @@ import {
   DEFAULT_UCP_POLL_TIMEOUT_SECONDS,
   pollUcpCheckout,
   UCP_POLL_INTERVAL_SECONDS,
-  type UcpCheckoutWaitReason,
 } from './checkout-state';
 import { CheckoutSummary } from './checkout-summary';
 
 interface CheckoutCompleteProps {
   repository: IUcpResource;
+  spendRequests: Pick<ISpendRequestResource, 'retrieve'>;
   id: string;
   params: CompleteUcpCheckoutParams;
   onComplete: (result: UcpCheckout | null) => void;
@@ -32,7 +32,6 @@ type Phase =
   | 'completing'
   | 'checking'
   | 'polling'
-  | 'awaiting_action'
   | 'action_required'
   | 'success'
   | 'terminal_failure'
@@ -41,6 +40,7 @@ type Phase =
 
 export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
   repository,
+  spendRequests,
   id,
   params,
   onComplete,
@@ -50,8 +50,6 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
   const { exit } = useApp();
   const [phase, setPhase] = useState<Phase>('completing');
   const [checkout, setCheckout] = useState<UcpCheckout | null>(null);
-  const [nextAction, setNextAction] = useState<NextAction | undefined>();
-  const [failureReason, setFailureReason] = useState<UcpCheckoutWaitReason>();
   const [error, setError] = useState('');
   const completionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -85,23 +83,17 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
           business: params.business,
           interval: pollInterval,
           timeout: pollTimeout,
-          continueAutoResume: true,
+          spendRequests,
         })) {
           if (cancelled) return;
 
           setCheckout(state.checkout);
-          setNextAction(state.next_action);
-          setFailureReason(state.reason);
 
           if (state.outcome === 'pending') {
             setPhase('polling');
           } else if (state.outcome === 'action_required') {
-            if (state.resolution === 'auto_resume' && state.next_action) {
-              setPhase('awaiting_action');
-            } else {
-              setPhase('action_required');
-              finish(state.checkout);
-            }
+            setPhase('action_required');
+            finish(state.checkout);
           } else if (state.outcome === 'success') {
             setPhase('success');
             finish(state.checkout);
@@ -126,7 +118,15 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
       cancelled = true;
       if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
     };
-  }, [repository, id, params, pollInterval, pollTimeout, wrappedOnComplete]);
+  }, [
+    repository,
+    spendRequests,
+    id,
+    params,
+    pollInterval,
+    pollTimeout,
+    wrappedOnComplete,
+  ]);
 
   if (phase === 'completing') {
     return (
@@ -149,52 +149,14 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
     );
   }
 
-  if (phase === 'awaiting_action') {
-    return (
-      <Box flexDirection="column">
-        <Text color="cyan">
-          <Spinner type="dots" /> Waiting for 3D Secure verification to
-          complete...
-        </Text>
-        <Box flexDirection="column" marginTop={1} paddingX={2}>
-          <Text>{nextAction?.display_message}</Text>
-          {nextAction?.action_url && (
-            <Text>
-              URL: <Text color="cyan">{nextAction.action_url}</Text>
-            </Text>
-          )}
-        </Box>
-      </Box>
-    );
-  }
-
   if (phase === 'action_required') {
     return (
       <Box flexDirection="column">
         <Text color="yellow">⚠ Payment action required</Text>
-        <Box flexDirection="column" marginTop={1} paddingX={2}>
-          {nextAction ? (
-            <>
-              <Text>
-                Type: <Text bold>{nextAction.type}</Text>
-              </Text>
-              <Text>{nextAction.display_message}</Text>
-              {nextAction.action_url && (
-                <Text>
-                  URL: <Text color="cyan">{nextAction.action_url}</Text>
-                </Text>
-              )}
-              <Text dimColor>
-                Complete the action, then create a new spend request.
-              </Text>
-            </>
-          ) : (
-            <Text color="red">
-              The spend request requires action but no action details were
-              returned.
-            </Text>
-          )}
-        </Box>
+        <Text dimColor>
+          Use spend-request commands to review and resolve the payment action.
+        </Text>
+        {checkout && <CheckoutSummary checkout={checkout} />}
       </Box>
     );
   }
@@ -203,7 +165,6 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
     return (
       <Box flexDirection="column">
         <Text color="red">✗ Checkout payment failed</Text>
-        <Text color="red">Reason: {failureReason}</Text>
         {checkout && <CheckoutSummary checkout={checkout} />}
       </Box>
     );
@@ -216,9 +177,9 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
           ✗ Timed out waiting for checkout payment to resolve
         </Text>
         <Text dimColor>
-          Run `ucp checkout retrieve {id} --spend-request-id{' '}
-          {params.spend_request_id} --business {params.business} --poll` to
-          check the current status.
+          Run `ucp checkout retrieve {id} --spend-request-id
+          &lt;spend_request_id&gt; --business {params.business} --poll` to check
+          the current status.
         </Text>
         {checkout && <CheckoutSummary checkout={checkout} />}
       </Box>

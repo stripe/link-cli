@@ -503,42 +503,33 @@ Steps:
      --format json
    ```
 
-5. **Retrieve the composite state exactly once** before polling. Pass both the checkout business and the spend request ID; the CLI fetches checkout and payment state from their respective endpoints. Treat the
-   spend request as the source of truth for payment execution and required
-   action. Checkout `completed` is not monotonic during payment: the checkout
-   can temporarily be `completed` while the spend request is
-   `requires_action`.
-
-   Branch in this order:
-
-   - If checkout `status` is `expired`, stop and report the failure.
-   - If the spend request has a terminal failure status (`expired`, `denied`,
-     `failed`, or `canceled`), stop and report the failure.
-   - If the spend request `status` is `requires_action`, inspect
-     `spend_request.status_details.requires_action.next_action` regardless of
-     the checkout status. If `next_action` is missing, `null`, or an empty
-     object, treat the composite state as a terminal failure: tell the user
-     there is an error and stop. Otherwise, surface the action
-     accurately to the user, including its message and URL, and follow its
-     `resolution`.
-   - Report success only when checkout `status` is `completed` **and** spend
-     request `status` is `succeeded`.
-   - Otherwise the composite is still pending. Do not call `checkout complete`
-     again; continue to Step 6 and poll. A checkout in `completed` with any
-     spend-request status other than `succeeded` is not yet successful.
+5. **Retrieve checkout and payment separately** before polling. UCP retrieval
+   returns only the checkout; inspect the spend request using its own command.
+   Treat the spend request as the source of truth for payment execution and
+   required action. Checkout `completed` alone does not prove payment success.
 
    ```bash
-   link-cli ucp checkout retrieve <checkout_id> \
-     --business <business> \
-     --spend-request-id <spend_request_id> \
-     --format json
+   link-cli ucp checkout retrieve <checkout_id> --business <business> --format json
+   link-cli spend-request retrieve <spend_request_id> --format json
    ```
+
+   - If checkout `status` is `canceled`, or the spend request has a terminal
+     failure status (`expired`, `denied`, `failed`, or `canceled`), stop and
+     report the failure.
+   - If the spend request `status` is `requires_action`, inspect
+     `status_details.requires_action.next_action` on the spend-request response
+     regardless of checkout status. If it is missing, `null`, or empty, report
+     an error and stop. Otherwise show the action's message and URL and follow
+     its `resolution` using the spend-request guidance above.
+   - Report success only when checkout `status` is `completed` and spend
+     request `status` is `succeeded`.
+   - Otherwise continue to Step 6. Do not call `checkout complete` again.
 
 6. **Poll only when the state can progress without replacing the spend request.**
    A missing, `null`, or empty `next_action` is terminal: report the card error
    and do not poll or call `checkout complete` again. For `auto_resume`, show
-   the action and wait for the user to complete it; then call the same retrieve
-   command with `--poll`. Do not start polling before the action is completed,
+   the action and wait for the user to complete it; then call the checkout
+   retrieve command below with `--poll`. Do not start polling before the action is completed,
    because retrieval will correctly return `action_required` again. For
    `create_new_spend_request` or
    `create_new_spend_request_after_completion`, stop and perform the indicated
@@ -553,7 +544,7 @@ Steps:
      --format json
    ```
 
-   Report success only for `outcome: success`, which requires checkout `completed` and spend request `succeeded`. Treat `timed_out` as indeterminate and include the latest state; do not infer success or failure from a timeout.
+   Polling checks payment internally and returns only a generic outcome and the latest checkout. It does not return spend-request fields or action details. For `action_required`, inspect the action with `spend-request retrieve` and follow Step 5 before polling again. Report success only for `outcome: success`, which requires checkout `completed` and spend request `succeeded`. Treat `timed_out` as indeterminate; do not infer success or failure from a timeout.
 
 Notes:
 - Never omit `--spend-request-id` or `--business` from `ucp checkout complete`. Use the approved spend request's ID and the checkout's original business value.

@@ -794,7 +794,7 @@ link-cli ucp checkout update --id <checkout_id> --business <business> \
   --fulfillment '<entire fulfillment JSON object>' --format json
 ```
 
-Once the checkout is `ready_for_complete`, create and approve a `shared_payment_token` spend request for the final `totals` entry with `type: "total"`, using the business as its `--network-id`. Complete with that spend request ID, then retrieve payment state or poll:
+Once the checkout is `ready_for_complete`, create and approve a `shared_payment_token` spend request for the final `totals` entry with `type: "total"`, using the business as its `--network-id`. Complete with that spend request ID, then poll for the checkout payment outcome:
 
 ```bash
 link-cli ucp checkout complete <checkout_id> --business <business> \
@@ -803,7 +803,7 @@ link-cli ucp checkout retrieve --id <checkout_id> --business <business> \
   --spend-request-id <spend_request_id> --poll --format json
 ```
 
-Payment succeeds when the checkout is `completed` and the spend request is `succeeded`. Follow any required payment action and continue polling; avoid repeating completion. Checkout commands use the UCP API's live flow. Only catalog search supports `--test` demo results.
+UCP retrieval returns the checkout without spend-request details. Polling checks checkout and payment separately and returns a generic outcome with the checkout; success requires checkout `completed` and spend request `succeeded`. If payment needs action, polling stops with `action_required`. Use the spend-request commands to inspect and resolve the action, then poll again; avoid repeating completion. Checkout commands use the UCP API's live flow. Only catalog search supports `--test` demo results.
 
 To cancel a checkout, supply its ID and business. The response contains the canceled checkout:
 
