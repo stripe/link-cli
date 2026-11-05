@@ -12,7 +12,7 @@
   "engines": { "node": ">=22.13" },
   "dependencies": {
     "@stripe/link-integrations-better-auth": "workspace:*",
-    "better-auth": "1.7.7",
+    "better-auth": "1.7.16",
     "next": "16.3.8",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
