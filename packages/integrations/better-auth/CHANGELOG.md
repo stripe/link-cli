@@ -1,5 +1,11 @@
 # @stripe/link-integrations-better-auth
 
+## 0.3.3
+
+### Patch Changes
+
+- 5084265: Update Better Auth and its core dependency to 1.7.16, and raise both peer dependency minimums to 1.7.16 to keep plugin types compatible.
+
 ## 0.3.2
 
 ### Patch Changes
