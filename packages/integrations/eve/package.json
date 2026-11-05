@@ -1,6 +1,6 @@
 {
   "name": "@stripe/link-integrations-eve",
-  "version": "0.3.9",
+  "version": "0.4.0",
   "description": "Link wallet tools for Eve agents",
   "type": "module",
   "eve": {

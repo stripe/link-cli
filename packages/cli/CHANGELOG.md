@@ -1,5 +1,17 @@
 # @stripe/link-cli
 
+## 1.3.0
+
+### Minor Changes
+
+- e127358: Add `spend-request simulate` for opt-in agent evaluation using deterministic local next-action samples. Requires Link login or a configured access token. Discover scenarios with `--list-scenarios`; sample and catalog envelopes are ready for a later backend provider. Simulation is excluded from MCP discovery and creates no requests or verification sessions.
+
+### Patch Changes
+
+- 5d30a63: Open browser URLs on Windows with the system `rundll32.exe` by absolute path instead of `cmd`, so an executable in the working directory is never launched and URLs are not parsed by the command shell.
+- c53dfe6: Keep `mpp pay --approved-challenge` pinned in interactive mode, and verify that
+  the challenge signed after approval is the one that was compared.
+
 ## 1.2.0
 
 ### Minor Changes

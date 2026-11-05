@@ -1,5 +1,11 @@
 # @stripe/link-sdk
 
+## 2.1.0
+
+### Minor Changes
+
+- 9537851: Add `use_approval_policy` to `create_spend_request` and a `retrieve_approval_policy` tool, letting SDK and Eve agents create policy-approved spend requests and read the configured approval policy — the same balance-backed flow `link-cli` already supports.
+
 ## 2.0.0
 
 ### Major Changes
