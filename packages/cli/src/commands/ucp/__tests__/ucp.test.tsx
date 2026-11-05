@@ -18,6 +18,7 @@ function makeResource(overrides: Partial<IUcpResource>): IUcpResource {
     searchCatalog: vi.fn(),
     createCheckout: vi.fn(),
     completeCheckout: vi.fn(),
+    cancelCheckout: vi.fn(),
     retrieveCheckout: vi.fn(),
     ...overrides,
   } as unknown as IUcpResource);

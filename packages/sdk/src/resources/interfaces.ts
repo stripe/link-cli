@@ -323,6 +323,10 @@ export interface CompleteUcpCheckoutParams {
   business: string;
 }
 
+export interface CancelUcpCheckoutParams {
+  business: string;
+}
+
 export interface RetrieveUcpCheckoutParams {
   business: string;
   /** Fetch payment state separately and attach it to the checkout. */
@@ -339,6 +343,10 @@ export interface IUcpResource {
   completeCheckout(
     id: string,
     params: CompleteUcpCheckoutParams,
+  ): Promise<UcpCheckout>;
+  cancelCheckout(
+    id: string,
+    params: CancelUcpCheckoutParams,
   ): Promise<UcpCheckout>;
   retrieveCheckout(
     id: string,

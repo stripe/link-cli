@@ -254,6 +254,45 @@ describe('UcpResource', () => {
     });
   });
 
+  describe('cancelCheckout', () => {
+    it('POSTs business to the encoded cancel path and preserves the checkout response', async () => {
+      const checkout = {
+        id: 'checkout/1',
+        status: 'canceled',
+        currency: 'usd',
+        totals: [{ type: 'total', amount: 5500 }],
+        messages: [],
+        ucp: { version: '2026-01-23' },
+      };
+      mockFetchResponse(200, checkout);
+
+      const result = await repo.cancelCheckout('checkout/1', {
+        business: 'np_1',
+      });
+
+      expect(mockFetch).toHaveBeenCalledOnce();
+      const [url, opts] = mockFetch.mock.calls[0]!;
+      expect(url).toBe('https://api.link.com/ucp/checkout/checkout%2F1/cancel');
+      expect(opts.method).toBe('POST');
+      expect(opts.headers.Authorization).toBe('Bearer test_token');
+      expect(opts.headers['Content-Type']).toBe('application/json');
+      expect(JSON.parse(opts.body)).toEqual({ business: 'np_1' });
+      expect(result).toEqual(checkout);
+    });
+
+    it.each([
+      [404, 'Checkout not found'],
+      [409, 'Checkout cannot be canceled'],
+    ])('surfaces cancellation errors (%i)', async (status, message) => {
+      mockFetchResponse(status, { error: { message } });
+      await expect(
+        repo.cancelCheckout('checkout_1', { business: 'np_1' }),
+      ).rejects.toThrow(
+        `Failed to cancel UCP checkout (${status}): ${message}`,
+      );
+    });
+  });
+
   describe('retrieveCheckout', () => {
     it('retrieves a checkout before payment using only business', async () => {
       const checkout = {
