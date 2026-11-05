@@ -31,6 +31,11 @@ import {
   retrieveOptions,
   updateOptions,
 } from './schema';
+import { registerSimulate } from './simulate';
+import {
+  FixtureSpendRequestSimulationResource,
+  type ISpendRequestSimulationResource,
+} from './simulation-resource';
 import { UpdateSpendRequest } from './update';
 
 function buildPollContinuation(id: string) {
@@ -90,11 +95,20 @@ export function createSpendRequestCli(
   repository: ISpendRequestResource,
   authStorage?: CliAuthStorage,
   envAccessToken?: string,
-  { usedRemovedExecutionMethod = false } = {},
+  {
+    usedRemovedExecutionMethod = false,
+    createSimulationResource = () =>
+      new FixtureSpendRequestSimulationResource(),
+  }: {
+    usedRemovedExecutionMethod?: boolean;
+    createSimulationResource?: () => ISpendRequestSimulationResource;
+  } = {},
 ) {
   const cli = Cli.create('spend-request', {
     description: 'Spend request management commands',
   });
+
+  registerSimulate(cli, createSimulationResource, authStorage, envAccessToken);
 
   cli.command('list', {
     description:

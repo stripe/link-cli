@@ -310,6 +310,134 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     setNextResponse(200, BASE_REQUEST);
   });
 
+  describe('spend-request simulation fixtures', () => {
+    const warning =
+      'Simulation only: no spend request or verification session was created; URLs are synthetic.\n';
+
+    it.each([
+      'ssn_verification',
+      'visa_otp',
+      'no_next_action',
+      'reauthorize_additional_scope',
+    ])(
+      'returns %s with the existing session without calling payment APIs',
+      async (scenario) => {
+        const before = fs.readFileSync(TEST_AUTH_FILE, 'utf8');
+        const result = await runProdCliWithEnv(
+          { LINK_ACCESS_TOKEN: '' },
+          'spend-request',
+          'simulate',
+          '--scenario',
+          scenario,
+          '--format',
+          'json',
+        );
+        expect(result.exitCode).toBe(0);
+        const output = JSON.parse(result.stdout);
+        expect(output).toHaveLength(1);
+        expect(output[0]).toHaveProperty('next_action');
+        expect(result.stderr).toBe(warning);
+        expect(requests).toHaveLength(0);
+        expect(fs.readFileSync(TEST_AUTH_FILE, 'utf8')).toBe(before);
+        if (scenario === 'visa_otp')
+          expect(output[0].next_action.type).toBe('partner_auth_challenge');
+        if (scenario === 'no_next_action')
+          expect(output[0].next_action).toBeNull();
+        if (scenario === 'reauthorize_additional_scope')
+          expect(output[0].next_action).not.toHaveProperty('action_url');
+      },
+    );
+
+    it('lists one complete catalog envelope in stable order', async () => {
+      const result = await runProdCli(
+        'spend-request',
+        'simulate',
+        '--list-scenarios',
+        '--format',
+        'json',
+      );
+      expect(result.exitCode).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output).toHaveLength(1);
+      expect(output[0].catalog_version).toBe(1);
+      expect(output[0].data).toHaveLength(34);
+      expect(output[0].data[0].id).toBe('ssn_verification');
+      expect(
+        output[0].data.find(
+          (row: { id: string }) => row.id === 'partner_auth_challenge',
+        ).aliases,
+      ).toEqual(['visa_otp']);
+      expect(result.stderr).toBe(warning);
+      expect(requests).toHaveLength(0);
+    });
+
+    it('requires login but accepts a configured token', async () => {
+      storage.clearAll();
+      const denied = await runProdCliWithEnv(
+        { LINK_ACCESS_TOKEN: '' },
+        'spend-request',
+        'simulate',
+        '--scenario',
+        'ssn_verification',
+        '--format',
+        'json',
+      );
+      expect(denied.exitCode).toBe(1);
+      expect(denied.stdout).toContain('NOT_AUTHENTICATED');
+      expect(denied.stderr).not.toContain('Simulation only');
+      const allowed = await runProdCliWithEnv(
+        { LINK_ACCESS_TOKEN: 'test-configured-token' },
+        'spend-request',
+        'simulate',
+        '--scenario',
+        'ssn_verification',
+        '--format',
+        'json',
+      );
+      expect(allowed.exitCode).toBe(0);
+      expect(requests).toHaveLength(0);
+    });
+
+    it.each([
+      [],
+      ['--scenario', 'x', '--list-scenarios'],
+      ['--scenario', ''],
+      ['--scenario', 'unknown'],
+      ['--scenario', 'ssn_verification', '--test'],
+      ['--scenario', 'ssn_verification', 'lsrq_example'],
+    ])(
+      'rejects invalid selectors and unsupported inputs: %j',
+      async (...flags) => {
+        const result = await runProdCli(
+          'spend-request',
+          'simulate',
+          ...flags,
+          '--format',
+          'json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).not.toContain('Simulation only');
+        expect(requests).toHaveLength(0);
+      },
+    );
+
+    it('documents only the parent-scoped command', async () => {
+      const help = await runProdCli('spend-request', 'simulate', '--help');
+      expect(help.stdout).toContain('Testing only');
+      expect(help.stdout).toContain('--list-scenarios');
+      const old = await runProdCli(
+        'next-action',
+        'simulate',
+        '--scenario',
+        'ssn_verification',
+        '--format',
+        'json',
+      );
+      expect(old.exitCode).toBe(1);
+      expect(old.stderr).not.toContain('Simulation only');
+    });
+  });
+
   describe('request agent attribution', () => {
     it.each(AGENT_CASES)(
       'uses the expected User-Agent for $name on Link API requests',

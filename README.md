@@ -866,6 +866,40 @@ In MCP/agent mode, pass `metadata` as a structured `{ key: value }` object.
 | `LINK_AUTH_BASE_URL` | Override the auth base URL |
 | `LINK_HTTP_PROXY` | Route all requests through an HTTP proxy (requires `undici`) |
 
+### Testing agent handling with sample spend-request responses
+
+`spend-request simulate` is opt-in engineering evaluation tooling. Log in with
+`link-cli auth login` or configure `LINK_ACCESS_TOKEN` first. It currently returns
+local fixtures; a backend provider will replace them after the endpoints land.
+It creates no spend request, verification session, OTP, approval, or account change.
+
+```bash
+link-cli spend-request simulate --scenario ssn_verification --format json
+link-cli spend-request simulate --scenario visa_otp --format json
+link-cli spend-request simulate --list-scenarios --format json
+```
+
+Choose exactly one selector. Use discovery for available IDs and aliases.
+`visa_otp` currently aliases `partner_auth_challenge`. Samples yield one
+`{"next_action": ...}` object (or null) inside the JSON array; discovery yields one
+`{"catalog_version": 1, "data": [...]}` object. The warning goes to stderr.
+Synthetic URLs under `example.invalid` cannot complete verification. Null/absent
+URLs still require presenting the message; a null overall action proves no approval.
+
+The evaluation controller selects scenarios. Present the exact URL/message and
+follow `resolution`: `auto_resume` keeps the same request;
+`create_new_spend_request` describes a new request;
+`create_new_spend_request_after_completion` requires user completion first;
+`reauthorize_with_additional_scope` describes obtaining the required scope without
+inventing an auth URL or executing an auth upgrade during evaluation. Never use
+simulation as a fallback when a real payment fails. It is excluded from MCP discovery.
+
+The backend transport has not shipped: local fixture results do not establish
+backend availability, authentication scope enforcement, or a real lifecycle.
+The later backend provider must report an unavailable endpoint as an error and
+must not fall back to fixtures. See the [engineering guide](packages/cli/src/commands/spend-request/SIMULATION.md)
+for the catalog and evaluation/transition checks.
+
 ## Integrating into agents
 
 If you are building an agent and want to offer Link as a native experience to your consumers (as a connector, plugin, pre-installed capability etc.), 

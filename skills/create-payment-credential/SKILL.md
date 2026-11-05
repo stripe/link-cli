@@ -303,6 +303,40 @@ Show `display_message` and the exact non-null server `action_url` to the user. T
 
 Apply this resolution-based guidance to actions appearing later in Step 5 as well. Snapshot mode only exposes an existing server action; it does not guarantee that any particular request needs verification.
 
+### Opt-in agent evaluation with sample spend-request actions
+
+Only use this when an evaluation harness explicitly selects a scenario. Normal
+payments continue to use create/retrieve; never choose simulation when a real
+payment fails. Requires `link-cli auth login` or configured `LINK_ACCESS_TOKEN`.
+The current CLI uses local fixtures, with a backend provider planned later.
+
+```bash
+link-cli spend-request simulate --scenario ssn_verification --format json
+link-cli spend-request simulate --scenario visa_otp --format json
+link-cli spend-request simulate --list-scenarios --format json
+```
+
+Choose exactly one selector; discovery lists IDs/aliases in a single
+`{"catalog_version": 1, "data": [...]}` envelope. A selected sample is one
+`{"next_action": actionOrNull}` envelope. `visa_otp` aliases
+`partner_auth_challenge`. The command creates no request/session, sends no OTP,
+completes no verification, and proves no approval or payment success. Warnings
+go to stderr and synthetic `.invalid` URLs cannot perform verification.
+
+Present the exact returned message and URL; preserve queries/fragments. For
+null/absent URLs, present the instructions without inventing a link. Follow all
+four resolutions: `auto_resume` keeps the same request; `create_new_spend_request`
+requires a new request; `create_new_spend_request_after_completion` requires user
+completion before recreation; `reauthorize_with_additional_scope` requires the
+appropriate authorization. This fixture test authorizes no real login upgrade,
+browsing, payment, OTP sending, or verification completion. A null action or
+expired fixture proves no success. The harness owns any successive samples.
+
+Backend transport is pending; fixture output does not establish backend
+availability or token validity. After that provider ships, an unavailable backend
+must remain an error, with no fixture fallback. See the engineering guide in
+`packages/cli/src/commands/spend-request/SIMULATION.md` for evaluation checks.
+
 ### Step 5: Complete payment
 
 **Card:** Run `link-cli spend-request retrieve <id> --include card` to get the `card` object with `number`, `cvc`, `exp_month`, `exp_year`, `billing_address` (name, line1, line2, city, state, postal_code, country), and `valid_until` (Unix timestamp — the card stops working after this time). Enter these details into the merchant's checkout form.

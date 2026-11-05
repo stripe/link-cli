@@ -102,6 +102,37 @@ The plugin MCP config (`.mcp.json`, shared by `plugins/link/`) and the generated
 
 Input is passed via flags. Define options in the command's zod schema — incur registers CLI flags automatically from the schema.
 
+### spend-request simulation (engineering evaluation only)
+
+`spend-request simulate --scenario <id> --format json` and
+`spend-request simulate --list-scenarios --format json` require the existing CLI
+session or `LINK_ACCESS_TOKEN`. Exactly one selector is required. The current
+provider returns local fixtures: 34 canonical scenarios and the `visa_otp` alias.
+No top-level `next-action` group exists. Real create/retrieve handlers are unchanged.
+
+`simulate.ts` validates selectors, applies ordinary auth middleware, invokes one
+`ISpendRequestSimulationResource` operation and yields the complete response once.
+Samples frame as `[{next_action: actionOrNull}]`; discovery frames as
+`[{catalog_version: 1, data: [...]}]` with descriptor `id` fields. The command uses
+`outputPolicy: 'all'`, `mcp: false`, and a stderr warning after successful output.
+It must not perform real payment actions or become a failure-recovery fallback.
+Ordinary startup/update behavior remains enabled.
+
+`simulation-resource.ts` supplies the interim fixture provider, cached and
+sanitized by `ResourceFactory`. Keep IDs, aliases, action enums and fixture
+validation out of the handler/options schema. The provider interface permits
+unknown future values and additive fields. Fixture calls validate no token
+against the backend, do not exercise refresh, and create no business records.
+The CLI-local fixture schema remains separate from the real SDK union.
+
+After backend deployment/contract agreement, replace the provider with authenticated
+GETs through `BaseResource`, remove the bundled catalog, and preserve this command
+and envelope shape. No automatic fixture fallback should remain. Backend scenario
+additions need no client release only after that transport transition ships.
+Before merge, recheck inventory/producers and update the pinned fixture tests;
+follow the [evaluation and transition guide](packages/cli/src/commands/spend-request/SIMULATION.md).
+Update README, payment skill, schema descriptions, and this guide together.
+
 ### auth login
 
 - `auth login --client-name <name>` — optional flag to identify the agent or app; shown in the user's Link app as `<name> on <hostname>`. Defined in `loginOptions` in `packages/cli/src/commands/auth/schema.ts`.
