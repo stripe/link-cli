@@ -102,34 +102,36 @@ The plugin MCP config (`.mcp.json`, shared by `plugins/link/`) and the generated
 
 Input is passed via flags. Define options in the command's zod schema — incur registers CLI flags automatically from the schema.
 
-### next-action simulation (engineering evaluation only)
+### spend-request simulation (engineering evaluation only)
 
-`next-action simulate --scenario <id> --format json` and
-`next-action simulate --list-scenarios --format json` are local engineering
-fixtures in `packages/cli/src/commands/next-action/`. Exactly one selector is
-required. The 34 canonical scenarios cover 17 declared backend types and four
-resolutions; `visa_otp` aliases `partner_auth_challenge`. A selected fixture
-returns exactly one `{next_action: actionOrNull}` item using Incur formatting,
-with `outputPolicy: 'all'`, `mcp: false`, and a stderr simulation warning.
-URL fixtures preserve verified route suffixes and query names under the
-synthetic `example.invalid/link-simulation` namespace, including encoded fake
-email fields and `lsrq_simulation`. Challenge/enrollment deliberately share a URL.
-No auth/resource dependencies, requests, OTP sending, link opening, network,
-or persisted state are permitted. Skip both startup update mechanisms for the
-actual simulation command tokens, leaving other commands unchanged.
+`spend-request simulate --scenario <id> --format json` and
+`spend-request simulate --list-scenarios --format json` require the existing CLI
+session or `LINK_ACCESS_TOKEN`. Exactly one selector is required. The current
+provider returns local fixtures: 34 canonical scenarios and the `visa_otp` alias.
+No top-level `next-action` group exists. Real create/retrieve handlers are unchanged.
 
-The CLI-local schema permits null/unknown control types and optional/null URL
-and expiry fields without expanding the real SDK union. Null/absent URLs still
-require presenting the message and resolution; scope reauthorization omits URL
-and expiry and originates in an error envelope, not necessarily retrieve.
-Documented partner retry compatibility has no verified active constructor.
-Keep provenance in catalog descriptors, never in `next_action`.
+`simulate.ts` validates selectors, applies ordinary auth middleware, invokes one
+`ISpendRequestSimulationResource` operation and yields the complete response once.
+Samples frame as `[{next_action: actionOrNull}]`; discovery frames as
+`[{catalog_version: 1, data: [...]}]` with descriptor `id` fields. The command uses
+`outputPolicy: 'all'`, `mcp: false`, and a stderr warning after successful output.
+It must not perform real payment actions or become a failure-recovery fallback.
+Ordinary startup/update behavior remains enabled.
 
-Before merge, independently recheck backend type/resolution enums, producers,
-and serializer semantics; update the pinned inventory, independently maintained
-coverage tests, catalog counts and [engineering evaluation guide](packages/cli/src/commands/next-action/SIMULATION.md)
-together. This engineering-only feature is intentionally excluded from README
-and the payment skill. Real create/retrieve/auth flows remain unchanged.
+`simulation-resource.ts` supplies the interim fixture provider, cached and
+sanitized by `ResourceFactory`. Keep IDs, aliases, action enums and fixture
+validation out of the handler/options schema. The provider interface permits
+unknown future values and additive fields. Fixture calls validate no token
+against the backend, do not exercise refresh, and create no business records.
+The CLI-local fixture schema remains separate from the real SDK union.
+
+After backend deployment/contract agreement, replace the provider with authenticated
+GETs through `BaseResource`, remove the bundled catalog, and preserve this command
+and envelope shape. No automatic fixture fallback should remain. Backend scenario
+additions need no client release only after that transport transition ships.
+Before merge, recheck inventory/producers and update the pinned fixture tests;
+follow the [evaluation and transition guide](packages/cli/src/commands/spend-request/SIMULATION.md).
+Update README, payment skill, schema descriptions, and this guide together.
 
 ### auth login
 

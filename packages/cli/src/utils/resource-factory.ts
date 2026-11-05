@@ -24,6 +24,10 @@ import { createAccessTokenProvider } from '../auth/session';
 import type { CliAuthStorage } from '../auth/storage';
 import type { IAuthResource } from '../auth/types';
 import {
+  FixtureSpendRequestSimulationResource,
+  type ISpendRequestSimulationResource,
+} from '../commands/spend-request/simulation-resource';
+import {
   type ITestHelpersSpendRequestResource,
   TestHelpersSpendRequestResource,
 } from '../commands/test-helpers/spend-request';
@@ -120,6 +124,7 @@ export class ResourceFactory {
   private attestationsResource?: IAttestationsResource;
   private identityCredentialsResource?: IIdentityCredentialsResource;
   private spendRequestResource?: ISpendRequestResource;
+  private spendRequestSimulationResource?: ISpendRequestSimulationResource;
   private testHelpersSpendRequestResource?: ITestHelpersSpendRequestResource;
   private paymentMethodsResource?: IPaymentMethodsResource;
   private shippingAddressResource?: IShippingAddressResource;
@@ -265,6 +270,13 @@ export class ResourceFactory {
     const resource = sanitizeResource(this.createSdkClient().spendRequests);
     this.spendRequestResource = resource;
     return resource;
+  }
+
+  createSpendRequestSimulationResource(): ISpendRequestSimulationResource {
+    this.spendRequestSimulationResource ??= sanitizeResource(
+      new FixtureSpendRequestSimulationResource(),
+    );
+    return this.spendRequestSimulationResource;
   }
 
   createTestHelpersSpendRequestResource(): ITestHelpersSpendRequestResource {

@@ -1,19 +1,27 @@
+import type { ISpendRequestResource } from '@stripe/link-sdk';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Storage } from '../../../auth/storage';
 import { ResourceFactory } from '../../../utils/resource-factory';
-import { createNextActionCli } from '../index';
+import { createSpendRequestCli } from '../index';
 import { simulationWarning } from '../simulate';
-import {
-  getScenarioIds,
-  getSimulationScenario,
-  listSimulationScenarios,
-} from '../simulation-scenarios';
+import { FixtureSpendRequestSimulationResource } from '../simulation-resource';
+import { getScenarioIds, getSimulationScenario } from '../simulation-scenarios';
 
-async function run(args: string[]) {
+async function run(
+  args: string[],
+  settings: Parameters<typeof createSpendRequestCli>[3] = {},
+  envAccessToken: string | null = 'test-token',
+  authStorage?: Storage,
+) {
   let stdout = '';
   let exitCode = 0;
   const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
-  await createNextActionCli().serve(args, {
+  await createSpendRequestCli(
+    {} as ISpendRequestResource,
+    authStorage,
+    envAccessToken ?? undefined,
+    settings,
+  ).serve(args, {
     stdout: (text) => {
       stdout += text;
     },
@@ -28,9 +36,9 @@ async function run(args: string[]) {
 
 afterEach(() => vi.restoreAllMocks());
 
-describe('next-action simulate', () => {
+describe('spend-request simulate', () => {
   it.each(getScenarioIds())(
-    'returns exactly one deterministic snapshot for %s without auth or resources',
+    'returns exactly one deterministic snapshot for %s without real payment calls',
     async (scenario) => {
       const auth = vi
         .spyOn(Storage.prototype, 'getTokens')
@@ -79,8 +87,10 @@ describe('next-action simulate', () => {
       'json',
     ]);
     expect(result.exitCode).toBe(0);
-    expect(result.warnings).toBe('');
-    expect(JSON.parse(result.stdout)).toEqual(listSimulationScenarios());
+    expect(result.warnings).toBe(`${simulationWarning}\n`);
+    expect(JSON.parse(result.stdout)).toEqual([
+      await new FixtureSpendRequestSimulationResource().listScenarios(),
+    ]);
   });
 
   it.each([
@@ -93,8 +103,7 @@ describe('next-action simulate', () => {
     const result = await run(['simulate', ...flags, '--format', 'json']);
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toContain('INVALID_INPUT');
-    expect(result.stdout).toContain('visa_otp');
-    expect(result.stdout).toContain('unknown_action_type');
+    expect(result.stdout).toContain('--list-scenarios');
     expect(result.warnings).toBe('');
   });
 
@@ -159,11 +168,111 @@ describe('next-action simulate', () => {
     },
   );
 
+  it.each([['--scenario', 'ssn_verification'], ['--list-scenarios']])(
+    'requires a session or configured token: %j',
+    async (...flags) => {
+      const store = new Storage();
+      const auth = vi.spyOn(store, 'isAuthenticated').mockReturnValue(false);
+      const factory = vi.fn(() => new FixtureSpendRequestSimulationResource());
+      const args = ['simulate', ...flags, '--format', 'json'];
+      const denied = await run(
+        args,
+        { createSimulationResource: factory },
+        null,
+        store,
+      );
+      expect(denied.exitCode).toBe(1);
+      expect(denied.stdout).toContain('NOT_AUTHENTICATED');
+      expect(denied.warnings).toBe('');
+      expect(factory).not.toHaveBeenCalled();
+      auth.mockReturnValue(true);
+      expect(
+        (await run(args, { createSimulationResource: factory }, null, store))
+          .exitCode,
+      ).toBe(0);
+      expect(factory).toHaveBeenCalledOnce();
+    },
+  );
+
+  it('validates selectors before constructing or calling a resource', async () => {
+    const factory = vi.fn(() => new FixtureSpendRequestSimulationResource());
+    for (const flags of [
+      [],
+      ['--scenario', 'x', '--list-scenarios'],
+      ['--scenario', '   '],
+    ]) {
+      const result = await run(['simulate', ...flags, '--format', 'json'], {
+        createSimulationResource: factory,
+      });
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain('INVALID_INPUT');
+    }
+    expect(factory).not.toHaveBeenCalled();
+  });
+
+  it('forwards opaque selectors and additive envelopes through the resource boundary', async () => {
+    const response = {
+      next_action: {
+        type: 'future_backend_type',
+        resolution: 'future_resolution',
+        nested: { value: ['future'] },
+      },
+      extra: { version: 42 },
+    };
+    const catalog = {
+      catalog_version: 42,
+      data: [{ id: 'new_alias', extra: { type: 'future' } }],
+      extra: true,
+    };
+    const resource = {
+      simulate: vi.fn().mockResolvedValue(response),
+      listScenarios: vi.fn().mockResolvedValue(catalog),
+    };
+    const factory = vi.fn(() => resource);
+    const result = await run(
+      ['simulate', '--scenario', 'new_alias', '--format', 'json'],
+      { createSimulationResource: factory },
+    );
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual([response]);
+    expect(resource.simulate).toHaveBeenCalledExactlyOnceWith('new_alias');
+    expect(resource.listScenarios).not.toHaveBeenCalled();
+    const list = await run(
+      ['simulate', '--list-scenarios', '--format', 'json'],
+      { createSimulationResource: factory },
+    );
+    expect(JSON.parse(list.stdout)).toEqual([catalog]);
+    expect(resource.listScenarios).toHaveBeenCalledOnce();
+  });
+
+  it('does not fall back to fixtures or warn after a provider error', async () => {
+    const resource = {
+      simulate: vi.fn().mockRejectedValue(
+        Object.assign(new Error('Simulation is unavailable'), {
+          code: 'simulation_unavailable',
+        }),
+      ),
+      listScenarios: vi.fn(),
+    };
+    const result = await run(
+      ['simulate', '--scenario', 'ssn_verification', '--format', 'json'],
+      { createSimulationResource: () => resource },
+    );
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain('simulation_unavailable');
+    expect(result.stdout).not.toContain('next_action');
+    expect(result.warnings).toBe('');
+  });
+
   it('documents CLI help and excludes simulation from MCP search', async () => {
     expect((await run(['simulate', '--help'])).stdout).toContain(
       'Testing only',
     );
-    const cli = createNextActionCli();
+    const cli = createSpendRequestCli(
+      {} as ISpendRequestResource,
+      undefined,
+      'test-token',
+    );
     for (const [method, params] of [
       ['tools/list', {}],
       [
@@ -182,7 +291,7 @@ describe('next-action simulate', () => {
         }),
       );
       expect(JSON.stringify(await response.json())).not.toContain(
-        'next_action_simulate',
+        'spend_request_simulate',
       );
     }
   });

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// Backend inventory rechecked 2026-11-04, Mint bad8deae738b9a5ee4e5a25c304ce646bfc10ebc.
+// Backend inventory rechecked 2026-11-05, Mint b1a3f78603596df4c39a5dd82d4733e690b43b50.
 // Producer messages checked at bad8deae / 34139ea; compatibility is not a live-producer claim.
 export const declaredActionTypes = [
   'ssn_verification',
