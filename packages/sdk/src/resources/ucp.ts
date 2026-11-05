@@ -308,6 +308,10 @@ export class UcpResource implements IUcpResource {
   ): Promise<UcpCheckoutWithSpendRequest>;
   async retrieveCheckout(
     id: string,
+    params: RetrieveUcpCheckoutParams & { spend_request_id: string },
+  ): Promise<UcpCheckoutWithSpendRequest>;
+  async retrieveCheckout(
+    id: string,
     params: RetrieveUcpCheckoutParams,
   ): Promise<UcpCheckout>;
   async retrieveCheckout(

@@ -212,7 +212,6 @@ describe('UCP checkout schema', () => {
     expect(repository.completeCheckout).not.toHaveBeenCalled();
     expect(output).toEqual({ ...checkout, status: 'canceled' });
   });
-
   it('retrieves before payment with --id and business', async () => {
     const { repository } = await run([
       'retrieve',

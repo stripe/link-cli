@@ -292,7 +292,7 @@ describe('UcpResource', () => {
       );
     });
   });
-
+  
   describe('retrieveCheckout', () => {
     it('retrieves a checkout before payment using only business', async () => {
       const checkout = {

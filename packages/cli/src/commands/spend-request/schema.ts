@@ -197,6 +197,12 @@ export const listOptions = z.object({
 });
 
 export const retrieveOptions = z.object({
+  nextAction: z
+    .boolean()
+    .default(false)
+    .describe(
+      'Return only the existing next_action (or null) in one snapshot. Does not poll, force verification, or return payment credentials; timeout is ignored in this mode.',
+    ),
   timeout: z.coerce
     .number()
     .default(600)

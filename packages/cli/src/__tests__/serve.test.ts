@@ -410,16 +410,114 @@ describe('serve command security', () => {
     expect(apiRequests).toHaveLength(0);
   });
 
-  it('allows loopback browser origins without wildcard CORS', async () => {
-    const res = await request('/mcp', {
+  it('rejects loopback browser origins that are not allow-listed', async () => {
+    // A malicious page on any http://localhost:* origin must not be treated as
+    // the authenticated CLI owner. Without --allow-origin, every browser Origin
+    // is forbidden and no CORS header is reflected, so the page cannot read
+    // responses or complete a preflighted POST.
+    for (const method of ['GET', 'POST', 'OPTIONS']) {
+      const res = await request('/mcp', {
+        method,
+        headers: { Origin: 'http://localhost:3000' },
+      });
+      expect(res.status, method).toBe(403);
+      expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    }
+    expect(apiRequests).toHaveLength(0);
+  });
+
+  it('rejects rebound Host headers even from a loopback connection', async () => {
+    // DNS rebinding: the browser connects to 127.0.0.1 but keeps the attacker's
+    // hostname in Host. A loopback-bound server must reject it.
+    for (const host of ['attacker.example', 'attacker.example:54321']) {
+      const res = await request('/mcp', {
+        method: 'POST',
+        headers: { Host: host, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+      });
+      expect(res.status, host).toBe(403);
+      expect(JSON.parse(res.body)).toEqual({ error: 'forbidden host' });
+    }
+    expect(apiRequests).toHaveLength(0);
+  });
+});
+
+describe('serve command with --allow-origin', () => {
+  let localCli: ChildProcess | undefined;
+
+  beforeEach(async () => {
+    apiRequests = [];
+    mockApi = http.createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => {
+        apiRequests.push({
+          method: req.method ?? '',
+          url: req.url ?? '',
+          authorization: req.headers.authorization,
+          body: Buffer.concat(chunks).toString(),
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      });
+    });
+    mockApiPort = await listen(mockApi);
+    servePort = await freePort();
+    localCli = spawn(
+      'node',
+      [
+        CLI_PATH,
+        'serve',
+        '--port',
+        String(servePort),
+        '--allow-origin',
+        'http://localhost:3000',
+      ],
+      {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: {
+          ...process.env,
+          LINK_ACCESS_TOKEN: VICTIM_TOKEN,
+          LINK_NO_REFRESH: '1',
+          LINK_API_BASE_URL: `http://127.0.0.1:${mockApiPort}`,
+          LINK_AUTH_BASE_URL: `http://127.0.0.1:${mockApiPort}`,
+          NO_UPDATE_NOTIFIER: '1',
+        },
+      },
+    );
+    cli = localCli;
+    await waitForListening(localCli);
+  });
+
+  afterEach(async () => {
+    try {
+      if (localCli) await stopCli(localCli);
+    } finally {
+      localCli = undefined;
+      cli = undefined;
+      await closeServer(mockApi);
+    }
+  });
+
+  it('reflects only the allow-listed origin and still rejects others', async () => {
+    const allowed = await request('/mcp', {
       method: 'OPTIONS',
       headers: { Origin: 'http://localhost:3000' },
     });
-    expect(res.status).toBe(204);
-    expect(res.headers['access-control-allow-origin']).toBe(
+    expect(allowed.status).toBe(204);
+    expect(allowed.headers['access-control-allow-origin']).toBe(
       'http://localhost:3000',
     );
-    expect(res.headers['access-control-allow-methods']).toBe('POST, OPTIONS');
-    expect(res.headers.vary).toBe('Origin');
+    expect(allowed.headers['access-control-allow-methods']).toBe(
+      'POST, OPTIONS',
+    );
+    expect(allowed.headers.vary).toBe('Origin');
+
+    const other = await request('/mcp', {
+      method: 'OPTIONS',
+      headers: { Origin: 'http://localhost:4000' },
+    });
+    expect(other.status).toBe(403);
+    expect(other.headers['access-control-allow-origin']).toBeUndefined();
   });
 });

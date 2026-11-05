@@ -179,7 +179,7 @@ export function createUcpCli(
 
   checkout.command('update', {
     description:
-      'Update a UCP checkout with PUT. Omitted line items, buyer, and fulfillment sections keep existing checkout values; saved Link wallet details are not reloaded.',
+      'Update a UCP checkout. Omitted line items, buyer, and fulfillment sections keep existing checkout values; saved Link wallet details are not reloaded.',
     args: z.object({
       id: z
         .string()

@@ -87,9 +87,12 @@ Alternatively, use `serve` to expose link-cli as an MCP endpoint over HTTP.
 link-cli serve            # binds 127.0.0.1:54321 (loopback only)
 link-cli serve --port 8080
 link-cli serve --host 0.0.0.0   # expose beyond localhost (see warning below)
+link-cli serve --allow-origin http://localhost:3000   # trust a specific browser app
 ```
 
 The server handles `POST /mcp` and `GET` skill discovery at `/.well-known/skills/index.json` and `/.well-known/skills/{skill-name}/SKILL.md`, with `OPTIONS` preflight support. Other paths return `404`, unsupported methods return `405`, and malformed or ambiguous request paths return `400`. It binds to `127.0.0.1` by default so only the local host can reach it. Anyone who can reach the port can use this CLI's authenticated Link session, so only override `--host` on a trusted, isolated network — doing so prints a warning.
+
+A browser attaches an `Origin` header; MCP clients and `curl` do not. Because any JavaScript on any `http://localhost:*` page the user visits would satisfy a bare "loopback origin" check without being the authenticated CLI owner, `serve` **rejects every browser `Origin` by default** (`403`, no CORS header) and validates the `Host` header against loopback to block DNS rebinding. Requests without an `Origin` (ordinary MCP clients) are unaffected. To integrate a browser app you control, allow its exact origin with `--allow-origin` (repeatable); only that origin is reflected in `Access-Control-Allow-Origin`.
 
 ## Quickstart
 
@@ -256,6 +259,14 @@ link-cli spend-request retrieve lsrq_001 --include card --output-file /tmp/link-
 ```
 
 The file is created with `0600` permissions. If the file already exists, the command fails unless `--force` is passed. When `--output-file` is set, the JSON output replaces the `card` object with redacted fields and adds a `card_output_file` path.
+
+To inspect only the existing user action in one snapshot:
+
+```bash
+link-cli spend-request retrieve lsrq_001 --next-action --format json
+```
+
+This returns one JSON result item, `[{"next_action": <server action or null>}]`, including actions on `requires_action` and `failed` requests. It does not poll or return credentials. `--include`, `--output-file`, `--force`, and nonzero `--interval`/`--max-attempts` are incompatible; `--timeout` is ignored. Human TTY invocations require an explicit format. Use ordinary retrieve to inspect status or poll.
 
 For agent polling, pass `--interval` and optionally `--max-attempts`:
 
@@ -827,9 +838,31 @@ Outcomes: `success`, `blocked`, `abandoned`. Tags: `stripe_checkout`, `captcha`,
 
 ### Handle step-ups 
 
-If the created spend request comes back with `status: "requires_action"`, no approval is needed yet — the payment method or account needs attention first. Check `status_details.requires_action.next_action` for `type`, `display_message`, `action_url`, and `resolution`.
+Actions can appear at creation or on later retrieves, under `status_details.requires_action.next_action` or `status_details.failed.next_action`. Inspect the current action with:
 
-For 3D Secure (`resolution: "auto_resume"`), keep polling `spend-request retrieve` — the request resolves on its own once the challenge is completed. For any other resolution, complete the indicated action and create a new spend request.
+```bash
+link-cli spend-request retrieve lsrq_001 --next-action --format json
+```
+
+The JSON output is an array containing one projected result, for example:
+
+```json
+[
+  {
+    "next_action": {
+      "type": "ssn_verification",
+      "resolution": "create_new_spend_request_after_completion",
+      "display_message": "Additional identity verification is required.",
+      "action_url": "https://example.com/verify?step=ssn",
+      "expires_at": null
+    }
+  }
+]
+```
+
+Values come from the server; the example URL is synthetic. The action's expiry is a string or null, and older responses may omit it. `[{"next_action": null}]` means no action is exposed in this snapshot; it does not establish approval or rule out later verification. A missing/inaccessible request still returns an error. Snapshot mode neither forces verification nor completes or approves a request, and adds no continuation instructions.
+
+Show the server's message and exact non-null URL to the user, who completes verification themselves. Follow `resolution`: for `auto_resume`, keep the same request and inspect it after each user completion. A Visa OTP action can become `partner_create_card_enrollment` without changing status or URL. Use another snapshot or ordinary retrieve without polling to inspect the latest action; ordinary retrieve with `--interval` waits for status changes. For `create_new_spend_request` or `create_new_spend_request_after_completion`, follow the indicated action and user-completion requirements, then create a new request. Never attempt to resume a terminal failed request.
 
 ### Line items and totals
 
@@ -873,6 +906,40 @@ In MCP/agent mode, pass `metadata` as a structured `{ key: value }` object.
 | `LINK_API_BASE_URL` | Override the API base URL |
 | `LINK_AUTH_BASE_URL` | Override the auth base URL |
 | `LINK_HTTP_PROXY` | Route all requests through an HTTP proxy (requires `undici`) |
+
+### Testing agent handling with sample spend-request responses
+
+`spend-request simulate` is opt-in engineering evaluation tooling. Log in with
+`link-cli auth login` or configure `LINK_ACCESS_TOKEN` first. It currently returns
+local fixtures; a backend provider will replace them after the endpoints land.
+It creates no spend request, verification session, OTP, approval, or account change.
+
+```bash
+link-cli spend-request simulate --scenario ssn_verification --format json
+link-cli spend-request simulate --scenario visa_otp --format json
+link-cli spend-request simulate --list-scenarios --format json
+```
+
+Choose exactly one selector. Use discovery for available IDs and aliases.
+`visa_otp` currently aliases `partner_auth_challenge`. Samples yield one
+`{"next_action": ...}` object (or null) inside the JSON array; discovery yields one
+`{"catalog_version": 1, "data": [...]}` object. The warning goes to stderr.
+Synthetic URLs under `example.invalid` cannot complete verification. Null/absent
+URLs still require presenting the message; a null overall action proves no approval.
+
+The evaluation controller selects scenarios. Present the exact URL/message and
+follow `resolution`: `auto_resume` keeps the same request;
+`create_new_spend_request` describes a new request;
+`create_new_spend_request_after_completion` requires user completion first;
+`reauthorize_with_additional_scope` describes obtaining the required scope without
+inventing an auth URL or executing an auth upgrade during evaluation. Never use
+simulation as a fallback when a real payment fails. It is excluded from MCP discovery.
+
+The backend transport has not shipped: local fixture results do not establish
+backend availability, authentication scope enforcement, or a real lifecycle.
+The later backend provider must report an unavailable endpoint as an error and
+must not fall back to fixtures. See the [engineering guide](packages/cli/src/commands/spend-request/SIMULATION.md)
+for the catalog and evaluation/transition checks.
 
 ## Integrating into agents
 
