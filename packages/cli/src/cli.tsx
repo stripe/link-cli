@@ -210,12 +210,7 @@ cli.command(
   ),
 );
 cli.command(
-  createUcpCli(
-    () => factory.createUcpResource(),
-    authStorage,
-    envAccessToken,
-    () => factory.createSpendRequestResource(),
-  ),
+  createUcpCli(() => factory.createUcpResource(), authStorage, envAccessToken),
 );
 
 cli.command(

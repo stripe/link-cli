@@ -114,12 +114,7 @@ async function run(args: string[]) {
   };
   let output = '';
   const exit = vi.fn();
-  await createUcpCli(
-    () => repository,
-    undefined,
-    'test-token',
-    () => ({ retrieve: vi.fn() }),
-  ).serve(args, {
+  await createUcpCli(() => repository, undefined, 'test-token').serve(args, {
     stdout: (chunk) => {
       output += chunk;
     },
@@ -167,30 +162,5 @@ describe.each(cases)('$name output', ({ args, component, result }) => {
     const { output } = await run(args);
     expect(renderInteractive).not.toHaveBeenCalled();
     expect(output).toContain('preserved: true');
-  });
-});
-
-it('uses the terminal polling view with --poll and a spend request ID', async () => {
-  setTty(true);
-  await run([
-    'checkout',
-    'retrieve',
-    'checkout_1',
-    '--business',
-    'np_1',
-    '--spend-request-id',
-    'lsrq_1',
-    '--poll',
-    '--timeout',
-    '5',
-  ]);
-  const element = vi.mocked(renderInteractive).mock
-    .calls[0]?.[0] as ReactElement<Record<string, unknown>>;
-  expect(element.type).toBe(CheckoutRetrieve);
-  expect(element.props).toMatchObject({
-    business: 'np_1',
-    spendRequestId: 'lsrq_1',
-    poll: true,
-    timeout: 5,
   });
 });

@@ -1,6 +1,5 @@
 import type {
   CreateUcpCheckoutParams,
-  ISpendRequestResource,
   IUcpResource,
   SearchUcpCatalogParams,
   UcpCheckout,
@@ -24,14 +23,7 @@ import {
   parseCheckoutInput,
   parseCheckoutUpdateInput,
 } from './checkout-input';
-import {
-  CheckoutRetrieve,
-  type CheckoutRetrieveResult,
-} from './checkout-retrieve';
-import {
-  DEFAULT_UCP_POLL_TIMEOUT_SECONDS,
-  pollUcpCheckout,
-} from './checkout-state';
+import { CheckoutRetrieve } from './checkout-retrieve';
 import {
   catalogSearchOptions,
   checkoutCancelOptions,
@@ -45,13 +37,7 @@ export function createUcpCli(
   repositoryFactory: () => IUcpResource,
   authStorage?: CliAuthStorage,
   envAccessToken?: string,
-  spendRequestRepositoryFactory?: () => Pick<ISpendRequestResource, 'retrieve'>,
 ) {
-  const paymentRepository = () => {
-    if (!spendRequestRepositoryFactory)
-      throw new Error('Payment polling resource is required');
-    return spendRequestRepositoryFactory();
-  };
   const catalog = Cli.create('catalog', {
     description: 'Search the UCP product catalog',
   });
@@ -183,11 +169,7 @@ export function createUcpCli(
       return {
         ...created,
         instruction: `Review checkout ${created.id}, resolve any messages, and use checkout update to supply any missing details and select fulfillment. On PUT updates, omitted line items, buyer, and fulfillment sections keep their existing checkout values. Once the checkout is ready_for_complete and you have reviewed its final total, create a spend request for that total using ${formatCommandSuggestion(spendRequest)}; spend-request calls the UCP business value a network ID. Get it approved, then complete the checkout. Both \`--spend-request-id\` and \`--business\` are required. Replace only the <spend_request_id> argument in _next.argv with the approved spend request ID, preserving the original business argument, then invoke it directly without a shell.`,
-        _next: {
-          ...completion,
-          until:
-            'checkout status is completed and spend request status is succeeded',
-        },
+        _next: completion,
       };
     },
   });
@@ -241,7 +223,7 @@ export function createUcpCli(
 
   checkout.command('complete', {
     description:
-      'Complete a UCP checkout session with an approved spend request for the same business profile. Both --spend-request-id and --business are required.',
+      'Call the UCP completion API and return its checkout response. The server resolves the payment token from --spend-request-id; --business is also required.',
     args: z.object({
       id: z.string().trim().nonempty().describe('Checkout session ID'),
     }),
@@ -262,7 +244,6 @@ export function createUcpCli(
         return renderInteractive(
           <CheckoutComplete
             repository={repository}
-            spendRequests={paymentRepository()}
             id={id}
             params={params}
             onComplete={(result) => {
@@ -328,7 +309,7 @@ export function createUcpCli(
 
   checkout.command('retrieve', {
     description:
-      'Retrieve a UCP checkout by ID and business. Add --poll and --spend-request-id to wait for a payment outcome. Spend-request details are not included.',
+      'Retrieve a UCP checkout by ID and business and return its checkout response.',
     args: z.object({
       id: z
         .string()
@@ -352,16 +333,12 @@ export function createUcpCli(
       }
       const repository = repositoryFactory();
       if (!c.agent && !c.formatExplicit) {
-        let capturedResult: CheckoutRetrieveResult | null = null;
+        let capturedResult: UcpCheckout | null = null;
         return renderInteractive(
           <CheckoutRetrieve
             repository={repository}
             id={id}
             business={c.options.business}
-            spendRequestId={c.options.spendRequestId}
-            spendRequests={c.options.poll ? paymentRepository() : undefined}
-            poll={c.options.poll}
-            timeout={c.options.timeout}
             onComplete={(result) => {
               capturedResult = result;
             }}
@@ -372,18 +349,8 @@ export function createUcpCli(
           },
         );
       }
-      if (!c.options.poll) {
-        return repository.retrieveCheckout(id, {
-          business: c.options.business,
-        });
-      }
-      if (!c.options.spendRequestId)
-        throw new Error('--poll requires --spend-request-id');
-      return pollUcpCheckout(repository, id, {
+      return repository.retrieveCheckout(id, {
         business: c.options.business,
-        spendRequestId: c.options.spendRequestId,
-        spendRequests: paymentRepository(),
-        timeout: c.options.timeout ?? DEFAULT_UCP_POLL_TIMEOUT_SECONDS,
       });
     },
   });
