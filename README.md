@@ -770,8 +770,6 @@ link-cli mpp decode \
 
 All UCP commands show an interactive summary when run in a terminal without a format flag. Add `--format json` to any catalog or checkout command to return the full JSON response, including messages, fulfillment choices, capability metadata, and other returned fields. Use this flag for scripts and agents. Other explicit formats remain supported; piped output and MCP use structured output.
 
-`checkout complete` and `checkout retrieve` return their UCP API responses in all output modes. Completion passes the spend request ID to the server to resolve its shared payment token. These commands do not retrieve or wait for spend-request state; use the spend-request commands to inspect payment independently.
-
 Search a catalog, then use the returned business and SKU to create a UCP checkout:
 
 ```bash
@@ -794,16 +792,14 @@ link-cli ucp checkout update --id <checkout_id> --business <business> \
   --fulfillment '<entire fulfillment JSON object>' --format json
 ```
 
-Once the checkout is `ready_for_complete`, create and approve a `shared_payment_token` spend request for the final `totals` entry with `type: "total"`, using the business as its `--network-id`. Complete with that spend request ID, then retrieve checkout and payment state separately as needed:
+Once the checkout is `ready_for_complete`, create and approve a `shared_payment_token` spend request for the final `totals` entry with `type: "total"`, using the business as its `--network-id`. Pass the approved request ID to complete the checkout:
 
 ```bash
 link-cli ucp checkout complete <checkout_id> --business <business> \
   --spend-request-id <spend_request_id> --format json
-link-cli ucp checkout retrieve --id <checkout_id> --business <business> --format json
-link-cli spend-request retrieve <spend_request_id> --format json
 ```
 
-The returned checkout status describes the UCP checkout; payment execution and required actions are available separately on the spend request. UCP commands do not synthesize a combined payment outcome or support polling. To monitor payment, repeat `spend-request retrieve`; its `--interval` option waits only in approval or automatic-resume verification states and returns immediately for `approved` or `submitted`. Avoid repeating completion to check progress because the payment token is one-time-use. Checkout commands use the UCP API's live flow. Only catalog search supports `--test` demo results.
+Use `checkout retrieve` to check the checkout's current status. Checkout commands use the UCP API's live flow. Only catalog search supports `--test` demo results.
 
 To cancel a checkout, supply its ID and business. The response contains the canceled checkout:
 
