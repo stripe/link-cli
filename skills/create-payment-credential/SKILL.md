@@ -477,7 +477,7 @@ Steps:
 
    `--line-item` is repeatable and uses `key:value` format with keys `id` (required) and `quantity` (positive integer, defaults to 1). The CLI sends `id` as `line_items[].item.id`. Optionally supply `--buyer 'first_name:Jane,last_name:Doe,email:jane@example.com,phone_number:+1234567890'`; every subfield is optional. Supply the entire UCP fulfillment JSON object with `--fulfillment` (alternate spelling `--fullfilment`). When buyer or fulfillment is omitted on create, Link supplies saved wallet details.
 
-   **Resolve checkout messages and fulfillment.** Retrieve with `ucp checkout retrieve --id <checkout_id> --business <business> --format json`. Use `ucp checkout update --id <checkout_id> --business <business> [--line-item 'id:<sku>'] [--buyer '<buyer fields>'] [--fulfillment '<entire JSON object>'] --format json`. Updates use PUT. Line items, buyer, and fulfillment are optional on update: omitted sections keep their existing checkout values. Updates do not reload saved Link wallet details. When supplying a section, do not assume its nested fields are merged with existing values. Wait for `ready_for_complete` and confirm the final total.
+   **Resolve checkout messages and fulfillment.** Retrieve with `ucp checkout retrieve --id <checkout_id> --business <business> --format json`. Use `ucp checkout update --id <checkout_id> --business <business> [--line-item 'id:<sku>'] [--buyer '<buyer fields>'] [--fulfillment '<entire JSON object>'] --format json`. Wait for `ready_for_complete` and confirm the final total.
 
    To abandon a checkout, use `ucp checkout cancel --id <checkout_id> --business <business> --format json`.
 
