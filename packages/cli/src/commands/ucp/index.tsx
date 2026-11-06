@@ -112,7 +112,7 @@ export function createUcpCli(
 
   checkout.command('create', {
     description:
-      'Create a UCP checkout for a business and line items. The seller determines currency. Link supplies saved buyer and fulfillment details when those sections are omitted.',
+      'Create a UCP checkout for a business and line items. The seller determines currency. Omitted buyer details use saved Link details; omitted fulfillment uses a complete saved default shipping address when available.',
     options: checkoutCreateOptions,
     outputPolicy: 'agent-only' as const,
     middleware: [requireAuth(authStorage, envAccessToken)],

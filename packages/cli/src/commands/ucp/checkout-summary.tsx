@@ -2,6 +2,11 @@ import type { UcpCheckout } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import type React from 'react';
 import { formatAmount as formatCurrencyAmount } from '../../utils/format-amount';
+import {
+  CheckoutBuyer,
+  CheckoutFulfillment,
+  CheckoutMessages,
+} from './checkout-details';
 
 function formatAmount(
   amount?: number | null,
@@ -47,6 +52,8 @@ export const CheckoutSummary: React.FC<CheckoutSummaryProps> = ({
           </Text>
         </Text>
       )}
+      <CheckoutMessages checkout={checkout} />
+      {checkout.continue_url && <Text>Continue: {checkout.continue_url}</Text>}
       {total != null && (
         <Text>
           Total:{' '}
@@ -92,6 +99,8 @@ export const CheckoutSummary: React.FC<CheckoutSummaryProps> = ({
           })}
         </Box>
       )}
+      <CheckoutBuyer checkout={checkout} />
+      <CheckoutFulfillment checkout={checkout} />
       {orderId && (
         <Text>
           Order:{' '}
