@@ -768,6 +768,8 @@ link-cli mpp decode \
 
 ### UCP checkout
 
+All UCP commands show an interactive summary when run in a terminal without a format flag. Add `--format json` to any catalog or checkout command to return the full JSON response, including messages, fulfillment choices, capability metadata, and other returned fields. Use this flag for scripts and agents. Other explicit formats remain supported; piped output and MCP use structured output.
+
 Search a catalog, then use the returned business and SKU to create a UCP checkout:
 
 ```bash
@@ -781,7 +783,7 @@ link-cli ucp checkout create --business <business> \
 
 `--line-item` is repeatable; `quantity` defaults to 1. All buyer fields are optional (`first_name`, `last_name`, `email`, `phone_number`). `--fulfillment` accepts the entire UCP JSON object; `--fullfilment` is an alternate spelling. Omit buyer or fulfillment to use saved Link details during creation. The seller determines the checkout currency.
 
-Review the returned `messages`, `totals`, and fulfillment choices. Update the checkout as needed. Updates use PUT. Line items, buyer, and fulfillment are optional on update: omitted sections keep their existing checkout values. Updates do not reload saved Link wallet details.
+Review the returned `messages`, `totals`, and fulfillment choices. Update the checkout as needed.
 
 ```bash
 link-cli ucp checkout retrieve --id <checkout_id> --business <business> --format json
@@ -790,16 +792,14 @@ link-cli ucp checkout update --id <checkout_id> --business <business> \
   --fulfillment '<entire fulfillment JSON object>' --format json
 ```
 
-Once the checkout is `ready_for_complete`, create and approve a `shared_payment_token` spend request for the final `totals` entry with `type: "total"`, using the business as its `--network-id`. Complete with that spend request ID, then retrieve payment state or poll:
+Once the checkout is `ready_for_complete`, create and approve a `shared_payment_token` spend request for the final `totals` entry with `type: "total"`, using the business as its `--network-id`. Pass the approved request ID to complete the checkout:
 
 ```bash
 link-cli ucp checkout complete <checkout_id> --business <business> \
   --spend-request-id <spend_request_id> --format json
-link-cli ucp checkout retrieve --id <checkout_id> --business <business> \
-  --spend-request-id <spend_request_id> --poll --format json
 ```
 
-Payment succeeds when the checkout is `completed` and the spend request is `succeeded`. Follow any required payment action and continue polling; avoid repeating completion. Checkout commands use the UCP API's live flow. Only catalog search supports `--test` demo results.
+Use `checkout retrieve` to check the checkout's current status. Checkout commands use the UCP API's live flow. Only catalog search supports `--test` demo results.
 
 To cancel a checkout, supply its ID and business. The response contains the canceled checkout:
 

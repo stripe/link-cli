@@ -5115,37 +5115,40 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     });
 
     describe('checkout complete', () => {
-      it('POSTs the spend request and business IDs to the completion path', async () => {
-        setNextResponse(200, {
-          id: 'dcs_1',
-          status: 'completed',
-          order: { id: 'order_confirmed' },
-        });
+      it.each(['completed', 'complete_in_progress'])(
+        'returns the completion API response with status %s without monitoring payment',
+        async (status) => {
+          setNextResponse(200, {
+            id: 'dcs_1',
+            status,
+            order: { id: 'order_confirmed' },
+          });
 
-        const result = await runProdCli(
-          'ucp',
-          'checkout',
-          'complete',
-          'dcs_1',
-          '--spend-request-id',
-          'lsrq_1',
-          '--business',
-          'np_1',
-          '--json',
-        );
+          const result = await runProdCli(
+            'ucp',
+            'checkout',
+            'complete',
+            'dcs_1',
+            '--spend-request-id',
+            'lsrq_1',
+            '--business',
+            'np_1',
+            '--json',
+          );
 
-        expect(result.exitCode).toBe(0);
-        expect(requests).toHaveLength(1);
-        expect(lastRequest.method).toBe('POST');
-        expect(lastRequest.url).toBe('/ucp/checkout/dcs_1/complete');
-        expect(JSON.parse(lastRequest.body)).toEqual({
-          spend_request_id: 'lsrq_1',
-          business: 'np_1',
-        });
+          expect(result.exitCode).toBe(0);
+          expect(requests).toHaveLength(1);
+          expect(lastRequest.method).toBe('POST');
+          expect(lastRequest.url).toBe('/ucp/checkout/dcs_1/complete');
+          expect(JSON.parse(lastRequest.body)).toEqual({
+            spend_request_id: 'lsrq_1',
+            business: 'np_1',
+          });
 
-        const output = parseJson(result.stdout) as Record<string, unknown>;
-        expect(output.status).toBe('completed');
-      });
+          const output = parseJson(result.stdout) as Record<string, unknown>;
+          expect(output.status).toBe(status);
+        },
+      );
 
       it('surfaces an upstream card error', async () => {
         setNextResponse(402, {
@@ -5311,103 +5314,43 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         expect(parseJson(result.stdout)).toEqual(checkout);
       });
 
-      it('GETs the composite state once and preserves nested next_action output', async () => {
+      it('returns checkout only without retrieving or surfacing payment details', async () => {
+        const checkout = { id: 'dcs_1', status: 'complete_in_progress' };
         setNextResponse(200, {
-          id: 'dcs_1',
-          status: 'complete_in_progress',
+          ...checkout,
           spend_request: {
             id: 'lsrq_1',
-            status: 'requires_action',
-            created_at: '2026-03-10T00:00:00Z',
-            updated_at: '2026-03-10T00:00:01Z',
-            status_details: {
-              requires_action: {
-                next_action: {
-                  type: 'three_d_secure',
-                  resolution: 'auto_resume',
-                  display_message: 'Complete verification',
-                  action_url: 'https://example.com/action',
-                },
-              },
-            },
+            shared_payment_token: { id: 'sensitive-token' },
           },
         });
-
-        const { spend_request, ...checkout } = nextResponse.body as Record<
-          string,
-          unknown
-        >;
-        nextResponse.body = checkout;
-        responsesByUrl['/spend_requests/lsrq_1'] = {
-          status: 200,
-          body: spend_request,
-        };
         const result = await runProdCli(
           'ucp',
           'checkout',
           'retrieve',
           'dcs_1',
-          '--spend-request-id',
-          'lsrq_1',
           '--business',
           'np_1',
           '--json',
         );
-
         expect(result.exitCode).toBe(0);
-        expect(requests).toHaveLength(2);
-        const checkoutRequest = requests[0];
-        expect(checkoutRequest?.method).toBe('GET');
-        expect(checkoutRequest?.body).toBe('');
-        const requestUrl = new URL(
-          checkoutRequest?.url ?? '',
-          'http://localhost',
+        expect(requests).toHaveLength(1);
+        expect(lastRequest.method).toBe('GET');
+        expect(lastRequest.url).toBe('/ucp/checkout/dcs_1?business=np_1');
+        expect(parseJson(result.stdout)).toEqual(checkout);
+        expect(result.stdout).not.toMatch(
+          /spend_request|lsrq_1|sensitive-token/,
         );
-        expect(requestUrl.pathname).toBe('/ucp/checkout/dcs_1');
-        expect([...requestUrl.searchParams]).toEqual([['business', 'np_1']]);
-        expect(
-          requests.some((request) => request.url === '/spend_requests/lsrq_1'),
-        ).toBe(true);
-
-        const output = parseJson(result.stdout) as Record<string, unknown>;
-        expect(output).toMatchObject({
-          id: 'dcs_1',
-          status: 'complete_in_progress',
-          spend_request: {
-            id: 'lsrq_1',
-            status_details: {
-              requires_action: {
-                next_action: {
-                  type: 'three_d_secure',
-                  resolution: 'auto_resume',
-                  display_message: 'Complete verification',
-                  action_url: 'https://example.com/action',
-                },
-              },
-            },
-          },
-        });
       });
 
       it.each([
+        ['a missing checkout ID', ['ucp', 'checkout', 'retrieve']],
+        ['an empty checkout ID', ['ucp', 'checkout', 'retrieve', '']],
         [
-          'a missing checkout ID',
-          ['ucp', 'checkout', 'retrieve', '--spend-request-id', 'lsrq_1'],
-        ],
-        [
-          'an empty checkout ID',
-          ['ucp', 'checkout', 'retrieve', '', '--spend-request-id', 'lsrq_1'],
-        ],
-        [
-          'polling without a spend request ID',
+          'the removed --poll option',
           ['ucp', 'checkout', 'retrieve', 'dcs_1', '--poll'],
         ],
         [
-          'an empty spend request ID',
-          ['ucp', 'checkout', 'retrieve', 'dcs_1', '--spend-request-id', ''],
-        ],
-        [
-          '--timeout without --poll',
+          'the removed --spend-request-id option',
           [
             'ucp',
             'checkout',
@@ -5415,9 +5358,11 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
             'dcs_1',
             '--spend-request-id',
             'lsrq_1',
-            '--timeout',
-            '10',
           ],
+        ],
+        [
+          'the removed --timeout option',
+          ['ucp', 'checkout', 'retrieve', 'dcs_1', '--timeout', '10'],
         ],
       ])('rejects %s without making a request', async (_, args) => {
         const result = await runProdCli(

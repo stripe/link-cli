@@ -15,6 +15,7 @@ import {
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
 import { CatalogSearch } from './catalog-search';
+import { CheckoutAction } from './checkout-action';
 import { CheckoutComplete } from './checkout-complete';
 import { CheckoutCreate } from './checkout-create';
 import {
@@ -22,7 +23,7 @@ import {
   parseCheckoutInput,
   parseCheckoutUpdateInput,
 } from './checkout-input';
-import { runUcpCheckoutRetrieve } from './checkout-state';
+import { CheckoutRetrieve } from './checkout-retrieve';
 import {
   catalogSearchOptions,
   checkoutCancelOptions,
@@ -168,11 +169,7 @@ export function createUcpCli(
       return {
         ...created,
         instruction: `Review checkout ${created.id}, resolve any messages, and use checkout update to supply any missing details and select fulfillment. On PUT updates, omitted line items, buyer, and fulfillment sections keep their existing checkout values. Once the checkout is ready_for_complete and you have reviewed its final total, create a spend request for that total using ${formatCommandSuggestion(spendRequest)}; spend-request calls the UCP business value a network ID. Get it approved, then complete the checkout. Both \`--spend-request-id\` and \`--business\` are required. Replace only the <spend_request_id> argument in _next.argv with the approved spend request ID, preserving the original business argument, then invoke it directly without a shell.`,
-        _next: {
-          ...completion,
-          until:
-            'checkout status is completed and spend request status is succeeded',
-        },
+        _next: completion,
       };
     },
   });
@@ -189,6 +186,7 @@ export function createUcpCli(
         .describe('Checkout session ID'),
     }),
     options: checkoutUpdateOptions,
+    outputPolicy: 'agent-only' as const,
     middleware: [requireAuth(authStorage, envAccessToken)],
     async run(c) {
       let id: string;
@@ -202,13 +200,30 @@ export function createUcpCli(
           message: (err as Error).message,
         });
       }
-      return repositoryFactory().updateCheckout(id, params);
+      const repository = repositoryFactory();
+      if (!c.agent && !c.formatExplicit) {
+        let capturedResult: UcpCheckout | null = null;
+        return renderInteractive(
+          <CheckoutAction
+            action={() => repository.updateCheckout(id, params)}
+            operation="update"
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => {
+            if (!capturedResult) throw new Error('Failed to update checkout');
+            return capturedResult;
+          },
+        );
+      }
+      return repository.updateCheckout(id, params);
     },
   });
 
   checkout.command('complete', {
     description:
-      'Complete a UCP checkout session with an approved spend request for the same business profile. Both --spend-request-id and --business are required.',
+      'Call the UCP completion API and return its checkout response. The server resolves the payment token from --spend-request-id; --business is also required.',
     args: z.object({
       id: z.string().trim().nonempty().describe('Checkout session ID'),
     }),
@@ -258,35 +273,7 @@ export function createUcpCli(
         .describe('Checkout session ID'),
     }),
     options: checkoutCancelOptions,
-    middleware: [requireAuth(authStorage, envAccessToken)],
-    run(c) {
-      let id: string;
-      try {
-        id = checkoutId(c.args.id, c.options.id);
-      } catch (err) {
-        return c.error({
-          code: 'INVALID_INPUT',
-          message: (err as Error).message,
-        });
-      }
-      return repositoryFactory().cancelCheckout(id, {
-        business: c.options.business,
-      });
-    },
-  });
-
-  checkout.command('retrieve', {
-    description:
-      'Retrieve a UCP checkout by ID and business. Add --spend-request-id to include payment state, or --poll to wait for a payment outcome.',
-    args: z.object({
-      id: z
-        .string()
-        .trim()
-        .nonempty()
-        .optional()
-        .describe('Checkout session ID'),
-    }),
-    options: checkoutRetrieveOptions,
+    outputPolicy: 'agent-only' as const,
     middleware: [requireAuth(authStorage, envAccessToken)],
     run(c) {
       let id: string;
@@ -299,16 +286,71 @@ export function createUcpCli(
         });
       }
       const repository = repositoryFactory();
-      if (!c.options.spendRequestId) {
-        return repository.retrieveCheckout(id, {
-          business: c.options.business,
+      const params = { business: c.options.business };
+      if (!c.agent && !c.formatExplicit) {
+        let capturedResult: UcpCheckout | null = null;
+        return renderInteractive(
+          <CheckoutAction
+            action={() => repository.cancelCheckout(id, params)}
+            operation="cancel"
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => {
+            if (!capturedResult) throw new Error('Failed to cancel checkout');
+            return capturedResult;
+          },
+        );
+      }
+      return repository.cancelCheckout(id, params);
+    },
+  });
+
+  checkout.command('retrieve', {
+    description:
+      'Retrieve a UCP checkout by ID and business and return its checkout response.',
+    args: z.object({
+      id: z
+        .string()
+        .trim()
+        .nonempty()
+        .optional()
+        .describe('Checkout session ID'),
+    }),
+    options: checkoutRetrieveOptions,
+    outputPolicy: 'agent-only' as const,
+    middleware: [requireAuth(authStorage, envAccessToken)],
+    run(c) {
+      let id: string;
+      try {
+        id = checkoutId(c.args.id, c.options.id);
+      } catch (err) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message: (err as Error).message,
         });
       }
-      return runUcpCheckoutRetrieve(repository, id, {
+      const repository = repositoryFactory();
+      if (!c.agent && !c.formatExplicit) {
+        let capturedResult: UcpCheckout | null = null;
+        return renderInteractive(
+          <CheckoutRetrieve
+            repository={repository}
+            id={id}
+            business={c.options.business}
+            onComplete={(result) => {
+              capturedResult = result;
+            }}
+          />,
+          () => {
+            if (!capturedResult) throw new Error('Failed to retrieve checkout');
+            return capturedResult;
+          },
+        );
+      }
+      return repository.retrieveCheckout(id, {
         business: c.options.business,
-        spendRequestId: c.options.spendRequestId,
-        poll: c.options.poll,
-        timeout: c.options.timeout,
       });
     },
   });

@@ -358,6 +358,7 @@ describe('command continuations', () => {
       'id:sku_synthetic,quantity:1',
     ]);
     const next = output._next as CommandContinuation;
+    expect(next).not.toHaveProperty('until');
     expectPlatformPolicy(next);
     expect(next.argv).toEqual({
       command: 'ucp',
