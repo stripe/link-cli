@@ -3976,7 +3976,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         postal_code: '94103',
         country: 'US',
       });
-      expect(output).not.toHaveProperty('eligible_for_balance');
+      expect(output.eligible_for_balance).toBe(false);
       expect(output.agent_wallet_spend_limits).toEqual({
         per_transaction: { limit: null },
         daily: { limit: 500000, used: 120000, remaining: 380000 },
