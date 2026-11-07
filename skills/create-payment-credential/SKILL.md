@@ -113,7 +113,7 @@ Always check the current authentication status before starting a new login flow 
 
 If the user is already authenticated but you need broader access (an additional `scope`, `--source-actions`, or `--authorization-detail`), use `auth upgrade` instead of `auth login`. It accepts the same explicit access flags but does not add the login-only financial-insights default. It merges what you request with the current `scope`/`authorization_details` and starts a new approval for the superset — so existing access is never dropped. Check `auth status` first so you know what's already granted. The current session stays valid during the approval and is only replaced once the user approves the new one, so an abandoned upgrade leaves the existing session working. Do not start an upgrade solely to fetch an optional brand insight for a purchase.
 
-Optionally, before a purchase, run `link-cli user-info retrieve` to inspect the address, applicable spend limits, and verification requirements. Finite limit values are cents, while `null` limit or remaining values mean unlimited. When `agent_wallet_verification_requirement.action_url` is present, direct the user there to complete the required action.
+Optionally, before a purchase, run `link-cli user-info retrieve --format json` to inspect the address, applicable spend limits, verification requirements, and balance eligibility. Finite limit values are cents, while `null` limit or remaining values mean unlimited. When `agent_wallet_verification_requirement.action_url` is present, direct the user there to complete the required action.
 
 ### Step 2: Evaluate the merchant site BEFORE creating a spend request
 
@@ -153,6 +153,8 @@ link-cli payment-methods list
 ```
 
 **Link balance:** the list can include a Link balance payment method, identified by `"type": "BALANCE"` and a `balance_details` object. It holds money in the user's Link account and is set up once, through a separate onboarding flow rather than the initial `link-cli` setup. After that it is one of the user's payment methods and can be used on any spend request, including a normal one the user approves.
+
+Before suggesting or directing the user to set up Link balance, run `link-cli user-info retrieve --format json`. Only offer setup when `eligible_for_balance` is explicitly `true`. If it is `false` or missing, don't offer setup. A missing `BALANCE` payment method alone does not establish eligibility.
 
 - If Link balance is listed, `balance_details.available_balance` shows the user's current balance. This does not mean you have an approval policy: permission to create spend requests that skip approval when the individual purchase is below the user's approval threshold. Check that with `link-cli approval-policy retrieve --format json`, which returns an error if you have no policy.
 - If the purchase should happen without approval because it needs to happen later, repeatedly on a schedule, while the user is away or asleep, because the user wants to avoid the friction of manual approval, or because it's a proactive purchase you know the user wants, then the user must have an approval policy for you. Load the `link-balance` skill before agreeing to the purchase. It covers checking the current balance and approval threshold against the expected total, flagging any shortfall to the user, and sending them to set up Link balance, add money to it, or raise the threshold.
@@ -209,7 +211,7 @@ merchant's network profile. Keep the card's merchant name and URL parameters.
 
 **Paying with Link balance:** pass the Link balance payment method's ID with `--payment-method-id` and do not rely on the default payment method. The user approves the request as usual unless you pass `--use-approval-policy`. To be approved automatically, all of these must be true:
 
-- You have a confidential Link OAuth client ID. See the `link-balance` skill.
+- You have a Link OAuth client ID. See the `link-balance` skill.
 - The request uses the Link balance payment method's ID as `--payment-method-id`.
 - The final total, including tax, shipping, and fees, is below the approval threshold: the `limits.per_purchase` amount of the `spend_request_create` rule returned by `approval-policy retrieve`.
 - If that rule lists `allowed_payment_methods`, the Link balance ID is in it.

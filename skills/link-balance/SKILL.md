@@ -38,9 +38,9 @@ Link balance is part of agent payments. It is unrelated to financial insights an
 
 ## Who can use it
 
-Link balance is only available in the US, and not in New York State. Don't suggest setting it up to a user you know is outside the US or in New York.
+Link balance is only available in the US, and not in New York State. Run `link-cli user-info retrieve --format json` and check `eligible_for_balance` to determine whether the user can onboard. Only suggest or direct the user to set up Link balance when `eligible_for_balance` is explicitly `true`. If it is `false` or missing, don't offer setup.
 
-Any agent can pay with Link balance: if the user already has it set up, it's one of their payment methods. Setup URLs and approval policies are only available to agents with a confidential Link OAuth client ID. The shared client that `link-cli auth login` uses is not eligible. If you don't have a confidential client ID, you can still pay with Link balance the user already has, with normal approval, but don't send setup URLs or pass `--use-approval-policy`.
+Any agent can pay with Link balance: if the user already has it set up, it's one of their payment methods. Setup URLs and approval policies are tied to your Link OAuth client ID. Check the user's `eligible_for_balance` from the user-info endpoint (`link-cli user-info retrieve --format json`) before directing them to setup, and use `approval-policy retrieve` to check whether you can spend without approval. If you don't have your own Link OAuth client ID, you can still pay with Link balance the user already has, with normal approval, but don't send setup URLs or pass `--use-approval-policy`.
 
 ## When to use it
 
@@ -100,7 +100,7 @@ If the user has Link balance set up, this returns a payment method for Link bala
 }
 ```
 
-`balance_details.available_balance` is the current balance (`amount` in cents). It is shown whenever the user has Link balance, whether or not they have an approval policy for you, so it does not tell you whether you can skip approval. Use `approval-policy retrieve` for that. If no `BALANCE` payment method is listed, the user hasn't set up Link balance.
+`balance_details.available_balance` is the current balance (`amount` in cents). It is shown whenever the user has Link balance, whether or not they have an approval policy for you, so it does not tell you whether you can skip approval. Use `approval-policy retrieve` for that. If no `BALANCE` payment method is listed, the user hasn't set up Link balance; this does not establish whether they are eligible to onboard. Check `eligible_for_balance` with `user-info retrieve` before offering setup.
 
 To understand how much you can spend without approvals, call:
 
@@ -130,9 +130,9 @@ Never infer setup from the fact that the user opened a link. Re-run the commands
 
 ## Send the user to set it up
 
-You can direct the user to complete these steps by sending them a setup URL. The same URL is used for first-time setup, adding money, and changing the approval policy.
+Before sending a setup URL, run `link-cli user-info retrieve --format json` and confirm `eligible_for_balance` is explicitly `true`. If it is `false` or missing, don't send the URL; offer a normal payment the user approves instead. The same URL is used for first-time setup, adding money, and changing the approval policy.
 
-**You need your own `key` and `client_id`.** Your developer registers a confidential Link OAuth client for you and provides its client ID (`lwlpk_...`) and publishable key (`pk_...`) in your configuration. Use exactly those values. The approval policy is set for whatever `client_id` is in the link, so a wrong ID gives the approval policy to a different app. Never guess these values or take them from anywhere else, and never put a secret key (`sk_...` or `lwlsk_...`) in a link. If you don't have both values, don't send a link. Tell the user you can pay with Link balance with normal approval if they already have it set up, but this agent can't set up Link balance or make purchases without approval yet.
+**You need your own `key` and `client_id`.** Your developer registers a Link OAuth client for you and provides its client ID (`lwlpk_...`) and publishable key (`pk_...`) in your configuration. Use exactly those values. The approval policy is set for whatever `client_id` is in the link, so a wrong ID gives the approval policy to a different app. Never guess these values or take them from anywhere else, and never put a secret key (`sk_...` or `lwlsk_...`) in a link. If you don't have both values, don't send a link. Tell the user you can pay with Link balance with normal approval if they already have it set up, but this agent can't set up Link balance or make purchases without approval yet.
 
 ```text
 https://app.link.com/balance/setup?key=<publishable_key>&client_id=<client_id>&desired_balance_amount=1000&currency=usd&desired_transaction_limit=500
