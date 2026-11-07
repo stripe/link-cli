@@ -152,10 +152,12 @@ balance eligibility, spend limits, and verification requirements:
 ```
 
 The address and `eligible_for_balance` fields are omitted when their enrichment
-is unavailable. `address` is null and `eligible_for_balance` is false when the
-user has no Person record. Finite spend-limit values are cents because this
-response does not include a currency. A null limit or remaining amount means
-unlimited. `agent_wallet_verification_requirement.status` can be
+is unavailable. `address` is null when the user has no Person record.
+`eligible_for_balance` reports balance eligibility for the user and the current
+OAuth app; an absent field does not establish eligibility or ineligibility.
+Finite spend-limit values are cents because this response does not include a
+currency. A null limit or remaining amount means unlimited.
+`agent_wallet_verification_requirement.status` can be
 `not_required`, `ssn_verification`, `credit_file_match_ca`,
 `identity_verification`, `doc_upload_ca`, `pending`, `contact_support`, or
 `complete`. Its `action_url` is null when no user action is available.
