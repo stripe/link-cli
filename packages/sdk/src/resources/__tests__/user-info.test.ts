@@ -120,10 +120,10 @@ describe('UserInfoResource', () => {
         postal_code: '94103',
         country: 'US',
       },
+      eligible_for_balance: false,
       agent_wallet_spend_limits: agentWalletSpendLimits,
       agent_wallet_verification_requirement: agentWalletStepUp,
     });
-    expect(result).not.toHaveProperty('eligible_for_balance');
   });
 
   it.each([
@@ -191,7 +191,7 @@ describe('UserInfoResource', () => {
     });
   });
 
-  it('preserves a nullable address while omitting legacy balance eligibility', async () => {
+  it('preserves a nullable address and true balance eligibility', async () => {
     mockFetchResponse(200, {
       address: {
         line1: null,
@@ -214,7 +214,7 @@ describe('UserInfoResource', () => {
       postal_code: null,
       country: null,
     });
-    expect(result).not.toHaveProperty('eligible_for_balance');
+    expect(result.eligible_for_balance).toBe(true);
   });
 
   it('accepts an address with omitted line2', async () => {
@@ -273,7 +273,7 @@ describe('UserInfoResource', () => {
     },
   );
 
-  it('preserves a null address while omitting legacy balance eligibility', async () => {
+  it('preserves a null address with false balance eligibility', async () => {
     mockFetchResponse(200, {
       address: null,
       eligible_for_balance: false,
@@ -282,8 +282,9 @@ describe('UserInfoResource', () => {
     const result = await resource.retrieve();
 
     expect(result.address).toBeNull();
+    expect(result.eligible_for_balance).toBe(false);
     expect(result).toHaveProperty('address');
-    expect(result).not.toHaveProperty('eligible_for_balance');
+    expect(result).toHaveProperty('eligible_for_balance');
   });
 
   it('keeps independently omitted enrichment fields undefined', async () => {
@@ -296,6 +297,7 @@ describe('UserInfoResource', () => {
 
     expect(result.agent_wallet_spend_limits).toBeUndefined();
     expect(result.address).toBeUndefined();
+    expect(result.eligible_for_balance).toBeUndefined();
     expect(result.agent_wallet_verification_requirement).toEqual({
       status: 'not_required',
       action_url: null,
@@ -340,6 +342,7 @@ describe('UserInfoResource', () => {
     expect(result.agent_wallet_spend_limits).toBeUndefined();
     expect(result.agent_wallet_verification_requirement).toBeUndefined();
     expect(result.address).toBeUndefined();
+    expect(result.eligible_for_balance).toBeUndefined();
     expect(result).not.toHaveProperty('agent_wallet_spend_limits');
     expect(result).not.toHaveProperty('agent_wallet_verification_requirement');
     expect(result).not.toHaveProperty('address');
