@@ -29,6 +29,26 @@ const purchase = {
 };
 
 describe('Link tools', () => {
+  it.each([1_800_000_000, '2027-01-15T08:00:00Z'])(
+    'converts request expiry %s through the agent tool to HTTP',
+    async (expires_at) => {
+      const { tools, fetch } = fixture();
+      await tools.create_spend_request.execute(
+        { ...purchase, expires_at },
+        context,
+      );
+      expect(JSON.parse(String(fetch.mock.calls[0]![1]?.body)).expires_at).toBe(
+        1_800_000_000,
+      );
+      expect(
+        linkToolSchemas.createSpendRequest.safeParse({
+          ...purchase,
+          expires_at: 1_800_000_000.5,
+        }).success,
+      ).toBe(false);
+    },
+  );
+
   it.each([' opaque+nonce ', 'a'.repeat(512), '\u{10000}'.repeat(256)])(
     'passes callback context unchanged through the tool to HTTP %#',
     async (nonce) => {
@@ -218,7 +238,7 @@ describe('Link tools', () => {
       properties: { interval: { enum: ['day', 'week', 'month', 'year'] } },
       required: ['interval'],
     });
-    expect(JSON.stringify(schema)).not.toContain('hour');
+    expect(JSON.stringify(schema.properties?.recurring)).not.toContain('hour');
   });
 
   it.each(['', 'jp', 'usdd'])(
@@ -300,6 +320,20 @@ describe('Link tools', () => {
     });
   });
 
+  it('routes create_spend_request through the delegated approval flow when use_approval_policy is set', async () => {
+    const { tools, fetch } = fixture();
+    await tools.create_spend_request.execute(
+      { ...purchase, use_approval_policy: true },
+      context,
+    );
+
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(url).toBe('https://api.link.com/spend_requests/create_delegated');
+    const body = JSON.parse(String(init?.body));
+    expect(body.use_approval_policy).toBe(true);
+    expect(body).not.toHaveProperty('approve');
+  });
+
   it('maps retrieve includes and update IDs without putting IDs in the body', async () => {
     const { tools, fetch } = fixture();
     await tools.retrieve_spend_request.execute(
@@ -324,6 +358,26 @@ describe('Link tools', () => {
       amount: 2000,
       line_items: [{ name: 'Book', quantity: 2 }],
     });
+  });
+
+  it('returns the approval policy from retrieve_approval_policy', async () => {
+    const { tools, fetch } = fixture();
+    const policy = {
+      rules: [
+        {
+          action: 'spend_request_create',
+          limits: { per_purchase: { amount: 5000, currency: 'usd' } },
+        },
+      ],
+    };
+    fetch.mockImplementation(async () => Response.json(policy));
+
+    const result = await tools.retrieve_approval_policy.execute({}, context);
+
+    expect(result).toEqual(policy);
+    expect(String(fetch.mock.calls[0]?.[0])).toBe(
+      'https://api.link.com/approval-policy',
+    );
   });
 
   it('keeps reports with long attempt traces valid', () => {

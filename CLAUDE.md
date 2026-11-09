@@ -102,6 +102,37 @@ The plugin MCP config (`.mcp.json`, shared by `plugins/link/`) and the generated
 
 Input is passed via flags. Define options in the command's zod schema — incur registers CLI flags automatically from the schema.
 
+### spend-request simulation (engineering evaluation only)
+
+`spend-request simulate --scenario <id> --format json` and
+`spend-request simulate --list-scenarios --format json` require the existing CLI
+session or `LINK_ACCESS_TOKEN`. Exactly one selector is required. The current
+provider returns local fixtures: 34 canonical scenarios and the `visa_otp` alias.
+No top-level `next-action` group exists. Real create/retrieve handlers are unchanged.
+
+`simulate.ts` validates selectors, applies ordinary auth middleware, invokes one
+`ISpendRequestSimulationResource` operation and yields the complete response once.
+Samples frame as `[{next_action: actionOrNull}]`; discovery frames as
+`[{catalog_version: 1, data: [...]}]` with descriptor `id` fields. The command uses
+`outputPolicy: 'all'`, `mcp: false`, and a stderr warning after successful output.
+It must not perform real payment actions or become a failure-recovery fallback.
+Ordinary startup/update behavior remains enabled.
+
+`simulation-resource.ts` supplies the interim fixture provider, cached and
+sanitized by `ResourceFactory`. Keep IDs, aliases, action enums and fixture
+validation out of the handler/options schema. The provider interface permits
+unknown future values and additive fields. Fixture calls validate no token
+against the backend, do not exercise refresh, and create no business records.
+The CLI-local fixture schema remains separate from the real SDK union.
+
+After backend deployment/contract agreement, replace the provider with authenticated
+GETs through `BaseResource`, remove the bundled catalog, and preserve this command
+and envelope shape. No automatic fixture fallback should remain. Backend scenario
+additions need no client release only after that transport transition ships.
+Before merge, recheck inventory/producers and update the pinned fixture tests;
+follow the [evaluation and transition guide](packages/cli/src/commands/spend-request/SIMULATION.md).
+Update README, payment skill, schema descriptions, and this guide together.
+
 ### auth login
 
 - `auth login --client-name <name>` — optional flag to identify the agent or app; shown in the user's Link app as `<name> on <hostname>`. Defined in `loginOptions` in `packages/cli/src/commands/auth/schema.ts`.
@@ -132,13 +163,15 @@ Key input field notes:
 - `test-helpers spend-request approve <id>` approves pending demo requests. Set `LINK_TEST_HELPERS=1` or `true` to register the command group. Returns `{id, status}`; status may be `requires_action`. Retrieve separately for credentials.
 - `create --request-approval` and `request-approval` both show an approval URL in interactive mode and poll until the request leaves `created`/`pending_approval`. `submitted` is a supported terminal status. In JSON mode (`--format json`), waiting requests return immediately with an `_next.command` for `spend-request retrieve`.
 - `retrieve --interval <seconds>` waits for the initial status to change. Polling starts only for `created`, `pending_approval`, or `requires_action` with `auto_resume`; all other statuses (including `submitted` and unknown future values) return immediately. Any status change returns, even to another waiting state. JSON and interactive retrieve share `shouldPollSpendRequest`. If `--timeout` or `--max-attempts` is reached without a change, JSON polling exits non-zero with `POLLING_TIMEOUT`.
-- Both `create` and `retrieve` (including approval polling) can return `status: 'requires_action'` with `status_details.requires_action.next_action` (`type`, `display_message`, `action_url`, `resolution`). With `resolution: 'auto_resume'` (currently only `next_action.type: 'three_d_secure'`), retrieve the same request again to wait for its status to change; interactive create resumes automatically. Any other resolution stops polling immediately; the caller must have the user complete the action, then create a new spend request.
+- Both `create` and ordinary `retrieve` can expose `status_details.requires_action.next_action`. `retrieve <id> --next-action --format json` projects only the current status's action from `requires_action` or `failed` in one snapshot, as `[{"next_action": <server action or null>}]`. Missing/null branches/actions and other statuses yield null, which does not establish approval or exclude later actions. A missing request remains NOT_FOUND. Actions retain server fields, including nullable type/URL and optional string/null `expires_at`, without normalization.
+- Snapshot mode authenticates before handler validation, requires agent mode or explicit format (human TTY error: `Use --next-action with --format json`), retrieves once without credential includes, and returns before Ink/polling/file export/continuations. Reject nonempty `include`, defined `outputFile`, true `force`, or nonzero `interval`/`maxAttempts`; `timeout` is ignored. Keep ordinary retrieve's output policy and behavior unchanged.
+- Present the exact server action URL and message to the user; users complete verification themselves. Follow `resolution`: `auto_resume` keeps the same request; inspect a new snapshot or non-polling retrieve after each completion, since Visa OTP can become `partner_create_card_enrollment` with status/URL unchanged. Ordinary polling waits for a status change, which alone does not establish approval. For recreate resolutions, follow user-completion requirements and create a new request; never resume terminal failed requests. The flag does not force verification or perform approval/completion.
 - `cancel <id>` cancels a spend request. Can cancel from `created`, `pending_approval`, or `approved` states. Returns the spend request with `status: "canceled"`.
 - `--approval-detail` — optional JSON object (MCP/agent) or JSON string (CLI) with approval details for delegated flows. Required fields: `approved_at` (unix timestamp int), `approval_method` (`click`|`programmatic`|`voice`), `app_name`, `external_user_id`. Optional: `ip_address`, `user_agent`, `device_type` (`mobile`|`web`), `agent_log_id`, `external_user_name`, `external_session_id`, `device_id`, `authentication_method` (`biometric_face`|`biometric_fingerprint`|`passkey`). Sent as `approval_details` in the API request body.
 - `card` credentials include `billing_address` (name, line1, line2, city, state, postal_code, country) and `valid_until` (ISO date string — when the card expires/stops working)
 - `--output-file <path>` on `retrieve` or `create` writes full card credentials to a local file (0600 permissions) and redacts card data in stdout. `--force` allows overwriting an existing file.
-- `create` also accepts an undocumented `--expires-at <unix_seconds>` to override the default 12-hour spend request expiration (3 hours to 7 days in the future). It's deliberately excluded from README/SKILL.md and has a minimal schema description; incur can't hide options, so it still appears in `--help`, `--schema`, `--llms-full`, and MCP. It's gated to an allow-list of OAuth clients server-side, and most callers get a 400 (`"expires_at is not supported for this client"`) if they try it — don't document or suggest it to general agents.
-- `create` also accepts undocumented `--recurring-interval <day|week|month|year>` and `--recurring-interval-count <n>` (defaults to 1 server-side), sent as `recurring: { interval, interval_count }`. Works with `card` and `shared_payment_token`. Handled like `--expires-at`: minimal descriptions, excluded from README/SKILL.md, SDK request field only on the internal `InternalCreateSpendRequestParams`. It's gated per Link account server-side; others get a 400 (`"recurring spend requests are not enabled"`) — don't document or suggest it to general agents until GA. Recurring requests stay `approved` (not `submitted`) because the credential can be charged every period; responses include `recurring` when set, shown in interactive create/retrieve/request-approval output.
+- `create --expires-at <timestamp>` is generally available, including to direct CLI integrations. The CLI, TypeScript SDK and agent tools, and Python SDK accept Unix seconds or ISO 8601 timestamps ending in `Z` (UTC) and convert ISO input to Unix seconds for the API. Go uses `ExpiresAt *int64`; parse ISO input with `time.Parse` and `.Unix()`. Spend-request `expires_at` responses are ISO 8601 strings ending in `Z` (UTC) in the CLI and all SDKs; Go uses `*string` for the response field. The API still uses Unix seconds. It is a public `CreateSpendRequestParams.expires_at` field in the TypeScript SDK and agent tools, `ExpiresAt` in Go, and `expires_at` in Python sync/async clients. It can only be set at creation. Use for delayed merchant charges (preorders, bookings, payment after delivery), with the expected timing in `context`; omit for ordinary purchases. Explicit expiry must be at least 3 hours ahead. One-time requests default to 7 days, maximum 365 days; recurring requests default to their maximum, up to 1,827 days. Japan and unknown account countries are capped at 180 days. The API owns time and country validation. This does not extend the 30-minute approval window. Always check current status and credential `valid_until`; expiry does not guarantee funds or make one-time tokens reusable.
+- `create --recurring-interval <day|week|month|year>` and `--recurring-interval-count <n>` (defaults to 1 server-side) send `recurring: { interval, interval_count }`. These are public CLI, SDK, and agent-tool inputs; the API controls account eligibility. Works with `card` and `shared_payment_token`. Recurring requests stay `approved` (not `submitted`) because the credential can be charged every period; responses include `recurring` when set, shown in interactive create/retrieve/request-approval output.
 
 ### payment-methods command
 
@@ -212,8 +245,10 @@ Available in `--help` and `--llms`, but the command sets `mcp: false` so MCP cli
 
 ### serve command
 
-- `serve [--port <n>] [--host <host>]` — HTTP server that exposes the CLI's MCP endpoint. Implemented in `packages/cli/src/commands/serve/index.ts`. The handler forwards to `rootCli.fetch()` (incur), but is a **privilege boundary**: `requireAuth` only proves the CLI *owner* is authenticated, not that the HTTP caller is authorized.
-- Parse each HTTP request target once and reuse that URL for routing and dispatch. Accept only unambiguous origin-form paths; return `400` for malformed targets. Only forward `POST /mcp` and the supported `GET` skill discovery routes (index and `SKILL.md`); handle `OPTIONS` locally. Missing `Origin` does not prove a caller is outside the browser. Security regressions in `packages/cli/src/__tests__/serve.test.ts` exercise raw request targets against the built CLI.
+- `serve [--port <n>] [--host <host>] [--allow-origin <origin>]...` — HTTP server that exposes the CLI's MCP endpoint. Implemented in `packages/cli/src/commands/serve/index.ts`. The handler forwards to `rootCli.fetch()` (incur), but is a **privilege boundary**: `requireAuth` only proves the CLI *owner* is authenticated, not that the HTTP caller is authorized.
+- Parse each HTTP request target once and reuse that URL for routing and dispatch. Accept only unambiguous origin-form paths; return `400` for malformed targets. Only forward `POST /mcp` and the supported `GET` skill discovery routes (index and `SKILL.md`); handle `OPTIONS` locally. Security regressions in `packages/cli/src/__tests__/serve.test.ts` exercise raw request targets against the built CLI.
+- **A browser `Origin` is untrusted by default.** Only a browser sends `Origin`; MCP clients and curl omit it. A bare "loopback origin" check is not authorization — any JS on any `http://localhost:*` page the user visits would pass it without being the CLI owner. `isAllowedOrigin` therefore rejects every `Origin` (`403`, no reflected CORS header) unless it is in the `--allow-origin` allow-list, and only an allow-listed origin is reflected into `Access-Control-Allow-Origin` (never `*`, never a bare loopback origin). A request with no `Origin` stays allowed, guarded by the Host, route, and method checks. `--allow-origin` is a repeatable option for browser apps the operator controls.
+- **`Host` is validated against loopback** (`isAllowedHost`) to block DNS rebinding: when bound to a loopback host, the `Host` header must resolve to a loopback host or the request is rejected (`403`). The check is skipped when the operator has explicitly bound a non-loopback `--host` (external exposure already accepted, with a warning).
 
 ## Code Conventions
 
@@ -253,6 +288,10 @@ Rules:
 - Prefer emitting a **structured** continuation next to the string (`_next.pay_argv` = `{ command, args }`) and point agents at it. A list of arguments has no seam to smuggle syntax through; a string always does.
 - Naive `'${value}'` wrapping is **not** quoting — a single `'` in the value closes it and escapes.
 - Regression coverage lives in `packages/cli/src/utils/__tests__/shell-quote.test.ts` (bash round-trip) and the `_next continuation quoting` block in `packages/cli/src/__tests__/cli.test.ts`.
+
+## Security: Launching External Programs
+
+`openUrl()` (`packages/cli/src/utils/open-url.ts`) is the only place the CLI spawns OS programs. Windows resolves bare executable names against the current directory before `PATH`, so a planted `cmd.exe` in a repository would run. Launch OS binaries by absolute path (`%SystemRoot%\System32\rundll32.exe url.dll,FileProtocolHandler <url>` on Windows, `/usr/bin/open` on macOS). Never route a URL through `cmd`: it parses `&`, `|`, `^`, and `%` inside server-supplied URLs. Covered by `utils/__tests__/open-url.test.ts`.
 
 ## Environment Variables
 

@@ -3,6 +3,7 @@
 import re
 from collections.abc import Mapping, Sequence
 from datetime import datetime
+from math import floor
 from typing import Any
 from urllib.parse import quote
 
@@ -113,6 +114,17 @@ def spend_list(include_history: bool) -> Request[list[SpendRequest]]:
 
 
 def spend_create(params: Mapping[str, Any]) -> Request[SpendRequest]:
+    expires_at = params.get("expires_at")
+    if isinstance(expires_at, str):
+        if not re.fullmatch(
+            r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?Z",
+            expires_at,
+        ):
+            raise ValueError(
+                "expires_at must be Unix seconds or an ISO timestamp ending in Z (UTC)"
+            )
+        expiry = floor(datetime.fromisoformat(expires_at).timestamp())
+        params = {**params, "expires_at": expiry}
     return Request(
         "create spend request",
         "POST",

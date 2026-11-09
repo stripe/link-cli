@@ -16,7 +16,6 @@ import type {
   TransactionOrigin,
   TransactionsPage,
   UcpCheckout,
-  UcpCheckoutWithSpendRequest,
   UcpSearchResult,
   UserInfo,
   WebBotAuthBlock,
@@ -96,7 +95,21 @@ export interface CreateSpendRequestParams {
   test?: boolean;
   approval_details?: ApprovalDetail;
   metadata?: Record<string, string>;
+  /**
+   * Spend request expiry in Unix seconds or an ISO 8601 timestamp ending in Z (UTC).
+   * ISO input is converted to Unix seconds. Set for delayed merchant charges.
+   * At least 3 hours ahead; at most 365 days for one-time or 1827 days for
+   * recurring requests, subject to country limits. Defaults to 7 days for
+   * one-time requests or the country maximum for recurring requests.
+   * Does not extend the approval window.
+   */
+  expires_at?: number | string;
   recurring?: SpendRequestRecurringParams;
+  /**
+   * Auto-approve within the user's configured approval policy, through the
+   * delegated approval flow (beta, available only to select OAuth clients).
+   */
+  use_approval_policy?: boolean;
 }
 
 export interface UpdateSpendRequestParams {
@@ -108,6 +121,11 @@ export interface UpdateSpendRequestParams {
   currency?: string;
   line_items?: LineItem[];
   totals?: Total[];
+  /**
+   * Auto-approve within the user's configured approval policy, through the
+   * delegated approval flow (beta, available only to select OAuth clients).
+   */
+  use_approval_policy?: boolean;
 }
 
 export interface ISpendRequestResource {
@@ -253,7 +271,7 @@ export interface IReportResource {
 
 export interface SearchUcpCatalogParams {
   query?: string;
-  profile_id?: string;
+  business?: string;
   sku?: string;
   brand?: string[];
   category?: string[];
@@ -275,38 +293,60 @@ export interface SearchUcpCatalogParams {
 }
 
 export interface UcpLineItem {
-  sku_id: string;
-  quantity: number;
+  item: { id: string };
+  quantity?: number;
+}
+
+export interface UcpBuyer {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone_number?: string;
 }
 
 export interface CreateUcpCheckoutParams {
-  profile_id: string;
+  business: string;
   line_items: UcpLineItem[];
-  currency?: string;
-  fulfillment_details?: Record<string, unknown>;
-  test?: boolean;
+  buyer?: UcpBuyer;
+  fulfillment?: Record<string, unknown>;
+}
+
+/** Omitted line_items, buyer, and fulfillment sections keep existing checkout values. */
+export interface UpdateUcpCheckoutParams
+  extends Omit<CreateUcpCheckoutParams, 'line_items'> {
+  line_items?: (UcpLineItem & { id?: string; parent_id?: string })[];
 }
 
 export interface CompleteUcpCheckoutParams {
   spend_request_id: string;
-  profile_id: string;
-  test?: boolean;
+  business: string;
+}
+
+export interface CancelUcpCheckoutParams {
+  business: string;
 }
 
 export interface RetrieveUcpCheckoutParams {
-  spend_request_id: string;
-  test?: boolean;
+  business: string;
 }
 
 export interface IUcpResource {
   searchCatalog(params: SearchUcpCatalogParams): Promise<UcpSearchResult>;
   createCheckout(params: CreateUcpCheckoutParams): Promise<UcpCheckout>;
+  updateCheckout(
+    id: string,
+    params: UpdateUcpCheckoutParams,
+  ): Promise<UcpCheckout>;
   completeCheckout(
     id: string,
     params: CompleteUcpCheckoutParams,
   ): Promise<UcpCheckout>;
+  cancelCheckout(
+    id: string,
+    params: CancelUcpCheckoutParams,
+  ): Promise<UcpCheckout>;
   retrieveCheckout(
     id: string,
     params: RetrieveUcpCheckoutParams,
-  ): Promise<UcpCheckoutWithSpendRequest>;
+  ): Promise<UcpCheckout>;
 }

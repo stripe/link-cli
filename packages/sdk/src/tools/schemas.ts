@@ -147,6 +147,12 @@ export const linkToolSchemas = {
           .boolean()
           .default(false)
           .describe('Create test credentials instead of live credentials.'),
+        use_approval_policy: z
+          .boolean()
+          .optional()
+          .describe(
+            'Auto-approve within the user’s configured approval policy, through the delegated approval flow (beta, available only to select OAuth clients).',
+          ),
         metadata: z
           .record(z.string().max(40), z.string().max(500))
           .refine(
@@ -154,6 +160,12 @@ export const linkToolSchemas = {
             'At most 50 metadata entries',
           )
           .optional(),
+        expires_at: z
+          .union([z.number().int(), z.iso.datetime()])
+          .optional()
+          .describe(
+            'Spend request expiry as Unix seconds or an ISO 8601 timestamp ending in Z (UTC). ISO input is converted to Unix seconds for the API; responses return ISO timestamps ending in Z (UTC). Use for delayed merchant charges (preorders or bookings). At least 3 hours ahead; maximum 365 days for one-time requests or 1827 days for recurring requests, subject to country limits. Omit for the server default (7 days for one-time requests; country maximum for recurring requests). Does not extend the approval window.',
+          ),
         recurring: z
           .strictObject({
             interval: z.enum(['day', 'week', 'month', 'year']),

@@ -1,3 +1,5 @@
+import type { UcpBuyer } from '../resources/interfaces';
+
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue =
   | JsonPrimitive
@@ -68,7 +70,8 @@ export type NextActionType =
   | 'three_d_secure'
   | 'three_d_secure_retry'
   | 'partner_auth_challenge'
-  | 'partner_auth_challenge_retry';
+  | 'partner_auth_challenge_retry'
+  | 'partner_create_card_enrollment';
 
 export type NextActionResolution =
   | 'auto_resume'
@@ -76,18 +79,22 @@ export type NextActionResolution =
   | 'create_new_spend_request_after_completion';
 
 export interface NextAction {
-  type: NextActionType;
+  type: NextActionType | null;
   resolution: NextActionResolution;
   display_message: string;
   action_url: string | null;
-  expires_at?: number | null;
+  expires_at?: string | null;
 }
 
 export interface SpendRequestStatusDetails {
+  failed?: {
+    code: string;
+    next_action?: NextAction | null;
+  } | null;
   requires_action?: {
-    failure_code?: string;
-    next_action: NextAction;
-  };
+    failure_code?: string | null;
+    next_action?: NextAction | null;
+  } | null;
 }
 
 export type CredentialType = 'shared_payment_token' | 'card' | 'link_pay_token';
@@ -165,7 +172,8 @@ export interface SpendRequest {
   link_transaction_id?: string;
   activity_url?: string;
   metadata?: Record<string, string>;
-  expires_at?: number;
+  /** Request expiry as an ISO 8601 timestamp ending in Z (UTC). */
+  expires_at?: string | null;
   recurring?: SpendRequestRecurring | null;
   created_at: string;
   updated_at: string;
@@ -490,31 +498,40 @@ export interface UcpSearchResult {
   [key: string]: unknown;
 }
 
-/**
- * A UCP checkout session (curated view of the Delegated Checkout requested
- * session). `create` returns it in `requires_payment`; `complete` returns it in
- * a terminal state with `order_details`.
- */
 export type UcpCheckoutStatus =
-  | 'open'
-  | 'requires_action'
+  | 'incomplete'
+  | 'requires_escalation'
+  | 'ready_for_complete'
+  | 'complete_in_progress'
   | 'completed'
-  | 'expired';
+  | 'canceled';
 
+/**
+ * A UCP checkout session. The response, including capability metadata, messages,
+ * totals, and fulfillment choices, is preserved as returned by the seller.
+ * Spend-request objects are excluded from checkout responses.
+ */
 export interface UcpCheckout {
   id: string;
   status?: UcpCheckoutStatus | null;
   currency?: string | null;
-  amount_total?: number | null;
-  amount_subtotal?: number | null;
-  total_details?: Record<string, unknown> | null;
-  line_item_details?: unknown;
-  fulfillment_details?: Record<string, unknown> | null;
-  order_details?: Record<string, unknown> | null;
-  expires_at?: number | null;
+  totals?: Array<{ type: string; amount: number; display_text?: string }>;
+  line_items?: Array<{
+    id?: string;
+    item: { id: string; title?: string; [key: string]: unknown };
+    quantity: number;
+    totals?: Array<{ type: string; amount: number }>;
+    [key: string]: unknown;
+  }>;
+  buyer?: UcpBuyer | null;
+  fulfillment?: Record<string, unknown> | null;
+  ucp?: Record<string, unknown>;
+  messages?: unknown[];
+  links?: Array<{ type: string; url: string; title?: string | null }>;
+  payment?: Record<string, unknown>;
+  order?: { id: string; permalink_url?: string } | null;
+  /** RFC 3339 timestamp. */
+  expires_at?: string | null;
+  continue_url?: string | null;
   [key: string]: unknown;
-}
-
-export interface UcpCheckoutWithSpendRequest extends UcpCheckout {
-  spend_request: SpendRequest;
 }

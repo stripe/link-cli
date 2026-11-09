@@ -63,7 +63,7 @@ export const CheckoutCreate: React.FC<CheckoutCreateProps> = ({
     '--credential-type',
     'shared_payment_token',
     '--network-id',
-    params.profile_id,
+    params.business,
   ]);
   const completion = data
     ? buildCommandContinuation('ucp', [
@@ -73,8 +73,7 @@ export const CheckoutCreate: React.FC<CheckoutCreateProps> = ({
         '--spend-request-id',
         '<spend_request_id>',
         '--business',
-        params.profile_id,
-        ...(params.test ? ['--test'] : []),
+        params.business,
       ])
     : undefined;
 
@@ -84,8 +83,10 @@ export const CheckoutCreate: React.FC<CheckoutCreateProps> = ({
       {data && <CheckoutSummary checkout={data} />}
       <Box marginTop={1}>
         <Text dimColor>
-          Create and approve a spend request using this business as the network
-          ID: <Text color="cyan">{formatCommandSuggestion(spendRequest)}</Text>.
+          Review checkout messages and fulfillment choices. Use checkout update
+          to resolve missing details before approving the final total. Create
+          and approve a spend request using this business as the network ID:{' '}
+          <Text color="cyan">{formatCommandSuggestion(spendRequest)}</Text>.
           Then complete (both --spend-request-id and --business are required):{' '}
           <Text color="cyan">
             {completion && formatCommandSuggestion(completion)}

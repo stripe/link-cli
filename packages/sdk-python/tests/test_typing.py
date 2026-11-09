@@ -29,12 +29,14 @@ def valid(client: Client) -> None:
         line_items=(item,),
         metadata=MappingProxyType({"order": "123"}),
         recurring={"interval": "month"},
+        expires_at="2027-01-15T08:00:00Z",
     )
     assert_type(result, SpendRequest)
     client.spend_requests.create(
         context="Purchase",
         credential_type="link_pay_token",
         merchant_account_id="acct_1",
+        expires_at=1_800_000_000,
     )
     assert_type(client.payment_methods.list(), list[PaymentMethod])
     assert_type(client.payment_methods.retrieve("pd_1"), PaymentMethod | None)
@@ -64,6 +66,7 @@ async def valid_async(client: AsyncClient) -> None:
     result = await client.spend_requests.create(
         context="Purchase", credential_type="card",
         recurring={"interval": "week", "interval_count": 2},
+        expires_at="2027-01-15T08:00:00Z",
     )
     assert_type(result, SpendRequest)
     assert_type(

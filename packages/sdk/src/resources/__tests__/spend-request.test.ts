@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LinkApiError } from '@/errors';
-import type { CreateSpendRequestParams } from '@/resources/interfaces';
+import type {
+  CreateSpendRequestParams,
+  ISpendRequestResource,
+} from '@/resources/interfaces';
 import {
   getDuplicateSpendRequest,
   SpendRequestResource,
@@ -68,6 +71,37 @@ describe('SpendRequestResource', () => {
   });
 
   describe('createSpendRequest', () => {
+    it.each([
+      1_800_000_000,
+      '2027-01-15T08:00:00Z',
+      '2027-01-15T08:00:00.999Z',
+    ])(
+      'converts request expiry %s through the public resource interface',
+      async (expires_at) => {
+        mockFetchResponse(200, {
+          ...spendRequestResponse,
+          expires_at: 1_800_000_000,
+        });
+        const resource: ISpendRequestResource = repo;
+        const result = await resource.create({ ...validParams, expires_at });
+        expect(JSON.parse(mockFetch.mock.calls[0]![1].body).expires_at).toBe(
+          1_800_000_000,
+        );
+        expect(result.expires_at).toBe('2027-01-15T08:00:00Z');
+      },
+    );
+
+    it.each([
+      '2027-01-15T08:00:00',
+      '2027-01-15T08:00:00+00:00',
+      '2027-02-30T08:00:00Z',
+    ])('rejects invalid or non-Z expiry %s before HTTP', async (expires_at) => {
+      await expect(repo.create({ ...validParams, expires_at })).rejects.toThrow(
+        'ending in Z',
+      );
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
     it.each([false, true])(
       'passes callback context unchanged with delegated approval=%s',
       async (approve) => {
@@ -121,7 +155,7 @@ describe('SpendRequestResource', () => {
             : await repo.retrieve('si_123');
         expect(result?.approval_url).toBe(approval_url);
         expect(
-          result?.status_details?.requires_action?.next_action.action_url,
+          result?.status_details?.requires_action?.next_action?.action_url,
         ).toBe(action_url);
       },
     );
@@ -386,6 +420,19 @@ describe('SpendRequestResource', () => {
       });
     });
 
+    it('sends use_approval_policy creations to create_delegated without the approve routing flag', async () => {
+      mockFetchResponse(200, spendRequestResponse);
+
+      await repo.create({ ...validParams, use_approval_policy: true });
+
+      const [url, opts] = mockFetch.mock.calls[0]!;
+      expect(url).toBe('https://api.link.com/spend_requests/create_delegated');
+      expect(JSON.parse(opts.body)).toEqual({
+        ...validParams,
+        use_approval_policy: true,
+      });
+    });
+
     it('keeps an incomplete keyed creation 409 as a LinkApiError', async () => {
       mockFetchResponse(409, {
         error: { message: 'The keyed creation is still in progress' },
@@ -462,6 +509,19 @@ describe('SpendRequestResource', () => {
         approve: true,
         use_approval_policy: true,
       });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.link.com/spend_requests/si_123/update_delegated',
+        expect.objectContaining({
+          body: JSON.stringify({ amount: 6000, use_approval_policy: true }),
+        }),
+      );
+    });
+
+    it('sends use_approval_policy updates to update_delegated without the approve routing flag', async () => {
+      mockFetchResponse(200, { ...spendRequestResponse, amount: 6000 });
+
+      await repo.update('si_123', { amount: 6000, use_approval_policy: true });
 
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.link.com/spend_requests/si_123/update_delegated',
@@ -631,6 +691,61 @@ describe('SpendRequestResource', () => {
   });
 
   describe('getSpendRequest', () => {
+    it.each(['requires_action', 'failed'] as const)(
+      'preserves all next-action fields on %s without normalization',
+      async (status) => {
+        for (const next_action of [
+          {
+            type: 'partner_create_card_enrollment',
+            resolution: 'auto_resume',
+            display_message: 'Confirm enrollment',
+            action_url:
+              'https://example.com/verify?callback=%2Fdone&nonce=a%2Bb#step',
+            expires_at: '2026-11-05T12:00:00Z',
+            additional_field: 'future',
+          },
+          {
+            type: null,
+            resolution: 'create_new_spend_request',
+            display_message: 'Verify',
+            action_url: null,
+            expires_at: null,
+          },
+          {
+            type: 'future_action',
+            resolution: 'auto_resume',
+            display_message: 'Verify',
+            action_url: null,
+          },
+          null,
+          undefined,
+        ]) {
+          const details = {
+            [status]: { code: 'verification', failure_code: null, next_action },
+          };
+          mockFetchResponse(200, {
+            ...spendRequestResponse,
+            status,
+            status_details: details,
+          });
+          const result = await repo.retrieve('si_123');
+          expect(result?.status_details).toEqual(
+            JSON.parse(JSON.stringify(details)),
+          );
+        }
+      },
+    );
+
+    it.each([undefined, null, {}, { requires_action: null }, { failed: null }])(
+      'preserves absent/null status details: %j',
+      async (status_details) => {
+        mockFetchResponse(200, { ...spendRequestResponse, status_details });
+        expect((await repo.retrieve('si_123'))?.status_details).toEqual(
+          status_details,
+        );
+      },
+    );
+
     it('sends GET to retrieve endpoint', async () => {
       mockFetchResponse(200, spendRequestResponse);
 
@@ -766,6 +881,22 @@ describe('SpendRequestResource', () => {
   });
 
   describe('listSpendRequests', () => {
+    it('converts expiry to ISO while preserving null and omitted values', async () => {
+      mockFetchResponse(200, {
+        data: [
+          { ...spendRequestResponse, expires_at: 1_800_000_000 },
+          { ...spendRequestResponse, expires_at: null },
+          spendRequestResponse,
+        ],
+      });
+      const result = await repo.list();
+      expect(result.map((request) => request.expires_at)).toEqual([
+        '2027-01-15T08:00:00Z',
+        null,
+        undefined,
+      ]);
+    });
+
     it('sends GET to correct endpoint with Bearer auth header', async () => {
       mockFetchResponse(200, { data: [spendRequestResponse] });
 
@@ -848,12 +979,15 @@ describe('getDuplicateSpendRequest', () => {
           code: 'spend_request_rate_limited',
           message: 'You cannot submit duplicate spend requests...',
           retry_after: 1699999999,
-          duplicate_spend_request: duplicate,
+          duplicate_spend_request: { ...duplicate, expires_at: 1_800_000_000 },
         },
       },
     });
 
-    expect(getDuplicateSpendRequest(err)).toEqual(duplicate);
+    expect(getDuplicateSpendRequest(err)).toEqual({
+      ...duplicate,
+      expires_at: '2027-01-15T08:00:00Z',
+    });
   });
 
   it('extracts a sparse duplicate spend request', () => {

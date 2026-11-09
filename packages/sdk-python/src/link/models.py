@@ -1,8 +1,9 @@
 """Link response models. Amounts are integers; API timestamps remain strings."""
 
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ._types import (
     AgentWalletVerificationStatus,
@@ -158,10 +159,17 @@ class SpendRequest(LinkModel):
     link_transaction_id: str | None = None
     activity_url: str | None = None
     metadata: dict[str, str] | None = None
-    expires_at: int | None = None
+    expires_at: str | None = None
     recurring: SpendRequestRecurring | None = None
     created_at: str
     updated_at: str
+
+    @field_validator("expires_at", mode="before")
+    @classmethod
+    def _expiry_to_iso(cls, value: Any) -> Any:
+        if type(value) is int:
+            return datetime.fromtimestamp(value, UTC).isoformat().replace("+00:00", "Z")
+        return value
 
 
 class RequestApprovalResponse(LinkModel):

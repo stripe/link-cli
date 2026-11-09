@@ -1,5 +1,57 @@
 # @stripe/link-cli
 
+## 1.4.0
+
+### Minor Changes
+
+- fa6d4c1: Align UCP checkout commands and SDK types with the UCP checkout schema, covering creation, retrieval, completion, updates, and cancellation.
+  
+  UCP commands show an interactive summary in a terminal without an explicit format. Use `--format json` for the full response, including checkout messages, fulfillment choices, and capability metadata. Piped output and MCP remain structured.
+  
+  Checkout summaries display buyer details, selected fulfillment destinations and options with labeled method, destination, group, and option IDs, and UCP messages with error codes, severity, field paths, and recovery URLs. Missing buyer details, destinations, or selections are shown explicitly.
+  
+  - `checkout create` requires `--business` and at least one `--line-item` with an `id` and optional positive integer `quantity` (default 1). Buyer and fulfillment are optional.
+  - `checkout retrieve` requires a checkout ID and `--business`.
+  - `checkout complete` requires a positional checkout ID, `--business`, and an approved `--spend-request-id` for the same business, and returns the completion API response.
+  - `checkout update` requires a checkout ID and `--business`. Line items, buyer, and fulfillment are optional.
+  - Add `checkout cancel`, which requires a checkout ID and `--business` and returns the canceled checkout.
+  
+  Retrieve, update, and cancel accept the checkout ID positionally or through `--id`. `--buyer` accepts optional `first_name`, `last_name`, `email`, and `phone_number` fields. `--fulfillment` (also spelled `--fullfilment`) accepts the entire fulfillment object as JSON. The seller determines currency. Responses use UCP statuses, `totals`, `line_items`, and `order`, with `expires_at` as an RFC 3339 timestamp.
+  
+  Omitted fulfillment during creation uses a complete saved default shipping address when available.
+
+## 1.3.0
+
+### Minor Changes
+
+- e127358: Add `spend-request simulate` for opt-in agent evaluation using deterministic local next-action samples. Requires Link login or a configured access token. Discover scenarios with `--list-scenarios`; sample and catalog envelopes are ready for a later backend provider. Simulation is excluded from MCP discovery and creates no requests or verification sessions.
+
+### Patch Changes
+
+- 5d30a63: Open browser URLs on Windows with the system `rundll32.exe` by absolute path instead of `cmd`, so an executable in the working directory is never launched and URLs are not parsed by the command shell.
+- c53dfe6: Keep `mpp pay --approved-challenge` pinned in interactive mode, and verify that
+  the challenge signed after approval is the one that was compared.
+
+## 1.2.0
+
+### Minor Changes
+
+- 6489245: Add `spend-request retrieve <id> --next-action --format json` to return one snapshot of the server's existing action, including actions on failed requests, or null. This mode does not poll or return payment credentials.
+  
+  Correct TypeScript spend-request response types: status branches and their actions can be absent or null, action type can be null, and optional action expiry is a string or null rather than a number. Consumers must handle these nullable fields and string expiry. Add the existing `partner_create_card_enrollment` action type.
+
+### Patch Changes
+
+- 4c250b1: Use currency-aware amount formatting in `balances list` so balances display the correct currency symbol and decimal precision.
+- 5d4eb12: Expose spend request `expires_at` in the public SDK and agent tools. Document
+  expiry limits and delayed merchant charges in CLI help and purchase guides.
+  The CLI, TypeScript SDK and tools, and Python SDK accept Unix seconds or ISO
+  8601 expiry timestamps ending in `Z` (UTC) and convert ISO input to Unix seconds
+  for the API.
+  
+  Convert spend-request `expires_at` responses from API Unix seconds to ISO 8601
+  timestamps ending in `Z` (UTC) in the CLI and all SDKs.
+
 ## 1.1.0
 
 ### Minor Changes

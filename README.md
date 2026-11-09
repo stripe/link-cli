@@ -87,9 +87,12 @@ Alternatively, use `serve` to expose link-cli as an MCP endpoint over HTTP.
 link-cli serve            # binds 127.0.0.1:54321 (loopback only)
 link-cli serve --port 8080
 link-cli serve --host 0.0.0.0   # expose beyond localhost (see warning below)
+link-cli serve --allow-origin http://localhost:3000   # trust a specific browser app
 ```
 
 The server handles `POST /mcp` and `GET` skill discovery at `/.well-known/skills/index.json` and `/.well-known/skills/{skill-name}/SKILL.md`, with `OPTIONS` preflight support. Other paths return `404`, unsupported methods return `405`, and malformed or ambiguous request paths return `400`. It binds to `127.0.0.1` by default so only the local host can reach it. Anyone who can reach the port can use this CLI's authenticated Link session, so only override `--host` on a trusted, isolated network — doing so prints a warning.
+
+A browser attaches an `Origin` header; MCP clients and `curl` do not. Because any JavaScript on any `http://localhost:*` page the user visits would satisfy a bare "loopback origin" check without being the authenticated CLI owner, `serve` **rejects every browser `Origin` by default** (`403`, no CORS header) and validates the `Host` header against loopback to block DNS rebinding. Requests without an `Origin` (ordinary MCP clients) are unaffected. To integrate a browser app you control, allow its exact origin with `--allow-origin` (repeatable); only that origin is reflected in `Access-Control-Allow-Origin`.
 
 ## Quickstart
 
@@ -256,6 +259,14 @@ link-cli spend-request retrieve lsrq_001 --include card --output-file /tmp/link-
 ```
 
 The file is created with `0600` permissions. If the file already exists, the command fails unless `--force` is passed. When `--output-file` is set, the JSON output replaces the `card` object with redacted fields and adds a `card_output_file` path.
+
+To inspect only the existing user action in one snapshot:
+
+```bash
+link-cli spend-request retrieve lsrq_001 --next-action --format json
+```
+
+This returns one JSON result item, `[{"next_action": <server action or null>}]`, including actions on `requires_action` and `failed` requests. It does not poll or return credentials. `--include`, `--output-file`, `--force`, and nonzero `--interval`/`--max-attempts` are incompatible; `--timeout` is ignored. Human TTY invocations require an explicit format. Use ordinary retrieve to inspect status or poll.
 
 For agent polling, pass `--interval` and optionally `--max-attempts`:
 
@@ -490,7 +501,7 @@ DOM-derived `merchant_account_id`, and Link supplies their canonical merchant
 identity. Card requests may also include `--network-id` to identify the merchant's
 network profile.
 
-**Constraints:** `context` must be at least 100 characters; `amount` is an integer in the currency's smallest unit (e.g. cents) and must not exceed 50000 USD cents equivalent; `currency` can be any supported 3-letter ISO code. The user has 30 minutes from when approval is requested to approve. Approved credentials (card or SPT) are valid for 48 hours from spend request creation.
+**Constraints:** `context` must be at least 100 characters; `amount` is an integer in the currency's smallest unit (e.g. cents) and must not exceed 50000 USD cents equivalent; `currency` can be any supported 3-letter ISO code. The user has 30 minutes from when approval is requested to approve.
 
 Omitting currency uses the consumer's default spend-request currency, reported by
 `userinfo.default_spend_request_currency` (`user-info retrieve` in the CLI).
@@ -500,6 +511,54 @@ the selected currency's minor units: `100` means ¥100 in JPY or $1 in USD.
 The client passes amounts through unchanged and performs no FX conversion.
 This default applies to newly created requests; existing requests retain their
 stored currency.
+
+#### Expiration and delayed merchant charges
+
+Use `spend-request create --expires-at <timestamp>` to set the expiry,
+including in direct CLI integrations. Accepts Unix seconds or an ISO 8601
+timestamp ending in `Z` (UTC), such as `2027-02-01T12:00:00Z`. The CLI converts
+ISO input to integer Unix seconds for the API. This option can only be set at
+creation.
+
+```bash
+# Allow a preorder charge for up to 90 days.
+EXPIRES_AT=$(node -e 'console.log(Math.floor(Date.now() / 1000) + 90 * 86400)')
+link-cli spend-request create \
+  --merchant-name "Example Shop" \
+  --merchant-url "https://shop.example.com" \
+  --amount 4200 --currency usd \
+  --context 'Preorder the selected book for $42 including tax and shipping. The merchant will charge when the book ships within 90 days.' \
+  --expires-at "$EXPIRES_AT"
+```
+
+`expires_at` is the spend request's expiry. The API uses integer Unix seconds;
+the CLI and SDK responses convert it to an ISO 8601 timestamp ending in `Z`
+(UTC), such as `"2027-02-01T12:00:00Z"`. Set it when the merchant may charge
+later, such as for a preorder, booking, or payment due after delivery. Choose a deadline that covers
+the expected charge date and explain the timing in `context`. Omit it for an
+ordinary purchase.
+
+This supports deferred authorization: for eligible card flows, Link can wait
+to fund the payment until the merchant charges. The merchant controls charge
+timing; `expires_at` does not schedule a payment.
+
+The server applies these limits when creating a request:
+
+- One-time requests default to 7 days and allow an explicit expiry up to 365 days.
+- Recurring requests default to their maximum, up to 1,827 days (about 5 years).
+  Set an earlier expiry to end the spending permission sooner. `recurring`
+  controls the spending-limit reset period; `expires_at` controls its end date.
+- An explicit expiry must be at least 3 hours in the future. Country limits
+  apply to both request types: Japan is capped at 180 days, and an unknown
+  account country uses a 180-day cap. The API validates the applicable limit.
+
+Approval is still required within 30 minutes of requesting it. A later
+`expires_at` does not extend that approval window.
+
+Follow the normal approval flow and check the current request status and
+returned credential `valid_until` before use. A later request expiry does not
+guarantee payment: funds and payment-method checks can still fail when the
+merchant charges. It also does not make a one-time SPT reusable.
 
 #### Completion callbacks
 
@@ -663,7 +722,8 @@ request.
 |-------|-------|
 | Max amount per spend request | $500 (50,000 cents) |
 | Approval window | 30 minutes — user must approve within 30 min of `request-approval` |
-| Card / SPT validity | 48 hours from spend request creation |
+| Spend request expiry (`expires_at`) | 7 days by default for one-time requests; up to 365 days one-time or 1,827 days recurring, subject to country limits |
+| Credential validity | Check returned `valid_until` and current request status |
 | Daily spend | $500 |
 | Monthly spend (30 days) | $20,000 |
 | Concurrent active requests (created + approved) | 30 |
@@ -706,6 +766,49 @@ link-cli mpp decode \
   --challenge 'Payment id="ch_001", realm="merchant.example", method="stripe", intent="charge", request="..."'
 ```
 
+### UCP checkout
+
+All UCP commands show an interactive summary when run in a terminal without a format flag. Add `--format json` to any catalog or checkout command to return the full JSON response, including messages, fulfillment choices, capability metadata, and other returned fields. Use this flag for scripts and agents. Other explicit formats remain supported; piped output and MCP use structured output.
+
+Checkout summaries show buyer details, UCP messages (including error codes, severity, field paths, and recovery URLs), and selected fulfillment destinations and options. Available fulfillment choices remain in JSON output. Missing buyer details, destinations, or shipping selections are shown explicitly.
+
+Search a catalog, then use the returned business and SKU to create a UCP checkout:
+
+```bash
+link-cli ucp catalog search --query "running shoes" --format json
+link-cli ucp checkout create --business <business> \
+  --line-item 'id:<sku>' \
+  --buyer 'first_name:Jane,email:jane@example.com,phone_number:+1234567890' \
+  --fulfillment '{"methods":[{"type":"shipping","destinations":[{"street_address":"123 Main St","address_locality":"Springfield","address_region":"IL","postal_code":"62701","address_country":"US"}]}]}' \
+  --format json
+```
+
+`--line-item` is repeatable; `quantity` defaults to 1. All buyer fields are optional (`first_name`, `last_name`, `email`, `phone_number`). `--fulfillment` accepts the entire UCP JSON object; `--fullfilment` is an alternate spelling. Omit buyer to use saved Link buyer details during creation. Omitted fulfillment uses a complete saved default shipping address when available; a saved address that is not marked as default is not selected automatically. The seller determines the checkout currency.
+
+Review the returned `messages`, `totals`, and fulfillment choices. Update the checkout as needed.
+
+```bash
+link-cli ucp checkout retrieve --id <checkout_id> --business <business> --format json
+link-cli ucp checkout update --id <checkout_id> --business <business> \
+  --buyer 'email:jane@example.com' \
+  --fulfillment '<entire fulfillment JSON object>' --format json
+```
+
+Once the checkout is `ready_for_complete`, create and approve a `shared_payment_token` spend request for the final `totals` entry with `type: "total"`, using the business as its `--network-id`. Pass the approved request ID to complete the checkout:
+
+```bash
+link-cli ucp checkout complete <checkout_id> --business <business> \
+  --spend-request-id <spend_request_id> --format json
+```
+
+Use `checkout retrieve` to check the checkout's current status. Checkout commands use the UCP API's live flow. Only catalog search supports `--test` demo results.
+
+To cancel a checkout, supply its ID and business. The response contains the canceled checkout:
+
+```bash
+link-cli ucp checkout cancel --id <checkout_id> --business <business> --format json
+```
+
 ### Report outcomes
 
 Use `report` to record the outcome of a purchase attempt. Reporting is optional, but calling it after attempts — success or failure — helps Stripe improve checkout for agents.
@@ -737,9 +840,31 @@ Outcomes: `success`, `blocked`, `abandoned`. Tags: `stripe_checkout`, `captcha`,
 
 ### Handle step-ups 
 
-If the created spend request comes back with `status: "requires_action"`, no approval is needed yet — the payment method or account needs attention first. Check `status_details.requires_action.next_action` for `type`, `display_message`, `action_url`, and `resolution`.
+Actions can appear at creation or on later retrieves, under `status_details.requires_action.next_action` or `status_details.failed.next_action`. Inspect the current action with:
 
-For 3D Secure (`resolution: "auto_resume"`), keep polling `spend-request retrieve` — the request resolves on its own once the challenge is completed. For any other resolution, complete the indicated action and create a new spend request.
+```bash
+link-cli spend-request retrieve lsrq_001 --next-action --format json
+```
+
+The JSON output is an array containing one projected result, for example:
+
+```json
+[
+  {
+    "next_action": {
+      "type": "ssn_verification",
+      "resolution": "create_new_spend_request_after_completion",
+      "display_message": "Additional identity verification is required.",
+      "action_url": "https://example.com/verify?step=ssn",
+      "expires_at": null
+    }
+  }
+]
+```
+
+Values come from the server; the example URL is synthetic. The action's expiry is a string or null, and older responses may omit it. `[{"next_action": null}]` means no action is exposed in this snapshot; it does not establish approval or rule out later verification. A missing/inaccessible request still returns an error. Snapshot mode neither forces verification nor completes or approves a request, and adds no continuation instructions.
+
+Show the server's message and exact non-null URL to the user, who completes verification themselves. Follow `resolution`: for `auto_resume`, keep the same request and inspect it after each user completion. A Visa OTP action can become `partner_create_card_enrollment` without changing status or URL. Use another snapshot or ordinary retrieve without polling to inspect the latest action; ordinary retrieve with `--interval` waits for status changes. For `create_new_spend_request` or `create_new_spend_request_after_completion`, follow the indicated action and user-completion requirements, then create a new request. Never attempt to resume a terminal failed request.
 
 ### Line items and totals
 
@@ -783,6 +908,40 @@ In MCP/agent mode, pass `metadata` as a structured `{ key: value }` object.
 | `LINK_API_BASE_URL` | Override the API base URL |
 | `LINK_AUTH_BASE_URL` | Override the auth base URL |
 | `LINK_HTTP_PROXY` | Route all requests through an HTTP proxy (requires `undici`) |
+
+### Testing agent handling with sample spend-request responses
+
+`spend-request simulate` is opt-in engineering evaluation tooling. Log in with
+`link-cli auth login` or configure `LINK_ACCESS_TOKEN` first. It currently returns
+local fixtures; a backend provider will replace them after the endpoints land.
+It creates no spend request, verification session, OTP, approval, or account change.
+
+```bash
+link-cli spend-request simulate --scenario ssn_verification --format json
+link-cli spend-request simulate --scenario visa_otp --format json
+link-cli spend-request simulate --list-scenarios --format json
+```
+
+Choose exactly one selector. Use discovery for available IDs and aliases.
+`visa_otp` currently aliases `partner_auth_challenge`. Samples yield one
+`{"next_action": ...}` object (or null) inside the JSON array; discovery yields one
+`{"catalog_version": 1, "data": [...]}` object. The warning goes to stderr.
+Synthetic URLs under `example.invalid` cannot complete verification. Null/absent
+URLs still require presenting the message; a null overall action proves no approval.
+
+The evaluation controller selects scenarios. Present the exact URL/message and
+follow `resolution`: `auto_resume` keeps the same request;
+`create_new_spend_request` describes a new request;
+`create_new_spend_request_after_completion` requires user completion first;
+`reauthorize_with_additional_scope` describes obtaining the required scope without
+inventing an auth URL or executing an auth upgrade during evaluation. Never use
+simulation as a fallback when a real payment fails. It is excluded from MCP discovery.
+
+The backend transport has not shipped: local fixture results do not establish
+backend availability, authentication scope enforcement, or a real lifecycle.
+The later backend provider must report an unavailable endpoint as an error and
+must not fall back to fixtures. See the [engineering guide](packages/cli/src/commands/spend-request/SIMULATION.md)
+for the catalog and evaluation/transition checks.
 
 ## Integrating into agents
 

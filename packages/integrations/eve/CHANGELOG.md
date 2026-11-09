@@ -1,5 +1,32 @@
 # @stripe/link-integrations-eve
 
+## 0.4.0
+
+### Minor Changes
+
+- 9537851: Add `use_approval_policy` to `create_spend_request` and a `retrieve_approval_policy` tool, letting SDK and Eve agents create policy-approved spend requests and read the configured approval policy — the same balance-backed flow `link-cli` already supports.
+
+### Patch Changes
+
+- Updated dependencies [9537851]
+  - @stripe/link-sdk@2.1.0
+
+## 0.3.9
+
+### Patch Changes
+
+- 5d4eb12: Expose spend request `expires_at` in the public SDK and agent tools. Document
+  expiry limits and delayed merchant charges in CLI help and purchase guides.
+  The CLI, TypeScript SDK and tools, and Python SDK accept Unix seconds or ISO
+  8601 expiry timestamps ending in `Z` (UTC) and convert ISO input to Unix seconds
+  for the API.
+  
+  Convert spend-request `expires_at` responses from API Unix seconds to ISO 8601
+  timestamps ending in `Z` (UTC) in the CLI and all SDKs.
+- Updated dependencies [6489245]
+- Updated dependencies [5d4eb12]
+  - @stripe/link-sdk@2.0.0
+
 ## 0.3.8
 
 ### Patch Changes

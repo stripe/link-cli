@@ -219,6 +219,47 @@ await link.paymentMethods.update('pd_123', {
 });
 ```
 
+## Expiration and delayed merchant charges
+
+Pass `expires_at` to `spendRequests.create` or the `create_spend_request` agent
+tool. Accepts integer Unix seconds or an ISO 8601 timestamp ending in `Z` (UTC),
+such as `"2027-02-01T12:00:00Z"`. ISO input is converted to Unix seconds for the
+API. This optional field can only be set at creation. For example, add this to
+a preorder request for a 90-day expiry:
+
+```ts
+expires_at: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60,
+```
+
+`expires_at` is the spend request's expiry. The API uses integer Unix seconds;
+the CLI and SDK responses convert it to an ISO 8601 timestamp ending in `Z`
+(UTC), such as `"2027-02-01T12:00:00Z"`. Set it when the merchant may charge
+later, such as for a preorder, booking, or payment due after delivery. Choose a deadline that covers
+the expected charge date and explain the timing in `context`. Omit it for an
+ordinary purchase.
+
+This supports deferred authorization: for eligible card flows, Link can wait
+to fund the payment until the merchant charges. The merchant controls charge
+timing; `expires_at` does not schedule a payment.
+
+The server applies these limits when creating a request:
+
+- One-time requests default to 7 days and allow an explicit expiry up to 365 days.
+- Recurring requests default to their maximum, up to 1,827 days (about 5 years).
+  Set an earlier expiry to end the spending permission sooner. `recurring`
+  controls the spending-limit reset period; `expires_at` controls its end date.
+- An explicit expiry must be at least 3 hours in the future. Country limits
+  apply to both request types: Japan is capped at 180 days, and an unknown
+  account country uses a 180-day cap. The API validates the applicable limit.
+
+Approval is still required within 30 minutes of requesting it. A later
+`expires_at` does not extend that approval window.
+
+Follow the normal approval flow and check the current request status and
+returned credential `valid_until` before use. A later request expiry does not
+guarantee payment: funds and payment-method checks can still fail when the
+merchant charges. It also does not make a one-time SPT reusable.
+
 ## Recurring payments
 
 Pass `recurring` to `spendRequests.create` when the user has agreed to recurring
@@ -282,6 +323,39 @@ try {
 }
 ```
 
+## UCP checkout
+
+UCP checkout uses a business target and merchant item IDs. Quantity defaults to 1:
+
+```ts
+const checkout = await link.ucp.createCheckout({
+  business: 'profile_example',
+  line_items: [{ item: { id: 'sku_example' } }],
+  buyer: { email: 'jane@example.com', phone_number: '+1234567890' },
+});
+
+const current = await link.ucp.retrieveCheckout(checkout.id, {
+  business: 'profile_example',
+});
+
+const updated = await link.ucp.updateCheckout(checkout.id, {
+  business: 'profile_example',
+  buyer: { email: 'updated@example.com' },
+});
+```
+
+Omit buyer during creation to use saved Link buyer details. Omitted fulfillment uses a complete saved default shipping address when available; other saved addresses are not selected automatically. Review the returned messages, fulfillment choices, and totals. The seller determines currency; checkout requests do not accept `test` or `currency`.
+
+When the checkout is ready, create and approve a `shared_payment_token` spend request for the final total, using the business as its `network_id`. Pass the approved request ID to `completeCheckout(id, { business, spend_request_id })`. Use `retrieveCheckout(id, { business })` to check the checkout's current status.
+
+To cancel a checkout, use `cancelCheckout(id, { business })`. It returns the canceled checkout:
+
+```ts
+const canceled = await link.ucp.cancelCheckout(checkout.id, {
+  business: 'profile_example',
+});
+```
+
 ## Client resources
 
 - `spendRequests` — create, approve, retrieve, update, cancel, and list
@@ -293,3 +367,4 @@ try {
 - `balances` — list balances
 - `webBotAuth` — sign URLs for Web Bot Auth
 - `reports` — report agent outcomes
+- `ucp` — search the catalog and create, update, retrieve, complete, and cancel checkouts

@@ -6,18 +6,15 @@ import {
 import { LinkApiError, LinkTransportError } from '@/errors';
 import type {
   AccessTokenProvider,
+  CancelUcpCheckoutParams,
   CompleteUcpCheckoutParams,
   CreateUcpCheckoutParams,
   IUcpResource,
   RetrieveUcpCheckoutParams,
   SearchUcpCatalogParams,
+  UpdateUcpCheckoutParams,
 } from '@/resources/interfaces';
-import type {
-  UcpCheckout,
-  UcpCheckoutWithSpendRequest,
-  UcpProduct,
-  UcpSearchResult,
-} from '@/types/index';
+import type { UcpCheckout, UcpProduct, UcpSearchResult } from '@/types/index';
 
 interface ApiFetchOptions {
   method: string;
@@ -46,14 +43,16 @@ function normalizeSearchResult(data: unknown): UcpSearchResult {
 }
 
 function normalizeCheckout(data: unknown): UcpCheckout {
-  const body = (data ?? {}) as Record<string, unknown>;
+  const body = { ...((data ?? {}) as Record<string, unknown>) };
+  // Payment details belong to the spend-request resource, not checkout output.
+  delete body.spend_request;
   return { ...body, id: String(body.id ?? '') } as UcpCheckout;
 }
 
 /**
  * UCP (Universal Commerce Protocol) endpoints on api.link.com — gated proxies
- * over the Delegated Checkout / Commerce APIs. Every endpoint accepts `test`,
- * which routes to a self-contained demo response upstream (no live checkout).
+ * over UCP checkout and delegated catalog search. Only catalog search accepts
+ * `test`; checkout requests use the seller's currency and UCP schema.
  */
 export class UcpResource implements IUcpResource {
   private readonly verbose: boolean;
@@ -145,7 +144,7 @@ export class UcpResource implements IUcpResource {
       if (value !== undefined) url.searchParams.set(key, String(value));
     };
     setIf('query', params.query);
-    setIf('profile_id', params.profile_id);
+    setIf('business', params.business);
     setIf('sku', params.sku);
     setIf('price_min', params.price_min);
     setIf('price_max', params.price_max);
@@ -194,20 +193,11 @@ export class UcpResource implements IUcpResource {
   }
 
   async createCheckout(params: CreateUcpCheckoutParams): Promise<UcpCheckout> {
-    const body: Record<string, unknown> = {
-      profile_id: params.profile_id,
-      line_items: params.line_items,
-    };
-    if (params.currency !== undefined) body.currency = params.currency;
-    if (params.fulfillment_details !== undefined)
-      body.fulfillment_details = params.fulfillment_details;
-    if (params.test) body.test = true;
-
     const { status, data, rawBody } = await this.apiFetch({
       method: 'POST',
       url: `${this.ucpEndpoint}/checkout`,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify(this.checkoutBody(params)),
     });
 
     if (status < 200 || status >= 300) {
@@ -220,15 +210,53 @@ export class UcpResource implements IUcpResource {
     return normalizeCheckout(data);
   }
 
+  private checkoutBody(
+    params: CreateUcpCheckoutParams | UpdateUcpCheckoutParams,
+  ) {
+    return {
+      business: params.business,
+      ...(params.line_items !== undefined
+        ? {
+            line_items: params.line_items.map((line) => ({
+              ...line,
+              quantity: line.quantity ?? 1,
+            })),
+          }
+        : {}),
+      ...(params.buyer !== undefined ? { buyer: params.buyer } : {}),
+      ...(params.fulfillment !== undefined
+        ? { fulfillment: params.fulfillment }
+        : {}),
+    };
+  }
+
+  async updateCheckout(
+    id: string,
+    params: UpdateUcpCheckoutParams,
+  ): Promise<UcpCheckout> {
+    const { status, data, rawBody } = await this.apiFetch({
+      method: 'PUT',
+      url: `${this.ucpEndpoint}/checkout/${encodeURIComponent(id)}`,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(this.checkoutBody(params)),
+    });
+    if (status < 200 || status >= 300) {
+      throw new LinkApiError(
+        `Failed to update UCP checkout (${status}): ${extractApiError(data, rawBody)}`,
+        { status, rawBody, details: data },
+      );
+    }
+    return normalizeCheckout(data);
+  }
+
   async completeCheckout(
     id: string,
     params: CompleteUcpCheckoutParams,
   ): Promise<UcpCheckout> {
     const body: Record<string, unknown> = {
       spend_request_id: params.spend_request_id,
-      profile_id: params.profile_id,
+      business: params.business,
     };
-    if (params.test) body.test = true;
 
     const { status, data, rawBody } = await this.apiFetch({
       method: 'POST',
@@ -247,15 +275,35 @@ export class UcpResource implements IUcpResource {
     return normalizeCheckout(data);
   }
 
+  async cancelCheckout(
+    id: string,
+    params: CancelUcpCheckoutParams,
+  ): Promise<UcpCheckout> {
+    const { status, data, rawBody } = await this.apiFetch({
+      method: 'POST',
+      url: `${this.ucpEndpoint}/checkout/${encodeURIComponent(id)}/cancel`,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ business: params.business }),
+    });
+
+    if (status < 200 || status >= 300) {
+      throw new LinkApiError(
+        `Failed to cancel UCP checkout (${status}): ${extractApiError(data, rawBody)}`,
+        { status, rawBody, details: data },
+      );
+    }
+
+    return normalizeCheckout(data);
+  }
+
   async retrieveCheckout(
     id: string,
     params: RetrieveUcpCheckoutParams,
-  ): Promise<UcpCheckoutWithSpendRequest> {
+  ): Promise<UcpCheckout> {
     const url = new URL(
       `${this.ucpEndpoint}/checkout/${encodeURIComponent(id)}`,
     );
-    url.searchParams.set('spend_request_id', params.spend_request_id);
-    if (params.test) url.searchParams.set('test', 'true');
+    url.searchParams.set('business', params.business);
 
     const { status, data, rawBody } = await this.apiFetch({
       method: 'GET',
@@ -269,6 +317,6 @@ export class UcpResource implements IUcpResource {
       );
     }
 
-    return normalizeCheckout(data) as UcpCheckoutWithSpendRequest;
+    return normalizeCheckout(data);
   }
 }

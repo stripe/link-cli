@@ -118,6 +118,8 @@ cli.command(
 cli.command(
   createSpendRequestCli(spendRequestRepo, authStorage, envAccessToken, {
     usedRemovedExecutionMethod,
+    createSimulationResource: () =>
+      factory.createSpendRequestSimulationResource(),
   }),
 );
 const testHelpersEnabled =

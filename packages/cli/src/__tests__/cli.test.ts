@@ -310,6 +310,134 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     setNextResponse(200, BASE_REQUEST);
   });
 
+  describe('spend-request simulation fixtures', () => {
+    const warning =
+      'Simulation only: no spend request or verification session was created; URLs are synthetic.\n';
+
+    it.each([
+      'ssn_verification',
+      'visa_otp',
+      'no_next_action',
+      'reauthorize_additional_scope',
+    ])(
+      'returns %s with the existing session without calling payment APIs',
+      async (scenario) => {
+        const before = fs.readFileSync(TEST_AUTH_FILE, 'utf8');
+        const result = await runProdCliWithEnv(
+          { LINK_ACCESS_TOKEN: '' },
+          'spend-request',
+          'simulate',
+          '--scenario',
+          scenario,
+          '--format',
+          'json',
+        );
+        expect(result.exitCode).toBe(0);
+        const output = JSON.parse(result.stdout);
+        expect(output).toHaveLength(1);
+        expect(output[0]).toHaveProperty('next_action');
+        expect(result.stderr).toBe(warning);
+        expect(requests).toHaveLength(0);
+        expect(fs.readFileSync(TEST_AUTH_FILE, 'utf8')).toBe(before);
+        if (scenario === 'visa_otp')
+          expect(output[0].next_action.type).toBe('partner_auth_challenge');
+        if (scenario === 'no_next_action')
+          expect(output[0].next_action).toBeNull();
+        if (scenario === 'reauthorize_additional_scope')
+          expect(output[0].next_action).not.toHaveProperty('action_url');
+      },
+    );
+
+    it('lists one complete catalog envelope in stable order', async () => {
+      const result = await runProdCli(
+        'spend-request',
+        'simulate',
+        '--list-scenarios',
+        '--format',
+        'json',
+      );
+      expect(result.exitCode).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output).toHaveLength(1);
+      expect(output[0].catalog_version).toBe(1);
+      expect(output[0].data).toHaveLength(34);
+      expect(output[0].data[0].id).toBe('ssn_verification');
+      expect(
+        output[0].data.find(
+          (row: { id: string }) => row.id === 'partner_auth_challenge',
+        ).aliases,
+      ).toEqual(['visa_otp']);
+      expect(result.stderr).toBe(warning);
+      expect(requests).toHaveLength(0);
+    });
+
+    it('requires login but accepts a configured token', async () => {
+      storage.clearAll();
+      const denied = await runProdCliWithEnv(
+        { LINK_ACCESS_TOKEN: '' },
+        'spend-request',
+        'simulate',
+        '--scenario',
+        'ssn_verification',
+        '--format',
+        'json',
+      );
+      expect(denied.exitCode).toBe(1);
+      expect(denied.stdout).toContain('NOT_AUTHENTICATED');
+      expect(denied.stderr).not.toContain('Simulation only');
+      const allowed = await runProdCliWithEnv(
+        { LINK_ACCESS_TOKEN: 'test-configured-token' },
+        'spend-request',
+        'simulate',
+        '--scenario',
+        'ssn_verification',
+        '--format',
+        'json',
+      );
+      expect(allowed.exitCode).toBe(0);
+      expect(requests).toHaveLength(0);
+    });
+
+    it.each([
+      [],
+      ['--scenario', 'x', '--list-scenarios'],
+      ['--scenario', ''],
+      ['--scenario', 'unknown'],
+      ['--scenario', 'ssn_verification', '--test'],
+      ['--scenario', 'ssn_verification', 'lsrq_example'],
+    ])(
+      'rejects invalid selectors and unsupported inputs: %j',
+      async (...flags) => {
+        const result = await runProdCli(
+          'spend-request',
+          'simulate',
+          ...flags,
+          '--format',
+          'json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).not.toContain('Simulation only');
+        expect(requests).toHaveLength(0);
+      },
+    );
+
+    it('documents only the parent-scoped command', async () => {
+      const help = await runProdCli('spend-request', 'simulate', '--help');
+      expect(help.stdout).toContain('Testing only');
+      expect(help.stdout).toContain('--list-scenarios');
+      const old = await runProdCli(
+        'next-action',
+        'simulate',
+        '--scenario',
+        'ssn_verification',
+        '--format',
+        'json',
+      );
+      expect(old.exitCode).toBe(1);
+      expect(old.stderr).not.toContain('Simulation only');
+    });
+  });
+
   describe('request agent attribution', () => {
     it.each(AGENT_CASES)(
       'uses the expected User-Agent for $name on Link API requests',
@@ -1060,32 +1188,38 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       expect(sentBody.metadata).toBeUndefined();
     });
 
-    it('sends expires_at in POST body when --expires-at is used', async () => {
-      setNextResponse(200, BASE_REQUEST);
+    it.each(['1800000000', '2027-01-15T08:00:00Z'])(
+      'sends Unix seconds in POST body for --expires-at %s',
+      async (expiresAt) => {
+        setNextResponse(200, { ...BASE_REQUEST, expires_at: 1800000000 });
 
-      const result = await runProdCli(
-        'spend-request',
-        'create',
-        '--payment-method-id',
-        'pd_prod_test',
-        '--merchant-name',
-        'Test Merchant',
-        '--merchant-url',
-        'https://example.com',
-        '--context',
-        VALID_CONTEXT,
-        '--amount',
-        '5000',
-        '--expires-at',
-        '1720100000',
-        '--no-request-approval',
-        '--json',
-      );
+        const result = await runProdCli(
+          'spend-request',
+          'create',
+          '--payment-method-id',
+          'pd_prod_test',
+          '--merchant-name',
+          'Test Merchant',
+          '--merchant-url',
+          'https://example.com',
+          '--context',
+          VALID_CONTEXT,
+          '--amount',
+          '5000',
+          '--expires-at',
+          expiresAt,
+          '--no-request-approval',
+          '--json',
+        );
 
-      expect(result.exitCode).toBe(0);
-      const sentBody = JSON.parse(lastRequest.body);
-      expect(sentBody.expires_at).toBe(1720100000);
-    });
+        expect(result.exitCode).toBe(0);
+        const sentBody = JSON.parse(lastRequest.body);
+        expect(sentBody.expires_at).toBe(1800000000);
+        expect(JSON.parse(result.stdout)[0].expires_at).toBe(
+          '2027-01-15T08:00:00Z',
+        );
+      },
+    );
 
     it('does not include expires_at in POST body when --expires-at is omitted', async () => {
       setNextResponse(200, BASE_REQUEST);
@@ -1731,6 +1865,237 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
   });
 
   describe('spend-request retrieve', () => {
+    describe('next-action snapshot', () => {
+      const nextAction = {
+        type: 'partner_auth_challenge',
+        resolution: 'auto_resume',
+        display_message: 'Complete verification',
+        action_url:
+          'https://example.com/verify?nonce=a%2Bb&callback=%2Fdone#step',
+        expires_at: '2026-11-05T12:00:00Z',
+      };
+
+      it.each(['requires_action', 'failed'])(
+        'projects only the %s action through the authenticated GET',
+        async (status) => {
+          setNextResponse(200, {
+            ...BASE_REQUEST,
+            status,
+            status_details: {
+              [status]: { code: 'verification', next_action: nextAction },
+            },
+            shared_payment_token: { id: 'secret-token' },
+            card: {
+              id: 'card_secret',
+              brand: 'Visa',
+              exp_month: 12,
+              exp_year: 2027,
+              number: '4000009990001984',
+            },
+          });
+          const result = await runProdCli(
+            'spend-request',
+            'retrieve',
+            BASE_REQUEST.id,
+            '--next-action',
+            '--format',
+            'json',
+          );
+          expect(result.exitCode).toBe(0);
+          expect(parseJson(result.stdout)).toEqual([
+            { next_action: nextAction },
+          ]);
+          expect(requests).toHaveLength(1);
+          expect(lastRequest.method).toBe('GET');
+          expect(lastRequest.url).toBe(`/spend_requests/${BASE_REQUEST.id}`);
+          expect(lastRequest.headers.authorization).toBe(
+            `Bearer ${PROD_AUTH_TOKENS.access_token}`,
+          );
+          expect(result.stderr).not.toContain(nextAction.action_url);
+        },
+      );
+
+      it('returns one null item when no current action exists', async () => {
+        setNextResponse(200, {
+          ...BASE_REQUEST,
+          status: 'approved',
+          status_details: { requires_action: { next_action: nextAction } },
+        });
+        const result = await runProdCli(
+          'spend-request',
+          'retrieve',
+          BASE_REQUEST.id,
+          '--next-action',
+          '--format',
+          'json',
+        );
+        expect(result.exitCode).toBe(0);
+        expect(parseJson(result.stdout)).toEqual([{ next_action: null }]);
+        expect(requests).toHaveLength(1);
+      });
+
+      it('preserves sanitization and URL query/fragment in the compiled CLI', async () => {
+        setNextResponse(200, {
+          ...BASE_REQUEST,
+          status: 'requires_action',
+          status_details: {
+            requires_action: {
+              next_action: {
+                ...nextAction,
+                display_message: '\u001b[31mVerify\u001b[0m\u0007',
+              },
+            },
+          },
+        });
+        const result = await runProdCli(
+          'spend-request',
+          'retrieve',
+          BASE_REQUEST.id,
+          '--next-action',
+          '--format',
+          'json',
+        );
+        expect(result.exitCode).toBe(0);
+        expect(parseJson(result.stdout)).toEqual([
+          { next_action: { ...nextAction, display_message: 'Verify' } },
+        ]);
+      });
+
+      it.each([
+        ['--include', 'card'],
+        ['--output-file', '/tmp/unused-card.json'],
+        ['--force'],
+        ['--interval', '-1'],
+        ['--max-attempts', '1'],
+      ])('rejects incompatible %j without HTTP', async (...extra) => {
+        const result = await runProdCli(
+          'spend-request',
+          'retrieve',
+          BASE_REQUEST.id,
+          '--next-action',
+          ...extra,
+          '--format',
+          'json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(parseJson(result.stdout)).toHaveProperty(
+          'code',
+          'INVALID_INPUT',
+        );
+        expect(requests).toHaveLength(0);
+      });
+
+      it('retains NOT_FOUND rather than returning a null action for 404', async () => {
+        setNextResponse(404, { error: { message: 'Missing' } });
+        const result = await runProdCli(
+          'spend-request',
+          'retrieve',
+          BASE_REQUEST.id,
+          '--next-action',
+          '--format',
+          'json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(parseJson(result.stdout)).toHaveProperty('code', 'NOT_FOUND');
+      });
+
+      it.each([403, 500])('retains API errors for HTTP %s', async (status) => {
+        setNextResponse(status, {
+          error: { code: 'test_error', message: 'Test failure' },
+        });
+        const result = await runProdCli(
+          'spend-request',
+          'retrieve',
+          BASE_REQUEST.id,
+          '--next-action',
+          '--format',
+          'json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(parseJson(result.stdout)).toHaveProperty('code');
+        expect(result.stdout).not.toContain('next_action');
+      });
+
+      it('retains authentication errors before retrieving', async () => {
+        storage.clearAll();
+        const result = await runProdCli(
+          'spend-request',
+          'retrieve',
+          BASE_REQUEST.id,
+          '--next-action',
+          '--format',
+          'json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(parseJson(result.stdout)).toHaveProperty(
+          'code',
+          'NOT_AUTHENTICATED',
+        );
+        expect(requests).toHaveLength(0);
+      });
+
+      it.skipIf(process.platform === 'win32')(
+        'handles human TTY implicit and explicit formats without Ink',
+        async () => {
+          setNextResponse(200, {
+            ...BASE_REQUEST,
+            status: 'requires_action',
+            status_details: { requires_action: { next_action: nextAction } },
+          });
+          async function runTty(explicit: boolean) {
+            const argv = [
+              process.execPath,
+              CLI_PATH,
+              'spend-request',
+              'retrieve',
+              BASE_REQUEST.id,
+              '--next-action',
+              ...(explicit ? ['--format', 'json'] : []),
+            ];
+            const runner = new URL('./fixtures/run-in-pty.py', import.meta.url)
+              .pathname;
+            try {
+              const result = await execFileAsync('python3', [runner, ...argv], {
+                env: {
+                  ...process.env,
+                  ...EMPTY_AGENT_ENV,
+                  LINK_API_BASE_URL: `http://127.0.0.1:${serverPort}`,
+                  LINK_AUTH_BASE_URL: `http://127.0.0.1:${serverPort}`,
+                  LINK_AUTH_FILE: TEST_AUTH_FILE,
+                  XDG_DATA_HOME: '/tmp/link-cli-test-empty',
+                },
+                timeout: CLI_TIMEOUT_MS,
+              });
+              return { stdout: result.stdout, exitCode: 0 };
+            } catch (err) {
+              const failure = err as {
+                stdout?: string;
+                stderr?: string;
+                code?: number;
+              };
+              return {
+                stdout: failure.stdout ?? '',
+                exitCode: failure.code ?? 1,
+              };
+            }
+          }
+          const implicit = await runTty(false);
+          expect(implicit.exitCode).toBe(1);
+          expect(implicit.stdout).toContain('INVALID_INPUT');
+          expect(implicit.stdout).toContain(
+            'Use --next-action with --format json',
+          );
+          expect(requests).toHaveLength(0);
+          const explicit = await runTty(true);
+          expect(explicit.exitCode).toBe(0);
+          expect(parseJson(explicit.stdout)).toEqual([
+            { next_action: nextAction },
+          ]);
+          expect(requests).toHaveLength(1);
+        },
+      );
+    });
+
     it('sends GET to /spend-requests/:id', async () => {
       const result = await runProdCli(
         'spend-request',
@@ -4467,7 +4832,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         expect(data[0].sku_id).toBe('sku_1');
       });
 
-      it('maps --business to the profile_id search parameter', async () => {
+      it('maps --business to the business search parameter', async () => {
         setNextResponse(200, {
           data: [],
           total_count: 0,
@@ -4486,7 +4851,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         );
 
         expect(result.exitCode).toBe(0);
-        expect(lastRequest.url).toContain('profile_id=np_1');
+        expect(lastRequest.url).toContain('business=np_1');
       });
 
       it('maps --id to the sku search parameter', async () => {
@@ -4570,12 +4935,12 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     });
 
     describe('checkout create', () => {
-      it('POSTs profile_id and parsed line items to /ucp/checkout', async () => {
+      it('POSTs business and parsed line items to /ucp/checkout', async () => {
         setNextResponse(200, {
           id: 'dcs_1',
-          status: 'open',
+          status: 'ready_for_complete',
           currency: 'usd',
-          amount_total: 5500,
+          totals: [{ type: 'total', amount: 5500 }],
         });
 
         const result = await runProdCli(
@@ -4593,10 +4958,12 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         expect(lastRequest.method).toBe('POST');
         expect(lastRequest.url).toBe('/ucp/checkout');
         const body = JSON.parse(lastRequest.body);
-        // Flag is --business; the wire field stays profile_id (UCP API contract).
-        expect(body.profile_id).toBe('np_1');
-        expect(body.line_items).toEqual([{ sku_id: 'sku_1', quantity: 2 }]);
-        expect(body.currency).toBe('usd');
+        expect(body.business).toBe('np_1');
+        expect(body.line_items).toEqual([
+          { item: { id: 'sku_1' }, quantity: 2 },
+        ]);
+        expect(body).not.toHaveProperty('currency');
+        expect(body).not.toHaveProperty('fulfillment_details');
 
         const output = parseJson(result.stdout) as Record<string, unknown>;
         expect(output.id).toBe('dcs_1');
@@ -4664,38 +5031,124 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       });
     });
 
-    describe('checkout complete', () => {
-      it('POSTs the spend request and profile IDs to the confirm path', async () => {
-        setNextResponse(200, {
-          id: 'dcs_1',
-          status: 'completed',
-          order_details: { status: 'confirmed' },
-        });
-
+    describe('checkout update', () => {
+      it.each([
+        {
+          flags: ['--buyer', 'email:jane@example.com'],
+          sections: { buyer: { email: 'jane@example.com' } },
+        },
+        {
+          flags: ['--fulfillment', '{"methods":[]}'],
+          sections: { fulfillment: { methods: [] } },
+        },
+      ])('PUTs $flags without line items', async ({ flags, sections }) => {
+        const checkout = { id: 'checkout_1', status: 'ready_for_complete' };
+        setNextResponse(200, checkout);
         const result = await runProdCli(
           'ucp',
           'checkout',
-          'complete',
-          'dcs_1',
-          '--spend-request-id',
-          'lsrq_1',
+          'update',
+          '--id',
+          'checkout_1',
           '--business',
           'np_1',
+          ...flags,
           '--json',
         );
-
         expect(result.exitCode).toBe(0);
         expect(requests).toHaveLength(1);
-        expect(lastRequest.method).toBe('POST');
-        expect(lastRequest.url).toBe('/ucp/checkout/dcs_1/complete');
+        expect(lastRequest.method).toBe('PUT');
+        expect(lastRequest.url).toBe('/ucp/checkout/checkout_1');
         expect(JSON.parse(lastRequest.body)).toEqual({
-          spend_request_id: 'lsrq_1',
-          profile_id: 'np_1',
+          business: 'np_1',
+          ...sections,
         });
-
-        const output = parseJson(result.stdout) as Record<string, unknown>;
-        expect(output.status).toBe('completed');
+        expect(parseJson(result.stdout)).toEqual(checkout);
       });
+
+      it('PUTs supplied checkout sections to the encoded checkout path', async () => {
+        const fulfillment = {
+          methods: [
+            {
+              id: 'shipping',
+              type: 'shipping',
+              selected_destination_id: 'home',
+              destinations: [{ id: 'home', address_country: 'US' }],
+              groups: [{ id: 'group_1', selected_option_id: 'express' }],
+            },
+          ],
+        };
+        const checkout = {
+          id: 'checkout/1',
+          status: 'ready_for_complete',
+          fulfillment,
+        };
+        setNextResponse(200, checkout);
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'update',
+          '--id',
+          'checkout/1',
+          '--business',
+          'np_1',
+          '--line-item',
+          'id:sku_1',
+          '--buyer',
+          'email:jane@example.com,phone_number:+1234567890',
+          '--fulfillment',
+          JSON.stringify(fulfillment),
+          '--json',
+        );
+        expect(result.exitCode).toBe(0);
+        expect(requests).toHaveLength(1);
+        expect(lastRequest.method).toBe('PUT');
+        expect(lastRequest.url).toBe('/ucp/checkout/checkout%2F1');
+        expect(JSON.parse(lastRequest.body)).toEqual({
+          business: 'np_1',
+          line_items: [{ item: { id: 'sku_1' }, quantity: 1 }],
+          buyer: { email: 'jane@example.com', phone_number: '+1234567890' },
+          fulfillment,
+        });
+        expect(parseJson(result.stdout)).toEqual(checkout);
+      });
+    });
+
+    describe('checkout complete', () => {
+      it.each(['completed', 'complete_in_progress'])(
+        'returns the completion API response with status %s without monitoring payment',
+        async (status) => {
+          setNextResponse(200, {
+            id: 'dcs_1',
+            status,
+            order: { id: 'order_confirmed' },
+          });
+
+          const result = await runProdCli(
+            'ucp',
+            'checkout',
+            'complete',
+            'dcs_1',
+            '--spend-request-id',
+            'lsrq_1',
+            '--business',
+            'np_1',
+            '--json',
+          );
+
+          expect(result.exitCode).toBe(0);
+          expect(requests).toHaveLength(1);
+          expect(lastRequest.method).toBe('POST');
+          expect(lastRequest.url).toBe('/ucp/checkout/dcs_1/complete');
+          expect(JSON.parse(lastRequest.body)).toEqual({
+            spend_request_id: 'lsrq_1',
+            business: 'np_1',
+          });
+
+          const output = parseJson(result.stdout) as Record<string, unknown>;
+          expect(output.status).toBe(status);
+        },
+      );
 
       it('surfaces an upstream card error', async () => {
         setNextResponse(402, {
@@ -4767,95 +5220,137 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       });
     });
 
+    describe('checkout cancel', () => {
+      it.each([['checkout/1'], ['--id', 'checkout/1']])(
+        'POSTs business to the encoded cancel path using %j',
+        async (...idArgs) => {
+          const checkout = {
+            id: 'checkout/1',
+            status: 'canceled',
+            totals: [{ type: 'total', amount: 5500 }],
+            messages: [],
+            ucp: { version: '2026-01-23' },
+          };
+          setNextResponse(200, checkout);
+          const result = await runProdCli(
+            'ucp',
+            'checkout',
+            'cancel',
+            ...idArgs,
+            '--business',
+            'np_1',
+            '--json',
+          );
+          expect(result.exitCode).toBe(0);
+          expect(requests).toHaveLength(1);
+          expect(lastRequest.method).toBe('POST');
+          expect(lastRequest.url).toBe('/ucp/checkout/checkout%2F1/cancel');
+          expect(lastRequest.headers.authorization).toBe(
+            'Bearer prod_test_access_token',
+          );
+          expect(JSON.parse(lastRequest.body)).toEqual({ business: 'np_1' });
+          expect(parseJson(result.stdout)).toEqual(checkout);
+        },
+      );
+
+      it('surfaces cancellation errors', async () => {
+        setNextResponse(409, {
+          error: { message: 'Checkout cannot be canceled' },
+        });
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'cancel',
+          'checkout_1',
+          '--business',
+          'np_1',
+          '--json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout + result.stderr).toContain(
+          'Checkout cannot be canceled',
+        );
+      });
+
+      it('requires authentication before canceling', async () => {
+        storage.clearTokens();
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'cancel',
+          'checkout_1',
+          '--business',
+          'np_1',
+          '--json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(requests).toHaveLength(0);
+        expect(result.stdout + result.stderr).toContain('Not authenticated');
+      });
+    });
+
     describe('checkout retrieve', () => {
-      it('GETs the composite state once and preserves nested next_action output', async () => {
+      it('retrieves before payment using --id and business without a spend request', async () => {
+        const checkout = {
+          id: 'checkout_1',
+          status: 'incomplete',
+          messages: [{ code: 'missing_fulfillment' }],
+        };
+        setNextResponse(200, checkout);
+        const result = await runProdCli(
+          'ucp',
+          'checkout',
+          'retrieve',
+          '--id',
+          'checkout_1',
+          '--business',
+          'np_1',
+          '--json',
+        );
+        expect(result.exitCode).toBe(0);
+        expect(requests).toHaveLength(1);
+        expect(lastRequest.method).toBe('GET');
+        expect(lastRequest.url).toBe('/ucp/checkout/checkout_1?business=np_1');
+        expect(parseJson(result.stdout)).toEqual(checkout);
+      });
+
+      it('returns checkout only without retrieving or surfacing payment details', async () => {
+        const checkout = { id: 'dcs_1', status: 'complete_in_progress' };
         setNextResponse(200, {
-          id: 'dcs_1',
-          status: 'requires_action',
+          ...checkout,
           spend_request: {
             id: 'lsrq_1',
-            status: 'requires_action',
-            created_at: '2026-03-10T00:00:00Z',
-            updated_at: '2026-03-10T00:00:01Z',
-            status_details: {
-              requires_action: {
-                next_action: {
-                  type: 'three_d_secure',
-                  resolution: 'auto_resume',
-                  display_message: 'Complete verification',
-                  action_url: 'https://example.com/action',
-                },
-              },
-            },
+            shared_payment_token: { id: 'sensitive-token' },
           },
         });
-
         const result = await runProdCli(
           'ucp',
           'checkout',
           'retrieve',
           'dcs_1',
-          '--spend-request-id',
-          'lsrq_1',
-          '--test',
+          '--business',
+          'np_1',
           '--json',
         );
-
         expect(result.exitCode).toBe(0);
         expect(requests).toHaveLength(1);
-        const checkoutRequest = requests[0];
-        expect(checkoutRequest?.method).toBe('GET');
-        expect(checkoutRequest?.body).toBe('');
-        const requestUrl = new URL(
-          checkoutRequest?.url ?? '',
-          'http://localhost',
+        expect(lastRequest.method).toBe('GET');
+        expect(lastRequest.url).toBe('/ucp/checkout/dcs_1?business=np_1');
+        expect(parseJson(result.stdout)).toEqual(checkout);
+        expect(result.stdout).not.toMatch(
+          /spend_request|lsrq_1|sensitive-token/,
         );
-        expect(requestUrl.pathname).toBe('/ucp/checkout/dcs_1');
-        expect(requestUrl.searchParams.get('spend_request_id')).toBe('lsrq_1');
-        expect(requestUrl.searchParams.get('test')).toBe('true');
-        expect(
-          requests.some((request) => request.url.startsWith('/spend_requests')),
-        ).toBe(false);
-
-        const output = parseJson(result.stdout) as Record<string, unknown>;
-        expect(output).toMatchObject({
-          id: 'dcs_1',
-          status: 'requires_action',
-          spend_request: {
-            id: 'lsrq_1',
-            status_details: {
-              requires_action: {
-                next_action: {
-                  type: 'three_d_secure',
-                  resolution: 'auto_resume',
-                  display_message: 'Complete verification',
-                  action_url: 'https://example.com/action',
-                },
-              },
-            },
-          },
-        });
       });
 
       it.each([
+        ['a missing checkout ID', ['ucp', 'checkout', 'retrieve']],
+        ['an empty checkout ID', ['ucp', 'checkout', 'retrieve', '']],
         [
-          'a missing checkout ID',
-          ['ucp', 'checkout', 'retrieve', '--spend-request-id', 'lsrq_1'],
+          'the removed --poll option',
+          ['ucp', 'checkout', 'retrieve', 'dcs_1', '--poll'],
         ],
         [
-          'an empty checkout ID',
-          ['ucp', 'checkout', 'retrieve', '', '--spend-request-id', 'lsrq_1'],
-        ],
-        [
-          'a missing spend request ID',
-          ['ucp', 'checkout', 'retrieve', 'dcs_1'],
-        ],
-        [
-          'an empty spend request ID',
-          ['ucp', 'checkout', 'retrieve', 'dcs_1', '--spend-request-id', ''],
-        ],
-        [
-          '--timeout without --poll',
+          'the removed --spend-request-id option',
           [
             'ucp',
             'checkout',
@@ -4863,12 +5358,19 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
             'dcs_1',
             '--spend-request-id',
             'lsrq_1',
-            '--timeout',
-            '10',
           ],
         ],
+        [
+          'the removed --timeout option',
+          ['ucp', 'checkout', 'retrieve', 'dcs_1', '--timeout', '10'],
+        ],
       ])('rejects %s without making a request', async (_, args) => {
-        const result = await runProdCli(...args, '--json');
+        const result = await runProdCli(
+          ...args,
+          '--business',
+          'np_1',
+          '--json',
+        );
 
         expect(result.exitCode).toBe(1);
         expect(requests).toHaveLength(0);

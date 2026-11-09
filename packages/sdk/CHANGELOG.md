@@ -1,5 +1,50 @@
 # @stripe/link-sdk
 
+## 2.2.0
+
+### Minor Changes
+
+- fa6d4c1: Align UCP checkout commands and SDK types with the UCP checkout schema, covering creation, retrieval, completion, updates, and cancellation.
+  
+  UCP commands show an interactive summary in a terminal without an explicit format. Use `--format json` for the full response, including checkout messages, fulfillment choices, and capability metadata. Piped output and MCP remain structured.
+  
+  Checkout summaries display buyer details, selected fulfillment destinations and options with labeled method, destination, group, and option IDs, and UCP messages with error codes, severity, field paths, and recovery URLs. Missing buyer details, destinations, or selections are shown explicitly.
+  
+  - `checkout create` requires `--business` and at least one `--line-item` with an `id` and optional positive integer `quantity` (default 1). Buyer and fulfillment are optional.
+  - `checkout retrieve` requires a checkout ID and `--business`.
+  - `checkout complete` requires a positional checkout ID, `--business`, and an approved `--spend-request-id` for the same business, and returns the completion API response.
+  - `checkout update` requires a checkout ID and `--business`. Line items, buyer, and fulfillment are optional.
+  - Add `checkout cancel`, which requires a checkout ID and `--business` and returns the canceled checkout.
+  
+  Retrieve, update, and cancel accept the checkout ID positionally or through `--id`. `--buyer` accepts optional `first_name`, `last_name`, `email`, and `phone_number` fields. `--fulfillment` (also spelled `--fullfilment`) accepts the entire fulfillment object as JSON. The seller determines currency. Responses use UCP statuses, `totals`, `line_items`, and `order`, with `expires_at` as an RFC 3339 timestamp.
+  
+  Omitted fulfillment during creation uses a complete saved default shipping address when available.
+
+## 2.1.0
+
+### Minor Changes
+
+- 9537851: Add `use_approval_policy` to `create_spend_request` and a `retrieve_approval_policy` tool, letting SDK and Eve agents create policy-approved spend requests and read the configured approval policy — the same balance-backed flow `link-cli` already supports.
+
+## 2.0.0
+
+### Major Changes
+
+- 6489245: Add `spend-request retrieve <id> --next-action --format json` to return one snapshot of the server's existing action, including actions on failed requests, or null. This mode does not poll or return payment credentials.
+  
+  Correct TypeScript spend-request response types: status branches and their actions can be absent or null, action type can be null, and optional action expiry is a string or null rather than a number. Consumers must handle these nullable fields and string expiry. Add the existing `partner_create_card_enrollment` action type.
+
+### Minor Changes
+
+- 5d4eb12: Expose spend request `expires_at` in the public SDK and agent tools. Document
+  expiry limits and delayed merchant charges in CLI help and purchase guides.
+  The CLI, TypeScript SDK and tools, and Python SDK accept Unix seconds or ISO
+  8601 expiry timestamps ending in `Z` (UTC) and convert ISO input to Unix seconds
+  for the API.
+  
+  Convert spend-request `expires_at` responses from API Unix seconds to ISO 8601
+  timestamps ending in `Z` (UTC) in the CLI and all SDKs.
+
 ## 1.0.0
 
 ### Major Changes

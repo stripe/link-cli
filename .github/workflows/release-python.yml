@@ -96,6 +96,7 @@ jobs:
     needs: [build, test]
     if: github.repository == 'stripe/link-cli' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment: pypi
     permissions:
       id-token: write
     steps:
