@@ -29,6 +29,11 @@ const link = new Link({ accessToken: process.env.LINK_ACCESS_TOKEN! });
 const paymentMethods = await link.paymentMethods.list();
 ```
 
+Saved-card `card_details` declares `brand` and `last4`. The deprecated
+`exp_month` and `exp_year` fields are no longer part of `CardDetails`; additional
+API fields still pass through at runtime. SpendRequest `card` credentials retain
+`exp_month` and `exp_year` for checkout.
+
 Retrieve the approval policy for the current app and user:
 
 ```ts

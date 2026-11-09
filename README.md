@@ -182,6 +182,10 @@ Returns the cards and bank accounts saved to your Link account. Use the `id` fie
 The list can also include a Link balance payment method with its available
 balance when that amount is available.
 
+Saved-card details include `brand` and `last4`; `exp_month` and `exp_year` are
+deprecated for payment methods. Additional API fields still pass through in
+structured output. SpendRequest `card` credentials retain expiry for checkout.
+
 Retrieve one payment method by ID:
 
 ```bash
