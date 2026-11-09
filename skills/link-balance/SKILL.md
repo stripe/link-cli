@@ -38,7 +38,7 @@ Link balance is part of agent payments. It is unrelated to financial insights an
 
 ## Who can use it
 
-Link balance is only available in the US, and not in New York State. Run `link-cli user-info retrieve --format json` and check `eligible_for_balance` to determine whether the user can onboard. Only suggest or direct the user to set up Link balance when `eligible_for_balance` is explicitly `true`. If it is `false` or missing, don't offer setup.
+Link balance is only available in the US, and not in New York State. Run `link-cli user-info retrieve --format json` and check `eligible_for_balance` to determine whether the user can onboard. It reflects both the user and your OAuth client. Only suggest or direct the user to set up Link balance when `eligible_for_balance` is explicitly `true`. If it is `false` or missing, don't offer setup.
 
 Any agent can pay with Link balance: if the user already has it set up, it's one of their payment methods. Setup URLs and approval policies are tied to your Link OAuth client ID. Check the user's `eligible_for_balance` from the user-info endpoint (`link-cli user-info retrieve --format json`) before directing them to setup, and use `approval-policy retrieve` to check whether you can spend without approval. If you don't have your own Link OAuth client ID, you can still pay with Link balance the user already has, with normal approval, but don't send setup URLs or pass `--use-approval-policy`.
 
