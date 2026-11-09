@@ -546,6 +546,51 @@ async def test_update_all_fields(api: API) -> None:
         )
 
 
+@pytest.mark.parametrize("use_approval_policy", [None, True])
+async def test_create_routes_delegated_approval_requests(
+    api: API, use_approval_policy: bool | None
+) -> None:
+    api.respond(SPEND)
+    await api.call(
+        "spend_requests",
+        "create",
+        context=CONTEXT,
+        use_approval_policy=use_approval_policy,
+    )
+    request = api.requests[0]
+    expected_path = (
+        "/spend_requests/create_delegated"
+        if use_approval_policy is True
+        else "/spend_requests"
+    )
+    assert request.url.path == expected_path
+    expected_body = {"context": CONTEXT}
+    if use_approval_policy is not None:
+        expected_body["use_approval_policy"] = use_approval_policy
+    assert json.loads(request.content) == expected_body
+
+
+@pytest.mark.parametrize("use_approval_policy", [None, True])
+async def test_update_routes_delegated_approval_requests(
+    api: API, use_approval_policy: bool | None
+) -> None:
+    api.respond(SPEND)
+    await api.call(
+        "spend_requests",
+        "update",
+        "sr_123",
+        amount=500,
+        use_approval_policy=use_approval_policy,
+    )
+    request = api.requests[0]
+    suffix = "/update_delegated" if use_approval_policy is True else ""
+    assert request.url.path == "/spend_requests/sr_123" + suffix
+    expected_body = {"amount": 500}
+    if use_approval_policy is not None:
+        expected_body["use_approval_policy"] = use_approval_policy
+    assert json.loads(request.content) == expected_body
+
+
 @pytest.mark.parametrize("id", ["sr/a?b#c%", "..", ".", "a b", "é"])
 async def test_retrieve_path_encoding_and_include(api: API, id: str) -> None:
     from urllib.parse import unquote

@@ -73,6 +73,7 @@ class SpendRequestsResource:
         line_items: Sequence[LineItemParams] | None = None,
         totals: Sequence[TotalParams] | None = None,
         request_approval: bool | None = None,
+        use_approval_policy: bool | None = None,
         test: bool | None = None,
         approval_details: ApprovalDetailParams | None = None,
         metadata: Mapping[str, str] | None = None,
@@ -105,6 +106,7 @@ class SpendRequestsResource:
             "line_items": line_items,
             "totals": totals,
             "request_approval": request_approval,
+            "use_approval_policy": use_approval_policy,
             "test": test,
             "approval_details": approval_details,
             "metadata": metadata,
@@ -125,6 +127,7 @@ class SpendRequestsResource:
         currency: str | None = None,
         line_items: Sequence[LineItemParams] | None = None,
         totals: Sequence[TotalParams] | None = None,
+        use_approval_policy: bool | None = None,
     ) -> SpendRequest:
         """Update mutable fields on a spend request."""
         params: UpdateSpendRequestParams = {
@@ -136,6 +139,7 @@ class SpendRequestsResource:
             "currency": currency,
             "line_items": line_items,
             "totals": totals,
+            "use_approval_policy": use_approval_policy,
         }
         return self._transport.request(op.spend_update(id, params))
 

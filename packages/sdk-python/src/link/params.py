@@ -81,6 +81,7 @@ class CreateSpendRequestParams(TypedDict, total=False):
     line_items: Sequence[LineItemParams] | None
     totals: Sequence[TotalParams] | None
     request_approval: bool | None
+    use_approval_policy: bool | None
     test: bool | None
     approval_details: ApprovalDetailParams | None
     metadata: Mapping[str, str] | None
@@ -98,6 +99,7 @@ class UpdateSpendRequestParams(TypedDict, total=False):
     currency: str | None
     line_items: Sequence[LineItemParams] | None
     totals: Sequence[TotalParams] | None
+    use_approval_policy: bool | None
 
 
 class ListSpendRequestsParams(TypedDict, total=False):

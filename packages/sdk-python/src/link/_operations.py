@@ -125,10 +125,15 @@ def spend_create(params: Mapping[str, Any]) -> Request[SpendRequest]:
             )
         expiry = floor(datetime.fromisoformat(expires_at).timestamp())
         params = {**params, "expires_at": expiry}
+    path = (
+        "/spend_requests/create_delegated"
+        if params.get("use_approval_policy") is True
+        else "/spend_requests"
+    )
     return Request(
         "create spend request",
         "POST",
-        "/spend_requests",
+        path,
         SpendRequest.model_validate,
         spend=True,
         body=params,
@@ -136,10 +141,13 @@ def spend_create(params: Mapping[str, Any]) -> Request[SpendRequest]:
 
 
 def spend_update(id: str, params: Mapping[str, Any]) -> Request[SpendRequest]:
+    path = _spend_path(id)
+    if params.get("use_approval_policy") is True:
+        path += "/update_delegated"
     return Request(
         "update spend request",
         "POST",
-        _spend_path(id),
+        path,
         SpendRequest.model_validate,
         spend=True,
         body=params,
