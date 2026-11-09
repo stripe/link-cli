@@ -54,10 +54,6 @@ func main() {
 Use a fixed token for a short-lived job or when the caller replaces the entire
 client as credentials change.
 
-Saved-card `CardDetails` contains `Brand` and `Last4`. The deprecated `ExpMonth`
-and `ExpYear` fields are removed and ignored if the API sends them. SpendRequest
-`Card` credentials retain `ExpMonth` and `ExpYear` for checkout.
-
 ## Retrieve a payment method
 
 `PaymentMethods.Retrieve` returns one payment method by ID, or `nil` with no
