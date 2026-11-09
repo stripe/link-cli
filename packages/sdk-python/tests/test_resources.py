@@ -124,6 +124,38 @@ async def test_list_resources(
     assert request.content == b""
 
 
+@pytest.mark.parametrize("method", ["list", "retrieve", "update"])
+@pytest.mark.parametrize("legacy_expiry", [False, True])
+async def test_payment_method_card_details_without_expiry(
+    api: API, method: str, legacy_expiry: bool
+) -> None:
+    card_details = {"brand": "visa", "last4": "4242"}
+    payment_method = {
+        "id": "pd_1",
+        "type": "CARD",
+        "is_default": True,
+        "name": "Visa",
+        "card_details": {
+            **card_details,
+            **({"exp_month": 12, "exp_year": 2028} if legacy_expiry else {}),
+        },
+    }
+    api.respond(
+        {"payment_details": [payment_method]} if method == "list" else payment_method
+    )
+
+    if method == "list":
+        result = (await api.call("payment_methods", method))[0]
+    elif method == "retrieve":
+        result = await api.call("payment_methods", method, "pd_1")
+    else:
+        result = await api.call("payment_methods", method, "pd_1", nickname="Work card")
+
+    assert result.card_details is not None
+    assert result.card_details.model_dump() == card_details
+    assert result.model_dump()["card_details"] == card_details
+
+
 @pytest.mark.parametrize("nickname", ["Work card", ""])
 async def test_update_payment_method(api: API, nickname: str) -> None:
     api.respond(

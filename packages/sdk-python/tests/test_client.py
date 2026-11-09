@@ -155,7 +155,8 @@ async def test_fixed_token_does_not_retry(api: API, status: int) -> None:
         b'{"payment_details":[],"future":NaN}',
         b'{"payment_details":[{"id":[]}]}',
         b'{"payment_details":[{"is_default":1}]}',
-        b'{"payment_details":[{"card_details":{"exp_month":"1"}}]}',
+        b'{"payment_details":[{"id":"pd_1","type":"CARD","is_default":true,'
+        b'"name":"Visa","card_details":{"brand":1,"last4":"4242"}}]}',
     ],
 )
 async def test_bad_success_response_is_typed(api: API, body: bytes) -> None:

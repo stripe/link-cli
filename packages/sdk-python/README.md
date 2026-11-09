@@ -39,6 +39,11 @@ with Client(access_token=os.environ["LINK_ACCESS_TOKEN"]) as client:
         print(method.id, method.name, method.is_default)
 ```
 
+Saved-card `card_details` contains `brand` and `last4`. The deprecated
+`exp_month` and `exp_year` fields are no longer part of `CardDetails` and are
+ignored if the API sends them. SpendRequest `card` credentials retain
+`exp_month` and `exp_year` for checkout.
+
 For async applications, use the same resource methods with `await`:
 
 ```python
