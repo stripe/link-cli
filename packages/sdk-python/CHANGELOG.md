@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add `use_approval_policy` to spend-request create and update, routing to the delegated approval endpoints.
 - Add `approval_policy.retrieve`.
 - Add `payment_methods.retrieve`, the `insights` resource, payment-method `balance_details`, and report `attempt_trace`.
 - Update payment methods' wallet default status independently or with nicknames.
