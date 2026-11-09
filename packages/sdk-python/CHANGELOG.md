@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Remove deprecated saved-card `CardDetails.exp_month` and `CardDetails.exp_year`; preserve SpendRequest card credential expiry.
 - Add `approval_policy.retrieve`.
 - Add `payment_methods.retrieve`, the `insights` resource, payment-method `balance_details`, and report `attempt_trace`.
 - Update payment methods' wallet default status independently or with nicknames.

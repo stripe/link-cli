@@ -2138,6 +2138,8 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       expect(request.status).toBe('approved');
       const card = request.card as Record<string, unknown>;
       expect(card.brand).toBe('Visa');
+      expect(card.exp_month).toBe(12);
+      expect(card.exp_year).toBe(2027);
       expect(card.number).toBe('4000009990001984');
     });
 
@@ -2372,6 +2374,33 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     });
   });
 
+  describe('payment-methods list', () => {
+    it.each([false, true])(
+      'returns saved-card details with legacy expiry present: %s',
+      async (legacyExpiry) => {
+        const method = {
+          id: 'pd_123',
+          type: 'CARD',
+          is_default: true,
+          name: 'Visa',
+          card_details: {
+            brand: 'visa',
+            last4: '4242',
+            ...(legacyExpiry ? { exp_month: 12, exp_year: 2028 } : {}),
+          },
+        };
+        setResponseForUrl('/payment-details', 200, {
+          payment_details: [method],
+        });
+
+        const result = await runProdCli('payment-methods', 'list', '--json');
+
+        expect(result.exitCode).toBe(0);
+        expect(parseJson(result.stdout)).toEqual([method]);
+      },
+    );
+  });
+
   describe('payment-methods retrieve', () => {
     it('retrieves a payment method by ID', async () => {
       setResponseForUrl('/payment-details/pd_123', 200, {
@@ -2379,6 +2408,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         type: 'CARD',
         is_default: true,
         name: 'Visa',
+        card_details: { brand: 'visa', last4: '4242' },
       });
 
       const result = await runProdCli(
@@ -2394,7 +2424,10 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       expect(lastRequest.headers.authorization).toBe(
         'Bearer prod_test_access_token',
       );
-      expect(parseJson(result.stdout)).toMatchObject({ id: 'pd_123' });
+      expect(parseJson(result.stdout)).toMatchObject({
+        id: 'pd_123',
+        card_details: { brand: 'visa', last4: '4242' },
+      });
     });
 
     it('returns NOT_FOUND when the payment method does not exist', async () => {
@@ -2442,6 +2475,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       is_default: true,
       name: 'Visa',
       nickname: 'Work card',
+      card_details: { brand: 'visa', last4: '4242' },
     };
 
     it('updates a nickname and returns the updated payment method', async () => {

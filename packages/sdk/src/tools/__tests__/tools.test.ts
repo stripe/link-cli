@@ -143,6 +143,22 @@ describe('Link tools', () => {
     ).toEqual(['Bearer alice', 'Bearer bob']);
   });
 
+  it('lists saved-card details without expiry through the agent tool', async () => {
+    const { tools, fetch } = fixture();
+    const method = {
+      id: 'pd_123',
+      type: 'CARD',
+      is_default: true,
+      name: 'Visa',
+      card_details: { brand: 'visa', last4: '4242' },
+    };
+    fetch.mockResolvedValue(Response.json({ payment_details: [method] }));
+
+    await expect(
+      tools.list_payment_methods.execute({}, context),
+    ).resolves.toEqual([method]);
+  });
+
   it('rejects invalid and auth-bearing inputs before token lookup', async () => {
     const { tools, getClient } = fixture();
     await expect(
