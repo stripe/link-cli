@@ -349,10 +349,8 @@ type RequestApprovalResponse struct {
 
 // CardDetails contains non-sensitive saved-card details.
 type CardDetails struct {
-	Brand    string `json:"brand"`
-	Last4    string `json:"last4"`
-	ExpMonth int64  `json:"exp_month"`
-	ExpYear  int64  `json:"exp_year"`
+	Brand string `json:"brand"`
+	Last4 string `json:"last4"`
 }
 
 // BankAccountDetails contains non-sensitive saved-bank-account details.

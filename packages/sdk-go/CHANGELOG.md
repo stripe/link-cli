@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Remove deprecated saved-card `CardDetails.ExpMonth` and `CardDetails.ExpYear`; preserve SpendRequest card credential expiry.
 - Add `ApprovalPolicy.Retrieve`.
 - Preserve an explicit empty `data` array when re-encoding an `Insight`.
 - Add `PaymentMethods.Retrieve`, returning `nil` when the payment method does not exist.
