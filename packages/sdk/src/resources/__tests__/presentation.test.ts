@@ -102,7 +102,7 @@ function mint(options: MintOptions = {}): string {
   return `${[jwt, ...disclosures].join('~')}~`;
 }
 
-/** The algorithm `link-cli identity credentials present` used, with node:crypto. */
+/** The former CLI algorithm, retained as an independent compatibility reference. */
 function referencePresentation(
   credential: string,
   key: KeyObject,
