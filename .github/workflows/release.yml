@@ -177,6 +177,10 @@ jobs:
       - name: Build SEA
         run: node --build-sea packages/cli/sea-config.json
 
+      - name: Repair and validate ARM64 ELF layout
+        if: matrix.asset_name == 'link-cli-linux-arm64'
+        run: node scripts/fix-sea-elf.mjs sea-output
+
       - name: Rename binary (Unix)
         if: runner.os != 'Windows'
         run: mv sea-output ${{ matrix.asset_name }} && chmod +x ${{ matrix.asset_name }}

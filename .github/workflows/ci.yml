@@ -29,6 +29,7 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: node --test scripts/fix-sea-elf.test.mjs
       - run: pnpm turbo run build --filter=@stripe/link-cli...
       - run: pnpm --filter @stripe/link-cli run build:sea
       - name: Build Linux binary
@@ -36,10 +37,25 @@ jobs:
           test "$(node -p 'process.arch')" = "${{ matrix.arch }}"
           node --build-sea packages/cli/sea-config.json
           chmod +x sea-output
+      - name: Repair and validate ARM64 ELF layout
+        if: matrix.arch == 'arm64'
+        run: node scripts/fix-sea-elf.mjs sea-output
       - name: Smoke test binary
         run: |
+          getconf PAGESIZE
           ./sea-output --version
           ./sea-output --help
+      - name: Package test binary
+        run: |
+          mv sea-output link-cli-linux-${{ matrix.arch }}
+          sha256sum link-cli-linux-${{ matrix.arch }} > link-cli-linux-${{ matrix.arch }}.sha256
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: link-cli-linux-${{ matrix.arch }}
+          path: |
+            link-cli-linux-${{ matrix.arch }}
+            link-cli-linux-${{ matrix.arch }}.sha256
+          if-no-files-found: error
 
   windows-continuations:
     runs-on: windows-latest
