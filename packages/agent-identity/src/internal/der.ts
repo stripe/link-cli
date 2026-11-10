@@ -144,14 +144,43 @@ function decodeDer(der: Uint8Array, what: string): asn1js.AsnType {
   return result;
 }
 
+/**
+ * Whether `block` carries exactly this universal tag and form. `instanceof`
+ * alone is not enough: asn1js decodes a primitive-form SEQUENCE (0x10) as a
+ * `Sequence`, and its `Enumerated` extends `Integer`.
+ */
+function hasTag(
+  block: asn1js.AsnType,
+  tagNumber: number,
+  constructed: boolean,
+): boolean {
+  const { tagClass, tagNumber: actual, isConstructed } = block.idBlock;
+  return (
+    tagClass === 1 && actual === tagNumber && isConstructed === constructed
+  );
+}
+
+const UNIVERSAL = { INTEGER: 2, BIT_STRING: 3, NULL: 5, OID: 6, SEQUENCE: 16 };
+
+function isNull(block: asn1js.AsnType | undefined): boolean {
+  return block instanceof asn1js.Null && hasTag(block, UNIVERSAL.NULL, false);
+}
+
 /** The members of a SEQUENCE, refusing anything else. */
 function sequence(block: asn1js.AsnType | undefined, what: string) {
-  if (!(block instanceof asn1js.Sequence)) fail(`expected ${what} SEQUENCE`);
+  if (
+    !(block instanceof asn1js.Sequence) ||
+    !hasTag(block, UNIVERSAL.SEQUENCE, true)
+  )
+    fail(`expected ${what} SEQUENCE`);
   return block.valueBlock.value;
 }
 
 function oid(block: asn1js.AsnType | undefined, what: string): string {
-  if (!(block instanceof asn1js.ObjectIdentifier))
+  if (
+    !(block instanceof asn1js.ObjectIdentifier) ||
+    !hasTag(block, UNIVERSAL.OID, false)
+  )
     fail(`expected ${what} OBJECT IDENTIFIER`);
   return block.getValue();
 }
@@ -161,7 +190,11 @@ function unsignedInteger(
   block: asn1js.AsnType | undefined,
   what: string,
 ): Uint8Array {
-  if (!(block instanceof asn1js.Integer)) fail(`expected ${what} INTEGER`);
+  if (
+    !(block instanceof asn1js.Integer) ||
+    !hasTag(block, UNIVERSAL.INTEGER, false)
+  )
+    fail(`expected ${what} INTEGER`);
   const bytes = block.valueBlock.valueHexView;
   if (bytes.length === 0) fail(`${what} is an empty INTEGER`);
   if (((bytes[0] as number) & 0x80) !== 0) fail(`${what} is negative`);
@@ -183,7 +216,7 @@ function hashAlgorithm(
 ): string {
   const [algorithm, params, ...rest] = sequence(block, what);
   if (rest.length > 0) fail(`${what} has trailing members`);
-  if (params !== undefined && !(params instanceof asn1js.Null))
+  if (params !== undefined && !isNull(params))
     fail(`${what} parameters are not NULL`);
   const name = HASH_NAMES.get(oid(algorithm, what));
   if (name === undefined) fail(`${what} is not a supported hash`);
@@ -252,7 +285,10 @@ export function parseRsaSpki(der: Uint8Array): ParsedRsaSpki | string {
       'SubjectPublicKeyInfo',
     );
     if (rest.length > 0) return 'SubjectPublicKeyInfo has trailing bytes';
-    if (!(bits instanceof asn1js.BitString) || bits.idBlock.isConstructed)
+    if (
+      !(bits instanceof asn1js.BitString) ||
+      !hasTag(bits, UNIVERSAL.BIT_STRING, false)
+    )
       fail('expected subjectPublicKey BIT STRING');
     if (bits.valueBlock.unusedBits !== 0)
       return 'subjectPublicKey has unused bits';
@@ -267,8 +303,7 @@ export function parseRsaSpki(der: Uint8Array): ParsedRsaSpki | string {
     switch (oid(algorithmOid, 'algorithm')) {
       case OID_RSA_ENCRYPTION:
         // RFC 3279 section 2.3.1: the parameters must be NULL.
-        if (!(params instanceof asn1js.Null))
-          fail('rsaEncryption parameters are not NULL');
+        if (!isNull(params)) fail('rsaEncryption parameters are not NULL');
         encoding = 'rsaEncryption';
         break;
       case OID_RSASSA_PSS: {
