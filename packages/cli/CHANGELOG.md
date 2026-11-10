@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 1.4.1
+
+### Patch Changes
+
+- 43eecad: Publish a standalone Linux ARM64 executable and SHA-256 checksum with CLI releases.
+
 ## 1.4.0
 
 ### Minor Changes
