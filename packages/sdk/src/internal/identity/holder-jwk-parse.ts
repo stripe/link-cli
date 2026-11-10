@@ -1,5 +1,5 @@
-import { LinkConfigurationError } from '../errors';
-import type { HolderPublicJwk } from './interfaces';
+import { LinkConfigurationError } from '../../errors';
+import type { HolderPublicJwk } from '../../resources/interfaces';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

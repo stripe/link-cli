@@ -1025,15 +1025,15 @@ describe('runtime neutrality', () => {
 
   const graph = importGraph([
     resolve(resources, 'presentation.ts'),
-    resolve(resources, 'holder-jwk-parse.ts'),
+    resolve(src, 'internal/identity/holder-jwk-parse.ts'),
   ]);
 
   it('follows local imports', () => {
     expect(graph).toEqual(
       expect.arrayContaining([
         resolve(resources, 'presentation.ts'),
-        resolve(resources, 'holder-jwk-parse.ts'),
-        resolve(resources, 'base64url.ts'),
+        resolve(src, 'internal/identity/holder-jwk-parse.ts'),
+        resolve(src, 'internal/identity/base64url.ts'),
         resolve(src, 'errors.ts'),
       ]),
     );

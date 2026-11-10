@@ -7,8 +7,8 @@
 import { z } from 'zod';
 // Relative paths, unlike the `@/` alias, stay resolvable in emitted declarations.
 import { LinkConfigurationError, LinkSdkError } from '../errors';
-import { decodeBase64url, encodeBase64url } from './base64url';
-import { parseHolderPublicJwk } from './holder-jwk-parse';
+import { decodeBase64url, encodeBase64url } from '../internal/identity/base64url';
+import { parseHolderPublicJwk } from '../internal/identity/holder-jwk-parse';
 import type { HolderPublicJwk } from './interfaces';
 
 export type LinkPresentationErrorCode =

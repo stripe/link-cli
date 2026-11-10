@@ -1,6 +1,6 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { decodeBase64url, encodeBase64url } from '@/resources/base64url';
+import { decodeBase64url, encodeBase64url } from '@/internal/identity/base64url';
 
 // The acceptance rule this module must match: Buffer's lenient decoder followed
 // by a check that the input is the canonical encoding of the decoded bytes.

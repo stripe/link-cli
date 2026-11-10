@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { parseHolderPublicJwk } from '@/resources/holder-jwk-parse';
-import type { HolderPublicJwk } from '@/resources/interfaces';
+import { parseHolderPublicJwk } from '../internal/identity/holder-jwk-parse';
+import type { HolderPublicJwk } from './interfaces';
 
 export { parseHolderPublicJwk };
 
