@@ -1,29 +1,12 @@
-import type {
-  IUcpResource,
-  UcpCheckoutWithSpendRequest,
-} from '@stripe/link-sdk';
+import type { IUcpResource, UcpCheckout } from '@stripe/link-sdk';
 import { describe, expect, it, vi } from 'vitest';
 import { createUcpCli } from '..';
 
-const checkout: UcpCheckoutWithSpendRequest = {
+const checkout: UcpCheckout = {
   id: 'dcs_1',
   status: 'complete_in_progress',
-  spend_request: {
-    id: 'lsrq_1',
-    status: 'requires_action',
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:01Z',
-    status_details: {
-      requires_action: {
-        next_action: {
-          type: 'three_d_secure',
-          resolution: 'auto_resume',
-          display_message: 'Complete verification',
-          action_url: 'https://example.com/action',
-        },
-      },
-    },
-  },
+  messages: [{ content: 'Review order' }],
+  custom_metadata: { preserved: true },
 };
 
 async function retrieve(
@@ -49,16 +32,7 @@ async function retrieve(
     let output = '';
     const exit = vi.fn();
     await cli.serve(
-      [
-        'checkout',
-        'retrieve',
-        'dcs_1',
-        '--spend-request-id',
-        'lsrq_1',
-        '--business',
-        'np_1',
-        ...flags,
-      ],
+      ['checkout', 'retrieve', 'dcs_1', '--business', 'np_1', ...flags],
       {
         stdout: (chunk) => {
           output += chunk;
@@ -66,75 +40,61 @@ async function retrieve(
         exit,
       },
     );
-    expect(exit.mock.calls.every(([code]) => code === 0)).toBe(true);
-    return output;
+    return { output, exit, repository };
   } finally {
-    if (originalTty) {
+    if (originalTty)
       Object.defineProperty(process.stdout, 'isTTY', originalTty);
-    } else {
-      Reflect.deleteProperty(process.stdout, 'isTTY');
-    }
+    else Reflect.deleteProperty(process.stdout, 'isTTY');
   }
 }
 
 describe('ucp checkout retrieve output', () => {
+  it('prints checkout only when piped with one API request', async () => {
+    const retrieveCheckout = vi.fn(async () => checkout);
+    const { output, exit } = await retrieve(retrieveCheckout, false);
+    expect(exit.mock.calls.every(([code]) => code === 0)).toBe(true);
+    expect(retrieveCheckout).toHaveBeenCalledExactlyOnceWith('dcs_1', {
+      business: 'np_1',
+    });
+    expect(output).toContain('dcs_1');
+    expect(output).toContain('complete_in_progress');
+  });
+
   it.each([true, false])(
-    'prints checkout, spend request, and action details without a format flag (TTY: %s)',
+    'returns the API checkout response as JSON (TTY: %s)',
     async (tty) => {
       const retrieveCheckout = vi.fn(async () => checkout);
-      const output = await retrieve(retrieveCheckout, tty);
-
+      const { output, exit } = await retrieve(retrieveCheckout, tty, [
+        '--format',
+        'json',
+      ]);
+      expect(exit.mock.calls.every(([code]) => code === 0)).toBe(true);
+      expect(JSON.parse(output)).toEqual(checkout);
       expect(retrieveCheckout).toHaveBeenCalledExactlyOnceWith('dcs_1', {
         business: 'np_1',
-        spend_request_id: 'lsrq_1',
       });
-      for (const value of [
-        'dcs_1',
-        'lsrq_1',
-        'requires_action',
-        'three_d_secure',
-        'auto_resume',
-        'Complete verification',
-        'https://example.com/action',
+    },
+  );
+
+  it.each([true, false])(
+    'rejects removed options before any API request (TTY: %s)',
+    async (tty) => {
+      for (const flags of [
+        ['--poll'],
+        ['--timeout', '10'],
+        ['--spend-request-id', 'lsrq_1'],
       ]) {
-        expect(output).toContain(value);
+        const retrieveCheckout = vi.fn(async () => checkout);
+        const { output, exit, repository } = await retrieve(
+          retrieveCheckout,
+          tty,
+          [...flags, '--format', 'json'],
+        );
+        expect(exit).toHaveBeenCalledWith(1);
+        expect(JSON.parse(output).code).toBeDefined();
+        for (const method of Object.values(repository))
+          expect(method).not.toHaveBeenCalled();
       }
     },
   );
-
-  it.each([true, false])(
-    'preserves the full JSON response (TTY: %s)',
-    async (tty) => {
-      const output = await retrieve(
-        vi.fn(async () => checkout),
-        tty,
-        ['--format', 'json'],
-      );
-
-      expect(JSON.parse(output)).toEqual(checkout);
-    },
-  );
-
-  it('prints polling updates and the final outcome in a terminal', async () => {
-    const retrieveCheckout = vi
-      .fn<IUcpResource['retrieveCheckout']>()
-      .mockResolvedValueOnce({
-        id: 'dcs_1',
-        status: 'complete_in_progress',
-        spend_request: { ...checkout.spend_request, status: 'approved' },
-      })
-      .mockResolvedValueOnce({
-        id: 'dcs_1',
-        status: 'completed',
-        spend_request: { ...checkout.spend_request, status: 'succeeded' },
-      });
-    const output = await retrieve(retrieveCheckout, true, ['--poll']);
-
-    expect(retrieveCheckout).toHaveBeenCalledTimes(2);
-    expect(output).toContain('outcome: pending');
-    expect(output).toContain('outcome: success');
-    expect(output).toContain('checkout_completed_and_spend_request_succeeded');
-    expect(output).toContain('dcs_1');
-    expect(output).toContain('lsrq_1');
-  });
 });

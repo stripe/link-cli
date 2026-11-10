@@ -16,7 +16,6 @@ import type {
   TransactionOrigin,
   TransactionsPage,
   UcpCheckout,
-  UcpCheckoutWithSpendRequest,
   UcpSearchResult,
   UserInfo,
   WebBotAuthBlock,
@@ -329,8 +328,6 @@ export interface CancelUcpCheckoutParams {
 
 export interface RetrieveUcpCheckoutParams {
   business: string;
-  /** Fetch payment state separately and attach it to the checkout. */
-  spend_request_id?: string;
 }
 
 export interface IUcpResource {
@@ -348,10 +345,6 @@ export interface IUcpResource {
     id: string,
     params: CancelUcpCheckoutParams,
   ): Promise<UcpCheckout>;
-  retrieveCheckout(
-    id: string,
-    params: RetrieveUcpCheckoutParams & { spend_request_id: string },
-  ): Promise<UcpCheckoutWithSpendRequest>;
   retrieveCheckout(
     id: string,
     params: RetrieveUcpCheckoutParams,

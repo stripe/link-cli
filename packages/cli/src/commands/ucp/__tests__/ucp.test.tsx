@@ -3,12 +3,14 @@ import type {
   UcpCheckout,
   UcpSearchResult,
 } from '@stripe/link-sdk';
-import { render } from 'ink-testing-library';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, render } from 'ink-testing-library';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { sanitizeResource } from '../../../utils/resource-factory';
 import { CatalogSearch } from '../catalog-search';
 import { CheckoutComplete } from '../checkout-complete';
 import { CheckoutCreate } from '../checkout-create';
+
+afterEach(cleanup);
 
 const ESCAPE_PAYLOAD = '\x1b[2JEvil\rName';
 const CLEAN_TEXT = 'EvilName';
@@ -288,201 +290,76 @@ describe('ucp checkout summary currency formatting', () => {
 });
 
 describe('ucp checkout complete component', () => {
-  it('submits once, verifies the composite state, and renders success', async () => {
-    const checkout: UcpCheckout = {
-      id: 'dcs_1',
-      status: 'completed',
-      order: { id: 'order_confirmed' },
-    };
-    const completeCheckout = vi.fn(async () => checkout);
-    const retrieveCheckout = vi.fn(async () => ({
-      ...checkout,
-      spend_request: {
-        id: 'lsrq_1',
-        status: 'succeeded' as const,
-        created_at: '2026-01-01T00:00:00Z',
-        updated_at: '2026-01-01T00:00:01Z',
-      },
-    }));
-    const repo = makeResource({
-      completeCheckout,
-      retrieveCheckout,
-    });
+  it.each([
+    'completed',
+    'complete_in_progress',
+    'requires_escalation',
+  ] as const)(
+    'returns the completion API response for %s without follow-up retrieval',
+    async (status) => {
+      const checkout: UcpCheckout = {
+        id: 'dcs_1',
+        status,
+        order: { id: 'order_confirmed' },
+        messages: [{ content: 'Review order' }],
+        custom_metadata: { preserved: true },
+      };
+      const completeCheckout = vi.fn(async () => checkout);
+      const retrieveCheckout = vi
+        .fn()
+        .mockRejectedValue(new Error('Unexpected retrieval'));
+      const onComplete = vi.fn();
+      const { lastFrame } = render(
+        <CheckoutComplete
+          repository={makeResource({ completeCheckout, retrieveCheckout })}
+          id="dcs_1"
+          params={{ spend_request_id: 'lsrq_1', business: 'np_1' }}
+          onComplete={onComplete}
+        />,
+      );
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain('Checkout completion response received');
+        expect(lastFrame()).toContain(status);
+        expect(lastFrame()).toContain('order_confirmed');
+      });
+      await vi.waitFor(
+        () => expect(onComplete).toHaveBeenCalledExactlyOnceWith(checkout),
+        { timeout: 2500 },
+      );
+      expect(completeCheckout).toHaveBeenCalledExactlyOnceWith('dcs_1', {
+        spend_request_id: 'lsrq_1',
+        business: 'np_1',
+      });
+      expect(retrieveCheckout).not.toHaveBeenCalled();
+      expect(lastFrame()).not.toMatch(
+        /payment succeeded|Checkout completed|Verifying/,
+      );
+    },
+  );
 
-    const { lastFrame } = render(
-      <CheckoutComplete
-        repository={repo}
-        id="dcs_1"
-        params={{ spend_request_id: 'lsrq_1', business: 'np_1' }}
-        onComplete={() => {}}
-      />,
-    );
-
-    await vi.waitFor(() => {
-      const frame = lastFrame();
-      expect(frame).toContain('Checkout completed');
-      expect(frame).toContain('dcs_1');
-      expect(frame).toContain('order_confirmed');
-    });
-    expect(completeCheckout).toHaveBeenCalledOnce();
-    expect(retrieveCheckout).toHaveBeenCalledWith('dcs_1', {
-      spend_request_id: 'lsrq_1',
-      business: 'np_1',
-    });
-  });
-
-  it('shows 3DS details and polls through an auto-resume action', async () => {
-    let resolveFinal: ((value: unknown) => void) | undefined;
-    const finalState = new Promise((resolve) => {
-      resolveFinal = resolve;
-    });
-    const actionState = {
-      id: 'dcs_1',
-      status: 'complete_in_progress' as const,
-      spend_request: {
-        id: 'lsrq_1',
-        status: 'requires_action' as const,
-        created_at: '2026-01-01T00:00:00Z',
-        updated_at: '2026-01-01T00:00:01Z',
-        status_details: {
-          requires_action: {
-            next_action: {
-              type: 'three_d_secure' as const,
-              resolution: 'auto_resume' as const,
-              display_message: 'Confirm with your bank',
-              action_url: 'https://example.com/3ds',
-            },
-          },
-        },
-      },
-    };
-    const successState = {
-      id: 'dcs_1',
-      status: 'completed' as const,
-      order: { id: 'order_confirmed' },
-      spend_request: {
-        id: 'lsrq_1',
-        status: 'succeeded' as const,
-        created_at: '2026-01-01T00:00:00Z',
-        updated_at: '2026-01-01T00:00:02Z',
-      },
-    };
-    const retrieveCheckout = vi
+  it('surfaces the completion API error without retrieving checkout', async () => {
+    const completeCheckout = vi
       .fn()
-      .mockResolvedValueOnce(actionState)
-      .mockImplementationOnce(() => finalState);
-    const repo = makeResource({
-      completeCheckout: vi.fn(async () => ({
-        id: 'dcs_1',
-        status: 'completed' as const,
-      })),
-      retrieveCheckout,
-    });
-
+      .mockRejectedValue(new Error('Your card was declined.'));
+    const retrieveCheckout = vi.fn();
+    const onComplete = vi.fn();
     const { lastFrame } = render(
       <CheckoutComplete
-        repository={repo}
+        repository={makeResource({ completeCheckout, retrieveCheckout })}
         id="dcs_1"
         params={{ spend_request_id: 'lsrq_1', business: 'np_1' }}
-        pollInterval={0.001}
-        onComplete={() => {}}
+        onComplete={onComplete}
       />,
     );
-
     await vi.waitFor(() => {
-      const frame = lastFrame();
-      expect(frame).toContain('Waiting for 3D Secure');
-      expect(frame).toContain('Confirm with your bank');
-      expect(frame).toContain('https://example.com/3ds');
+      expect(lastFrame()).toContain('Failed to complete checkout');
+      expect(lastFrame()).toContain('Your card was declined.');
     });
-
-    resolveFinal?.(successState);
-    await vi.waitFor(() => {
-      expect(lastFrame()).toContain('Checkout completed');
-    });
-    expect(retrieveCheckout).toHaveBeenCalledTimes(2);
-  });
-
-  it('stops for an action that requires a new spend request', async () => {
-    const retrieveCheckout = vi.fn(async () => ({
-      id: 'dcs_1',
-      status: 'complete_in_progress' as const,
-      spend_request: {
-        id: 'lsrq_1',
-        status: 'requires_action' as const,
-        created_at: '2026-01-01T00:00:00Z',
-        updated_at: '2026-01-01T00:00:01Z',
-        status_details: {
-          requires_action: {
-            next_action: {
-              type: 'update_payment_method' as const,
-              resolution: 'create_new_spend_request' as const,
-              display_message: 'Choose another card',
-              action_url: 'https://example.com/payment-method',
-            },
-          },
-        },
-      },
-    }));
-    const completeCheckout = vi.fn(async () => ({
-      id: 'dcs_1',
-      status: 'completed' as const,
-    }));
-    const repo = makeResource({ completeCheckout, retrieveCheckout });
-
-    const { lastFrame } = render(
-      <CheckoutComplete
-        repository={repo}
-        id="dcs_1"
-        params={{ spend_request_id: 'lsrq_1', business: 'np_1' }}
-        pollInterval={0.001}
-        onComplete={() => {}}
-      />,
+    await vi.waitFor(
+      () => expect(onComplete).toHaveBeenCalledExactlyOnceWith(null),
+      { timeout: 2500 },
     );
-
-    await vi.waitFor(() => {
-      const frame = lastFrame();
-      expect(frame).toContain('Payment action required');
-      expect(frame).toContain('Choose another card');
-      expect(frame).toContain('create a new spend request');
-    });
     expect(completeCheckout).toHaveBeenCalledOnce();
-    expect(retrieveCheckout).toHaveBeenCalledOnce();
-  });
-
-  it('shows the latest state when composite polling times out', async () => {
-    const repo = makeResource({
-      completeCheckout: vi.fn(async () => ({
-        id: 'dcs_1',
-        status: 'completed' as const,
-      })),
-      retrieveCheckout: vi.fn(async () => ({
-        id: 'dcs_1',
-        status: 'completed' as const,
-        spend_request: {
-          id: 'lsrq_1',
-          status: 'approved' as const,
-          created_at: '2026-01-01T00:00:00Z',
-          updated_at: '2026-01-01T00:00:01Z',
-        },
-      })),
-    });
-
-    const { lastFrame } = render(
-      <CheckoutComplete
-        repository={repo}
-        id="dcs_1"
-        params={{ spend_request_id: 'lsrq_1', business: 'np_1' }}
-        pollInterval={0.001}
-        pollTimeout={0}
-        onComplete={() => {}}
-      />,
-    );
-
-    await vi.waitFor(() => {
-      const frame = lastFrame();
-      expect(frame).toContain('Timed out waiting for checkout payment');
-      expect(frame).toContain('ucp checkout retrieve dcs_1');
-    });
+    expect(retrieveCheckout).not.toHaveBeenCalled();
   });
 });

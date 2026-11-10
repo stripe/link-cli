@@ -96,6 +96,40 @@ func TestSpendRequestCallbackRoundTrip(t *testing.T) {
 	}
 }
 
+func TestSpendRequestCardExpiry(t *testing.T) {
+	for _, method := range []string{"create", "retrieve"} {
+		t.Run(method, func(t *testing.T) {
+			client, err := NewClient(Options{
+				AccessToken: "token",
+				HTTPClient: &http.Client{Transport: callbackTestTransport(func(_ *http.Request) (*http.Response, error) {
+					return &http.Response{
+						StatusCode: http.StatusOK, Header: make(http.Header),
+						Body: io.NopCloser(strings.NewReader(`{"id":"sr_card","status":"approved","card":{"id":"card_1","brand":"visa","number":"4000009990001984","exp_month":12,"exp_year":2028}}`)),
+					}, nil
+				})},
+			})
+			assertNoError(t, err)
+			var result *SpendRequest
+			if method == "create" {
+				result, err = client.SpendRequests.Create(context.Background(), CreateSpendRequestParams{Context: "purchase"})
+			} else {
+				result, err = client.SpendRequests.Retrieve(context.Background(), "sr_card", &RetrieveSpendRequestParams{Include: []string{"card"}})
+			}
+			assertNoError(t, err)
+			if result == nil || result.Card == nil || result.Card.ExpMonth != 12 || result.Card.ExpYear != 2028 {
+				t.Fatalf("credential expiry changed: %#v", result)
+			}
+			encoded, err := json.Marshal(result)
+			assertNoError(t, err)
+			var roundtrip SpendRequest
+			assertNoError(t, json.Unmarshal(encoded, &roundtrip))
+			if roundtrip.Card == nil || roundtrip.Card.ExpMonth != 12 || roundtrip.Card.ExpYear != 2028 {
+				t.Fatalf("serialized credential expiry changed: %s", encoded)
+			}
+		})
+	}
+}
+
 func TestCreateSpendRequestExpiration(t *testing.T) {
 	expiresAt := int64(1_800_000_000)
 	client, err := NewClient(Options{

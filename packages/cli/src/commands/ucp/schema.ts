@@ -132,7 +132,7 @@ export const checkoutCompleteOptions = z.object({
     .trim()
     .nonempty()
     .describe(
-      'Approved spend request ID that authorizes the payment (required). Create one with `spend-request create --credential-type shared_payment_token --network-id <business>`, using the same business value passed to UCP',
+      'Approved spend request ID whose shared payment token is resolved by the server (required). Create one with `spend-request create --credential-type shared_payment_token --network-id <business>`, using the same business value passed to UCP',
     ),
   business: z
     .string()
@@ -143,45 +143,7 @@ export const checkoutCompleteOptions = z.object({
     ),
 });
 
-export const checkoutRetrieveOptions = z
-  .object({
-    id: z.string().trim().nonempty().optional().describe('Checkout session ID'),
-    business: z
-      .string()
-      .trim()
-      .nonempty()
-      .describe('Business target (required)'),
-    spendRequestId: z
-      .string()
-      .trim()
-      .nonempty()
-      .optional()
-      .describe(
-        'Include payment state from this spend request; required for --poll',
-      ),
-    poll: z
-      .boolean()
-      .default(false)
-      .describe('Poll until the composite checkout reaches an outcome'),
-    timeout: z.coerce
-      .number()
-      .nonnegative()
-      .optional()
-      .describe('Polling deadline in seconds; requires --poll (default 600)'),
-  })
-  .superRefine((options, context) => {
-    if (options.poll && !options.spendRequestId) {
-      context.addIssue({
-        code: 'custom',
-        path: ['spendRequestId'],
-        message: '--poll requires --spend-request-id',
-      });
-    }
-    if (!options.poll && options.timeout !== undefined) {
-      context.addIssue({
-        code: 'custom',
-        path: ['timeout'],
-        message: '--timeout requires --poll',
-      });
-    }
-  });
+export const checkoutRetrieveOptions = z.object({
+  id: z.string().trim().nonempty().optional().describe('Checkout session ID'),
+  business: z.string().trim().nonempty().describe('Business target (required)'),
+});

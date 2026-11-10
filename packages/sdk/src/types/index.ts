@@ -187,8 +187,6 @@ export interface RequestApprovalResponse {
 export interface CardDetails {
   brand: string;
   last4: string;
-  exp_month: number;
-  exp_year: number;
 }
 
 export interface BankAccountDetails {
@@ -509,6 +507,7 @@ export type UcpCheckoutStatus =
 /**
  * A UCP checkout session. The response, including capability metadata, messages,
  * totals, and fulfillment choices, is preserved as returned by the seller.
+ * Spend-request objects are excluded from checkout responses.
  */
 export interface UcpCheckout {
   id: string;
@@ -533,8 +532,4 @@ export interface UcpCheckout {
   expires_at?: string | null;
   continue_url?: string | null;
   [key: string]: unknown;
-}
-
-export interface UcpCheckoutWithSpendRequest extends UcpCheckout {
-  spend_request: SpendRequest;
 }
