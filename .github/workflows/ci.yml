@@ -9,8 +9,16 @@ permissions:
   contents: read
 
 jobs:
-  linux-arm64-binary:
-    runs-on: ubuntu-24.04-arm
+  linux-binary:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -23,9 +31,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run build --filter=@stripe/link-cli...
       - run: pnpm --filter @stripe/link-cli run build:sea
-      - name: Build Linux ARM64 binary
+      - name: Build Linux binary
         run: |
-          test "$(node -p 'process.arch')" = arm64
+          test "$(node -p 'process.arch')" = "${{ matrix.arch }}"
           node --build-sea packages/cli/sea-config.json
           chmod +x sea-output
       - name: Smoke test binary
