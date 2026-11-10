@@ -65,6 +65,11 @@ Defined in `packages/sdk/src/resources/interfaces.ts`:
 - `IIdentityCredentialsResource` — signed user info issuance
 - `ISpendRequestResource` — CRUD + request-approval for spend requests
 
+`packages/sdk/src/resources/presentation.ts` exports `createPresentation`, the
+holder side of identity-claims challenges, from the root entry and from
+`@stripe/link-sdk/presentation`. Keep its import graph free of `node:*` modules
+and `Buffer` so it runs in browsers and edge runtimes; a test enforces this.
+
 The SDK only accepts credentials. Device authorization, refresh-token
 persistence, login state, and auth-specific errors live under
 `packages/cli/src/auth/`.

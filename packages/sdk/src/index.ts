@@ -17,5 +17,14 @@ export {
 } from './resources/holder-jwk';
 export { InsightsResource } from './resources/insights';
 export * from './resources/interfaces';
+export type {
+  CreatePresentationOptions,
+  LinkPresentationErrorCode,
+  PresentationHolderKey,
+} from './resources/presentation';
+export {
+  createPresentation,
+  LinkPresentationError,
+} from './resources/presentation';
 export { getDuplicateSpendRequest } from './resources/spend-request';
 export * from './types/index';
