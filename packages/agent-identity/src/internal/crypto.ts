@@ -1,12 +1,10 @@
 /** Native hashing and RSA verification, with JOSE operations delegated to jose. */
-import { constants, createHash, KeyObject, verify } from 'node:crypto';
-import { promisify } from 'node:util';
+import { createHash } from 'node:crypto';
 import type { JWK } from 'jose';
 import { asBufferSource, fromBase64 } from './bytes.js';
 import { parseRsaSpki, wrapRsaEncryptionSpki } from './der.js';
 
 const subtle = globalThis.crypto.subtle;
-const verifySignature = promisify(verify);
 
 /**
  * RFC 9578 section 6.4 fixes the signature parameters for token type 0x0002.
@@ -92,22 +90,28 @@ export async function importTokenKey(
   }
 }
 
-/** RSASSA-PSS verify with SHA-384 and a 48-byte salt (saltLength = hLen). */
+/**
+ * RSASSA-PSS verify with SHA-384 and a 48-byte salt (saltLength = hLen).
+ *
+ * Web Crypto rather than `node:crypto`, whose `verify` in Cloudflare Workers
+ * rejects a `KeyObject`. A signature it cannot evaluate, such as one of the
+ * wrong length, arrives in an untrusted token and is a failed verification.
+ */
 export async function verifyRsaPss(
   key: CryptoKey,
   signature: Uint8Array,
   message: Uint8Array,
 ): Promise<boolean> {
-  return verifySignature(
-    'sha384',
-    message,
-    {
-      key: KeyObject.from(key),
-      padding: constants.RSA_PKCS1_PSS_PADDING,
-      saltLength: REQUIRED_PSS_SALT_LENGTH,
-    },
-    signature,
-  );
+  try {
+    return await subtle.verify(
+      { name: 'RSA-PSS', saltLength: REQUIRED_PSS_SALT_LENGTH },
+      key,
+      asBufferSource(signature),
+      asBufferSource(message),
+    );
+  } catch {
+    return false;
+  }
 }
 
 export interface Jwk extends JWK {

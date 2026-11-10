@@ -200,12 +200,17 @@ export async function boundedGet(
     }, budget.timeoutMs);
   });
 
+  // Called unbound. Workers' global `fetch` throws "Illegal invocation" when
+  // called as a method of another object, which `budget.fetchImpl(...)` is.
+  const fetchImpl = budget.fetchImpl;
   try {
     const raced = await Promise.race([
-      budget.fetchImpl(target.toString(), {
+      fetchImpl(target.toString(), {
         // A redirect is refused rather than followed. Following one lets an open
-        // redirect on a trusted host point at an untrusted document.
-        redirect: 'error',
+        // redirect on a trusted host point at an untrusted document. `manual`
+        // rather than `error`, which Workers do not implement; the response is
+        // then refused below.
+        redirect: 'manual',
         signal: controller.signal,
         headers: { Accept: 'application/json' },
       }),
@@ -218,6 +223,20 @@ export async function boundedGet(
       };
     }
     const response = raced;
+
+    // Browsers surface a manual redirect as an opaque response with status 0;
+    // Node and Workers return the 3xx itself.
+    if (
+      response.type === 'opaqueredirect' ||
+      response.status === 0 ||
+      (response.status >= 300 && response.status < 400)
+    ) {
+      controller.abort();
+      return {
+        ok: false,
+        reason: `fetch of ${target.pathname} was redirected (${response.status}); redirects are not followed`,
+      };
+    }
 
     if (!response.ok) {
       return {
