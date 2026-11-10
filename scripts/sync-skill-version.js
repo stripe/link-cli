@@ -40,6 +40,10 @@ syncSkillVersion(
   'financial-insights/SKILL.md',
   resolve(root, 'skills/financial-insights/SKILL.md'),
 );
+syncSkillVersion(
+  'link-balance/SKILL.md',
+  resolve(root, 'skills/link-balance/SKILL.md'),
+);
 syncPluginJsonVersion(
   'cursor-link/.cursor-plugin/plugin.json',
   resolve(root, 'plugins/cursor-link/.cursor-plugin/plugin.json'),
