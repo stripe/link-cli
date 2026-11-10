@@ -1,6 +1,6 @@
 ---
 name: link-cli
-description: Install and authenticate Link CLI for agent payments, financial insights, or both. Use when a user is setting up Link CLI for the first time, asks to connect or log in to Link, or needs to configure Link access before using payment or financial-data features. This setup does not include Link balance, which is part of agent payments and is set up separately later.
+description: Install and authenticate Link CLI for agent payments, financial insights, or both. Use when a user is setting up Link CLI for the first time, asks to connect or log in to Link, or needs to configure Link access before using payment or financial-data features. For Link balance setup, use this skill to install and authenticate Link CLI, then follow the `link-balance` skill.
 ---
 
 # Set up Link CLI
