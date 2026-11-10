@@ -9,6 +9,30 @@ permissions:
   contents: read
 
 jobs:
+  linux-arm64-binary:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter=@stripe/link-cli...
+      - run: pnpm --filter @stripe/link-cli run build:sea
+      - name: Build Linux ARM64 binary
+        run: |
+          test "$(node -p 'process.arch')" = arm64
+          node --build-sea packages/cli/sea-config.json
+          chmod +x sea-output
+      - name: Smoke test binary
+        run: |
+          ./sea-output --version
+          ./sea-output --help
+
   windows-continuations:
     runs-on: windows-latest
     steps:
