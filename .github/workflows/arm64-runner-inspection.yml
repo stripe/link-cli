@@ -1,0 +1,17 @@
+name: Inspect native ARM64 runner
+
+on:
+  push:
+    branches: [stevekaliski-arm64-packaging-probes]
+
+permissions: {}
+
+jobs:
+  page-size:
+    runs-on: ubuntu-22.04-arm
+    timeout-minutes: 5
+    steps:
+      - name: Report native kernel and page size
+        run: |
+          uname -a
+          getconf PAGESIZE
