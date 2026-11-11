@@ -168,18 +168,24 @@ jobs:
       - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 26
+          node-version: 26.13.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run build
       - run: pnpm --filter @stripe/link-cli run build:sea
 
       - name: Build SEA
+        if: matrix.asset_name != 'link-cli-linux-arm64'
         run: node --build-sea packages/cli/sea-config.json
 
-      - name: Repair and validate ARM64 ELF layout
+      - name: Build ARM64 SEA with postject
         if: matrix.asset_name == 'link-cli-linux-arm64'
-        run: node scripts/fix-sea-elf.mjs sea-output
+        run: |
+          node --experimental-sea-config packages/cli/sea-config.json
+          mv sea-output sea-prep.blob
+          cp "$(node -p 'process.execPath')" sea-output
+          pnpm exec postject sea-output NODE_SEA_BLOB sea-prep.blob \
+            --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
 
       - name: Rename binary (Unix)
         if: runner.os != 'Windows'
