@@ -950,7 +950,7 @@ for the catalog and evaluation/transition checks.
 ## Integrating into agents
 
 If you are building an agent and want to offer Link as a native experience to your consumers (as a connector, plugin, pre-installed capability etc.), 
-please look at our [documentation and steps for integrating](https://docs.stripe.com/agentic-commerce/link-agent-wallet). We can support higher limits, more embedded approval flows, and additional capabilities.
+please look at our [documentation and steps for integrating](https://docs.link.com). We can support higher limits, more embedded approval flows, and additional capabilities.
 
 ## SDKs
 
