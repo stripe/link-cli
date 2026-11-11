@@ -76,9 +76,12 @@ jobs:
           echo "$failed" > probe-evidence/native-failed
 
       - name: Install full-system emulator and guest tools
+        timeout-minutes: 5
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends qemu-system-arm busybox-static cpio binutils libatomic1
+          sudo sed -i 's|http://ports.ubuntu.com|https://ports.ubuntu.com|g' /etc/apt/sources.list.d/ubuntu.sources
+          curl -fI --connect-timeout 10 --max-time 20 https://ports.ubuntu.com/ubuntu-ports/dists/noble/InRelease
+          sudo apt-get -o Acquire::Retries=0 -o Acquire::https::Timeout=20 -o APT::Update::Error-Mode=any update
+          sudo apt-get -o Acquire::Retries=0 -o Acquire::https::Timeout=20 install -y --no-install-recommends qemu-system-arm busybox-static cpio binutils libatomic1
 
       - name: Real 64 KiB ARM64 kernel under full-system emulation
         run: bash .github/scripts/arm64-probe/verify-64k.sh probe-binaries probe-evidence/64k

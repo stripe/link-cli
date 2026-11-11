@@ -40,8 +40,9 @@ kernel_image=${KERNEL_IMAGE:-ubuntu:24.04}
 kernel_package=${KERNEL_PACKAGE:-linux-image-generic-64k}
 docker pull "$kernel_image"
 docker image inspect "$kernel_image" > "$evidence/kernel-image.json"
-docker run --name "$container" -e DEBIAN_FRONTEND=noninteractive "$kernel_image" \
-  sh -euxc 'apt-get update; apt-get install -y --no-install-recommends "$1"; dpkg-query -W' \
+docker run --name "$container" -v /etc/ssl/certs:/etc/ssl/certs:ro \
+  -e DEBIAN_FRONTEND=noninteractive "$kernel_image" \
+  sh -euxc 'sed -i "s|http://ports.ubuntu.com|https://ports.ubuntu.com|g" /etc/apt/sources.list.d/ubuntu.sources; apt-get -o Acquire::Retries=0 -o Acquire::https::Timeout=20 -o APT::Update::Error-Mode=any update; apt-get -o Acquire::Retries=0 -o Acquire::https::Timeout=20 install -y --no-install-recommends "$1"; dpkg-query -W' \
   sh "$kernel_package" 2>&1 | tee "$evidence/kernel-packages.txt"
 docker cp "$container":/boot/. kernel/
 kernel_path=$(find kernel -maxdepth 1 -name 'vmlinuz-*-generic-64k' -print -quit)
