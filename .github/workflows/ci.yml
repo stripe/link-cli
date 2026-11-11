@@ -26,7 +26,7 @@ jobs:
       - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 26
+          node-version: 26.13.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run build --filter=@stripe/link-cli...
@@ -34,12 +34,33 @@ jobs:
       - name: Build Linux binary
         run: |
           test "$(node -p 'process.arch')" = "${{ matrix.arch }}"
-          node --build-sea packages/cli/sea-config.json
+          if [ "${{ matrix.arch }}" = arm64 ]; then
+            node --experimental-sea-config packages/cli/sea-config.json
+            mv sea-output sea-prep.blob
+            cp "$(node -p 'process.execPath')" sea-output
+            pnpm exec postject sea-output NODE_SEA_BLOB sea-prep.blob \
+              --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+          else
+            node --build-sea packages/cli/sea-config.json
+          fi
           chmod +x sea-output
       - name: Smoke test binary
         run: |
+          uname -a
+          getconf PAGESIZE
           ./sea-output --version
           ./sea-output --help
+      - name: Package test binary
+        run: |
+          mv sea-output link-cli-linux-${{ matrix.arch }}
+          sha256sum link-cli-linux-${{ matrix.arch }} > link-cli-linux-${{ matrix.arch }}.sha256
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: link-cli-linux-${{ matrix.arch }}
+          path: |
+            link-cli-linux-${{ matrix.arch }}
+            link-cli-linux-${{ matrix.arch }}.sha256
+          if-no-files-found: error
 
   windows-continuations:
     runs-on: windows-latest

@@ -20,6 +20,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
     "@changesets/cli": "^3.0.3",
+    "postject": "1.0.0-alpha.6",
     "turbo": "^2.11.7",
     "typescript": "^7.0.2"
   },
