@@ -375,6 +375,25 @@ Returns current balances for connected accounts, including `cash.available` (ban
 
 ## Advanced
 
+### Inspect a merchant site (beta)
+
+Before creating a spend request, discover the site's available agent tools:
+
+```bash
+link-cli inspect https://shop.example.com/checkout
+link-cli inspect https://shop.example.com/checkout --timeout 5000 --format json
+```
+
+No login is required. `--timeout` sets the timeout in milliseconds for each probe (default: 5000). The URL must use HTTP or HTTPS and contain no credentials.
+
+The command checks `llms.txt`, `llms-full.txt`, UCP at `/.well-known/ucp`, MPP OpenAPI at `/api/openapi.json` or `/openapi.json`, `/.well-known/x402.json`, MCP well-known manifests, and checkout HTML. If the OpenAPI spec does not declare a Stripe offer, it probes a payment endpoint for a live HTTP 402 challenge, using its declared HTTP method and a minimal request body when needed.
+
+Results always include `url` (the inspected origin). Unknown fields are omitted. Optional fields include `display_name`, `description`, `llms_txt`, and `available_tools`:
+
+- `machine_payments[]`: known Stripe offers recommend `link-cli mpp pay`; Tempo offers recommend `tempo request`.
+- `mcp[]`: discovered MCP server URLs and descriptions.
+- `browser_checkout`: general checkout advice and guidance for UCP or Link Pay Token steering blocks. HTML hints still require verification of the actual checkout form before choosing a credential type.
+
 ### Authentication
 
 ```bash

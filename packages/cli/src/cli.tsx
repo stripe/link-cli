@@ -6,6 +6,7 @@ import { createBalancesCli } from './commands/balances';
 import { createDemoCli } from './commands/demo';
 import { createIdentityCli } from './commands/identity';
 import { createInsightsCli } from './commands/insights';
+import { createInspectCli } from './commands/inspect';
 import { createMppCli } from './commands/mpp';
 import { createOnboardCli } from './commands/onboard';
 import { createPaymentMethodsCli } from './commands/payment-methods';
@@ -229,6 +230,7 @@ cli.command(
     authStorage,
   ),
 );
+cli.command(createInspectCli());
 cli.command(createServeCli(cli));
 
 cli.serve();
