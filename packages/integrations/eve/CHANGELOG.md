@@ -1,5 +1,23 @@
 # @stripe/link-integrations-eve
 
+## 0.5.0
+
+### Minor Changes
+
+- fd55fea: Prepare the extension for Eve 1.0 by rebuilding with `eve@1.0.0-rc.5` and
+  requiring Eve `^1.0.0-rc.5`. Eve 0.x is no longer supported; upgrade the agent
+  and extension together and rebuild the agent. Update the terminal OAuth example
+  and approval tests for the 1.0 APIs, and document credential ownership and
+  remembered approval decisions.
+
+### Patch Changes
+
+- ea1d9d1: Restore the optional `eligible_for_balance` boolean in user info, reverting its removal in #494. The TypeScript SDK and CLI preserve both `true` and `false` and leave the field absent when the API omits it. CLI terminal output again displays balance eligibility when present.
+  
+  Restore balance-eligibility guidance in the Eve integration's payment skill.
+- Updated dependencies [ea1d9d1]
+  - @stripe/link-sdk@3.1.0
+
 ## 0.4.1
 
 ### Patch Changes
