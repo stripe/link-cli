@@ -375,7 +375,7 @@ Returns current balances for connected accounts, including `cash.available` (ban
 
 ## Advanced
 
-### Inspect a merchant site (beta)
+### Inspect a merchant site
 
 Before creating a spend request, discover the site's available agent tools:
 

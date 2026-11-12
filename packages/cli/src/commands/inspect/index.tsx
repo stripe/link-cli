@@ -7,7 +7,7 @@ import { inspectOptions } from './schema';
 export function createInspectCli() {
   const cli = Cli.create('inspect', {
     description:
-      '[beta] Inspect a URL and return available agent tools (machine payments, MCP, browser checkout)',
+      'Inspect a URL and return available agent tools (machine payments, MCP, browser checkout)',
     args: z.object({
       url: z.string().describe('HTTP or HTTPS merchant URL to inspect'),
     }),

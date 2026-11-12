@@ -92,7 +92,7 @@ Commands in `packages/cli/src/cli.tsx` (incur framework). Each has two output mo
 - **Interactive** (default): Ink/React components from `packages/cli/src/commands/`
 - **JSON** (`--format json`): JSON to stdout, errors as JSON with `code` and `message` fields with exit code 1
 
-Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list|retrieve|add|update`, `shipping-address list`, `mpp pay|decode`, `[beta] inspect <url>`, `identity attestations request|list|pop`, `identity credentials request|list|present`, `report`, `serve`.
+Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list|retrieve|add|update`, `shipping-address list`, `mpp pay|decode`, `inspect <url>`, `identity attestations request|list|pop`, `identity credentials request|list|present`, `report`, `serve`.
 
 The CLI also runs as an MCP server (`--mcp`) and serves skill files via `skills` subcommand, both provided by incur.
 
@@ -199,7 +199,7 @@ Key input field notes:
 
 ### inspect command
 
-- `[beta] inspect <url> [--timeout <ms>]` requires no auth and accepts HTTP(S) URLs without embedded credentials. Interactive Ink and explicit format/MCP output share `runInspect()` in `packages/cli/src/commands/inspect/inspect.ts`.
+- `inspect <url> [--timeout <ms>]` requires no auth and accepts HTTP(S) URLs without embedded credentials. Interactive Ink and explicit format/MCP output share `runInspect()` in `packages/cli/src/commands/inspect/inspect.ts`.
 - Probes UCP (`/.well-known/ucp`), MPP OpenAPI (`/api/openapi.json`, falling back to `/openapi.json`), x402 (`/.well-known/x402.json`), the target page, MCP well-known manifests, and `llms.txt` / `llms-full.txt` (including references in HTML). A spec lacking a Stripe offer triggers a live 402 probe, using the selected payment operation's HTTP method and a minimal schema-derived body when needed. Each request has a 5000ms default timeout covering the response body.
 - Output always includes the origin `url`; unknown `display_name`, `description`, `llms_txt`, and `available_tools` sections are omitted. Tools include `machine_payments` (Stripe → `link-cli mpp pay`, Tempo → `tempo request`), `mcp`, and `browser_checkout`. Provisioning is reserved but unpopulated.
 - Third-party content passes through `sanitizeDeep()` in `toInspectResult()` before output. Generated commands use the shared POSIX shell quoting helper. Browser checkout advice requires actual DOM verification before creating a `link_pay_token` request with a merchant account ID; HTML hints alone are insufficient.
