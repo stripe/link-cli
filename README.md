@@ -375,6 +375,21 @@ Returns current balances for connected accounts, including `cash.available` (ban
 
 ## Advanced
 
+### Inspect a merchant site
+
+Before creating a spend request, retrieve the merchant's documented agent integrations and payment mechanisms:
+
+```bash
+link-cli inspect shop.example.com
+link-cli inspect https://shop.example.com/checkout --timeout 5000 --format json
+```
+
+No login is required. The command makes one anonymous GET to `https://api.stripe.com/v1/directory/inspect` with `Stripe-Version: 2026-10-28.preview`. This API is a preview with limited business coverage. Input must be an HTTP(S) URL or bare business hostname without embedded credentials; IP addresses and local hostnames are rejected. The hostname is lowercased and a leading `www.` is removed. Only that hostname is sent in the `url` query parameter; ports, paths, queries, and fragments are discarded. `--timeout` sets the timeout in milliseconds for the API request, including its response body (default: 5000).
+
+The full API response is returned, including fields such as `id`, `url`, `display_name`, `description`, `documentation`, `context`, `agent_integration_actions`, and `suggested_payment_mechanisms`. Known field types, the `directory.inspect_result` object type, and the returned hostname are validated. Additional fields and their null or empty values are preserved. Interactive output displays all returned fields; server strings are sanitized for terminal safety in every output format.
+
+An unknown merchant's placeholder (`id: "diren_no_entry_found"` with its `url`) is returned as supplied by the API. Missing information does not prove that a merchant lacks a payment flow. API errors are reported as failures. The CLI does not probe merchant endpoints or synthesize checkout advice.
+
 ### Authentication
 
 ```bash

@@ -92,7 +92,7 @@ Commands in `packages/cli/src/cli.tsx` (incur framework). Each has two output mo
 - **Interactive** (default): Ink/React components from `packages/cli/src/commands/`
 - **JSON** (`--format json`): JSON to stdout, errors as JSON with `code` and `message` fields with exit code 1
 
-Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list|retrieve|add|update`, `shipping-address list`, `mpp pay|decode`, `identity attestations request|list|pop`, `identity credentials request|list|present`, `report`, `serve`.
+Commands: `auth login|logout|status`, `user-info retrieve`, `spend-request create|update|retrieve|request-approval|cancel`, `payment-methods list|retrieve|add|update`, `shipping-address list`, `mpp pay|decode`, `inspect <url>`, `identity attestations request|list|pop`, `identity credentials request|list|present`, `report`, `serve`.
 
 The CLI also runs as an MCP server (`--mcp`) and serves skill files via `skills` subcommand, both provided by incur.
 
@@ -196,6 +196,12 @@ Key input field notes:
 - The SPT is one-time-use — a failed payment requires running `mpp pay` again (creates a new spend request).
 - In agent mode the full flow yields `_next.pay_argv` (`{ command: 'mpp', args: [...] }`) alongside `_next.pay_command`. **`pay_argv` is authoritative** — it holds the raw values and is meant to be invoked without a shell. `pay_command` is the compatibility string and every dynamic part of it (url, method, body, each header, spend-request id) must go through `shellQuote` from `packages/cli/src/utils/shell-quote.ts`. See "Security: shell-quoting command strings".
 - Implemented in `packages/cli/src/commands/mpp/` — pay.tsx (logic), schema.ts (input/output schema), index.tsx (incur registration).
+
+### inspect command
+
+- `inspect <url> [--timeout <ms>]` requires no auth and accepts an HTTP(S) URL or bare business hostname without credentials. It normalizes to a lowercase hostname without a leading `www.` and rejects IP addresses and local hostnames. It makes one anonymous `GET https://api.stripe.com/v1/directory/inspect?url=<hostname>` request, with `Stripe-Version: 2026-10-28.preview` and the CLI's User-Agent. No Link/Stripe credentials, cookies, checkout paths, queries, or fragments are sent. It does not use the Link API base URL or follow redirects.
+- `runInspect()` in `packages/cli/src/commands/inspect/inspect.ts` validates the response's `id`, `object`, known field types, and matching hostname; preserves unknown fields and their null/empty values; and calls `sanitizeDeep()` before output. Documentation, integration actions, and suggested payment mechanisms come from the API. Discovery and advice belong to the API; there are no merchant probes or local capability inferences.
+- Interactive Ink renders every field; explicit formats and MCP receive the same API result. Unknown merchants preserve the API's `diren_no_entry_found` placeholder. HTTP failures, malformed responses, and request failures are command errors; no local fallback runs. The default 5000ms timeout includes response-body consumption.
 
 ### demo command
 
