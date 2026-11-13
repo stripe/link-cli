@@ -1084,7 +1084,8 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       { status: 400, message: 'Invalid payment details', bound: false },
       {
         status: 400,
-        message: 'network_id is required when credential_type is link_pay_token',
+        message:
+          'network_id is required when credential_type is link_pay_token',
         bound: true,
       },
     ])(
@@ -1257,12 +1258,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       },
       {
         name: 'blank merchant-name without merchant-account-id',
-        args: [
-          '--credential-type',
-          'link_pay_token',
-          '--merchant-name',
-          '   ',
-        ],
+        args: ['--credential-type', 'link_pay_token', '--merchant-name', '   '],
         message:
           'merchant-account-id is required when credential-type is link_pay_token',
       },
