@@ -68,16 +68,16 @@ class Card(LinkModel):
 
 
 class NextAction(LinkModel):
-    type: NextActionType | str
+    type: NextActionType | str | None
     resolution: NextActionResolution | str
     display_message: str
     action_url: str | None
-    expires_at: int | None = None
+    expires_at: int | str | None = None
 
 
 class RequiresActionDetails(LinkModel):
     failure_code: str | None = None
-    next_action: NextAction
+    next_action: NextAction | None = None
 
 
 class SpendRequestStatusDetails(LinkModel):

@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Remove deprecated saved-card `CardDetails.exp_month` and `CardDetails.exp_year`; preserve SpendRequest card credential expiry.
+- Accept absent or null next actions, null next action types, and string next action expiry in spend-request status details.
 - Add `approval_policy.retrieve`.
 - Add `payment_methods.retrieve`, the `insights` resource, payment-method `balance_details`, and report `attempt_trace`.
 - Update payment methods' wallet default status independently or with nicknames.
