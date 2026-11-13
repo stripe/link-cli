@@ -919,6 +919,124 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       );
     });
 
+    it('creates a deferred LPT request without merchant identifiers', async () => {
+      const approvalUrl = 'https://app.link.com/approve/lsrq_prod_001';
+      setNextResponse(200, {
+        ...BASE_REQUEST,
+        credential_type: 'link_pay_token',
+        status: 'pending_approval',
+        approval_url: approvalUrl,
+      });
+
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--credential-type',
+        'link_pay_token',
+        '--merchant-name',
+        'Test Merchant',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(requests).toHaveLength(1);
+      expect(lastRequest.url).toBe('/spend_requests');
+      expect(JSON.parse(lastRequest.body)).toMatchObject({
+        credential_type: 'link_pay_token',
+        merchant_name: 'Test Merchant',
+        request_approval: true,
+      });
+      const sentBody = JSON.parse(lastRequest.body);
+      expect(sentBody).not.toHaveProperty('merchant_account_id');
+      expect(sentBody).not.toHaveProperty('network_id');
+      expect(sentBody).not.toHaveProperty('merchant_url');
+      expect(JSON.parse(result.stdout)[0].approval_url).toBe(approvalUrl);
+    });
+
+    it('creates a delegated deferred LPT request with an optional merchant URL', async () => {
+      setNextResponse(200, {
+        ...BASE_REQUEST,
+        credential_type: 'link_pay_token',
+        status: 'approved',
+      });
+
+      const result = await runProdCli(
+        'spend-request',
+        'create',
+        '--credential-type',
+        'link_pay_token',
+        '--merchant-name',
+        'Test Merchant',
+        '--merchant-url',
+        'https://example.com',
+        '--context',
+        VALID_CONTEXT,
+        '--amount',
+        '5000',
+        '--approve',
+        '--no-request-approval',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(requests).toHaveLength(1);
+      expect(lastRequest.url).toBe('/spend_requests/create_delegated');
+      const sentBody = JSON.parse(lastRequest.body);
+      expect(sentBody).toMatchObject({
+        credential_type: 'link_pay_token',
+        merchant_name: 'Test Merchant',
+        merchant_url: 'https://example.com',
+      });
+      expect(sentBody).not.toHaveProperty('merchant_account_id');
+      expect(sentBody).not.toHaveProperty('network_id');
+      expect(sentBody).not.toHaveProperty('request_approval');
+      expect(JSON.parse(result.stdout)[0].status).toBe('approved');
+    });
+
+    it.each([
+      { flags: [], endpoint: '/spend_requests' },
+      {
+        flags: ['--approve', '--no-request-approval'],
+        endpoint: '/spend_requests/create_delegated',
+      },
+    ])(
+      'preserves backend rejection of deferred LPT creation at $endpoint',
+      async ({ flags, endpoint }) => {
+        setNextResponse(400, {
+          error: {
+            code: 'invalid_request',
+            message: 'Deferred merchant binding is not enabled.',
+          },
+        });
+
+        const result = await runProdCli(
+          'spend-request',
+          'create',
+          '--credential-type',
+          'link_pay_token',
+          '--merchant-name',
+          'Test Merchant',
+          '--context',
+          VALID_CONTEXT,
+          '--amount',
+          '5000',
+          ...flags,
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(1);
+        expect(requests).toHaveLength(1);
+        expect(lastRequest.url).toBe(endpoint);
+        expect(result.stdout + result.stderr).toContain(
+          'Deferred merchant binding is not enabled.',
+        );
+      },
+    );
+
     it.each([
       { approvalFlags: ['--approve'], useApprovalPolicy: false },
       { approvalFlags: ['--use-approval-policy'], useApprovalPolicy: true },
@@ -1028,10 +1146,10 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         message: 'merchant-account-id requires credential-type link_pay_token',
       },
       {
-        name: 'no merchant-account-id',
+        name: 'no merchant identity',
         args: ['--credential-type', 'link_pay_token'],
         message:
-          'merchant-account-id is required when credential-type is link_pay_token',
+          'merchant-account-id or merchant-name is required when credential-type is link_pay_token',
       },
       {
         name: 'blank merchant-account-id',
@@ -1041,8 +1159,30 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
           '--merchant-account-id',
           '   ',
         ],
+        message: 'merchant-account-id cannot be blank',
+      },
+      {
+        name: 'blank merchant-account-id despite merchant-name',
+        args: [
+          '--credential-type',
+          'link_pay_token',
+          '--merchant-account-id',
+          '   ',
+          '--merchant-name',
+          'Test Merchant',
+        ],
+        message: 'merchant-account-id cannot be blank',
+      },
+      {
+        name: 'blank merchant-name without merchant-account-id',
+        args: [
+          '--credential-type',
+          'link_pay_token',
+          '--merchant-name',
+          '   ',
+        ],
         message:
-          'merchant-account-id is required when credential-type is link_pay_token',
+          'merchant-account-id or merchant-name is required when credential-type is link_pay_token',
       },
       {
         name: 'network-id',

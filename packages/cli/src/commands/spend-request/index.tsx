@@ -166,11 +166,18 @@ export function createSpendRequestCli(
       }
 
       if (lptRequested) {
-        if (!merchantAccountId) {
+        if (merchantAccountId === '') {
+          return c.error({
+            code: 'INVALID_INPUT',
+            message: 'merchant-account-id cannot be blank',
+          });
+        }
+        // The backend authorizes merchant-deferred creation with its rollout flag.
+        if (!merchantAccountId && !opts.merchantName?.trim()) {
           return c.error({
             code: 'INVALID_INPUT',
             message:
-              'merchant-account-id is required when credential-type is link_pay_token',
+              'merchant-account-id or merchant-name is required when credential-type is link_pay_token',
           });
         }
         if (networkId) {
@@ -194,7 +201,7 @@ export function createSpendRequestCli(
             message: `${approvalFlag} with Link Pay Token requires --no-request-approval`,
           });
         }
-        if (opts.merchantName || opts.merchantUrl) {
+        if (merchantAccountId && (opts.merchantName || opts.merchantUrl)) {
           return c.error({
             code: 'INVALID_INPUT',
             message:
