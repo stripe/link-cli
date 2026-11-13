@@ -1,5 +1,8 @@
 import { type CreateSpendRequestParams, LinkApiError } from '@stripe/link-sdk';
 
+const MISSING_LPT_NETWORK_ID_ERROR_MESSAGE =
+  'network_id is required when credential_type is link_pay_token';
+
 export const MISSING_LPT_MERCHANT_ERROR = {
   code: 'INVALID_INPUT',
   message:
@@ -21,8 +24,7 @@ export function getMissingLptMerchantError(
   }
   const details = error.details as { error?: { message?: string } } | undefined;
   // Preserve the CLI's existing error when the backend rejects missing IDs.
-  return details?.error?.message ===
-    'network_id is required when credential_type is link_pay_token'
+  return details?.error?.message === MISSING_LPT_NETWORK_ID_ERROR_MESSAGE
     ? MISSING_LPT_MERCHANT_ERROR
     : undefined;
 }
