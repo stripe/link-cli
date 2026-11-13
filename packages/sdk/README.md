@@ -294,6 +294,50 @@ merchant or transaction records. `update` cannot change the interval or count.
 `cancel` revokes the payment credential but does not cancel the merchant's
 subscription.
 
+## Identity presentations
+
+`createPresentation` answers a verifier's identity-claims challenge with a
+Link-issued SD-JWT credential. It discloses only the requested claims and signs
+a Key Binding JWT over the challenge `aud` and `nonce`. It uses Web Crypto
+only, so holders can run it in Node.js, browsers, and edge runtimes such as
+Cloudflare Workers. Import it from `@stripe/link-sdk/presentation` outside
+Node.js; the root entry also bundles Node.js-only resources.
+
+```ts
+import {
+  createPresentation,
+  LinkPresentationError,
+} from '@stripe/link-sdk/presentation';
+
+try {
+  const presentation = await createPresentation({
+    credential, // the SD-JWT from identity credential issuance
+    holderKey: () => keyStore.getHolderKey(), // CryptoKey or private JWK
+    aud: challenge.aud,
+    nonce: challenge.nonce,
+    disclose: ['email', 'given_name'],
+  });
+  headers.set('Identity-Presentation', presentation);
+} catch (error) {
+  if (error instanceof LinkPresentationError && error.code === 'claim_unavailable') {
+    // error.claim is the requested claim the credential cannot disclose.
+  }
+  throw error;
+}
+```
+
+`holderKey` is the Ed25519 private key bound by the credential's `cnf.jwk`: a
+`CryptoKey` with `sign` usage (non-extractable keys work), a private OKP JWK
+with `x` and `d`, or a function returning either. A function is called only
+after the credential and requested claims are validated. The holder key is
+checked against `cnf.jwk` by verifying the new signature, so the private key is
+never exported.
+
+Invalid `aud`, `nonce`, or `disclose` values throw `LinkConfigurationError`. A
+credential or key that cannot be presented throws `LinkPresentationError` with a
+`code` such as `credential_expired`, `claim_unavailable`, or
+`holder_key_mismatch`. Messages never include credential contents.
+
 ## Errors
 
 The SDK throws typed errors:
@@ -302,6 +346,7 @@ The SDK throws typed errors:
 - `LinkTransportError` when a request cannot reach Link
 - `LinkApiError` for non-success API responses
 - `LinkResponseError` when a successful response has an invalid shape
+- `LinkPresentationError` when `createPresentation` cannot use a credential or holder key
 
 `LinkApiError` includes `status`, `code`, and structured `details` fields for
 programmatic handling.
