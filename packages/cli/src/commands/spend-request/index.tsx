@@ -21,6 +21,10 @@ import { requireAuth, requireAuthGuard } from '../../utils/require-auth';
 import { shouldPollSpendRequest } from '../../utils/should-poll-spend-request';
 import { CancelSpendRequest } from './cancel';
 import { CreateSpendRequest } from './create';
+import {
+  getMissingLptMerchantError,
+  MISSING_LPT_MERCHANT_ERROR,
+} from './create-error';
 import { SpendRequestList } from './list';
 import { getSpendRequestNextAction } from './next-action';
 import { RequestApproval } from './request-approval';
@@ -166,12 +170,12 @@ export function createSpendRequestCli(
       }
 
       if (lptRequested) {
-        if (!merchantAccountId) {
-          return c.error({
-            code: 'INVALID_INPUT',
-            message:
-              'merchant-account-id is required when credential-type is link_pay_token',
-          });
+        if (merchantAccountId === '') {
+          return c.error(MISSING_LPT_MERCHANT_ERROR);
+        }
+        // The backend authorizes merchant-deferred creation with its rollout flag.
+        if (!merchantAccountId && !opts.merchantName?.trim()) {
+          return c.error(MISSING_LPT_MERCHANT_ERROR);
         }
         if (networkId) {
           return c.error({
@@ -194,7 +198,7 @@ export function createSpendRequestCli(
             message: `${approvalFlag} with Link Pay Token requires --no-request-approval`,
           });
         }
-        if (opts.merchantName || opts.merchantUrl) {
+        if (merchantAccountId && (opts.merchantName || opts.merchantUrl)) {
           return c.error({
             code: 'INVALID_INPUT',
             message:
@@ -347,6 +351,11 @@ export function createSpendRequestCli(
       try {
         created = await repository.create(createParams);
       } catch (err) {
+        const missingMerchantError = getMissingLptMerchantError(
+          createParams,
+          err,
+        );
+        if (missingMerchantError) return c.error(missingMerchantError);
         if (err instanceof LinkApiError) {
           const apiErr = err.details as {
             error?: {
