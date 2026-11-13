@@ -18,6 +18,7 @@ import { sanitizeDeep } from '../../utils/sanitize-text';
 import { shouldPollSpendRequest } from '../../utils/should-poll-spend-request';
 import { AppDownloadQrCodes } from './app-download-qr-codes';
 import { ApprovalWaitingView } from './approval-waiting-view';
+import { getMissingLptMerchantError } from './create-error';
 import { ResumingView } from './resuming-view';
 import { useApprovalPolling } from './use-approval-polling';
 
@@ -168,7 +169,10 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
           setTimeout(() => completeAndExit(result), DISPLAY_DELAY_MS);
         }
       } catch (err) {
-        setError((err as Error).message);
+        setError(
+          getMissingLptMerchantError(params, err)?.message ??
+            (err as Error).message,
+        );
         if (err instanceof LinkApiError) {
           const errDetail = err.details as {
             error?: { verification_url?: string; support_url?: string };

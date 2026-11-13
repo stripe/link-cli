@@ -1038,6 +1038,86 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     );
 
     it.each([
+      { flags: [], endpoint: '/spend_requests' },
+      {
+        flags: ['--approve', '--no-request-approval'],
+        endpoint: '/spend_requests/create_delegated',
+      },
+    ])(
+      'returns the original missing merchant ID error when deferred LPT creation is denied at $endpoint',
+      async ({ flags, endpoint }) => {
+        setNextResponse(400, {
+          error: {
+            message:
+              'network_id is required when credential_type is link_pay_token',
+          },
+        });
+
+        const result = await runProdCli(
+          'spend-request',
+          'create',
+          '--credential-type',
+          'link_pay_token',
+          '--merchant-name',
+          'Test Merchant',
+          '--context',
+          VALID_CONTEXT,
+          '--amount',
+          '5000',
+          ...flags,
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(1);
+        expect(requests).toHaveLength(1);
+        expect(lastRequest.url).toBe(endpoint);
+        expect(parseJson(result.stdout || result.stderr)).toEqual({
+          code: 'INVALID_INPUT',
+          message:
+            'merchant-account-id is required when credential-type is link_pay_token',
+        });
+      },
+    );
+
+    it.each([
+      { status: 403, message: 'Client is not authorized', bound: false },
+      { status: 400, message: 'Invalid payment details', bound: false },
+      {
+        status: 400,
+        message: 'network_id is required when credential_type is link_pay_token',
+        bound: true,
+      },
+    ])(
+      'does not normalize an unrelated LPT rejection: $status $message (bound=$bound)',
+      async ({ status, message, bound }) => {
+        setNextResponse(status, { error: { message } });
+        const merchantFlags = bound
+          ? ['--merchant-account-id', 'acct_lpt_target']
+          : ['--merchant-name', 'Test Merchant'];
+        const result = await runProdCli(
+          'spend-request',
+          'create',
+          '--credential-type',
+          'link_pay_token',
+          ...merchantFlags,
+          '--context',
+          VALID_CONTEXT,
+          '--amount',
+          '5000',
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(1);
+        expect(requests).toHaveLength(1);
+        const output = parseJson(result.stdout || result.stderr) as {
+          message: string;
+        };
+        expect(output.message).toContain(message);
+        expect(output.message).not.toContain('merchant-account-id is required');
+      },
+    );
+
+    it.each([
       { approvalFlags: ['--approve'], useApprovalPolicy: false },
       { approvalFlags: ['--use-approval-policy'], useApprovalPolicy: true },
       {
@@ -1149,7 +1229,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         name: 'no merchant identity',
         args: ['--credential-type', 'link_pay_token'],
         message:
-          'merchant-account-id or merchant-name is required when credential-type is link_pay_token',
+          'merchant-account-id is required when credential-type is link_pay_token',
       },
       {
         name: 'blank merchant-account-id',
@@ -1159,7 +1239,8 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
           '--merchant-account-id',
           '   ',
         ],
-        message: 'merchant-account-id cannot be blank',
+        message:
+          'merchant-account-id is required when credential-type is link_pay_token',
       },
       {
         name: 'blank merchant-account-id despite merchant-name',
@@ -1171,7 +1252,8 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
           '--merchant-name',
           'Test Merchant',
         ],
-        message: 'merchant-account-id cannot be blank',
+        message:
+          'merchant-account-id is required when credential-type is link_pay_token',
       },
       {
         name: 'blank merchant-name without merchant-account-id',
@@ -1182,7 +1264,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
           '   ',
         ],
         message:
-          'merchant-account-id or merchant-name is required when credential-type is link_pay_token',
+          'merchant-account-id is required when credential-type is link_pay_token',
       },
       {
         name: 'network-id',

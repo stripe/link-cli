@@ -346,6 +346,50 @@ describe('spend-request', () => {
     });
   });
 
+  it.each([false, true])(
+    'CreateSpendRequest preserves the missing merchant ID error for deferred LPT denial (approve=%s)',
+    async (approve) => {
+      const error = new LinkApiError(
+        'network_id is required when credential_type is link_pay_token',
+        {
+          status: 400,
+          details: {
+            error: {
+              message:
+                'network_id is required when credential_type is link_pay_token',
+            },
+          },
+        },
+      );
+      const repository = sanitizeResource({
+        create: vi.fn().mockRejectedValue(error),
+      } as unknown as ISpendRequestResource);
+      const { lastFrame, unmount } = render(
+        <CreateSpendRequest
+          repository={repository}
+          params={{
+            amount: 1000,
+            credential_type: 'link_pay_token',
+            merchant_name: 'Test Merchant',
+            context: 'x'.repeat(100),
+          }}
+          approve={approve}
+          onComplete={vi.fn()}
+        />,
+      );
+      try {
+        await vi.waitFor(() => {
+          expect(lastFrame()).toContain(
+            'merchant-account-id is required when credential-type is link_pay_token',
+          );
+          expect(lastFrame()).not.toContain('network_id');
+        });
+      } finally {
+        unmount();
+      }
+    },
+  );
+
   describe('verification_url', () => {
     it('CreateSpendRequest surfaces verification_url on additional_verification_required error', async () => {
       const error = new LinkApiError(
