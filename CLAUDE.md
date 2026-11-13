@@ -199,10 +199,9 @@ Key input field notes:
 
 ### inspect command
 
-- `inspect <url> [--timeout <ms>]` requires no auth and accepts HTTP(S) URLs without embedded credentials. Interactive Ink and explicit format/MCP output share `runInspect()` in `packages/cli/src/commands/inspect/inspect.ts`.
-- Probes UCP (`/.well-known/ucp`), MPP OpenAPI (`/api/openapi.json`, falling back to `/openapi.json`), x402 (`/.well-known/x402.json`), the target page, MCP well-known manifests, and `llms.txt` / `llms-full.txt` (including references in HTML). A spec lacking a Stripe offer triggers a live 402 probe, using the selected payment operation's HTTP method and a minimal schema-derived body when needed. Each request has a 5000ms default timeout covering the response body.
-- Output always includes the origin `url`; unknown `display_name`, `description`, `llms_txt`, and `available_tools` sections are omitted. Tools include `machine_payments` (Stripe → `link-cli mpp pay`, Tempo → `tempo request`), `mcp`, and `browser_checkout`. Provisioning is reserved but unpopulated.
-- Third-party content passes through `sanitizeDeep()` in `toInspectResult()` before output. Generated commands use the shared POSIX shell quoting helper. Browser checkout advice requires actual DOM verification before creating a `link_pay_token` request with a merchant account ID; HTML hints alone are insufficient.
+- `inspect <url> [--timeout <ms>]` requires no auth and accepts an HTTP(S) URL or bare business hostname without credentials. It normalizes to a lowercase hostname without a leading `www.` and rejects IP addresses and local hostnames. It makes one anonymous `GET https://api.stripe.com/v1/directory/inspect?url=<hostname>` request, with `Stripe-Version: 2026-10-28.preview` and the CLI's User-Agent. No Link/Stripe credentials, cookies, checkout paths, queries, or fragments are sent. It does not use the Link API base URL or follow redirects.
+- `runInspect()` in `packages/cli/src/commands/inspect/inspect.ts` validates the response's `id`, `object`, known field types, and matching hostname; preserves unknown fields and their null/empty values; and calls `sanitizeDeep()` before output. Documentation, integration actions, and suggested payment mechanisms come from the API. Discovery and advice belong to the API; there are no merchant probes or local capability inferences.
+- Interactive Ink renders every field; explicit formats and MCP receive the same API result. Unknown merchants preserve the API's `diren_no_entry_found` placeholder. HTTP failures, malformed responses, and request failures are command errors; no local fallback runs. The default 5000ms timeout includes response-body consumption.
 
 ### demo command
 

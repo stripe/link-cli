@@ -230,7 +230,7 @@ cli.command(
     authStorage,
   ),
 );
-cli.command(createInspectCli());
+cli.command(createInspectCli({ userAgent: defaultHeaders['User-Agent'] }));
 cli.command(createServeCli(cli));
 
 cli.serve();

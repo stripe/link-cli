@@ -4,12 +4,12 @@ import { type InspectResult, runInspect } from './inspect';
 import { InspectView } from './inspect-view';
 import { inspectOptions } from './schema';
 
-export function createInspectCli() {
+export function createInspectCli(options: { userAgent?: string } = {}) {
   const cli = Cli.create('inspect', {
     description:
-      'Inspect a URL and return available agent tools (machine payments, MCP, browser checkout)',
+      'Retrieve merchant documentation, agent integrations, and payment mechanisms from the Directory API',
     args: z.object({
-      url: z.string().describe('HTTP or HTTPS merchant URL to inspect'),
+      url: z.string().describe('HTTP(S) merchant URL or domain to inspect'),
     }),
     options: inspectOptions,
     outputPolicy: 'agent-only' as const,
@@ -23,6 +23,7 @@ export function createInspectCli() {
           <InspectView
             url={url}
             timeoutMs={timeoutMs}
+            userAgent={options.userAgent}
             onComplete={(result) => {
               capturedResult = result;
             }}
@@ -35,7 +36,7 @@ export function createInspectCli() {
         );
       }
 
-      return runInspect(url, { timeoutMs });
+      return runInspect(url, { timeoutMs, userAgent: options.userAgent });
     },
   });
 

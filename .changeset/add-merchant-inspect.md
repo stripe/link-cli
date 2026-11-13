@@ -2,4 +2,4 @@
 '@stripe/link-cli': minor
 ---
 
-Add the `inspect <url>` command to discover merchant payment protocols, MCP servers, llms.txt files, and browser checkout guidance without signing in.
+Add `inspect <url>` to retrieve merchant documentation, agent integrations, and payment mechanisms from the public Directory API without signing in. Preserve the full API response in JSON and interactive output.

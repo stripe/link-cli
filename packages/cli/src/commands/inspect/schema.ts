@@ -7,5 +7,7 @@ export const inspectOptions = z.object({
     .positive()
     .max(2_147_483_647)
     .optional()
-    .describe('Timeout in milliseconds for each probe request (default: 5000)'),
+    .describe(
+      'Timeout in milliseconds for the Directory API request (default: 5000)',
+    ),
 });
