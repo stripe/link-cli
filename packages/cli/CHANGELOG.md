@@ -1,5 +1,11 @@
 # @stripe/link-cli
 
+## 1.5.1
+
+### Patch Changes
+
+- e59dc30: Allow eligible Link Pay Token spend requests to omit the merchant account ID and supply a merchant name, including delegated creation. Preserve the existing missing merchant ID error when the API rejects the request.
+
 ## 1.5.0
 
 ### Minor Changes
