@@ -62,6 +62,7 @@
     "access": "public"
   },
   "dependencies": {
+    "asn1js": "^3.1.0",
     "jose": "^6.2.12"
   }
 }

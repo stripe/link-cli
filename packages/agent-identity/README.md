@@ -26,7 +26,7 @@ Link is the default trust anchor. `issuerOptions.issuer` exists for staging and 
 npm install @stripe/agent-identity
 ```
 
-The package supports Node 22+, ESM and CommonJS. It uses Node’s built-in byte and cryptography APIs and `jose` for JWS verification, JWK import, and key thumbprints. Runtimes without the required Node APIs are unsupported. Licensed under the [MIT license](LICENSE).
+The package supports Node 22+ and Cloudflare Workers with the `nodejs_compat` flag, ESM and CommonJS. It uses Node’s built-in byte and cryptography APIs and `jose` for JWS verification, JWK import, and key thumbprints. Runtimes without the required Node APIs are unsupported. Licensed under the [MIT license](LICENSE).
 
 Agents using Link Agent Wallet to answer your service's challenges should use **v0.27.0 or later**, which includes the ungated identity commands and current issuance API support. Check with `link-cli --version`; install or update with `npm install -g @stripe/link-cli@latest`. See [wallet setup](https://link.com/agents#get-started-section) and the [identity skill](https://github.com/stripe/link-cli/blob/main/skills/use-link-identity/SKILL.md) for attestation and presentation instructions. This minimum applies to the documented wallet flow; the verifier validates proofs and does not inspect client versions.
 

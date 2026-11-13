@@ -168,3 +168,92 @@ describe('native RSA key validation', () => {
     }
   });
 });
+
+// The DER reader replaces createPublicKey, which cannot parse id-RSASSA-PSS in
+// Cloudflare Workers. Node remains the reference here.
+describe('DER reader against Node', () => {
+  function nodeDetails(spki: Uint8Array) {
+    try {
+      const key = createPublicKey({
+        key: Buffer.from(spki),
+        format: 'der',
+        type: 'spki',
+      });
+      return key.asymmetricKeyType === 'rsa' ||
+        key.asymmetricKeyType === 'rsa-pss'
+        ? key.asymmetricKeyDetails
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  const webCryptoName = (name: string | undefined) =>
+    name?.toUpperCase().replace(/^SHA(\d+)$/, 'SHA-$1');
+
+  it('reports the modulus and PSS parameters Node reports', () => {
+    // SHA-1 is the DER default and so omitted from the encoding, which is refused
+    // as before: the verifier requires explicit parameters.
+    for (const hashAlgorithm of ['sha256', 'sha384', 'sha512']) {
+      for (const mgf1HashAlgorithm of ['sha256', 'sha384']) {
+        for (const saltLength of [0, 32, 48]) {
+          // OpenSSL writes explicit NULL hash parameters, which Link's key omits.
+          const spki = new Uint8Array(
+            generateKeyPairSync('rsa-pss', {
+              modulusLength: 2048,
+              hashAlgorithm,
+              mgf1HashAlgorithm,
+              // @types/node declares this as a string; Node takes bytes.
+              saltLength: saltLength as unknown as string,
+            }).publicKey.export({ format: 'der', type: 'spki' }),
+          );
+          const details = nodeDetails(spki);
+          const parsed = parseRsaSpki(spki);
+          assert.ok(typeof parsed !== 'string', parsed as string);
+          assert.equal(parsed.modulusBits, details?.modulusLength);
+          assert.deepEqual(parsed.pssParams, {
+            hash: webCryptoName(details?.hashAlgorithm),
+            mgf1Hash: webCryptoName(details?.mgf1HashAlgorithm),
+            saltLength: details?.saltLength,
+          });
+        }
+      }
+    }
+  });
+
+  it('never accepts a corrupted SPKI that Node refuses', () => {
+    const rsa = new Uint8Array(
+      generateKeyPairSync('rsa', { modulusLength: 2048 }).publicKey.export({
+        format: 'der',
+        type: 'spki',
+      }),
+    );
+    const parsed = parseRsaSpki(rsa);
+    assert.ok(typeof parsed !== 'string');
+    const nodePss = new Uint8Array(
+      generateKeyPairSync('rsa-pss', {
+        modulusLength: 2048,
+        hashAlgorithm: 'sha384',
+        mgf1HashAlgorithm: 'sha384',
+      }).publicKey.export({ format: 'der', type: 'spki' }),
+    );
+    let refused = 0;
+    for (const base of [rsa, wrapRsaSsaPssSpki(parsed.rsaPublicKey), nodePss]) {
+      const inputs = [];
+      for (let i = 0; i < 100; i++) {
+        for (const mask of [0x01, 0x80, 0xff]) {
+          const input = new Uint8Array(base);
+          input[i] = (input[i] as number) ^ mask;
+          inputs.push(input);
+        }
+        inputs.push(base.subarray(0, i));
+      }
+      for (const input of inputs) {
+        if (nodeDetails(input) !== undefined) continue;
+        refused++;
+        assert.equal(typeof parseRsaSpki(input), 'string');
+      }
+    }
+    assert.ok(refused > 500, `only ${refused} inputs refused by Node`);
+  });
+});

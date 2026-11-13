@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { generateKeyPairSync } from 'node:crypto';
 import { describe, it } from 'vitest';
 import { firstFailure } from '@/__tests__/helpers';
 import { createClaimsChallenge } from '@/challenge';
@@ -12,12 +13,31 @@ const AUD = 'https://merchant.example';
 
 describe('DER parameter validation', () => {
   it('refuses a non-minimal long-form DER length', async () => {
-    // 0x82 0x00 0x80 encodes 128 in two bytes, which DER forbids.
-    const result = await importTokenKey(
-      new Uint8Array([0x30, 0x82, 0x00, 0x80]),
+    // A real key whose outer length is re-encoded in three bytes instead of two.
+    // BER allows it and an ASN.1 parser may accept it; DER forbids it.
+    const der = new Uint8Array(
+      generateKeyPairSync('rsa', { modulusLength: 2048 }).publicKey.export({
+        format: 'der',
+        type: 'spki',
+      }),
     );
-    // The input is also truncated, so only the message shows which check fired.
-    assert.match(result as string, /non-minimal DER length/);
+    assert.equal(der[1], 0x82);
+    const nonMinimal = new Uint8Array([0x30, 0x83, 0x00, ...der.subarray(2)]);
+    const result = await importTokenKey(nonMinimal);
+    assert.match(result as string, /not DER-encoded/);
+  });
+
+  it('refuses an indefinite length, which the ASN.1 decoder re-encodes as is', async () => {
+    const der = new Uint8Array(
+      generateKeyPairSync('rsa', { modulusLength: 2048 }).publicKey.export({
+        format: 'der',
+        type: 'spki',
+      }),
+    );
+    // Outer SEQUENCE as 0x30 0x80 ... 0x00 0x00, which BER allows and DER forbids.
+    const indefinite = new Uint8Array([0x30, 0x80, ...der.subarray(4), 0, 0]);
+    const result = await importTokenKey(indefinite);
+    assert.match(result as string, /indefinite length/);
   });
 });
 
