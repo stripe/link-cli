@@ -15,7 +15,7 @@ import { type Jwk, jwkThumbprint, sha256 } from '../internal/crypto.js';
 
 const subtle = globalThis.crypto.subtle;
 
-const CREDENTIAL_KID = 'link-cred-1';
+const DEFAULT_CREDENTIAL_KID = 'link-cred-1';
 
 export interface PresentOptions {
   /** The verifier this presentation is for. Becomes the KB-JWT `aud`. */
@@ -58,6 +58,11 @@ export interface CredentialFixtureOptions {
    * a two-element array-element disclosure is reachable.
    */
   extraDisclosures?: unknown[];
+  /**
+   * The `kid` of the issuer signing key, in both the JWT header and the published
+   * JWK. Default `link-cred-1`. Set a different one to mint under a rotated key.
+   */
+  kid?: string;
 }
 
 export class CredentialFixture {
@@ -99,7 +104,8 @@ export class CredentialFixture {
       'verify',
     ])) as CryptoKeyPair;
     const issuerJwk = await exportPublicJwk(issuerPair.publicKey);
-    issuerJwk.kid = CREDENTIAL_KID;
+    const kid = options.kid ?? DEFAULT_CREDENTIAL_KID;
+    issuerJwk.kid = kid;
 
     const holderPair = (await subtle.generateKey({ name: 'Ed25519' }, true, [
       'sign',
@@ -134,7 +140,7 @@ export class CredentialFixture {
     const header = segment({
       alg: 'EdDSA',
       typ: options.typOverride ?? 'dc+sd-jwt',
-      kid: CREDENTIAL_KID,
+      kid,
     });
     const now = Math.floor(Date.now() / 1000);
     const payload = segment({
