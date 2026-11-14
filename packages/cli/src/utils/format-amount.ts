@@ -19,3 +19,17 @@ export function formatAmount(amount: number, currency: string): string {
     return `${amount} ${currency}`;
   }
 }
+
+const LINK_TWO_DECIMAL_CURRENCIES = new Set(['huf', 'isk', 'ugx']);
+
+export function formatLinkAmount(amount: number, currency: string): string {
+  if (!LINK_TWO_DECIMAL_CURRENCIES.has(currency.toLowerCase())) {
+    return formatAmount(amount, currency);
+  }
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency.toUpperCase(),
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount / 100);
+}

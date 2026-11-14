@@ -8,7 +8,7 @@ import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback } from 'react';
 import { useAsyncAction } from '../../hooks/use-async-action';
-import { formatAmount } from '../../utils/format-amount';
+import { formatLinkAmount } from '../../utils/format-amount';
 
 interface TransactionsListProps {
   resource: ITransactionsResource;
@@ -82,7 +82,11 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
   const rows = transactions.map((txn) =>
     [
       formatCell(txn.created_date, DATE_WIDTH),
-      formatCell(formatAmount(txn.amount, txn.currency), AMOUNT_WIDTH, 'right'),
+      formatCell(
+        formatLinkAmount(txn.amount, txn.currency),
+        AMOUNT_WIDTH,
+        'right',
+      ),
       formatCell(txn.status, STATUS_WIDTH),
       formatCell(txn.category ?? '', CATEGORY_WIDTH),
       formatCell(txn.description, descriptionWidth),
