@@ -113,9 +113,9 @@ link-cli auth login
 You receive a verification URL and a short phrase. Visit the URL, log in to your Link account, and enter the phrase to approve the connection.
 
 By default, login requests the `userinfo:read` and `payment_methods.agentic`
-scopes plus the four financial-insights source actions. To leave out financial
-data access, use `--no-financial-insights`; to leave out payment access, use
-`--no-agentic-payments`.
+scopes plus the five financial-insights source actions, including `read_holdings`.
+To leave out financial data access, use `--no-financial-insights`; to leave out
+payment access, use `--no-agentic-payments`.
 
 ### Retrieve user info
 
@@ -296,10 +296,10 @@ Financial Insights also provides pre-computed and user-provided insights to powe
 
 ### Authentication
 
-`auth login` requests all four financial-insights source actions by default:
-`read_link_transactions`, `read_external_transactions`, `read_balances`, and
-`read_source_details`. The user decides whether to approve the connection;
-requesting access does not retrieve financial data.
+`auth login` requests all five financial-insights source actions by default:
+`read_link_transactions`, `read_external_transactions`, `read_balances`,
+`read_source_details`, and `read_holdings`. The user decides whether to approve
+the connection; requesting access does not retrieve financial data.
 
 ```bash
 link-cli auth login --client-name "My Agent"
@@ -309,11 +309,20 @@ Use `--no-financial-insights` for a payment-only login, or
 `--no-agentic-payments` for a login without the default payment scope. To
 request a narrower set of financial-data actions, pass the desired
 `--source-actions` flags or `--authorization-detail` entries; either replaces
-the four-action default. Don't combine either option with an explicit
-`--financial-insights` or `--no-financial-insights` flag. An explicit `--scope`
-replaces the default scopes. If already authenticated, use
+the implicit bundle. With explicit `--financial-insights`, `--source-actions`
+merge into the full bundle without duplicates. Do not combine
+`--authorization-detail` with either financial-insights flag or `--source-actions`
+with `--no-financial-insights`. An explicit `--scope` replaces the default scopes.
+If already authenticated, use
 `auth upgrade --source-actions <action>` to add only the access needed without
 dropping existing access.
+
+Investment holdings access (`read_holdings`) is included in the financial-insights
+login bundle. To request only holdings on a new connection, use
+`auth login --source-actions read_holdings`. Existing tokens without holdings
+access need `auth upgrade --source-actions read_holdings`; the current session is
+replaced only after the user approves. Permission errors suggest this command and
+never start an upgrade automatically.
 
 Discovering available insight types only requires an authenticated session. Retrieving an insight can require additional source actions, which the discovery response identifies.
 

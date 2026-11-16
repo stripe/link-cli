@@ -57,19 +57,22 @@ link-cli auth status --format json
 
 When present, inspect `authorization_details` in the response for entries with `type: "source"` and the required actions. The field may be absent when the token endpoint did not return authorization details or when authentication comes from `LINK_ACCESS_TOKEN`; in that case, run only the minimum data command needed and handle a permission error as described below.
 
-For a new connection, `auth login` requests the `userinfo:read` and `payment_methods.agentic` scopes and all four financial-insights source actions by default. The user must approve the connection; this request does not retrieve any financial data. If the user wants payment-only access, use `--no-financial-insights`. If they do not want the default payment scope, use `--no-agentic-payments`. If they want a narrower set of financial-data actions, pass only the desired `--source-actions` flags or `--authorization-detail` entries; either replaces the default. Do not combine either with an explicit `--financial-insights` or `--no-financial-insights` flag. An explicit `--scope` replaces the default scopes.
+For a new connection, `auth login` requests the `userinfo:read` and `payment_methods.agentic` scopes and all five financial-insights source actions by default, including `read_holdings`. The user must approve the connection; this request does not retrieve any financial data. If the user wants payment-only access, use `--no-financial-insights`. If they do not want the default payment scope, use `--no-agentic-payments`. If they want a narrower set of financial-data actions, pass only the desired `--source-actions` flags or `--authorization-detail` entries; either replaces the implicit bundle. With explicit `--financial-insights`, `--source-actions` merge into the full bundle without duplicates. Do not combine `--authorization-detail` with either financial-insights flag or `--source-actions` with `--no-financial-insights`. An explicit `--scope` replaces the default scopes.
 
 If the user is already authenticated but an action needed for their financial-data request is missing, use `auth upgrade` with only that missing action instead of `auth login`. `auth upgrade` preserves the current session while the user approves the additional access and replaces it only after approval succeeds. Do not upgrade access solely for an optional insight during a purchase.
 
+Investment holdings access (`read_holdings`) is included in the financial-insights login bundle. For a new connection limited to holdings, use `auth login --source-actions read_holdings`. Existing tokens without holdings access need `auth upgrade --source-actions read_holdings` when the user's investment-data question requires it; wait for user approval before the session is replaced. A permission error only suggests the upgrade and never initiates it automatically.
+
 The `insights` commands will indicate when the access token is insufficient to retrieve a particular insight in the list. It will provide `authorization_remediation` indicating required scopes and `authorization_details` when more access is needed. When `LINK_ACCESS_TOKEN` is set, explain the missing access but do not attempt to upgrade access through the CLI. Otherwise, upgrade to obtain the requisite access or skip using `insights`.
 
-The financial-insights source actions are:
+The five default financial-insights source actions are:
 
 - Transactions processed through Link: `read_link_transactions`
 - Transactions imported from bank connections: `read_external_transactions`
 - Account balances: `read_balances`
 - Data source details and descriptions: `read_source_details`. This action is broadly useful, for example if you will ever need to tie a transaction or balance to a particular account name.
-- Pre-computed aggregations: all of the above.
+- Investment holdings and tax lots: `read_holdings`.
+- Pre-computed aggregations: request the actions identified by the insight's authorization remediation.
 
 
 When narrowing a new login or upgrading an existing one, request only the actions needed for the user's question.
@@ -350,7 +353,7 @@ Do:
 
 - Use read-only commands.
 - Authenticate before retrieval.
-- Use the four-action default for a new login unless the user opts out or chooses narrower access.
+- Use the five-action financial-insights bundle for a new login unless the user opts out or chooses narrower access.
 - Use `--format json` for parsing.
 - Retrieve only the data needed.
 - Summarize clearly and note limitations.

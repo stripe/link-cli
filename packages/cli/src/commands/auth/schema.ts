@@ -20,7 +20,7 @@ const accessOptions = z.object({
     .array(z.enum(SOURCE_ACTIONS))
     .default([])
     .describe(
-      `Source action to request via authorization_details (repeatable). On login, explicit actions replace defaults. Accepted values: ${SOURCE_ACTIONS_DESCRIPTION}.`,
+      `Source action to request via authorization_details (repeatable). On login, explicit actions replace the implicit defaults; with --financial-insights, they merge into the full bundle. Accepted values: ${SOURCE_ACTIONS_DESCRIPTION}.`,
     ),
   authorizationDetail: z
     .array(z.string())
@@ -47,7 +47,7 @@ export const loginOptions = accessOptions.extend({
     .boolean()
     .optional()
     .describe(
-      'Request all financial-insights source actions by default. Use --no-financial-insights to opt out.',
+      'Request the financial-insights source actions, including read_holdings (also the default for new logins). Explicit --source-actions merge into this bundle. Use --no-financial-insights to opt out.',
     ),
   agenticPayments: z
     .boolean()
