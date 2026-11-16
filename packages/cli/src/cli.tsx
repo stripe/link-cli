@@ -4,6 +4,7 @@ import { createApprovalPolicyCli } from './commands/approval-policy';
 import { createAuthCli } from './commands/auth';
 import { createBalancesCli } from './commands/balances';
 import { createDemoCli } from './commands/demo';
+import { createHoldingsCli } from './commands/holdings';
 import { createIdentityCli } from './commands/identity';
 import { createInsightsCli } from './commands/insights';
 import { createMppCli } from './commands/mpp';
@@ -199,6 +200,13 @@ cli.command(
 cli.command(
   createTransactionsCli(
     () => factory.createTransactionsResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+cli.command(
+  createHoldingsCli(
+    () => factory.createHoldingsResource(),
     authStorage,
     envAccessToken,
   ),

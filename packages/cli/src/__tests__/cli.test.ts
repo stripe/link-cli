@@ -3331,6 +3331,300 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     as_of: '2026-07-14T00:00:00Z',
   };
 
+  const SAMPLE_HOLDING = {
+    id: 'fchold_1',
+    source_id: 'csmrpd_1',
+    description: null,
+    security_name: null,
+    total_market_value: { usd: 12500 },
+    quantity: 0.25,
+    as_of_date: null,
+    position_type: 'long',
+    type: 'crypto',
+  };
+  describe('holdings list', () => {
+    it('returns one complete page with exact source and cursor flags without traversal', async () => {
+      const page = { data: [SAMPLE_HOLDING], has_more: true };
+      setNextResponse(200, page);
+      const result = await runProdCli(
+        'holdings',
+        'list',
+        '--source',
+        'csmrpd_1',
+        '--limit',
+        '1',
+        '--starting-after',
+        'fchold_earlier',
+        '--format',
+        'json',
+      );
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.url).toBe(
+        '/holdings?source=csmrpd_1&limit=1&starting_after=fchold_earlier',
+      );
+      expect(lastRequest.method).toBe('GET');
+      expect(parseJson(result.stdout)).toEqual(page);
+      expect(requests).toHaveLength(1);
+    });
+    it('accepts the reverse cursor and returns an empty page', async () => {
+      const page = { data: [], has_more: false };
+      setNextResponse(200, page);
+      const result = await runProdCli(
+        'holdings',
+        'list',
+        '--source',
+        'csmrpd_1',
+        '--ending-before',
+        'fchold_later',
+        '--json',
+      );
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.url).toBe(
+        '/holdings?source=csmrpd_1&ending_before=fchold_later',
+      );
+      expect(parseJson(result.stdout)).toEqual(page);
+      expect(requests).toHaveLength(1);
+    });
+    it.each(
+      [
+        [],
+        ['--source', ''],
+        ['--source', 'csmrpd_1', '--limit', '0'],
+        ['--source', 'csmrpd_1', '--limit', '101'],
+        ['--source', 'csmrpd_1', '--limit', '1.5'],
+        [
+          '--source',
+          'csmrpd_1',
+          '--starting-after',
+          'a',
+          '--ending-before',
+          'b',
+        ],
+      ].map((flags) => [flags] as const),
+    )(
+      'validates required source, bounds and exclusive cursors through incur: %j',
+      async (flags) => {
+        const result = await runProdCli('holdings', 'list', ...flags, '--json');
+        expect(result.exitCode).toBe(1);
+        expect(parseJson(result.stdout)).toMatchObject({
+          code: 'VALIDATION_ERROR',
+        });
+        expect(requests).toHaveLength(0);
+      },
+    );
+    it('preserves missing-permission details and safe upgrade continuation without device auth', async () => {
+      setNextResponse(403, {
+        error: {
+          code: 'missing_permissions',
+          message: '\x1b[2JHoldings\rdenied',
+          authorization_remediation: {
+            authorization_details: [
+              { type: 'source', actions: ['read_holdings'] },
+            ],
+          },
+        },
+      });
+      const result = await runProdCli(
+        'holdings',
+        'list',
+        '--source',
+        'csmrpd_1',
+        '--json',
+      );
+      expect(result.exitCode).toBe(1);
+      const output = parseJson(result.stdout);
+      expect(output).toMatchObject({
+        code: 'missing_permissions',
+        message: 'Holdingsdenied',
+        cta: {
+          commands: [
+            { command: 'link-cli auth upgrade --source-actions read_holdings' },
+          ],
+        },
+      });
+      expect(JSON.stringify(output)).toContain(
+        'auth upgrade --source-actions read_holdings',
+      );
+      expect(result.stdout + result.stderr).not.toContain('\x1b[2J');
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.url).toBe('/holdings?source=csmrpd_1');
+      expect(requests.some((request) => request.url.includes('/device/'))).toBe(
+        false,
+      );
+    });
+    it.each([
+      'holdings_not_supported',
+      'holdings_not_ready',
+      'holdings_retrieval_failed',
+    ])('keeps %s distinct from empty and missing access', async (code) => {
+      setNextResponse(409, { error: { code } });
+      const result = await runProdCli(
+        'holdings',
+        'list',
+        '--source',
+        'csmrpd_1',
+        '--json',
+      );
+      expect(result.exitCode).toBe(1);
+      expect(parseJson(result.stdout)).toMatchObject({ code, message: code });
+      expect(result.stdout + result.stderr).not.toContain('auth upgrade');
+      expect(requests).toHaveLength(1);
+    });
+    it('does not expose raw bodies or create remediation from malformed details', async () => {
+      setNextResponse(403, {
+        error: {
+          code: 'missing_permissions',
+          secret: 'PRIVATE_PAYLOAD',
+          authorization_remediation: { scope: 'invalid' },
+        },
+      });
+      const result = await runProdCli(
+        'holdings',
+        'list',
+        '--source',
+        'csmrpd_1',
+        '--json',
+      );
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout + result.stderr).not.toContain('PRIVATE_PAYLOAD');
+      expect(result.stdout + result.stderr).not.toContain('auth upgrade');
+    });
+    it('uses a safe generic message for non-JSON API errors', async () => {
+      let count = 0;
+      const rawServer = http.createServer((_req, res) => {
+        count += 1;
+        res.writeHead(502);
+        res.end('PRIVATE_NON_JSON_PAYLOAD');
+      });
+      await new Promise<void>((resolve) =>
+        rawServer.listen(0, '127.0.0.1', resolve),
+      );
+      try {
+        const port = (rawServer.address() as { port: number }).port;
+        const result = await runProdCliWithEnv(
+          { LINK_API_BASE_URL: `http://127.0.0.1:${port}` },
+          'holdings',
+          'list',
+          '--source',
+          'csmrpd_1',
+          '--json',
+        );
+        expect(result.exitCode).toBe(1);
+        expect(parseJson(result.stdout)).toMatchObject({
+          code: 'api_error',
+          message: 'Failed to list holdings (502)',
+        });
+        expect(result.stdout + result.stderr).not.toContain(
+          'PRIVATE_NON_JSON_PAYLOAD',
+        );
+        expect(count).toBe(1);
+      } finally {
+        await new Promise<void>((resolve) => rawServer.close(() => resolve()));
+      }
+    });
+    it.skipIf(process.platform === 'win32').each([false, true])(
+      'finishes human listing with one request and expected exit status (denied=%s)',
+      async (denied) => {
+        // Human startup checks npm metadata before registering commands.
+        setResponseForUrl('/@stripe%2Flink-cli', 200, {
+          name: '@stripe/link-cli',
+          'dist-tags': { latest: CLI_VERSION },
+          versions: { [CLI_VERSION]: { version: CLI_VERSION } },
+        });
+        setNextResponse(
+          denied ? 403 : 200,
+          denied
+            ? {
+                error: {
+                  code: 'missing_permissions',
+                  message: 'Holdings denied',
+                  authorization_remediation: {
+                    authorization_details: [
+                      { type: 'source', actions: ['read_holdings'] },
+                    ],
+                  },
+                },
+              }
+            : { data: [SAMPLE_HOLDING], has_more: true },
+        );
+        const runner = new URL('./fixtures/run-in-pty.py', import.meta.url)
+          .pathname;
+        let result: CliResult;
+        try {
+          const output = await execFileAsync(
+            'python3',
+            [
+              runner,
+              process.execPath,
+              CLI_PATH,
+              'holdings',
+              'list',
+              '--source',
+              'csmrpd_1',
+            ],
+            {
+              env: {
+                ...process.env,
+                ...EMPTY_AGENT_ENV,
+                LINK_API_BASE_URL: `http://127.0.0.1:${serverPort}`,
+                LINK_AUTH_BASE_URL: `http://127.0.0.1:${serverPort}`,
+                LINK_AUTH_FILE: TEST_AUTH_FILE,
+                XDG_DATA_HOME: '/tmp/link-cli-test-empty',
+                npm_config_registry: `http://127.0.0.1:${serverPort}`,
+              },
+              timeout: CLI_TIMEOUT_MS,
+            },
+          );
+          result = {
+            stdout: output.stdout,
+            stderr: output.stderr,
+            exitCode: 0,
+          };
+        } catch (error) {
+          const output = error as {
+            stdout?: string;
+            stderr?: string;
+            code?: number;
+          };
+          result = {
+            stdout: output.stdout ?? '',
+            stderr: output.stderr ?? '',
+            exitCode: output.code ?? 1,
+          };
+        }
+        expect(result.exitCode).toBe(denied ? 1 : 0);
+        expect(result.stdout).toContain(
+          denied
+            ? 'auth upgrade --source-actions read_holdings'
+            : 'Snapshot date: unknown',
+        );
+        const holdingsRequests = requests.filter((request) =>
+          request.url.startsWith('/holdings'),
+        );
+        expect(holdingsRequests).toHaveLength(1);
+        expect(holdingsRequests[0]?.url).toBe('/holdings?source=csmrpd_1');
+        expect(
+          requests.some((request) => request.url.includes('/device/')),
+        ).toBe(false);
+      },
+    );
+    it('requires authentication before requesting holdings', async () => {
+      storage.clearTokens();
+      const result = await runProdCli(
+        'holdings',
+        'list',
+        '--source',
+        'csmrpd_1',
+        '--json',
+      );
+      expect(result.exitCode).toBe(1);
+      expect(parseJson(result.stdout)).toMatchObject({
+        code: 'NOT_AUTHENTICATED',
+      });
+      expect(requests).toHaveLength(0);
+    });
+  });
+
   describe('balances list', () => {
     it('returns distinct investment balances and unknown fields without collapsing null or omission in JSON', async () => {
       const page = {
