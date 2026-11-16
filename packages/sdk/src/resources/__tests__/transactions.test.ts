@@ -169,4 +169,59 @@ describe('TransactionsResource', () => {
       status: 200,
     });
   });
+  it.each([
+    {
+      type: 'reinvest',
+      quantity_decimal: '0.1000000001',
+      unit_price: 1234,
+      fees: 50,
+      future: true,
+    },
+    { type: 'buy' },
+    { type: null, quantity_decimal: null, unit_price: null, fees: null },
+    {},
+    null,
+    undefined,
+  ])(
+    'preserves sparse investment details and exact decimal text: %j',
+    async (investment_details) => {
+      const transaction = {
+        id: 'txn_123',
+        source_id: 'csmrpd_123',
+        amount: -1200,
+        currency: 'usd',
+        created_date: '2026-11-16',
+        description: 'Purchase',
+        origin: 'external_connection',
+        category: null,
+        status: 'posted',
+        ...(investment_details === undefined ? {} : { investment_details }),
+      };
+      const response = { data: [transaction], has_more: false };
+      mockFetchResponse(200, response);
+      await expect(repo.list()).resolves.toEqual(response);
+    },
+  );
+
+  it('rejects numeric decimal quantities instead of coercing them', async () => {
+    mockFetchResponse(200, {
+      data: [
+        {
+          id: 'txn_123',
+          source_id: null,
+          amount: 100,
+          currency: 'usd',
+          created_date: '2026-11-16',
+          description: 'Buy',
+          origin: 'link',
+          category: null,
+          status: 'posted',
+          investment_details: { quantity_decimal: 0.1 },
+        },
+      ],
+    });
+    await expect(repo.list()).rejects.toMatchObject({
+      code: 'invalid_response',
+    });
+  });
 });

@@ -17,6 +17,15 @@ const transactionSchema = z.looseObject({
   origin: z.enum(['link', 'external_connection']),
   category: z.string().nullable(),
   status: z.string(),
+  investment_details: z
+    .looseObject({
+      type: z.string().nullable().optional(),
+      quantity_decimal: z.string().nullable().optional(),
+      unit_price: z.number().nullable().optional(),
+      fees: z.number().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
 });
 const transactionsPageSchema = z.union([
   z.array(transactionSchema).transform((data) => ({ data })),
