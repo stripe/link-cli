@@ -20,6 +20,10 @@
     "./tools": {
       "types": "./dist/tools/index.d.ts",
       "import": "./dist/tools/index.js"
+    },
+    "./presentation": {
+      "types": "./dist/resources/presentation.d.ts",
+      "import": "./dist/resources/presentation.js"
     }
   },
   "license": "MIT",
@@ -52,6 +56,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@stripe/agent-identity": "workspace:*",
     "@stripe/link-typescript-config": "workspace:*",
     "@types/node": "^26.6.5",
     "tsup": "^8.5.1",
