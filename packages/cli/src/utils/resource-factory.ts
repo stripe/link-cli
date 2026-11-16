@@ -5,6 +5,7 @@ import {
   type IBalancesResource,
   type IIdentityCredentialsResource,
   type IInsightsResource,
+  type IMppResource,
   type IPaymentMethodsResource,
   type IReportResource,
   type IShippingAddressResource,
@@ -137,6 +138,7 @@ export class ResourceFactory {
   private webBotAuthResource?: IWebBotAuthResource;
   private reportResource?: IReportResource;
   private ucpResource?: IUcpResource;
+  private mppResource?: IMppResource;
 
   constructor(options: ResourceFactoryOptions = {}) {
     this.verbose = options.verbose ?? false;
@@ -400,6 +402,13 @@ export class ResourceFactory {
 
     const resource = sanitizeResource(this.createSdkClient().ucp);
     this.ucpResource = resource;
+    return resource;
+  }
+
+  createMppResource(): IMppResource {
+    if (this.mppResource) return this.mppResource;
+    const resource = this.createSdkClient().mpp;
+    this.mppResource = resource;
     return resource;
   }
 }

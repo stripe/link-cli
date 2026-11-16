@@ -21,7 +21,7 @@ it('imports built exports in Node without source files or credentials', async ()
     { cwd: fileURLToPath(new URL('../', import.meta.url)) },
   );
   const result = JSON.parse(stdout);
-  expect(result.names).toHaveLength(16);
+  expect(result.names).toHaveLength(18);
   expect(result.names).toContain('create_spend_request');
   expect(result.skills).toEqual([
     'create-payment-credential',

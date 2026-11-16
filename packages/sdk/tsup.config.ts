@@ -11,6 +11,8 @@ export default defineConfig({
   outDir: 'dist',
   clean: true,
   sourcemap: true,
+  // Bundle mppx so SDK consumers that compile it (such as Eve) never load its viem-based exports.
+  noExternal: ['mppx'],
   esbuildOptions(options) {
     options.alias = {
       '@': srcDir,

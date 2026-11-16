@@ -49,6 +49,7 @@ Mounting as `link` adds the `link__` prefix to these names:
 | `list_available_insight_types` | Discover insight types and any `authorization_remediation` each needs |
 | `list_insights` | Computed insight results by ID, with `ready`, `pending`, or `no_data` status |
 | `create_report` | Record a purchase attempt's outcome |
+| `mpp_decode`, `mpp_pay` | Decode a Machine Payment Protocol challenge and pay it with a shared payment token |
 
 Inputs use SDK/API field names, such as `payment_details`, `line_items`, and
 `spend_request_id`. Financial-data tools may require additional scopes and source
