@@ -227,7 +227,22 @@ export const SourcesList: React.FC<SourcesListProps> = ({
         <Text bold>{headerRow}</Text>
         <Text dimColor>{separatorRow}</Text>
         {bodyRows.map((row, index) => (
-          <Text key={rows[index].key}>{row}</Text>
+          <Box key={rows[index].key} flexDirection="column">
+            <Text>{row}</Text>
+            {sources[index].category !== undefined ||
+            sources[index].subcategory !== undefined ? (
+              <Text dimColor>
+                Category:{' '}
+                {sources[index].category === null
+                  ? 'unknown'
+                  : (sources[index].category ?? '-')}
+                {' | '}Subcategory:{' '}
+                {sources[index].subcategory === null
+                  ? 'unknown'
+                  : (sources[index].subcategory ?? '-')}
+              </Text>
+            ) : null}
+          </Box>
         ))}
       </Box>
       {page?.has_more !== undefined ? (

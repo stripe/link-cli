@@ -25,6 +25,7 @@ export function createSourcesCli(
       const resource = createResource();
 
       const params: ListSourcesParams = {};
+      if (opts.category !== undefined) params.category = opts.category;
       if (opts.limit !== undefined) params.limit = opts.limit;
       if (opts.startingAfter !== undefined)
         params.starting_after = opts.startingAfter;

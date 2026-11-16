@@ -165,4 +165,121 @@ describe('balances list component', () => {
       expect(frame).toContain('--starting-after csmrpd_2');
     });
   });
+
+  it('preserves the baseline cash and credit frame byte-for-byte', async () => {
+    const resource = makeResource({
+      data: [
+        {
+          source_id: 'csmrpd_1',
+          type: 'cash',
+          cash: { available: { usd: 12500 } },
+          current: 13000,
+          currency: 'usd',
+          as_of: '2026-07-14T00:00:00Z',
+        },
+        {
+          source_id: 'csmrpd_2',
+          type: 'credit',
+          credit: { used: { usd: 5000 } },
+          current: 10000,
+          currency: 'usd',
+          as_of: '2026-07-14T00:00:00Z',
+        },
+      ],
+      has_more: false,
+    });
+    const { lastFrame } = render(
+      <BalancesList resource={resource} onComplete={() => {}} />,
+    );
+    await vi.waitFor(() =>
+      expect(lastFrame()).toBe(
+        'Balances\n\n  Source name   Source ID         Balance type  Current balance  Currency\n  -----------------------------------------------------------------------\n  -             csmrpd_1          cash          $130.00          usd\n  -             csmrpd_2          credit        $100.00          usd\n\nhas_more: false',
+      ),
+    );
+  });
+
+  it('distinguishes investment portfolio value, available cash, and margin', async () => {
+    const { lastFrame } = render(
+      <BalancesList
+        resource={makeResource({
+          data: [
+            {
+              source_id: 'csmrpd_investment',
+              type: 'investment',
+              current: 100000,
+              currency: 'usd',
+              as_of: '2026-11-15',
+              investment: {
+                available_cash: { usd: 12000 },
+                margin: { usd: 30000 },
+              },
+            },
+          ],
+        })}
+        onComplete={() => {}}
+      />,
+    );
+    await vi.waitFor(() => {
+      expect(lastFrame()).toContain('Portfolio value: $1,000.00');
+      expect(lastFrame()).toContain('Cash: $120.00');
+      expect(lastFrame()).toContain('Margin: $300.00');
+    });
+  });
+
+  it.each([
+    [null, ['Cash: unknown', 'Margin: unknown'], []],
+    [{ available_cash: null }, ['Cash: unknown'], ['Margin:']],
+    [{ margin: { usd: 0 } }, ['Margin: $0.00'], ['Cash:']],
+    [{}, [], ['Cash:', 'Margin:']],
+  ] as const)(
+    'keeps unknown and omitted investment amounts distinct: %j',
+    async (investment, expected, absent) => {
+      const { lastFrame } = render(
+        <BalancesList
+          resource={makeResource({
+            data: [
+              {
+                source_id: 'csmrpd_investment',
+                type: 'investment',
+                current: 100000,
+                currency: 'usd',
+                as_of: '2026-11-15',
+                investment,
+              },
+            ],
+          })}
+          onComplete={() => {}}
+        />,
+      );
+      await vi.waitFor(() => {
+        expect(lastFrame()).toContain('Portfolio value: $1,000.00');
+        for (const text of expected) expect(lastFrame()).toContain(text);
+        for (const text of absent) expect(lastFrame()).not.toContain(text);
+      });
+    },
+  );
+
+  it('labels an investment portfolio when the nested data is omitted', async () => {
+    const { lastFrame } = render(
+      <BalancesList
+        resource={makeResource({
+          data: [
+            {
+              source_id: 'csmrpd_investment',
+              type: 'investment',
+              current: 100000,
+              currency: 'usd',
+              as_of: '2026-11-15',
+            },
+          ],
+        })}
+        onComplete={() => {}}
+      />,
+    );
+    await vi.waitFor(() => {
+      expect(lastFrame()).toContain('Portfolio value: $1,000.00');
+      expect(lastFrame()).not.toContain('Cash:');
+      expect(lastFrame()).not.toContain('Margin:');
+    });
+  });
 });

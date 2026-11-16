@@ -339,9 +339,10 @@ The first command lists available insight IDs, descriptions, and any access need
 
 ```bash
 link-cli sources list
+link-cli sources list --category investment
 ```
 
-Returns connected financial accounts (bank accounts, credit cards, etc.) with metadata, capabilities, and connection status. Use the `id` field as `--source` in other commands.
+Returns connected financial accounts with metadata, capabilities, and connection status. `category` and `subcategory` identify account categories separately from source `type`; null means unknown and an omitted field is unavailable. `--category` passes the requested category to the API for validation and filtering. Use the `id` field as `--source` in other commands.
 
 #### List transactions
 
@@ -369,6 +370,8 @@ link-cli transactions list --source <source_id>
 
 Amounts are integers in the currency's smallest unit. Negative = money leaving the account, positive = money entering. Transactions may be Link-native (processed directly through Link), or sourced through an external connection (e.g. imported from transactions that would appear on a bank statement).
 
+Investment transactions can include `investment_details`: activity `type`, exact `quantity_decimal` text, `unit_price`, and `fees`. Prices and fees use the transaction currency's minor units. Children can be absent or null; do not invent missing quantities or amounts.
+
 #### Agent integration
 
 The financial-insights skill teaches agents which command to run for each question type, how to handle pagination, interpret amounts, and summarize results. See skills/financial-insights/SKILL.md for the full agent guide.
@@ -381,7 +384,9 @@ link-cli balances list
 link-cli balances list --source <source_id>
 ```
 
-Returns current balances for connected accounts, including `cash.available` (bank/savings) or `credit.used` (credit cards).
+Returns current balances for connected accounts, including `cash.available` (bank/savings) or `credit.used` (credit cards). For `type: investment`, `current` is portfolio value; `investment.available_cash` and `investment.margin` are separate currency maps. The interactive view labels Portfolio value, Cash, and Margin separately. Null means unknown, never zero; omitted investment fields are unavailable.
+
+Investment data is read-only snapshot data, not live quotes or financial advice. Respect returned snapshot dates and balance `as_of` values; request time does not establish freshness.
 
 ## Advanced
 

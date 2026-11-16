@@ -56,6 +56,12 @@ A source is an account connected to Link. Use its `id` to join records exposing
 `source_id`. Do not guess which account owns a transaction whose `source_id`
 is null. Sources can describe banks, cards, and other account types.
 
+## Investment snapshots
+
+Existing `list_balances` and `list_transactions` tools can return investment data. Transaction `investment_details` includes an extensible activity `type`, exact `quantity_decimal` text, and `unit_price`/`fees` in transaction-currency minor units. Children may be absent or null; preserve quantity text and do not invent missing values.
+
+Sources may include account `category`/`subcategory`, separate from source `type`. Inspect returned category metadata locally; `list_sources` has no category input. The native tool catalog does not expose holdings or tax lots. These are read-only snapshots, not live quotes; mention returned freshness and do not provide financial advice or trading recommendations.
+
 ## Transactions
 
 Call `list_transactions` with the relevant filters, for example:
@@ -104,10 +110,11 @@ Call `list_balances` with `{}` for an initial page, or filter by sources:
 
 | Field | Interpretation |
 | --- | --- |
-| `type` | `cash` or `credit`; determines which sub-object is present |
-| `current` | Balance before pending transactions; not necessarily available funds |
+| `type` | `cash`, `credit`, or `investment`; future type strings may appear |
+| `current` | Investment portfolio value; for cash/credit, balance before pending transactions, not necessarily available funds |
 | `cash.available` | Currency-to-amount mapping for available cash, accounting for pending activity |
 | `credit.used` | Currency-to-amount mapping for credit used |
+| `investment.available_cash`, `investment.margin` | Separate currency maps for cash and margin; null is unknown, not zero, and omitted fields are unavailable |
 | `as_of` | Last update time; the data may be stale |
 
 Use `current` for a general balance question and `cash.available` when the user
