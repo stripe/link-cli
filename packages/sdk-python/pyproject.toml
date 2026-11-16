@@ -1,6 +1,6 @@
 [project]
 name = "stripe-link-sdk"
-version = "0.1.0"
+version = "0.2.0"
 description = "Typed synchronous and asynchronous clients for the Link API"
 readme = "README.md"
 authors = [{ name = "Stripe" }]
