@@ -1,6 +1,6 @@
 {
   "name": "@stripe/link-integrations-mastra",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Link wallet tools for Mastra agents",
   "type": "module",
   "main": "./dist/index.js",
