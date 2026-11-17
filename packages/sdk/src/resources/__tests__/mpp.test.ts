@@ -358,25 +358,51 @@ describe('MppResource#pay', () => {
     expect(retrieve).not.toHaveBeenCalled();
   });
 
-  it('refuses to pay when the re-fetched challenge redirected to a different origin', async () => {
-    const fetch = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(null, {
-          status: 307,
-          headers: { location: 'https://merchant.example/pay' },
-        }),
-      )
-      .mockResolvedValueOnce(challengeResponse());
+  it('refuses to follow any redirect when re-fetching the approved request', async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(
+      new Response(null, {
+        status: 307,
+        headers: { location: 'https://merchant.example/order-b' },
+      }),
+    );
     const retrieve = vi.fn();
     await expect(
       resource(fetch, { retrieve } as unknown as ISpendRequestResource).pay(
-        { url: 'https://redirector.example/start' },
+        { url: 'https://merchant.example/order-a' },
         { spendRequestId: 'lsrq_123' },
       ),
-    ).rejects.toThrow(/different origin/);
-    expect(fetch).toHaveBeenCalledTimes(2);
+    ).rejects.toThrow(/redirects/);
+    expect(fetch).toHaveBeenCalledTimes(1);
     expect(retrieve).not.toHaveBeenCalled();
+  });
+
+  it('does not send Link defaultHeaders to the merchant', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(challengeResponse())
+      .mockResolvedValueOnce(challengeResponse())
+      .mockResolvedValueOnce(new Response('paid'));
+    const retrieve = vi.fn().mockResolvedValue(approvedSpendRequest());
+    const mpp = new MppResource(
+      {
+        accessToken: 'test_token',
+        fetch,
+        defaultHeaders: { Authorization: 'Bearer link-secret' },
+      },
+      { retrieve } as unknown as ISpendRequestResource,
+    );
+    const request = { url: 'https://merchant.example/pay' };
+
+    await mpp.decode(request);
+    await mpp.pay(request, { spendRequestId: 'lsrq_123' });
+
+    const sent = fetch.mock.calls.map(([input, init]) =>
+      new Headers(
+        init?.headers ?? (input instanceof Request ? input.headers : undefined),
+      ).get('authorization'),
+    );
+    expect(sent.slice(0, 2)).toEqual([null, null]);
+    expect(sent[2]).toMatch(/^Payment /);
   });
 
   it.each([

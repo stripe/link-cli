@@ -1,11 +1,7 @@
 import { Challenge, Credential, Method, PaymentRequest } from 'mppx';
 import { Mppx } from 'mppx/client';
 import { Methods as StripeMethods } from 'mppx/stripe';
-import {
-  type LinkOptions,
-  requireFetchImplementation,
-  resolveLinkSdkConfig,
-} from '@/config';
+import { type LinkOptions, requireFetchImplementation } from '@/config';
 import type {
   DecodedStripeChallenge,
   IMppResource,
@@ -225,12 +221,15 @@ export class MppResource implements IMppResource {
   private readonly spendRequests: ISpendRequestResource;
 
   constructor(options: LinkOptions, spendRequests: ISpendRequestResource) {
-    this.fetchImpl = requireFetchImplementation(resolveLinkSdkConfig(options));
+    // Merchant requests skip defaultHeaders, which are meant for Link's API.
+    this.fetchImpl = requireFetchImplementation({
+      fetch: options.fetch ?? globalThis.fetch,
+    });
     this.spendRequests = spendRequests;
   }
 
   async decode(request: MppRequest): Promise<MppDecodeResult> {
-    const probe = await this.probe(request);
+    const probe = await this.probe(request, 10);
     if (probe.response.status !== 402) {
       return {
         payment_required: false,
@@ -263,15 +262,10 @@ export class MppResource implements IMppResource {
       options.approvedChallenge === undefined
         ? undefined
         : getStripeChallenges(options.approvedChallenge)[0];
-    const probe = await this.probe(request);
+    // Pin the destination decode resolved: the approved payment never moves.
+    const probe = await this.probe(request, 0);
     if (probe.response.status !== 402) {
       return this.readResult(probe.response);
-    }
-    if (new URL(probe.url).origin !== new URL(request.url).origin) {
-      await probe.response.body?.cancel().catch(() => undefined);
-      throw new Error(
-        'MPP challenge destination redirected to a different origin; refusing to send any payment credential',
-      );
     }
 
     let spendRequest: SpendRequest;
@@ -353,7 +347,10 @@ export class MppResource implements IMppResource {
     }
   }
 
-  private async probe(options: MppRequest): Promise<MppProbeResult> {
+  private async probe(
+    options: MppRequest,
+    maxRedirects: number,
+  ): Promise<MppProbeResult> {
     const initial = normalizeRequest(options);
     const prepared = await this.createPaymentClient().prepareRequest(
       initial.url,
@@ -362,7 +359,7 @@ export class MppResource implements IMppResource {
         headers: initial.headers,
         method: initial.method,
       },
-      { maxRedirects: 10 },
+      { maxRedirects },
     );
     const response = prepared.payment
       ? new Response(null, {
