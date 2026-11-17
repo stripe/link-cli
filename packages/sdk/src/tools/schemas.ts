@@ -49,6 +49,16 @@ const insightPagination = {
     .describe('Return results after this insight ID from the previous page.'),
 };
 
+const mppRequest = {
+  url: z.url().describe('Merchant URL.'),
+  method: z
+    .string()
+    .optional()
+    .describe('HTTP method. Defaults to GET, or POST when body is set.'),
+  headers: z.record(z.string(), z.string()).optional(),
+  body: z.string().optional(),
+};
+
 /** API inputs, independent of CLI flags and framework execution context. */
 export const linkToolSchemas = {
   empty: z.strictObject({}),
@@ -273,6 +283,19 @@ export const linkToolSchemas = {
       .optional()
       .describe(
         'Ordered account of the attempt. The API truncates long traces.',
+      ),
+  }),
+  mppDecode: z.strictObject(mppRequest),
+  mppPay: z.strictObject({
+    ...mppRequest,
+    spend_request_id: id.describe(
+      'Approved Link spend request ID with credential_type shared_payment_token.',
+    ),
+    approved_challenge: z
+      .string()
+      .optional()
+      .describe(
+        'www_authenticate returned by mpp_decode. Payment fails if the challenge terms changed since.',
       ),
   }),
 };

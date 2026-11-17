@@ -29,6 +29,9 @@ const SPEND_REQUEST = {
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
   approval_url: 'https://link.example/approve',
+  amount: 1000,
+  currency: 'usd',
+  network_id: 'net_security',
 };
 
 let server: http.Server;

@@ -130,6 +130,8 @@ export function createLinkTools(options: LinkToolsOptions) {
     ),
     list_insights: adapt('list_insights', tools.list_insights),
     create_report: adapt('create_report', tools.create_report),
+    mpp_decode: adapt('mpp_decode', tools.mpp_decode),
+    mpp_pay: adapt('mpp_pay', tools.mpp_pay),
   };
 }
 

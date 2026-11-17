@@ -140,6 +140,55 @@ export interface ISpendRequestResource {
   ): Promise<SpendRequest | null>;
 }
 
+export interface MppRequest {
+  url: string;
+  method?: string;
+  body?: string;
+  headers?: HeadersInit;
+}
+
+export interface MppPayOptions {
+  spendRequestId: string;
+  /** `www_authenticate` from `decode`. `pay` refuses a re-fetched challenge whose terms differ. */
+  approvedChallenge?: string;
+}
+
+export interface MppPaymentResult {
+  status: number;
+  headers: Record<string, string>;
+  body: string;
+}
+
+export interface DecodedStripeChallenge {
+  id: string;
+  realm: string;
+  method: 'stripe';
+  intent: 'charge' | 'session';
+  description?: string;
+  digest?: string;
+  expires?: string;
+  network_id: string;
+  request_json: { amount: string; currency: string; [key: string]: unknown };
+}
+
+export type MppDecodeResult =
+  | {
+      payment_required: true;
+      challenges: DecodedStripeChallenge[];
+      /** The challenge header. Pass this to `pay` as `approvedChallenge`. */
+      www_authenticate: string;
+      /** The request after redirects. Pass this to `pay`. */
+      request: MppRequest;
+    }
+  | { payment_required: false; response: MppPaymentResult };
+
+export interface IMppResource {
+  /** Probes a URL for an MPP challenge without sending a payment credential. */
+  decode(request: MppRequest): Promise<MppDecodeResult>;
+  /** Re-fetches the challenge, checks it against the approved spend request's terms and any `approvedChallenge`, and pays with its shared payment token. */
+  pay(request: MppRequest, options: MppPayOptions): Promise<MppPaymentResult>;
+}
+
 export interface IPaymentMethodsResource {
   list(): Promise<PaymentMethod[]>;
   retrieve(id: string): Promise<PaymentMethod | null>;

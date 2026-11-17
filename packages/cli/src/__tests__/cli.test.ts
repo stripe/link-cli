@@ -4387,6 +4387,8 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       credential_type: 'shared_payment_token',
       shared_payment_token: 'spt_test_abc123',
       network_id: 'net_001',
+      amount: 1000,
+      currency: 'usd',
     };
 
     const WWW_AUTHENTICATE_STRIPE = [
@@ -4597,6 +4599,9 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         ...APPROVED_SPT_REQUEST,
         status: 'pending_approval',
       });
+      setMerchantResponse(402, '{"error":"payment required"}', {
+        'www-authenticate': WWW_AUTHENTICATE_STRIPE,
+      });
 
       const result = await runProdCli(
         'mpp',
@@ -4759,6 +4764,8 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
           status: 'approved',
           credential_type: 'shared_payment_token',
           network_id: 'net_001',
+          amount: 1000,
+          currency: 'usd',
         });
         setMerchantResponse(402, '{"error":"payment required"}', {
           'www-authenticate': WWW_AUTHENTICATE_STRIPE,

@@ -165,6 +165,7 @@ cli.command(
 );
 cli.command(
   createMppCli(
+    factory.createMppResource(),
     spendRequestRepo,
     () => factory.createPaymentMethodsResource(),
     authStorage,
@@ -218,6 +219,7 @@ cli.command(
     authRepo,
     spendRequestRepo,
     () => factory.createPaymentMethodsResource(),
+    factory.createMppResource(),
     authStorage,
   ),
 );
@@ -226,6 +228,7 @@ cli.command(
     authRepo,
     spendRequestRepo,
     () => factory.createPaymentMethodsResource(),
+    factory.createMppResource(),
     authStorage,
   ),
 );

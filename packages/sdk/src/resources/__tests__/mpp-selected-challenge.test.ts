@@ -1,14 +1,18 @@
 import { Challenge } from 'mppx';
-import { afterEach, expect, it, vi } from 'vitest';
-import { payWithSpt } from './pay';
+import { expect, it, vi } from 'vitest';
+import type { ISpendRequestResource } from '@/resources/interfaces';
+import { MppResource } from '@/resources/mpp';
 
-// Simulate mppx choosing a different supported offer from the one the CLI's
+// Simulate mppx choosing a different supported offer from the one the SDK's
 // resolver compared. The guard must reject it before credential creation.
-vi.mock('mppx/client', async () => {
-  const { Challenge } = await import('mppx');
+vi.mock('mppx/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('mppx/client')>();
   return {
+    ...actual,
     Mppx: {
-      create: () => ({
+      ...actual.Mppx,
+      create: (...args: Parameters<typeof actual.Mppx.create>) => ({
+        ...actual.Mppx.create(...args),
         preparePayment: async (response: Response) => {
           const selected = Challenge.fromResponseList(response)[1];
           if (!selected) throw new Error('Expected a second challenge offer');
@@ -26,12 +30,7 @@ vi.mock('mppx/client', async () => {
   };
 });
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
-
 it('rejects the challenge mppx selected when its order metadata differs', async () => {
-  vi.stubGlobal('__CLI_VERSION__', 'test');
   const request = {
     amount: '1000',
     currency: 'usd',
@@ -59,22 +58,28 @@ it('rejects the challenge mppx selected when its order metadata differs', async 
     status: 402,
     headers: { 'www-authenticate': `${approved}, ${otherOrder}` },
   });
-  const fetcher = vi
+  const fetch = vi
     .fn()
     .mockResolvedValueOnce(refreshedResponse)
     .mockResolvedValueOnce(new Response('paid'));
-  vi.stubGlobal('fetch', fetcher);
+  const retrieve = vi.fn().mockResolvedValue({
+    id: 'lsrq_123',
+    status: 'approved',
+    credential_type: 'shared_payment_token',
+    amount: 1000,
+    currency: 'usd',
+    network_id: 'net_001',
+    shared_payment_token: { id: 'spt_test_123' },
+  });
 
   await expect(
-    payWithSpt(
-      'https://merchant.example/pay',
-      'spt_test_123',
-      'GET',
-      undefined,
-      undefined,
-      approved,
+    new MppResource({ accessToken: 'test_token', fetch }, {
+      retrieve,
+    } as unknown as ISpendRequestResource).pay(
+      { url: 'https://merchant.example/pay' },
+      { spendRequestId: 'lsrq_123', approvedChallenge: approved },
     ),
   ).rejects.toThrow(/challenge changed after approval/);
-  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(fetch).toHaveBeenCalledTimes(1);
   expect(refreshedResponse.bodyUsed).toBe(true);
 });

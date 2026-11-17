@@ -186,6 +186,40 @@ Use returned `approval_url` and `next_action.action_url` strings as-is. Do not
 manually append callback parameters when creation-time context was supplied.
 Retrieve the request to determine its status after a callback.
 
+## Machine payments (MPP)
+
+The [Machine Payments Protocol](https://mpp.dev) uses HTTP 402 challenges to
+describe a payment an API requires. `link.mpp.decode` probes a URL without
+paying and returns `payment_required: false` with the response, or
+`payment_required: true` with every supported challenge. The SDK supports
+Stripe charge challenges.
+
+```ts
+const decoded = await link.mpp.decode({ url, method: 'POST', body, headers });
+if (!decoded.payment_required) return decoded.response;
+const [challenge] = decoded.challenges;
+```
+
+Create a spend request as in
+[User-approved purchase flow](#user-approved-purchase-flow), with
+`credential_type: 'shared_payment_token'`, `network_id: challenge.network_id`,
+`amount: Number(challenge.request_json.amount)`, and
+`currency: challenge.request_json.currency`. Once it's approved, pay with the
+request and challenge header `decode` returned (after any redirects):
+
+```ts
+const paid = await link.mpp.pay(decoded.request, {
+  spendRequestId: spendRequest.id,
+  approvedChallenge: decoded.www_authenticate,
+});
+```
+
+`pay` re-fetches the challenge, refuses it if its terms changed since `decode`,
+and checks that its amount, currency, and network match the spend request. It's
+safe to retry with the same arguments after an uncertain result such as a 503.
+SPTs for one-time requests are single use; a consumed token requires a new spend
+request. Remote URLs must use HTTPS, except loopback URLs during development.
+
 ## Configuration
 
 ```ts
@@ -368,3 +402,4 @@ const canceled = await link.ucp.cancelCheckout(checkout.id, {
 - `webBotAuth` — sign URLs for Web Bot Auth
 - `reports` — report agent outcomes
 - `ucp` — search the catalog and create, update, retrieve, complete, and cancel checkouts
+- `mpp` — probe and pay Machine Payment Protocol endpoints with Link approval

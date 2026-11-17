@@ -1,4 +1,5 @@
 import type {
+  IMppResource,
   IPaymentMethodsResource,
   ISpendRequestResource,
 } from '@stripe/link-sdk';
@@ -7,17 +8,15 @@ import type { CliAuthStorage } from '../../auth/storage';
 import { buildCommandContinuation } from '../../utils/command-continuation';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
+import { sanitizeDeep } from '../../utils/sanitize-text';
 import { decodeStripeChallenge } from './decode';
 import { DecodeChallengeView } from './decode-view';
 import {
   buildHeaders,
   MppPay,
   type PayResult,
-  probeMppRequest,
-  readPayResult,
   runMppPayWithSpendRequest,
 } from './pay';
-import { createMppRequest } from './request';
 import { decodeOptions, payOptions } from './schema';
 
 export function resolveInteractivePayResult(
@@ -34,6 +33,7 @@ export function resolveInteractivePayResult(
 }
 
 export function createMppCli(
+  mpp: IMppResource,
   repository: ISpendRequestResource,
   paymentMethodsFactory: () => IPaymentMethodsResource,
   authStorage?: CliAuthStorage,
@@ -76,6 +76,7 @@ export function createMppCli(
             test={opts.test}
             approve={opts.approve}
             useApprovalPolicy={opts.useApprovalPolicy}
+            mpp={mpp}
             repository={repository}
             paymentMethodsFactory={paymentMethodsFactory}
             onComplete={(result) => {
@@ -93,7 +94,7 @@ export function createMppCli(
           method,
           data,
           headers,
-          repository,
+          mpp,
           opts.approvedChallenge,
         );
         return;
@@ -101,29 +102,21 @@ export function createMppCli(
 
       // Full flow in agent mode: yield approval URL mid-flow so the agent
       // can present it to the user while we poll for approval inline.
-      const httpMethod = method ?? (data !== undefined ? 'POST' : 'GET');
       const requestHeaders = buildHeaders(data, headers);
 
-      const probe = await probeMppRequest(
-        createMppRequest(url, httpMethod, data, requestHeaders),
-      );
-      const probeResponse = probe.response;
+      const probe = await mpp.decode({
+        url,
+        method,
+        body: data,
+        headers: requestHeaders,
+      });
 
-      if (probeResponse.status !== 402) {
-        yield await readPayResult(probeResponse);
+      if (!probe.payment_required) {
+        yield sanitizeDeep(probe.response);
         return;
       }
 
-      const wwwAuth = probeResponse.headers.get('www-authenticate');
-      if (!wwwAuth) {
-        return c.error({
-          code: 'INVALID_RESPONSE',
-          message: 'URL returned 402 but no WWW-Authenticate header',
-        });
-      }
-
-      const decoded = decodeStripeChallenge(wwwAuth);
-      await probeResponse.body?.cancel();
+      const decoded = probe.challenges[0];
       const networkId = decoded.network_id;
       const challengeAmount = decoded.request_json.amount
         ? Number(decoded.request_json.amount)
@@ -192,16 +185,18 @@ export function createMppCli(
       // Merchant-controlled values remain data in the structured continuation.
       const nextArgs = [
         'pay',
-        probe.url,
+        probe.request.url,
         '--spend-request-id',
         spendRequest.id,
         '--approved-challenge',
-        wwwAuth,
+        probe.www_authenticate,
         '-X',
-        probe.method,
+        probe.request.method ?? 'GET',
       ];
-      if (probe.body !== undefined) nextArgs.push('-d', probe.body);
-      for (const [name, value] of probe.headers) {
+      if (probe.request.body !== undefined) {
+        nextArgs.push('-d', probe.request.body);
+      }
+      for (const [name, value] of new Headers(probe.request.headers)) {
         nextArgs.push('-H', `${name}: ${value}`);
       }
       const payment = buildCommandContinuation('mpp', nextArgs);
