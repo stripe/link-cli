@@ -1,0 +1,6 @@
+.env
+.env.*
+!.env.example
+.mastra/
+*.db
+*.db-*

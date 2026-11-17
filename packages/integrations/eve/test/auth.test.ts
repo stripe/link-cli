@@ -30,6 +30,8 @@ function context(): ToolContext {
     toolName: 'link__create_spend_request',
     messages: [],
     abortSignal: new AbortController().signal,
+    channel: { kind: 'channel:eve', metadata: {} },
+    to: vi.fn(),
     getSandbox: vi.fn(),
     getToken: vi.fn(),
     requireAuth: () => {
@@ -50,14 +52,12 @@ describe('Eve spend approval', () => {
       if (typeof approval !== 'function') {
         throw new Error('Expected a spend-request approval policy');
       }
-      for (const approvedTools of [
-        new Set<string>(),
-        new Set(['link__create_spend_request']),
-      ]) {
+      const ctx = context();
+      for (const callId of ['call-one', 'call-two']) {
         expect(
           await approval({
-            ...context(),
-            approvedTools,
+            ...ctx,
+            callId,
             toolInput: linkToolSchemas.createSpendRequest.parse({
               amount: 1000,
               merchant_name: 'Example',

@@ -1,6 +1,7 @@
 # Link + Eve example
 
-Local terminal agent. Requires Node.js 24+ and pnpm.
+Local terminal agent. Requires Node.js 24+ and pnpm. Uses `eve@1.0.0-rc.5`
+with the Link extension built for Eve 1.0.
 
 Auth wiring is illustrative and assumes a single local user. Use your own
 authentication and session integration when building your application.
