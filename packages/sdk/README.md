@@ -205,19 +205,20 @@ Create a spend request as in
 `credential_type: 'shared_payment_token'`, `network_id: challenge.network_id`,
 `amount: Number(challenge.request_json.amount)`, and
 `currency: challenge.request_json.currency`. Once it's approved, pay with the
-request `decode` returned (after any redirects):
+request and challenge header `decode` returned (after any redirects):
 
 ```ts
 const paid = await link.mpp.pay(decoded.request, {
   spendRequestId: spendRequest.id,
+  approvedChallenge: decoded.www_authenticate,
 });
 ```
 
-`pay` re-fetches the challenge and checks that its amount, currency, and network
-match the spend request, so it's safe to retry with the same arguments after an
-uncertain result such as a 503. SPTs for one-time requests are single use; a
-consumed token requires a new spend request. Remote URLs must use HTTPS, except
-loopback URLs during development.
+`pay` re-fetches the challenge, refuses it if its terms changed since `decode`,
+and checks that its amount, currency, and network match the spend request. It's
+safe to retry with the same arguments after an uncertain result such as a 503.
+SPTs for one-time requests are single use; a consumed token requires a new spend
+request. Remote URLs must use HTTPS, except loopback URLs during development.
 
 ## Configuration
 

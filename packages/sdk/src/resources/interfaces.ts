@@ -149,6 +149,8 @@ export interface MppRequest {
 
 export interface MppPayOptions {
   spendRequestId: string;
+  /** `www_authenticate` from `decode`. `pay` refuses a re-fetched challenge whose terms differ. */
+  approvedChallenge?: string;
 }
 
 export interface MppPaymentResult {
@@ -173,6 +175,8 @@ export type MppDecodeResult =
   | {
       payment_required: true;
       challenges: DecodedStripeChallenge[];
+      /** The challenge header. Pass this to `pay` as `approvedChallenge`. */
+      www_authenticate: string;
       /** The request after redirects. Pass this to `pay`. */
       request: MppRequest;
     }
@@ -181,7 +185,7 @@ export type MppDecodeResult =
 export interface IMppResource {
   /** Probes a URL for an MPP challenge without sending a payment credential. */
   decode(request: MppRequest): Promise<MppDecodeResult>;
-  /** Re-fetches the challenge, checks it against the approved spend request's terms, and pays with its shared payment token. */
+  /** Re-fetches the challenge, checks it against the approved spend request's terms and any `approvedChallenge`, and pays with its shared payment token. */
   pay(request: MppRequest, options: MppPayOptions): Promise<MppPaymentResult>;
 }
 

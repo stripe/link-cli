@@ -4636,25 +4636,6 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       expect(merchantRequests[0].body).toBe('{"amount":100}');
     });
 
-    it('rejects the removed --approved-challenge flag', async () => {
-      const result = await runProdCli(
-        'mpp',
-        'pay',
-        `http://127.0.0.1:${merchantPort}/api/endpoint`,
-        '--spend-request-id',
-        'lsrq_spt_001',
-        '--approved-challenge',
-        WWW_AUTHENTICATE_STRIPE,
-        '--json',
-      );
-
-      expect(result.exitCode).toBe(1);
-      expect(result.stdout + result.stderr).toContain(
-        '--approved-challenge has been removed',
-      );
-      expect(merchantRequests).toHaveLength(0);
-    });
-
     it('sends custom headers provided via --header', async () => {
       setNextResponse(200, APPROVED_SPT_REQUEST);
       setMerchantResponse(200, '{"ok":true}');
@@ -4901,6 +4882,12 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         expect(next.pay_argv.args[1]).toBe(effectiveUrl);
         expect(next.pay_argv.args).toContain('--spend-request-id');
         expect(next.pay_argv.args).toContain('lsrq_spt_002');
+        const challengeIndex = next.pay_argv.args.indexOf(
+          '--approved-challenge',
+        );
+        expect(next.pay_argv.args[challengeIndex + 1]).toBe(
+          WWW_AUTHENTICATE_STRIPE,
+        );
 
         expect(next.pay_command).not.toContain('pay $(touch');
         expect(next.pay_command).toContain(`'${effectiveUrl}'`);

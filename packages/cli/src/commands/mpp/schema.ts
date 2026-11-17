@@ -7,6 +7,12 @@ export const payOptions = z.object({
     .describe(
       'Approved spend request ID with credential_type "shared_payment_token". If omitted, the command handles the full flow: probe URL, parse challenge, create spend request, get approval, and pay.',
     ),
+  approvedChallenge: z
+    .string()
+    .optional()
+    .describe(
+      'Original WWW-Authenticate challenge to verify when continuing an approval flow',
+    ),
   method: z
     .string()
     .optional()

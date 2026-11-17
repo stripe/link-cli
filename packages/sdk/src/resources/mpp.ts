@@ -1,4 +1,4 @@
-import { Challenge, Credential, Method } from 'mppx';
+import { Challenge, Credential, Method, PaymentRequest } from 'mppx';
 import { Mppx } from 'mppx/client';
 import { Methods as StripeMethods } from 'mppx/stripe';
 import {
@@ -157,9 +157,9 @@ function parseStripeChallenge(
   };
 }
 
-export function decodeMppChallenges(
+function getStripeChallenges(
   challengeHeader: string,
-): DecodedStripeChallenge[] {
+): [StripeChallenge, ...StripeChallenge[]] {
   const challenges = Challenge.deserializeList(challengeHeader).filter(
     isSupportedStripeChallenge,
   );
@@ -168,17 +168,55 @@ export function decodeMppChallenges(
       'WWW-Authenticate header does not include a stripe charge or session challenge',
     );
   }
-  return challenges.map(parseStripeChallenge);
+  return challenges as [StripeChallenge, ...StripeChallenge[]];
 }
 
-function decodeResponseChallenges(
-  response: Response,
+export function decodeMppChallenges(
+  challengeHeader: string,
 ): DecodedStripeChallenge[] {
+  return getStripeChallenges(challengeHeader).map(parseStripeChallenge);
+}
+
+function getChallengeHeader(response: Response): string {
   const challengeHeader = response.headers.get('www-authenticate');
   if (!challengeHeader) {
     throw new Error('URL returned 402 but no WWW-Authenticate header');
   }
-  return decodeMppChallenges(challengeHeader);
+  return challengeHeader;
+}
+
+function comparableChallenge(challenge: Challenge.Challenge): string {
+  const comparison: Challenge.Challenge = {
+    ...challenge,
+    id: 'approval-comparison',
+    expires: undefined,
+  };
+  try {
+    // Received challenges carry opaque without populating the convenience meta.
+    const meta: unknown =
+      challenge.opaque !== undefined
+        ? PaymentRequest.deserialize(challenge.opaque)
+        : challenge.meta;
+    if (
+      typeof meta === 'object' &&
+      meta !== null &&
+      !Array.isArray(meta) &&
+      '_mppx_nonce' in meta &&
+      typeof meta._mppx_nonce === 'string' &&
+      Object.values(meta).every((value) => typeof value === 'string')
+    ) {
+      // mppx rotates this HMAC-bound nonce on every issuance. Ignore it only
+      // for approval comparison; submit the refreshed challenge unchanged.
+      const { _mppx_nonce, ...comparableMeta } = meta;
+      comparison.meta = Object.keys(comparableMeta).length
+        ? comparableMeta
+        : undefined;
+      comparison.opaque = undefined;
+    }
+  } catch {
+    // Invalid opaque values remain pinned byte-for-byte.
+  }
+  return Challenge.serialize(comparison);
 }
 
 /** Machine Payment Protocol flows backed by Link shared payment tokens. */
@@ -200,9 +238,11 @@ export class MppResource implements IMppResource {
       };
     }
     try {
+      const challengeHeader = getChallengeHeader(probe.response);
       return {
         payment_required: true,
-        challenges: decodeResponseChallenges(probe.response),
+        challenges: decodeMppChallenges(challengeHeader),
+        www_authenticate: challengeHeader,
         request: {
           url: probe.url,
           method: probe.method,
@@ -219,6 +259,10 @@ export class MppResource implements IMppResource {
     request: MppRequest,
     options: MppPayOptions,
   ): Promise<MppPaymentResult> {
+    const approvedChallenge =
+      options.approvedChallenge === undefined
+        ? undefined
+        : getStripeChallenges(options.approvedChallenge)[0];
     const probe = await this.probe(request);
     if (probe.response.status !== 402) {
       return this.readResult(probe.response);
@@ -232,7 +276,18 @@ export class MppResource implements IMppResource {
 
     let spendRequest: SpendRequest;
     try {
-      const [decoded] = decodeResponseChallenges(probe.response);
+      const [challenge] = getStripeChallenges(
+        getChallengeHeader(probe.response),
+      );
+      if (
+        approvedChallenge &&
+        comparableChallenge(challenge) !==
+          comparableChallenge(approvedChallenge)
+      ) {
+        throw new Error(
+          'MPP challenge changed after approval; refusing to use the approved payment credential',
+        );
+      }
       const retrieved = await this.spendRequests.retrieve(
         options.spendRequestId,
         { include: ['shared_payment_token'] },
@@ -252,7 +307,7 @@ export class MppResource implements IMppResource {
         );
       }
       this.assertChallengeMatchesSpendRequest(
-        decoded as DecodedStripeChallenge,
+        parseStripeChallenge(challenge),
         retrieved,
       );
       spendRequest = retrieved;
@@ -264,7 +319,7 @@ export class MppResource implements IMppResource {
     const sharedPaymentToken =
       spendRequest.shared_payment_token?.id ??
       (await this.retrieveSharedPaymentToken(options.spendRequestId));
-    return this.submitPayment(probe, sharedPaymentToken);
+    return this.submitPayment(probe, sharedPaymentToken, approvedChallenge);
   }
 
   /** Checks terms, not challenge identity, so sellers can rotate challenge IDs between decode and pay. */
@@ -398,6 +453,7 @@ export class MppResource implements IMppResource {
   private async submitPayment(
     challenge: MppProbeResult,
     sharedPaymentToken: string,
+    approvedChallenge: StripeChallenge | undefined,
   ): Promise<MppPaymentResult> {
     const credentialResponse = new Response(null, {
       status: challenge.response.status,
@@ -408,6 +464,18 @@ export class MppResource implements IMppResource {
       await this.createPaymentClient(sharedPaymentToken).preparePayment(
         credentialResponse,
       );
+    // Sign only the challenge that was compared, even if mppx selects among
+    // several offered challenges differently from our resolver.
+    if (
+      approvedChallenge &&
+      comparableChallenge(payment.challenge) !==
+        comparableChallenge(approvedChallenge)
+    ) {
+      await challenge.response.body?.cancel();
+      throw new Error(
+        'MPP challenge changed after approval; refusing to use the approved payment credential',
+      );
+    }
     const credential = await payment.createCredential();
     await challenge.response.body?.cancel();
     const response = await this.fetchImpl(challenge.url, {

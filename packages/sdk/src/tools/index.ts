@@ -140,10 +140,15 @@ export function createLinkTools<Context = unknown>(
       (link, input) => link.mpp.decode(input),
     ),
     mpp_pay: tool(
-      'Pay a Machine Payment Protocol challenge with an approved shared_payment_token spend request and return the merchant’s response. Pass the request returned by mpp_decode. After a network error or 5xx, retry with the same arguments instead of creating a new spend request.',
+      'Pay a Machine Payment Protocol challenge with an approved shared_payment_token spend request and return the merchant’s response. Pass the request returned by mpp_decode, and its www_authenticate as approved_challenge. After a network error or 5xx, retry with the same arguments instead of creating a new spend request.',
       schemas.mppPay,
-      (link, { spend_request_id, ...request }) =>
-        link.mpp.pay(request, { spendRequestId: spend_request_id }),
+      (link, { spend_request_id, approved_challenge, ...request }) =>
+        link.mpp.pay(request, {
+          spendRequestId: spend_request_id,
+          ...(approved_challenge !== undefined && {
+            approvedChallenge: approved_challenge,
+          }),
+        }),
     ),
   };
 }

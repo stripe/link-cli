@@ -291,5 +291,11 @@ export const linkToolSchemas = {
     spend_request_id: id.describe(
       'Approved Link spend request ID with credential_type shared_payment_token.',
     ),
+    approved_challenge: z
+      .string()
+      .optional()
+      .describe(
+        'www_authenticate returned by mpp_decode. Payment fails if the challenge terms changed since.',
+      ),
   }),
 };

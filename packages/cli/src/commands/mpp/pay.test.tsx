@@ -3,9 +3,12 @@ import type {
   ISpendRequestResource,
   MppDecodeResult,
 } from '@stripe/link-sdk';
+import { render } from 'ink-testing-library';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildUserAgent } from '../../utils/user-agent';
-import { buildHeaders, runMppPayFullFlow } from './pay';
+import { buildHeaders, MppPay, runMppPayFullFlow } from './pay';
+
+const WWW_AUTHENTICATE = 'Payment id="ch_001", realm="merchant.example"';
 
 const DECODED: MppDecodeResult = {
   payment_required: true,
@@ -19,6 +22,7 @@ const DECODED: MppDecodeResult = {
       request_json: { amount: '1000', currency: 'usd' },
     },
   ],
+  www_authenticate: WWW_AUTHENTICATE,
   request: { url: 'https://merchant.example/challenge', method: 'GET' },
 };
 
@@ -115,8 +119,34 @@ describe('runMppPayFullFlow', () => {
 
     expect(mppResource.pay).toHaveBeenCalledWith(
       { url: 'https://merchant.example/resolved', method: 'GET' },
-      { spendRequestId: 'lsrq_123' },
+      { spendRequestId: 'lsrq_123', approvedChallenge: WWW_AUTHENTICATE },
     );
+  });
+});
+
+describe('MppPay', () => {
+  it('keeps the approved challenge pin in the interactive continuation', async () => {
+    const mppResource = mpp();
+    const onComplete = vi.fn();
+
+    render(
+      <MppPay
+        url="https://merchant.example/challenge"
+        spendRequestId="lsrq_123"
+        approvedChallenge={WWW_AUTHENTICATE}
+        method="GET"
+        mpp={mppResource}
+        repository={approvedRepository()}
+        paymentMethodsFactory={vi.fn()}
+        onComplete={onComplete}
+      />,
+    );
+
+    await vi.waitFor(() => expect(onComplete).toHaveBeenCalled());
+    expect(mppResource.pay).toHaveBeenCalledWith(expect.anything(), {
+      spendRequestId: 'lsrq_123',
+      approvedChallenge: WWW_AUTHENTICATE,
+    });
   });
 });
 

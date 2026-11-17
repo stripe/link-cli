@@ -22,6 +22,10 @@ const CHALLENGE: Challenge.Challenge = {
 };
 const HEADER = Challenge.serialize(CHALLENGE);
 
+function challengeWith(overrides: Partial<Challenge.Challenge> = {}): string {
+  return Challenge.serialize({ ...CHALLENGE, ...overrides });
+}
+
 function challengeResponse(header = HEADER): Response {
   return new Response('payment required', {
     status: 402,
@@ -120,6 +124,7 @@ describe('MppResource#decode', () => {
     expect(decoded).toMatchObject({
       payment_required: true,
       challenges: [{ id: 'ch_001', method: 'stripe', network_id: 'net_001' }],
+      www_authenticate: HEADER,
     });
   });
 
@@ -319,11 +324,13 @@ describe('MppResource#pay', () => {
     } as unknown as ISpendRequestResource);
     const request = { url: 'https://merchant.example/pay' };
 
-    await expect(mpp.decode(request)).resolves.toMatchObject({
-      payment_required: true,
-    });
+    const decoded = await mpp.decode(request);
+    if (!decoded.payment_required) throw new Error('Expected a challenge');
     await expect(
-      mpp.pay(request, { spendRequestId: 'lsrq_123' }),
+      mpp.pay(request, {
+        spendRequestId: 'lsrq_123',
+        approvedChallenge: decoded.www_authenticate,
+      }),
     ).resolves.toMatchObject({ status: 200, body: 'paid' });
 
     expect(challenges).toHaveLength(2);
@@ -436,5 +443,169 @@ describe('MppResource#pay', () => {
     await vi.runAllTimersAsync();
     await expect(promise).resolves.toMatchObject({ body: 'paid' });
     expect(retrieve).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('MppResource#pay with an approved challenge', () => {
+  function payApproved(
+    fetch: typeof globalThis.fetch,
+    approvedChallenge = HEADER,
+  ) {
+    const retrieve = vi.fn().mockResolvedValue(approvedSpendRequest());
+    return resource(fetch, {
+      retrieve,
+    } as unknown as ISpendRequestResource).pay(
+      { url: 'https://merchant.example/pay' },
+      { spendRequestId: 'lsrq_123', approvedChallenge },
+    );
+  }
+
+  it('accepts a refreshed challenge with a new id and no expiration when its approved terms match', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        challengeResponse(challengeWith({ id: 'ch_002', expires: undefined })),
+      )
+      .mockResolvedValueOnce(new Response('paid'));
+
+    await expect(payApproved(fetch)).resolves.toMatchObject({ status: 200 });
+    const credential = Credential.deserialize(
+      new Headers(fetch.mock.calls[1]![1]?.headers).get('authorization')!,
+    );
+    expect(credential.challenge.id).toBe('ch_002');
+  });
+
+  it('accepts semantically identical request objects regardless of key order', async () => {
+    const approvedRequest = {
+      amount: '1000',
+      currency: 'usd',
+      methodDetails: { networkId: 'net_001', captureMethod: 'automatic' },
+      paymentMethodTypes: ['card'],
+      decimals: 2,
+    };
+    const refreshedRequest = {
+      decimals: 2,
+      paymentMethodTypes: ['card'],
+      methodDetails: { captureMethod: 'automatic', networkId: 'net_001' },
+      currency: 'usd',
+      amount: '1000',
+    };
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        challengeResponse(
+          challengeWith({ id: 'ch_002', request: refreshedRequest }),
+        ),
+      )
+      .mockResolvedValueOnce(new Response('paid'));
+
+    await expect(
+      payApproved(fetch, challengeWith({ request: approvedRequest })),
+    ).resolves.toMatchObject({ status: 200, body: 'paid' });
+  });
+
+  it.each([
+    ['amount', { request: { ...REQUEST, amount: '2000' } }],
+    ['currency', { request: { ...REQUEST, currency: 'eur' } }],
+    ['decimals', { request: { ...REQUEST, decimals: 6 } }],
+    [
+      'payment method type',
+      { request: { ...REQUEST, paymentMethodTypes: ['bank_account'] } },
+    ],
+    [
+      'payment method list',
+      { request: { ...REQUEST, paymentMethodTypes: ['bank_account', 'card'] } },
+    ],
+    ['network', { request: { ...REQUEST, networkId: 'net_002' } }],
+    ['an added request field', { request: { ...REQUEST, merchant: 'new' } }],
+    [
+      'a removed request field',
+      {
+        request: {
+          amount: '1000',
+          currency: 'usd',
+          paymentMethodTypes: ['card'],
+          networkId: 'net_001',
+        },
+      },
+    ],
+    ['intent', { intent: 'session' }],
+    ['realm', { realm: 'other.example' }],
+    ['description', { description: 'Different purchase' }],
+    ['request digest', { digest: 'sha-256=ZGlmZmVyZW50' }],
+    ['credential header', { header: 'Payment-Credential' }],
+    ['opaque metadata', { opaque: 'bWV0YWRhdGE' }],
+    [
+      'order metadata',
+      { meta: { order: 'two', _mppx_scope: 'paid', _mppx_nonce: 'new' } },
+    ],
+    [
+      'route scope',
+      { meta: { order: 'one', _mppx_scope: 'other', _mppx_nonce: 'new' } },
+    ],
+  ])(
+    'rejects a refreshed challenge with changed %s',
+    async (_field, change) => {
+      const refreshedResponse = challengeResponse(
+        challengeWith({
+          meta: { order: 'one', _mppx_scope: 'paid', _mppx_nonce: 'new' },
+          ...change,
+        }),
+      );
+      const fetch = vi.fn().mockResolvedValueOnce(refreshedResponse);
+
+      await expect(
+        payApproved(
+          fetch,
+          challengeWith({
+            meta: { order: 'one', _mppx_scope: 'paid', _mppx_nonce: 'old' },
+          }),
+        ),
+      ).rejects.toThrow(/challenge changed after approval/);
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(refreshedResponse.bodyUsed).toBe(true);
+      expect(
+        new Headers(fetch.mock.calls[0]![1]?.headers).has('authorization'),
+      ).toBe(false);
+    },
+  );
+
+  it('rejects a changed field nested inside the payment request', async () => {
+    const approvedRequest = {
+      ...REQUEST,
+      methodDetails: { captureMethod: 'automatic', networkId: 'net_001' },
+    };
+    const refreshedRequest = {
+      ...REQUEST,
+      methodDetails: { captureMethod: 'manual', networkId: 'net_001' },
+    };
+    const refreshedResponse = challengeResponse(
+      challengeWith({ request: refreshedRequest }),
+    );
+    const fetch = vi.fn().mockResolvedValueOnce(refreshedResponse);
+
+    await expect(
+      payApproved(fetch, challengeWith({ request: approvedRequest })),
+    ).rejects.toThrow(/challenge changed after approval/);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(refreshedResponse.bodyUsed).toBe(true);
+  });
+
+  it('signs the approved challenge when several stripe challenges are offered', async () => {
+    const other = challengeWith({
+      id: 'ch_other',
+      request: { ...REQUEST, externalId: 'order_other' },
+    });
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(challengeResponse(`${HEADER}, ${other}`))
+      .mockResolvedValueOnce(new Response('paid'));
+
+    await payApproved(fetch);
+
+    const credential = Credential.deserialize(
+      new Headers(fetch.mock.calls[1]![1]?.headers).get('authorization')!,
+    );
+    expect(credential.challenge.id).toBe('ch_001');
   });
 });

@@ -505,18 +505,22 @@ describe('Link tools', () => {
     expect(getClient).not.toHaveBeenCalled();
   });
 
-  it('wires mpp_pay input to the resource with spend_request_id mapped to spendRequestId', async () => {
+  it('wires mpp_pay input to the resource with spend_request_id and approved_challenge mapped to options', async () => {
     const client = new Link({ accessToken: 'token' });
     const pay = vi
       .spyOn(client.mpp, 'pay')
       .mockResolvedValue({ status: 200, headers: {}, body: 'paid' });
     const result = await createLinkTools(client).mpp_pay.execute(
-      { url: 'https://merchant.example/pay', spend_request_id: 'lsrq_123' },
+      {
+        url: 'https://merchant.example/pay',
+        spend_request_id: 'lsrq_123',
+        approved_challenge: 'Payment id="ch_001"',
+      },
       undefined,
     );
     expect(pay).toHaveBeenCalledWith(
       { url: 'https://merchant.example/pay' },
-      { spendRequestId: 'lsrq_123' },
+      { spendRequestId: 'lsrq_123', approvedChallenge: 'Payment id="ch_001"' },
     );
     expect(result).toEqual({ status: 200, headers: {}, body: 'paid' });
   });

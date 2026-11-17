@@ -62,6 +62,7 @@ export async function runMppPayWithSpendRequest(
   data: string | undefined,
   headers: string[] | undefined,
   mpp: IMppResource,
+  approvedChallenge?: string,
 ): Promise<PayResult> {
   return sanitizeDeep(
     await mpp.pay(
@@ -71,7 +72,10 @@ export async function runMppPayWithSpendRequest(
         body: data,
         headers: buildHeaders(data, headers),
       },
-      { spendRequestId },
+      {
+        spendRequestId,
+        ...(approvedChallenge !== undefined && { approvedChallenge }),
+      },
     ),
   );
 }
@@ -183,7 +187,10 @@ export async function runMppPayFullFlow(
   onStep?.('signing');
   onStep?.('submitting');
   return sanitizeDeep(
-    await mpp.pay(probe.request, { spendRequestId: spendRequest.id }),
+    await mpp.pay(probe.request, {
+      spendRequestId: spendRequest.id,
+      approvedChallenge: probe.www_authenticate,
+    }),
   );
 }
 
@@ -223,6 +230,7 @@ export function MppApprovalPrompt({ approvalUrl }: { approvalUrl: string }) {
 export function MppPay({
   url,
   spendRequestId,
+  approvedChallenge,
   method,
   data,
   headers,
@@ -239,6 +247,7 @@ export function MppPay({
 }: {
   url: string;
   spendRequestId?: string;
+  approvedChallenge?: string;
   method?: string;
   data?: string;
   headers?: string[];
@@ -274,6 +283,7 @@ export function MppPay({
             data,
             headers,
             mpp,
+            approvedChallenge,
           );
         } else {
           if (!context) {
@@ -311,6 +321,7 @@ export function MppPay({
   }, [
     url,
     spendRequestId,
+    approvedChallenge,
     method,
     data,
     headers,

@@ -57,11 +57,6 @@ const usedRemovedExecutionMethod =
   process.argv.includes('spend-request') &&
   process.argv.includes('create') &&
   stripRemovedFlag(process.argv, '--execution-method');
-// `mpp pay --approved-challenge` was removed; strip it so pay can say so.
-const usedRemovedApprovedChallenge =
-  process.argv.includes('mpp') &&
-  process.argv.includes('pay') &&
-  stripRemovedFlag(process.argv, '--approved-challenge');
 
 const authStorage: CliAuthStorage = credentialFilePath
   ? new Storage({ configPath: credentialFilePath })
@@ -175,7 +170,6 @@ cli.command(
     () => factory.createPaymentMethodsResource(),
     authStorage,
     envAccessToken,
-    { usedRemovedApprovedChallenge },
   ),
 );
 // cli.command(

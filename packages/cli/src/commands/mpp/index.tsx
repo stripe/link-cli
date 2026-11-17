@@ -38,7 +38,6 @@ export function createMppCli(
   paymentMethodsFactory: () => IPaymentMethodsResource,
   authStorage?: CliAuthStorage,
   envAccessToken?: string,
-  { usedRemovedApprovedChallenge = false } = {},
 ) {
   const cli = Cli.create('mpp', {
     description: 'Machine payment protocol (MPP) commands',
@@ -55,13 +54,6 @@ export function createMppCli(
     outputPolicy: 'agent-only' as const,
     middleware: [requireAuth(authStorage, envAccessToken)],
     async *run(c) {
-      if (usedRemovedApprovedChallenge) {
-        return c.error({
-          code: 'INVALID_INPUT',
-          message:
-            '--approved-challenge has been removed. Pass the same request with --spend-request-id; mpp pay checks the fresh challenge against the spend request.',
-        });
-      }
       const url = c.args.url;
       const opts = c.options;
       const method = opts.method;
@@ -74,6 +66,7 @@ export function createMppCli(
           <MppPay
             url={url}
             spendRequestId={opts.spendRequestId}
+            approvedChallenge={opts.approvedChallenge}
             method={method}
             data={data}
             headers={headers}
@@ -102,6 +95,7 @@ export function createMppCli(
           data,
           headers,
           mpp,
+          opts.approvedChallenge,
         );
         return;
       }
@@ -194,6 +188,8 @@ export function createMppCli(
         probe.request.url,
         '--spend-request-id',
         spendRequest.id,
+        '--approved-challenge',
+        probe.www_authenticate,
         '-X',
         probe.request.method ?? 'GET',
       ];
