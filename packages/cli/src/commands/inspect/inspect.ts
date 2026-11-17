@@ -6,40 +6,11 @@ const INSPECT_ENDPOINT = 'https://api.stripe.com/v1/directory/inspect';
 const DEFAULT_TIMEOUT_MS = 5000;
 const STRIPE_API_VERSION = '2026-10-28.preview';
 
-const actionSchema = z.looseObject({
-  type: z.string(),
-  description: z.string().optional(),
-  instructions: z.string().optional(),
-  payment_mechanisms: z.array(z.string()).optional(),
-  well_known_endpoint: z.string().optional(),
-  merchant_advice: z.string().optional(),
-  priority_order: z.number().int().optional(),
-});
+// Only validate fields the CLI depends on; merchant guidance is passed through.
 const resultSchema = z.looseObject({
   id: z.string().min(1),
   object: z.literal('directory.inspect_result'),
   url: z.string(),
-  display_name: z.string().optional(),
-  description: z.string().optional(),
-  network_business_profile: z.string().optional(),
-  documentation: z.array(z.string()).optional(),
-  context: z.string().optional(),
-  agent_integration_actions: z.array(actionSchema).optional(),
-  suggested_payment_mechanisms: z
-    .record(
-      z.string(),
-      z.looseObject({
-        agent_tools: z.record(
-          z.string(),
-          z.looseObject({
-            setup: z.string(),
-            agent_prompt: z.string(),
-            supported_currencies: z.array(z.string()),
-          }),
-        ),
-      }),
-    )
-    .optional(),
 });
 
 // Preserve additive API fields. The CLI does not infer capabilities or advice.

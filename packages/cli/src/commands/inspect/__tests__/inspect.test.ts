@@ -107,10 +107,11 @@ describe('Directory inspection', () => {
     { id: 'diren_example' },
     { url: 'example.com' },
     { ...ENTRY, object: 'unexpected' },
-    { ...ENTRY, description: 42 },
-    { ...ENTRY, documentation: 'https://example.com/docs' },
-    { ...ENTRY, agent_integration_actions: [{ type: 42 }] },
-    { ...ENTRY, suggested_payment_mechanisms: { card: { agent_tools: [] } } },
+    { ...ENTRY, id: '' },
+    { ...ENTRY, id: null },
+    { ...ENTRY, object: null },
+    { ...ENTRY, url: null },
+    { ...ENTRY, url: 42 },
   ])('rejects a malformed success payload: %j', async (payload) => {
     const fetchImpl = vi
       .fn<typeof fetch>()
@@ -118,6 +119,39 @@ describe('Directory inspection', () => {
     await expect(runInspect('example.com', { fetchImpl })).rejects.toThrow(
       'invalid response',
     );
+  });
+
+  it.each([
+    {
+      display_name: null,
+      description: null,
+      documentation: null,
+      context: null,
+      agent_integration_actions: null,
+      suggested_payment_mechanisms: null,
+    },
+    {
+      description: { summary: 'New description shape' },
+      documentation: [{ url: 'https://example.com/docs', format: 'openapi' }],
+      agent_integration_actions: [{ type: 'future_route', details: { v: 2 } }],
+      suggested_payment_mechanisms: {
+        card: {
+          agent_tools: { example: { setup: 'Install the merchant CLI' } },
+        },
+      },
+    },
+    {
+      agent_integration_actions: [{ type: 42 }],
+      suggested_payment_mechanisms: { card: { agent_tools: [] } },
+      new_field: { nested: [null, false, 0, {}] },
+    },
+  ])('preserves evolving guidance fields: %j', async (fields) => {
+    const payload = { ...ENTRY, ...fields };
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json(payload));
+    expect(await runInspect('example.com', { fetchImpl })).toEqual(payload);
+    expect(formatInspectFields(payload)).toContain('example.com');
   });
 
   it('rejects non-JSON success responses', async () => {
