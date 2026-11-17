@@ -12,6 +12,57 @@ import (
 
 func updatePointer[T any](value T) *T { return &value }
 
+func TestPaymentMethodCardDetailsWithoutExpiry(t *testing.T) {
+	for _, method := range []string{"list", "retrieve", "update"} {
+		for _, legacyExpiry := range []bool{false, true} {
+			name := method + "/without_expiry"
+			if legacyExpiry {
+				name = method + "/legacy_expiry"
+			}
+			t.Run(name, func(t *testing.T) {
+				cardDetails := `{"brand":"visa","last4":"4242"}`
+				if legacyExpiry {
+					cardDetails = `{"brand":"visa","last4":"4242","exp_month":12,"exp_year":2028}`
+				}
+				body := `{"id":"pd_1","type":"CARD","is_default":true,"name":"Visa","card_details":` + cardDetails + `}`
+				if method == "list" {
+					body = `{"payment_details":[` + body + `]}`
+				}
+				server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+					_, _ = response.Write([]byte(body))
+				}))
+				defer server.Close()
+				client, err := NewClient(Options{AccessToken: "token", APIBaseURL: server.URL})
+				assertNoError(t, err)
+
+				var result *PaymentMethod
+				switch method {
+				case "list":
+					methods, err := client.PaymentMethods.List(context.Background())
+					assertNoError(t, err)
+					if len(methods) != 1 {
+						t.Fatalf("got %d payment methods, want 1", len(methods))
+					}
+					result = &methods[0]
+				case "retrieve":
+					result, err = client.PaymentMethods.Retrieve(context.Background(), "pd_1")
+				case "update":
+					result, err = client.PaymentMethods.Update(context.Background(), "pd_1", UpdatePaymentMethodParams{Nickname: updatePointer("Work card")})
+				}
+				assertNoError(t, err)
+				if result == nil || result.CardDetails == nil || *result.CardDetails != (CardDetails{Brand: "visa", Last4: "4242"}) {
+					t.Fatalf("unexpected payment method: %#v", result)
+				}
+				encoded, err := json.Marshal(result.CardDetails)
+				assertNoError(t, err)
+				if string(encoded) != `{"brand":"visa","last4":"4242"}` {
+					t.Fatalf("unexpected saved-card fields: %s", encoded)
+				}
+			})
+		}
+	}
+}
+
 func TestUpdatePaymentMethod(t *testing.T) {
 	var method, requestURI, contentType string
 	var body map[string]any

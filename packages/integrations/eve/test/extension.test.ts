@@ -1,5 +1,7 @@
 import { execFile } from 'node:child_process';
 import {
+  copyFile,
+  cp,
   mkdir,
   mkdtemp,
   readFile,
@@ -17,7 +19,9 @@ import extension from '../extension/extension';
 
 const exec = promisify(execFile);
 const packageRoot = fileURLToPath(new URL('../', import.meta.url));
-const eveRoot = fileURLToPath(new URL('../../', import.meta.resolve('eve')));
+const eveRoot = fileURLToPath(
+  new URL('./', import.meta.resolve('eve/package.json')),
+);
 let appRoot: string | undefined;
 
 afterEach(async () => {
@@ -41,17 +45,45 @@ it('accepts exactly one of a static token and an Eve provider', () => {
 });
 
 it.each(['accessToken', 'auth'])(
-  'loads tools, instructions, and skills with %s authentication',
+  'loads the built distribution with %s authentication and no extension source',
   async (authentication) => {
     appRoot = await mkdtemp(join(tmpdir(), 'link-eve-test-'));
     await mkdir(join(appRoot, 'agent/extensions'), { recursive: true });
     await mkdir(join(appRoot, 'node_modules/@stripe'), { recursive: true });
     await symlink(eveRoot, join(appRoot, 'node_modules/eve'), 'junction');
+    const installedRoot = join(
+      appRoot,
+      'node_modules/@stripe/link-integrations-eve',
+    );
+    await mkdir(installedRoot);
+    await copyFile(
+      join(packageRoot, 'package.json'),
+      join(installedRoot, 'package.json'),
+    );
+    await cp(join(packageRoot, 'dist'), join(installedRoot, 'dist'), {
+      recursive: true,
+    });
     await symlink(
-      packageRoot,
-      join(appRoot, 'node_modules/@stripe/link-integrations-eve'),
+      join(packageRoot, 'node_modules'),
+      join(installedRoot, 'node_modules'),
       'junction',
     );
+
+    const compatibility = JSON.parse(
+      await readFile(
+        join(installedRoot, 'dist/extension/_manifest.json'),
+        'utf8',
+      ),
+    );
+    const evePackage = JSON.parse(
+      await readFile(join(eveRoot, 'package.json'), 'utf8'),
+    );
+    expect(compatibility).toEqual({
+      kind: 'eve-extension',
+      formatVersion: 3,
+      builtWithEve: evePackage.version,
+      contractMajor: expect.any(Number),
+    });
     await writeFile(
       join(appRoot, 'package.json'),
       JSON.stringify({
@@ -135,7 +167,7 @@ export default link({ auth: defineInteractiveAuthorization({
       expect(manifest.skills).toContainEqual(
         expect.objectContaining({
           name: `link__${name}`,
-          markdown: skill.replace(/^---\n[\s\S]*?\n---\n\s*/, ''),
+          content: skill.replace(/^---\n[\s\S]*?\n---\n\s*/, ''),
           sourceKind: 'skill-package',
         }),
       );

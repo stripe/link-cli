@@ -349,10 +349,8 @@ type RequestApprovalResponse struct {
 
 // CardDetails contains non-sensitive saved-card details.
 type CardDetails struct {
-	Brand    string `json:"brand"`
-	Last4    string `json:"last4"`
-	ExpMonth int64  `json:"exp_month"`
-	ExpYear  int64  `json:"exp_year"`
+	Brand string `json:"brand"`
+	Last4 string `json:"last4"`
 }
 
 // BankAccountDetails contains non-sensitive saved-bank-account details.
@@ -416,6 +414,7 @@ type UserInfo struct {
 	LastName                           *string                             `json:"last_name,omitempty"`
 	Phone                              *string                             `json:"phone,omitempty"`
 	Address                            *UserInfoAddress                    `json:"address,omitempty"`
+	EligibleForBalance                 *bool                               `json:"eligible_for_balance,omitempty"`
 	DefaultSpendRequestCurrency        *string                             `json:"default_spend_request_currency,omitempty"`
 	AgentWalletSpendLimits             *AgentWalletSpendLimits             `json:"agent_wallet_spend_limits,omitempty"`
 	AgentWalletVerificationRequirement *AgentWalletVerificationRequirement `json:"agent_wallet_verification_requirement,omitempty"`

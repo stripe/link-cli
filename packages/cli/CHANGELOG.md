@@ -1,5 +1,25 @@
 # @stripe/link-cli
 
+## 1.5.1
+
+### Patch Changes
+
+- e59dc30: Allow eligible Link Pay Token spend requests to omit the merchant account ID and supply a merchant name, including delegated creation. Preserve the existing missing merchant ID error when the API rejects the request.
+
+## 1.5.0
+
+### Minor Changes
+
+- ea1d9d1: Restore the optional `eligible_for_balance` boolean in user info, reverting its removal in #494. The TypeScript SDK and CLI preserve both `true` and `false` and leave the field absent when the API omits it. CLI terminal output again displays balance eligibility when present.
+  
+  Restore balance-eligibility guidance in the Eve integration's payment skill.
+
+## 1.4.1
+
+### Patch Changes
+
+- 43eecad: Publish a standalone Linux ARM64 executable and SHA-256 checksum with CLI releases.
+
 ## 1.4.0
 
 ### Minor Changes

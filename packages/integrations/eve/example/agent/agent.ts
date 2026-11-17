@@ -8,4 +8,6 @@ const openrouter = createOpenRouter({
 export default defineAgent({
   model: openrouter('openai/gpt-6-luna'),
   modelContextWindowTokens: 1_000_000,
+  // Resolve Better Auth from this app when Eve evaluates the workspace mount.
+  build: { externalDependencies: ['better-auth'] },
 });

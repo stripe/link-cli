@@ -4,7 +4,7 @@ Use a Link wallet from an [Eve extension](https://eve.dev/docs/extensions).
 Tools reuse `@stripe/link-sdk/tools`; the extension adds Eve discovery
 and an Eve-specific wallet skill.
 
-Requires Node.js 24+. Built with Eve 0.79.0; Eve checks the generated extension
+Requires Node.js 24+ and Eve 1.x. Eve checks the generated extension
 compatibility metadata when a consumer builds.
 
 ## Install and mount
@@ -121,6 +121,9 @@ The fixture uses a test token; it demonstrates the lifecycle, not a Link OAuth c
 
 Configure exactly one of `accessToken` or `auth`. The extension also accepts
 Eve's `getToken`-only providers when your application already manages authorization.
+Set `principalType: 'user'` on these providers for per-user grants; omitting it
+uses an app credential. `defineInteractiveAuthorization` sets it to `'user'`
+automatically.
 Vercel Connect is not required.
 
 ## Override or remove a tool
@@ -152,7 +155,9 @@ import { never } from 'eve/tools/approval';
 export default defineTool({ ...create_spend_request, approval: never() });
 ```
 
-Use `once()` to prompt once per session, or supply a custom approval policy.
+Use `once()` to remember the latest approval or denial for the rest of the
+session, or supply a custom approval policy. A custom policy wrapping `once()`
+must return its decision unchanged so Eve can remember it.
 These overrides control Eve's confirmation prompt; Link's purchase authorization
 remains separate.
 

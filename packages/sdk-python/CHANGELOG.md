@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
+- Remove deprecated saved-card `CardDetails.exp_month` and `CardDetails.exp_year`, fixing `payment_methods.list()` rejecting successful responses that omit expiry fields ([#560](https://github.com/stripe/link-cli/issues/560)). Preserve SpendRequest card credential expiry.
 - Add `approval_policy.retrieve`.
 - Add `payment_methods.retrieve`, the `insights` resource, payment-method `balance_details`, and report `attempt_trace`.
 - Update payment methods' wallet default status independently or with nicknames.

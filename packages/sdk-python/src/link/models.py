@@ -180,8 +180,6 @@ class RequestApprovalResponse(LinkModel):
 class CardDetails(LinkModel):
     brand: str
     last4: str
-    exp_month: int
-    exp_year: int
 
 
 class BankAccountDetails(LinkModel):

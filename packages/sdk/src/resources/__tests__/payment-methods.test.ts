@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LinkApiError } from '@/errors';
 import { PaymentMethodsResource } from '@/resources/payment-methods';
+import type { CardDetails } from '@/types/index';
 
 const mockFetch = vi.fn();
 const getAccessToken = vi.fn();
@@ -36,8 +37,6 @@ describe('PaymentMethodsResource', () => {
           card_details: {
             brand: 'visa',
             last4: '4242',
-            exp_month: 12,
-            exp_year: 2028,
           },
           name: 'Visa Credit',
           nickname: 'Home Credit',
@@ -60,8 +59,6 @@ describe('PaymentMethodsResource', () => {
         card_details: {
           brand: 'visa',
           last4: '4242',
-          exp_month: 12,
-          exp_year: 2028,
         },
         name: 'Visa Credit',
         nickname: 'Home Credit',
@@ -130,8 +127,6 @@ describe('PaymentMethodsResource', () => {
       card_details: {
         brand: 'visa',
         last4: '4242',
-        exp_month: 12,
-        exp_year: 2028,
       },
     });
 
@@ -142,8 +137,43 @@ describe('PaymentMethodsResource', () => {
     expect(url).toBe('https://api.link.com/payment-details/pd_123');
     expect(opts.method).toBe('GET');
     expect(opts.headers.Authorization).toBe('Bearer test_token');
-    expect(result).toMatchObject({ id: 'pd_123', name: 'Visa' });
+    expect(result).toMatchObject({
+      id: 'pd_123',
+      name: 'Visa',
+      card_details: { brand: 'visa', last4: '4242' },
+    });
   });
+
+  it.each(['list', 'retrieve', 'update'] as const)(
+    '%s accepts saved-card details without expiry and preserves legacy extra fields',
+    async (method) => {
+      const cardDetails: CardDetails = { brand: 'visa', last4: '4242' };
+      for (const legacyExpiry of [{}, { exp_month: 12, exp_year: 2028 }]) {
+        const paymentMethod = {
+          id: 'pd_123',
+          type: 'CARD',
+          is_default: true,
+          name: 'Visa',
+          card_details: { ...cardDetails, ...legacyExpiry },
+        };
+        mockFetchResponse(
+          200,
+          method === 'list'
+            ? { payment_details: [paymentMethod] }
+            : paymentMethod,
+        );
+
+        const result =
+          method === 'list'
+            ? (await repo.list())[0]
+            : method === 'retrieve'
+              ? await repo.retrieve('pd_123')
+              : await repo.update('pd_123', { nickname: 'Work card' });
+
+        expect(result).toEqual(paymentMethod);
+      }
+    },
+  );
 
   it('returns null when a payment method is not found', async () => {
     mockFetchResponse(404, {

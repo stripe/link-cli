@@ -154,6 +154,8 @@ jobs:
         include:
           - os: ubuntu-latest
             asset_name: link-cli-linux-x64
+          - os: ubuntu-24.04-arm
+            asset_name: link-cli-linux-arm64
           - os: macos-latest
             asset_name: link-cli-macos-arm64
           - os: windows-latest
@@ -187,6 +189,12 @@ jobs:
       - name: Sign binary (macOS only)
         if: runner.os == 'macOS'
         run: codesign --sign - ${{ matrix.asset_name }}
+
+      - name: Smoke test binary
+        shell: bash
+        run: |
+          ./${{ matrix.asset_name }} --version
+          ./${{ matrix.asset_name }} --help
 
       - name: Generate checksum
         shell: bash

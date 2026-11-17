@@ -124,7 +124,7 @@ link-cli user-info retrieve --format json
 ```
 
 In addition to identity fields, the response can include the user's address,
-spend limits, and verification requirements:
+balance eligibility, spend limits, and verification requirements:
 
 ```json
 {
@@ -138,6 +138,7 @@ spend limits, and verification requirements:
     "postal_code": "94103",
     "country": "US"
   },
+  "eligible_for_balance": true,
   "agent_wallet_spend_limits": {
     "per_transaction": { "limit": 50000 },
     "daily": { "limit": 500000, "used": 120000, "remaining": 380000 },
@@ -150,10 +151,13 @@ spend limits, and verification requirements:
 }
 ```
 
-The address field is omitted when its enrichment is unavailable and is null
-when the user has no Person record. Finite spend-limit values are cents because
-this response does not include a currency. A null limit or remaining amount
-means unlimited. `agent_wallet_verification_requirement.status` can be
+The address and `eligible_for_balance` fields are omitted when their enrichment
+is unavailable. `address` is null when the user has no Person record.
+`eligible_for_balance` reports balance eligibility for the user and the current
+OAuth app; an absent field does not establish eligibility or ineligibility.
+Finite spend-limit values are cents because this response does not include a
+currency. A null limit or remaining amount means unlimited.
+`agent_wallet_verification_requirement.status` can be
 `not_required`, `ssn_verification`, `credit_file_match_ca`,
 `identity_verification`, `doc_upload_ca`, `pending`, `contact_support`, or
 `complete`. Its `action_url` is null when no user action is available.
@@ -946,7 +950,7 @@ for the catalog and evaluation/transition checks.
 ## Integrating into agents
 
 If you are building an agent and want to offer Link as a native experience to your consumers (as a connector, plugin, pre-installed capability etc.), 
-please look at our [documentation and steps for integrating](https://docs.stripe.com/agentic-commerce/link-agent-wallet). We can support higher limits, more embedded approval flows, and additional capabilities.
+please look at our [documentation and steps for integrating](https://docs.link.com). We can support higher limits, more embedded approval flows, and additional capabilities.
 
 ## SDKs
 
@@ -963,6 +967,10 @@ The TypeScript SDK also exports reusable [agent tools](packages/sdk/README.md#ag
 Use the [Eve extension](packages/integrations/eve/README.md) to mount them in an
 Eve agent with a static access token or an application-provided Eve auth provider,
 plus a wallet skill.
+
+Use the [Mastra integration](packages/integrations/mastra/README.md) for native
+wallet tools, per-call token resolution, and spend confirmation. The
+[Mastra Studio example](packages/integrations/mastra/example/README.md) runs locally.
 
 ## Onboarding and Demos
 
@@ -1023,7 +1031,8 @@ pnpm biome check .
 ## Releasing
 
 This project uses [Changesets](https://github.com/changesets/changesets) to
-version and publish `@stripe/link-cli`, `@stripe/link-sdk`, and `@stripe/link-integrations-eve`.
+version and publish the CLI, SDK, and integration packages, including
+`@stripe/link-integrations-mastra`.
 `@stripe/link-typescript-config` is private and is not published.
 
 ### Add a changeset
@@ -1053,7 +1062,7 @@ To inspect the packages without publishing them:
 
 ```bash
 pnpm turbo run build
-pnpm --filter @stripe/link-cli --filter @stripe/link-sdk --filter @stripe/link-integrations-better-auth --filter @stripe/link-integrations-eve publish --dry-run --no-git-checks
+pnpm --filter @stripe/link-cli --filter @stripe/link-sdk --filter @stripe/link-integrations-better-auth --filter @stripe/link-integrations-eve --filter @stripe/link-integrations-mastra --filter @stripe/agent-identity publish --dry-run --no-git-checks
 ```
 
 CI runs the same publish dry-run for every pull request.

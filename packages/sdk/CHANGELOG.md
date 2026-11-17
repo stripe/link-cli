@@ -1,5 +1,21 @@
 # @stripe/link-sdk
 
+## 3.1.0
+
+### Minor Changes
+
+- ea1d9d1: Restore the optional `eligible_for_balance` boolean in user info, reverting its removal in #494. The TypeScript SDK and CLI preserve both `true` and `false` and leave the field absent when the API omits it. CLI terminal output again displays balance eligibility when present.
+  
+  Restore balance-eligibility guidance in the Eve integration's payment skill.
+
+## 3.0.0
+
+### Major Changes
+
+- ae48c5e: Remove the deprecated `exp_month` and `exp_year` fields from saved payment-method `CardDetails`. Consumers should use `brand` and `last4` to identify saved cards. Additional API fields continue to pass through at runtime.
+  
+  SpendRequest `card` credentials retain `exp_month` and `exp_year` for checkout.
+
 ## 2.2.0
 
 ### Minor Changes
