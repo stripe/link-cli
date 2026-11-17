@@ -55,7 +55,7 @@ export const payOptions = z.object({
     .boolean()
     .default(false)
     .describe(
-      'Use approval policy through the delegated approval flow (beta, available only to select OAuth clients)',
+      'Use approval policy through the delegated approval flow (requires your own Link OAuth client ID)',
     ),
 });
 
