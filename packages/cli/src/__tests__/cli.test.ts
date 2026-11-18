@@ -4,6 +4,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import type { NextActionType } from '@stripe/link-sdk';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Storage } from '../auth/storage';
 
@@ -2093,14 +2094,34 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         expires_at: '2026-11-05T12:00:00Z',
       };
 
-      it.each(['requires_action', 'failed'])(
-        'projects only the %s action through the authenticated GET',
-        async (status) => {
+      it.each(
+        (
+          [
+            'partner_auth_challenge',
+            'credit_file_match_ca',
+            'rfc_verification_mx',
+            'doc_upload_ca',
+          ] satisfies readonly NextActionType[]
+        ).flatMap((type) =>
+          ['requires_action', 'failed'].map((status) => ({ type, status })),
+        ),
+      )(
+        'projects $type from $status through the authenticated GET',
+        async ({ type, status }) => {
+          const projectedAction = {
+            ...nextAction,
+            type,
+            resolution:
+              type === 'partner_auth_challenge'
+                ? 'auto_resume'
+                : 'create_new_spend_request_after_completion',
+            action_url: `https://app.link.com/finish_setup?verify=${type}&nonce=a%2Bb&callback=%2Fdone#step`,
+          };
           setNextResponse(200, {
             ...BASE_REQUEST,
             status,
             status_details: {
-              [status]: { code: 'verification', next_action: nextAction },
+              [status]: { code: 'verification', next_action: projectedAction },
             },
             shared_payment_token: { id: 'secret-token' },
             card: {
@@ -2121,15 +2142,18 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
           );
           expect(result.exitCode).toBe(0);
           expect(parseJson(result.stdout)).toEqual([
-            { next_action: nextAction },
+            { next_action: projectedAction },
           ]);
+          expect(result.stdout).not.toContain('secret-token');
+          expect(result.stdout).not.toContain('card_secret');
+          expect(result.stdout).not.toContain('4000009990001984');
           expect(requests).toHaveLength(1);
           expect(lastRequest.method).toBe('GET');
           expect(lastRequest.url).toBe(`/spend_requests/${BASE_REQUEST.id}`);
           expect(lastRequest.headers.authorization).toBe(
             `Bearer ${PROD_AUTH_TOKENS.access_token}`,
           );
-          expect(result.stderr).not.toContain(nextAction.action_url);
+          expect(result.stderr).not.toContain(projectedAction.action_url);
         },
       );
 
@@ -4254,6 +4278,11 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         status: 'doc_upload_ca',
         action_url: 'https://example.com/verify/document',
       },
+      {
+        status: 'rfc_verification_mx',
+        action_url:
+          'https://app.link.com/finish_setup?verify=rfc_verification_mx&intended_email=test%40example.com&nonce=a%2Bb#rfc',
+      },
       { status: 'pending', action_url: null },
     ])('passes through $status in user-info JSON', async (stepUp) => {
       setResponseForUrl('/userinfo', 200, {
@@ -4270,6 +4299,10 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       expect(result.exitCode).toBe(0);
       const output = parseJson(result.stdout) as Record<string, unknown>;
       expect(output.agent_wallet_verification_requirement).toEqual(stepUp);
+      expect(output).not.toHaveProperty('agent_wallet_step_up');
+      expect(result.stderr).not.toContain(
+        stepUp.action_url ?? 'rfc_verification_mx',
+      );
       const userInfoRequest = requests.find((r) => r.url === '/userinfo');
       expect(userInfoRequest?.headers.authorization).toBe(
         `Bearer ${ENV_TOKEN}`,

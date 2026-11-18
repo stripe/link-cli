@@ -23,6 +23,7 @@ const agentWalletVerificationRequirementSchema = z.object({
     'not_required',
     'ssn_verification',
     'credit_file_match_ca',
+    'rfc_verification_mx',
     'identity_verification',
     'doc_upload_ca',
     'pending',

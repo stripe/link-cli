@@ -61,6 +61,9 @@ export type SpendRequestStatus =
 
 export type NextActionType =
   | 'ssn_verification'
+  | 'credit_file_match_ca'
+  | 'rfc_verification_mx'
+  | 'doc_upload_ca'
   | 'identity_verification'
   | 'contact_support'
   | 'select_payment_method'
@@ -205,6 +208,7 @@ export type AgentWalletVerificationStatus =
   | 'not_required'
   | 'ssn_verification'
   | 'credit_file_match_ca'
+  | 'rfc_verification_mx'
   | 'identity_verification'
   | 'doc_upload_ca'
   | 'pending'

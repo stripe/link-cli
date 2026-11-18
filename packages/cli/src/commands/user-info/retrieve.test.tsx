@@ -149,12 +149,21 @@ describe('user-info retrieve component', () => {
       status: 'doc_upload_ca',
       action_url: 'https://example.com/verify/document',
     },
+    {
+      status: 'rfc_verification_mx',
+      action_url:
+        'https://app.link.com/finish_setup?verify=rfc_verification_mx&nonce=a%2Bb#rfc',
+    },
     { status: 'pending', action_url: null },
     {
       status: 'contact_support',
       action_url: 'https://example.com/support',
     },
     { status: 'complete', action_url: null },
+    {
+      status: 'identity_verification',
+      action_url: 'https://app.link.com/finish_setup?regional_verification=au',
+    },
   ] satisfies {
     status: AgentWalletVerificationStatus;
     action_url: string | null;
