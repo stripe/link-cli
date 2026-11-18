@@ -1,5 +1,12 @@
 # @stripe/link-cli
 
+## 1.6.1
+
+### Patch Changes
+
+- f1a1b64: Add a `link-balance` skill for paying with Link balance and using an approval policy to make purchases below the user's approval threshold without asking each time, for delayed, scheduled, unattended, or proactive purchases. Update the `create-payment-credential` and `link-cli` skills to point agents to it. Agents check `eligible_for_balance` from `user-info retrieve` before offering Link balance setup. Update the `--use-approval-policy` help text to say it requires your own Link OAuth client ID.
+- 5be4275: Fix Mexican RFC verification status parsing and complete regional step-up action types. Preserve existing server-provided verification actions and URLs.
+
 ## 1.6.0
 
 ### Minor Changes

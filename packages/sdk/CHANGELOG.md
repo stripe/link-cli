@@ -1,5 +1,11 @@
 # @stripe/link-sdk
 
+## 3.2.1
+
+### Patch Changes
+
+- 5be4275: Fix Mexican RFC verification status parsing and complete regional step-up action types. Preserve existing server-provided verification actions and URLs.
+
 ## 3.2.0
 
 ### Minor Changes
