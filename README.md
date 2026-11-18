@@ -158,9 +158,10 @@ OAuth app; an absent field does not establish eligibility or ineligibility.
 Finite spend-limit values are cents because this response does not include a
 currency. A null limit or remaining amount means unlimited.
 `agent_wallet_verification_requirement.status` can be
-`not_required`, `ssn_verification`, `credit_file_match_ca`,
+`not_required`, `ssn_verification`, `credit_file_match_ca`, `rfc_verification_mx`,
 `identity_verification`, `doc_upload_ca`, `pending`, `contact_support`, or
-`complete`. Its `action_url` is null when no user action is available.
+`complete`. Its `action_url` is null when no user action is available. When
+present, the action URL is server-owned and should be used unchanged.
 
 ### Retrieve approval policy
 

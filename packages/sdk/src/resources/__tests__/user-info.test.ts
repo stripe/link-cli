@@ -144,19 +144,43 @@ describe('UserInfoResource', () => {
       status: 'doc_upload_ca',
       action_url: 'https://example.com/verify/document',
     },
+    {
+      status: 'rfc_verification_mx',
+      action_url:
+        'https://app.link.com/finish_setup?verify=rfc_verification_mx&intended_email=test%40example.com&nonce=a%2Bb#rfc',
+    },
     { status: 'pending', action_url: null },
     {
       status: 'contact_support',
       action_url: 'https://example.com/support',
     },
     { status: 'complete', action_url: null },
+    ...['jp', 'sg', 'au', 'gb'].map((country) => ({
+      status: 'identity_verification',
+      action_url: `https://app.link.com/finish_setup?verify=identity_verification&regional_verification=${country}&nonce=a%2Bb#identity`,
+    })),
   ])(
     'maps Agent Wallet status $status without changing its URL',
     async (stepUp) => {
-      mockFetchResponse(200, { agent_wallet_step_up: stepUp });
+      const limits = {
+        per_transaction: { limit: null },
+        daily: { limit: null, used: 0, remaining: null },
+        thirty_day: { limit: null, used: 123, remaining: null },
+      };
+      mockFetchResponse(200, {
+        id: 'link_user_fixture',
+        email: 'test@example.com',
+        address: { country: 'MX' },
+        agent_wallet_spend_limits: limits,
+        agent_wallet_step_up: stepUp,
+      });
 
       const result = await resource.retrieve();
 
+      expect(result.id).toBe('link_user_fixture');
+      expect(result.email).toBe('test@example.com');
+      expect(result.address).toEqual({ country: 'MX' });
+      expect(result.agent_wallet_spend_limits).toEqual(limits);
       expect(result.agent_wallet_verification_requirement).toEqual(stepUp);
       expect(result).not.toHaveProperty('agent_wallet_step_up');
     },

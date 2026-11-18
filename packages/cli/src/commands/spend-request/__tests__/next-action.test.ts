@@ -1,4 +1,9 @@
-import { Link, type NextAction, type SpendRequest } from '@stripe/link-sdk';
+import {
+  Link,
+  type NextAction,
+  type NextActionType,
+  type SpendRequest,
+} from '@stripe/link-sdk';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Storage } from '../../../auth/storage';
 import { ResourceFactory } from '../../../utils/resource-factory';
@@ -131,6 +136,67 @@ describe('next action projection', () => {
 });
 
 describe('next action snapshot command', () => {
+  const regionalTypes = [
+    'credit_file_match_ca',
+    'rfc_verification_mx',
+    'doc_upload_ca',
+  ] satisfies readonly NextActionType[];
+  const verificationActions = [
+    ...regionalTypes.map(
+      (type): NextAction => ({
+        ...action,
+        type,
+        resolution: 'create_new_spend_request_after_completion',
+        action_url: `https://app.link.com/finish_setup?verify=${type}&nonce=a%2Bb#regional`,
+      }),
+    ),
+    ...['jp', 'sg', 'au', 'gb'].map(
+      (country): NextAction => ({
+        ...action,
+        type: 'identity_verification',
+        resolution: 'create_new_spend_request_after_completion',
+        action_url: `https://app.link.com/finish_setup?verify=identity_verification&regional_verification=${country}&nonce=a%2Bb#identity`,
+      }),
+    ),
+    {
+      ...action,
+      type: null,
+      action_url: null,
+      display_message: 'Waiting for verification',
+    },
+  ] satisfies NextAction[];
+
+  it.each(
+    verificationActions.flatMap((next_action) =>
+      (['failed', 'requires_action'] as const).map((status) => ({
+        status,
+        next_action,
+      })),
+    ),
+  )(
+    'preserves verification action $next_action.type from $status',
+    async ({ status, next_action }) => {
+      const { run, fetch, retrieve } = fixture({
+        ...base,
+        status,
+        status_details: { [status]: { code: 'verification', next_action } },
+        shared_payment_token: { id: 'secret-token' },
+      });
+      const result = await run();
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual([{ next_action }]);
+      expect(retrieve).toHaveBeenCalledExactlyOnceWith(base.id);
+      expect(fetch).toHaveBeenCalledOnce();
+      expect(String(fetch.mock.calls[0]?.[0])).toBe(
+        `https://api.link.com/spend_requests/${base.id}`,
+      );
+      expect(fetch.mock.calls[0]?.[1]?.method).toBe('GET');
+      expect(
+        new Headers(fetch.mock.calls[0]?.[1]?.headers).get('Authorization'),
+      ).toBe('Bearer test-token');
+    },
+  );
+
   it.each(
     (
       [
