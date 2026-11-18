@@ -5105,6 +5105,18 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
           'sneakers',
           '--brand',
           'Acme',
+          '--condition',
+          'new',
+          '--condition',
+          'used',
+          '--sort',
+          'price_desc',
+          '--price-min',
+          '0',
+          '--currency',
+          'usd',
+          '--include-facets',
+          '--test',
           '--limit',
           '5',
           '--json',
@@ -5113,8 +5125,20 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         expect(result.exitCode).toBe(0);
         expect(lastRequest.method).toBe('GET');
         expect(lastRequest.url).toContain('/ucp/catalog/search');
-        expect(lastRequest.url).toContain('query=sneakers');
+        const parsed = new URL(lastRequest.url, 'http://localhost');
+        expect(parsed.searchParams.get('query')).toBe('sneakers');
         expect(lastRequest.url).toContain('brand%5B%5D=Acme');
+        expect(parsed.searchParams.getAll('condition[]')).toEqual([
+          'new',
+          'used',
+        ]);
+        expect(parsed.searchParams.get('sort')).toBe('price_desc');
+        expect(parsed.searchParams.get('price_min')).toBe('0');
+        expect(parsed.searchParams.get('currency')).toBe('usd');
+        expect(parsed.searchParams.get('include_facets')).toBe('true');
+        expect(parsed.searchParams.get('test')).toBe('true');
+        expect(parsed.searchParams.get('offset')).toBe('0');
+        expect(parsed.searchParams.get('limit')).toBe('5');
         expect(lastRequest.headers.authorization).toBe(
           'Bearer prod_test_access_token',
         );
@@ -5122,6 +5146,22 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         const output = parseJson(result.stdout) as Record<string, unknown>;
         const data = output.data as Record<string, unknown>[];
         expect(data[0].sku_id).toBe('sku_1');
+
+        storage.clearAll();
+        const denied = await runProdCliWithEnv(
+          { LINK_ACCESS_TOKEN: '' },
+          'ucp',
+          'catalog',
+          'search',
+          '--query',
+          'sneakers',
+          '--json',
+        );
+        expect(denied.exitCode).toBe(1);
+        expect(parseJson(denied.stdout)).toMatchObject({
+          code: 'NOT_AUTHENTICATED',
+        });
+        expect(requests).toHaveLength(1);
       });
 
       it('maps --business to the business search parameter', async () => {
@@ -5168,15 +5208,24 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         expect(lastRequest.url).toContain('sku=sku_1');
       });
 
-      it('rejects the removed --sku search option', async () => {
+      it.each([
+        ['--sku', 'sku_1'],
+        ['--material', 'cotton'],
+        ['--gender', 'unisex'],
+        ['--availability', 'in_stock'],
+        ['--group-by', 'merchant'],
+        ['--sort', 'rating_desc'],
+        ['--sort', 'unknown'],
+        ['--condition', 'unknown'],
+      ])('rejects unsupported %s without a request', async (option, value) => {
         const result = await runProdCli(
           'ucp',
           'catalog',
           'search',
           '--query',
           'sneakers',
-          '--sku',
-          'sku_1',
+          option,
+          value,
           '--json',
         );
 
@@ -5216,13 +5265,31 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         expect(output.code).toBe('VALIDATION_ERROR');
       });
 
-      it('errors when no query is provided', async () => {
-        const result = await runProdCli('ucp', 'catalog', 'search', '--json');
+      it('rejects missing queries and prices without currency', async () => {
+        const missing = await runProdCli('ucp', 'catalog', 'search', '--json');
+        expect(missing.exitCode).toBe(1);
+        expect(parseJson(missing.stdout)).toMatchObject({
+          code: 'VALIDATION_ERROR',
+        });
 
-        expect(result.exitCode).toBe(1);
+        for (const option of ['--price-min', '--price-max']) {
+          const result = await runProdCli(
+            'ucp',
+            'catalog',
+            'search',
+            '--query',
+            'shoes',
+            option,
+            '0',
+            '--json',
+          );
+          expect(result.exitCode).toBe(1);
+          expect(parseJson(result.stdout)).toMatchObject({
+            code: 'INVALID_INPUT',
+            message: '--currency is required with --price-min or --price-max',
+          });
+        }
         expect(requests).toHaveLength(0);
-        const output = parseJson(result.stdout) as Record<string, unknown>;
-        expect(output.code).toBe('VALIDATION_ERROR');
       });
     });
 

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { SearchUcpCatalogParams } from '@/resources/interfaces';
 import { UcpResource } from '@/resources/ucp';
 
 const mockFetch = vi.fn();
@@ -43,7 +44,17 @@ describe('UcpResource', () => {
         query: 'sneakers',
         business: 'np_1',
         brand: ['acme', 'beta'],
+        category: ['shoes'],
+        color: ['blue'],
+        size: ['10'],
+        sku: 'sku_1',
+        condition: ['new', 'used', 'refurbished'],
+        sort: 'price_asc',
+        price_min: 0,
+        price_max: 5000,
+        currency: 'usd',
         limit: 5,
+        offset: 2,
         include_facets: true,
         test: true,
       });
@@ -56,6 +67,20 @@ describe('UcpResource', () => {
       expect(parsed.searchParams.get('business')).toBe('np_1');
       expect(parsed.searchParams.has('profile_id')).toBe(false);
       expect(parsed.searchParams.getAll('brand[]')).toEqual(['acme', 'beta']);
+      expect(parsed.searchParams.getAll('category[]')).toEqual(['shoes']);
+      expect(parsed.searchParams.getAll('color[]')).toEqual(['blue']);
+      expect(parsed.searchParams.getAll('size[]')).toEqual(['10']);
+      expect(parsed.searchParams.get('sku')).toBe('sku_1');
+      expect(parsed.searchParams.getAll('condition[]')).toEqual([
+        'new',
+        'used',
+        'refurbished',
+      ]);
+      expect(parsed.searchParams.get('sort')).toBe('price_asc');
+      expect(parsed.searchParams.get('price_min')).toBe('0');
+      expect(parsed.searchParams.get('price_max')).toBe('5000');
+      expect(parsed.searchParams.get('currency')).toBe('usd');
+      expect(parsed.searchParams.get('offset')).toBe('2');
       expect(parsed.searchParams.get('limit')).toBe('5');
       expect(parsed.searchParams.get('include_facets')).toBe('true');
       expect(parsed.searchParams.get('test')).toBe('true');
@@ -74,7 +99,25 @@ describe('UcpResource', () => {
       expect(result.data).toEqual([]);
     });
 
-    it('throws a LinkApiError with the server message on non-2xx', async () => {
+    it('rejects invalid inputs before auth and preserves server errors', async () => {
+      for (const inputs of [
+        { sort: 'rating_desc' },
+        { sort: 'unknown' },
+        { condition: ['unknown'] },
+        { price_min: 0 },
+        { price_max: 0 },
+        { currency: 'USD' },
+      ]) {
+        await expect(
+          repo.searchCatalog({
+            query: 'x',
+            ...inputs,
+          } as SearchUcpCatalogParams),
+        ).rejects.toMatchObject({ code: 'invalid_input' });
+      }
+      expect(getAccessToken).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
+
       mockFetchResponse(400, {
         error: {
           code: 'parameter_invalid_empty',

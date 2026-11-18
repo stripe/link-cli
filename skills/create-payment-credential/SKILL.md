@@ -484,6 +484,8 @@ The Universal Commerce Protocol (UCP) commands let you shop a business's catalog
 
 Catalog search supports `--test` for synthetic search results. Checkout commands use the UCP API and do not accept `--test`; their currency is determined by the seller.
 
+Use free-text queries to describe products. The `--id` exact-SKU filter is supported with the required query. Search filters include business, ID, brand, category, color, size, and condition (`new`, `used`, or `refurbished`). Sort accepts `relevance`, `price_asc`, or `price_desc`. Price bounds, including zero, require a supported lowercase `--currency` code and use currency-specific minor units.
+
 Steps:
 
 1. **Search the catalog** for the product and capture its `sku` (and the business — returned on each product as `profile_id`, which you pass to `--business` in the next step). `--query` is always required; filters such as `--brand`, `--category`, and `--business` can narrow the results.

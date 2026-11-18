@@ -58,6 +58,16 @@ export function createUcpCli(
         });
       }
 
+      if (
+        (opts.priceMin !== undefined || opts.priceMax !== undefined) &&
+        !opts.currency
+      ) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message: '--currency is required with --price-min or --price-max',
+        });
+      }
+
       const params: SearchUcpCatalogParams = {
         query: opts.query,
         business: opts.business,
@@ -66,15 +76,11 @@ export function createUcpCli(
         category: opts.category.length ? opts.category : undefined,
         color: opts.color.length ? opts.color : undefined,
         size: opts.size.length ? opts.size : undefined,
-        material: opts.material.length ? opts.material : undefined,
-        gender: opts.gender.length ? opts.gender : undefined,
         condition: opts.condition.length ? opts.condition : undefined,
         price_min: opts.priceMin,
         price_max: opts.priceMax,
         currency: opts.currency,
-        availability: opts.availability,
         sort: opts.sort,
-        group_by: opts.groupBy,
         limit: opts.limit,
         offset: opts.offset,
         include_facets: opts.includeFacets || undefined,

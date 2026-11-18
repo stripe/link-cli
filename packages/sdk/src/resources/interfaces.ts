@@ -326,15 +326,14 @@ export interface SearchUcpCatalogParams {
   category?: string[];
   color?: string[];
   size?: string[];
-  material?: string[];
-  gender?: string[];
-  condition?: string[];
+  condition?: Array<'new' | 'used' | 'refurbished'>;
+  /** Minimum price in currency-specific minor units; requires currency. */
   price_min?: number;
+  /** Maximum price in currency-specific minor units; requires currency. */
   price_max?: number;
+  /** Supported lowercase three-letter currency code, e.g. usd. */
   currency?: string;
-  availability?: string;
-  sort?: string;
-  group_by?: string;
+  sort?: 'relevance' | 'price_asc' | 'price_desc';
   limit?: number;
   offset?: number;
   include_facets?: boolean;
