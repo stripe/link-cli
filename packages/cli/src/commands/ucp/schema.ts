@@ -24,39 +24,33 @@ export const catalogSearchOptions = z.object({
     .default([])
     .describe('Filter by color (repeatable)'),
   size: z.array(z.string()).default([]).describe('Filter by size (repeatable)'),
-  material: z
-    .array(z.string())
-    .default([])
-    .describe('Filter by material (repeatable)'),
-  gender: z
-    .array(z.string())
-    .default([])
-    .describe('Filter by gender (repeatable)'),
   condition: z
-    .array(z.string())
+    .array(z.enum(['new', 'used', 'refurbished']))
     .default([])
-    .describe('Filter by condition (repeatable)'),
+    .describe('Filter by condition: new, used, or refurbished (repeatable)'),
   priceMin: z.coerce
     .number()
     .int()
     .optional()
-    .describe('Minimum price in cents'),
+    .describe(
+      'Minimum price in currency-specific minor units (requires currency)',
+    ),
   priceMax: z.coerce
     .number()
     .int()
     .optional()
-    .describe('Maximum price in cents'),
+    .describe(
+      'Maximum price in currency-specific minor units (requires currency)',
+    ),
   currency: z
     .string()
-    .length(3)
+    .regex(/^[a-z]{3}$/)
     .optional()
-    .describe('Three-letter ISO currency code'),
-  availability: z
-    .string()
+    .describe('Supported lowercase three-letter currency code (e.g. usd)'),
+  sort: z
+    .enum(['relevance', 'price_asc', 'price_desc'])
     .optional()
-    .describe('Filter by availability (e.g. in_stock)'),
-  sort: z.string().optional().describe('Sort order'),
-  groupBy: z.string().optional().describe('Group results by a field'),
+    .describe('Sort order'),
   limit: z.coerce
     .number()
     .int()

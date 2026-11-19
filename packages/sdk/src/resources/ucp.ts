@@ -3,7 +3,7 @@ import {
   requireFetchImplementation,
   resolveLinkSdkConfig,
 } from '@/config';
-import { LinkApiError, LinkTransportError } from '@/errors';
+import { LinkApiError, LinkSdkError, LinkTransportError } from '@/errors';
 import type {
   AccessTokenProvider,
   CancelUcpCheckoutParams,
@@ -149,9 +149,7 @@ export class UcpResource implements IUcpResource {
     setIf('price_min', params.price_min);
     setIf('price_max', params.price_max);
     setIf('currency', params.currency);
-    setIf('availability', params.availability);
     setIf('sort', params.sort);
-    setIf('group_by', params.group_by);
     setIf('limit', params.limit);
     setIf('offset', params.offset);
     if (params.include_facets) url.searchParams.set('include_facets', 'true');
@@ -161,8 +159,6 @@ export class UcpResource implements IUcpResource {
       ['category', params.category],
       ['color', params.color],
       ['size', params.size],
-      ['material', params.material],
-      ['gender', params.gender],
       ['condition', params.condition],
     ];
     for (const [key, values] of arrays) {
@@ -177,6 +173,43 @@ export class UcpResource implements IUcpResource {
   async searchCatalog(
     params: SearchUcpCatalogParams,
   ): Promise<UcpSearchResult> {
+    if (
+      params.sort !== undefined &&
+      !['relevance', 'price_asc', 'price_desc'].includes(params.sort)
+    ) {
+      throw new LinkSdkError(
+        'sort must be relevance, price_asc, or price_desc',
+        { code: 'invalid_input' },
+      );
+    }
+    if (
+      params.condition !== undefined &&
+      (!Array.isArray(params.condition) ||
+        params.condition.some(
+          (value) => !['new', 'used', 'refurbished'].includes(value),
+        ))
+    ) {
+      throw new LinkSdkError('condition must be new, used, or refurbished', {
+        code: 'invalid_input',
+      });
+    }
+    if (
+      (params.price_min !== undefined || params.price_max !== undefined) &&
+      !params.currency
+    ) {
+      throw new LinkSdkError(
+        'currency is required with price_min or price_max',
+        {
+          code: 'invalid_input',
+        },
+      );
+    }
+    if (params.currency !== undefined && !/^[a-z]{3}$/.test(params.currency)) {
+      throw new LinkSdkError('currency must be a lowercase three-letter code', {
+        code: 'invalid_input',
+      });
+    }
+
     const { status, data, rawBody } = await this.apiFetch({
       method: 'GET',
       url: this.buildSearchUrl(params),

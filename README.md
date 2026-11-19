@@ -788,6 +788,8 @@ link-cli ucp checkout create --business <business> \
   --format json
 ```
 
+Catalog search requires a free-text query. Use `--id` for an exact SKU filter alongside the required query. Supported filters are `--business`, `--id`, `--brand`, `--category`, `--color`, `--size`, and `--condition` (`new`, `used`, or `refurbished`). Sort accepts `relevance`, `price_asc`, or `price_desc`. Price bounds (`--price-min` and `--price-max`, including zero) require `--currency`, a supported lowercase code such as `usd`; amounts use the currency's minor units (cents for USD, yen for JPY).
+
 `--line-item` is repeatable; `quantity` defaults to 1. All buyer fields are optional (`first_name`, `last_name`, `email`, `phone_number`). `--fulfillment` accepts the entire UCP JSON object; `--fullfilment` is an alternate spelling. Omit buyer to use saved Link buyer details during creation. Omitted fulfillment uses a complete saved default shipping address when available; a saved address that is not marked as default is not selected automatically. The seller determines the checkout currency.
 
 Review the returned `messages`, `totals`, and fulfillment choices. Update the checkout as needed.
