@@ -1,6 +1,6 @@
 ---
-"@stripe/link-sdk": major
-"@stripe/link-cli": major
+"@stripe/link-sdk": minor
+"@stripe/link-cli": minor
 ---
 
 Update the supported catalog-search options in the CLI and TypeScript SDK.
