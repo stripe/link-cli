@@ -177,6 +177,8 @@ elif request.status == "requires_action":
     if details is None or details.requires_action is None:
         raise RuntimeError("Missing action instructions")
     action = details.requires_action.next_action
+    if action is None:
+        raise RuntimeError("Missing action instructions")
     if action.resolution == "auto_resume":
         # Schedule a later retrieve of this same request.
         pass
