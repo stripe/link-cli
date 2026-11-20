@@ -5,7 +5,7 @@ import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback } from 'react';
 import { useAsyncAction } from '../../hooks/use-async-action';
-import { formatAmount } from '../../utils/format-amount';
+import { formatLinkAmount } from '../../utils/format-amount';
 
 interface ApprovalPolicyRetrieveProps {
   resource: IApprovalPolicyResource;
@@ -55,7 +55,7 @@ export const ApprovalPolicyRetrieve: React.FC<ApprovalPolicyRetrieveProps> = ({
           </Text>
           <Text>
             <Text dimColor>Per-purchase limit: </Text>
-            {formatAmount(
+            {formatLinkAmount(
               rule.limits.per_purchase.amount,
               rule.limits.per_purchase.currency,
             )}

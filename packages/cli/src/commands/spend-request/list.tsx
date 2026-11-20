@@ -4,7 +4,7 @@ import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback } from 'react';
 import { useAsyncAction } from '../../hooks/use-async-action';
-import { formatAmount } from '../../utils/format-amount';
+import { formatLinkAmount } from '../../utils/format-amount';
 import { formatRecurring } from '../../utils/format-recurring';
 
 interface SpendRequestListProps {
@@ -82,7 +82,9 @@ export const SpendRequestList: React.FC<SpendRequestListProps> = ({
                 ? 'yellow'
                 : 'white';
           const amount =
-            sr.amount != null ? formatAmount(sr.amount, sr.currency ?? '') : '';
+            sr.amount != null
+              ? formatLinkAmount(sr.amount, sr.currency ?? '')
+              : '';
           return (
             <Box key={sr.id} paddingX={2}>
               <Text>
