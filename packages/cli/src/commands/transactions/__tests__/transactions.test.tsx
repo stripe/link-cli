@@ -143,4 +143,63 @@ describe('transactions list component', () => {
       expect(frame).not.toContain('--starting-after');
     });
   });
+
+  it('preserves the baseline transaction frame byte-for-byte when details are omitted', async () => {
+    const { lastFrame } = render(
+      <TransactionsList
+        resource={makeResource({ data: [transaction()], has_more: false })}
+        onComplete={() => {}}
+      />,
+    );
+    await vi.waitFor(() =>
+      expect(lastFrame()).toBe(
+        'Transactions\n\n  Date               Amount  Status      Category          Description\n  ------------------------------------------------------------------------------------------------\n  2026-06-08         -$9.79  succeeded   credit_card_p...  Chase\n\nhas_more: false',
+      ),
+    );
+  });
+
+  it.each([
+    [
+      {
+        type: 'reinvest',
+        quantity_decimal: '0.1000000001',
+        unit_price: 1234,
+        fees: 7,
+      },
+      'Investment: reinvest | Quantity: 0.1000000001 | Unit price: $12.34 | Fees: $0.07',
+    ],
+    [
+      { type: 'buy' },
+      'Investment: buy | Quantity: unknown | Unit price: unknown | Fees: unknown',
+    ],
+    [
+      { type: null, quantity_decimal: null, unit_price: null, fees: null },
+      'Investment: unknown | Quantity: unknown | Unit price: unknown | Fees: unknown',
+    ],
+    [null, 'Investment: unknown'],
+  ])(
+    'shows sparse investment details without numeric quantity conversion: %j',
+    async (investment_details, expected) => {
+      Object.defineProperty(process.stdout, 'columns', {
+        configurable: true,
+        value: 160,
+      });
+      try {
+        const { lastFrame } = render(
+          <TransactionsList
+            resource={makeResource({
+              data: [transaction({ investment_details })],
+            })}
+            onComplete={() => {}}
+          />,
+        );
+        await vi.waitFor(() => expect(lastFrame()).toContain(expected));
+      } finally {
+        Object.defineProperty(process.stdout, 'columns', {
+          configurable: true,
+          value: undefined,
+        });
+      }
+    },
+  );
 });

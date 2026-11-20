@@ -157,4 +157,54 @@ describe('sources list component', () => {
       expect(frame).toContain('--starting-after csmrpd_2');
     });
   });
+
+  it('preserves the baseline source frame byte-for-byte when category fields are omitted', async () => {
+    setTerminalWidth(100);
+    const resource = makeResource({
+      data: [
+        {
+          id: 'csmrpd_1',
+          name: 'Checking 1234',
+          type: 'bank_account',
+          capabilities: { balances: { status: 'eligible' } },
+          external_connection: { status: 'active' },
+        },
+      ],
+      has_more: false,
+    });
+    const { lastFrame } = render(
+      <SourcesList resource={resource} onComplete={() => {}} />,
+    );
+    await vi.waitFor(() =>
+      expect(lastFrame()).toBe(
+        'Sources\n\n  Name                   Type            ID                       Capabilities     External con...\n  ------------------------------------------------------------------------------------------------\n  Checking 1234          bank_account    csmrpd_1                 balances:eli...  active\n\nhas_more: false',
+      ),
+    );
+  });
+
+  it.each([
+    [
+      { category: 'investment', subcategory: 'brokerage' },
+      'Category: investment | Subcategory: brokerage',
+    ],
+    [
+      { category: null, subcategory: null },
+      'Category: unknown | Subcategory: unknown',
+    ],
+    [{ category: 'investment' }, 'Category: investment | Subcategory: -'],
+  ])(
+    'renders supplied source categories without inventing missing values: %j',
+    async (metadata, expected) => {
+      setTerminalWidth(120);
+      const { lastFrame } = render(
+        <SourcesList
+          resource={makeResource({
+            data: [{ id: 'csmrpd_1', name: 'Brokerage', ...metadata }],
+          })}
+          onComplete={() => {}}
+        />,
+      );
+      await vi.waitFor(() => expect(lastFrame()).toContain(expected));
+    },
+  );
 });

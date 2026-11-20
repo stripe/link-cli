@@ -133,6 +133,12 @@ Before merge, recheck inventory/producers and update the pinned fixture tests;
 follow the [evaluation and transition guide](packages/cli/src/commands/spend-request/SIMULATION.md).
 Update README, payment skill, schema descriptions, and this guide together.
 
+### Investment financial data
+
+- `sources list --category <category>` passes a plain string to the API; account category/subcategory are distinct from source type. Old responses without this metadata keep their existing table output.
+- Investment balances label `current` as portfolio value, separately from `investment.available_cash` and `investment.margin`. Null means unknown; omitted fields do not gain zero values. Transaction `investment_details.quantity_decimal` remains exact text, with nullable/optional activity, quantity, price, and fees.
+- Financial data is read-only snapshot data, not live quotes or financial advice. Maintain the financial-insights skill and its Eve/Mastra mirrors; native tools gain response metadata but no category parameter or holdings/tax-lots tools.
+
 ### auth login
 
 - `read_holdings` is included in the financial-insights bundle for ordinary new logins and explicit `--financial-insights`. Explicit bundle selection merges and deduplicates `--source-actions`; without that selection, explicit actions or raw authorization details replace the implicit bundle. `--no-financial-insights` opts out. Existing tokens without holdings require `auth upgrade --source-actions read_holdings` and user approval before session replacement; permission remediation never starts an upgrade automatically. Coordinate CLI release with backend `read_holdings` parsing and consent readiness.

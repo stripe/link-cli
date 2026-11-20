@@ -1,6 +1,7 @@
 import type {
   ITransactionsResource,
   ListTransactionsParams,
+  Transaction,
   TransactionsPage,
 } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
@@ -45,6 +46,21 @@ function formatCell(
   return align === 'right'
     ? truncated.padStart(width)
     : truncated.padEnd(width);
+}
+
+function investmentLine(transaction: Transaction): string | null {
+  const details = transaction.investment_details;
+  if (details === undefined) return null;
+  if (details === null) return 'Investment: unknown';
+  const price =
+    details.unit_price == null
+      ? 'unknown'
+      : formatAmount(details.unit_price, transaction.currency);
+  const fees =
+    details.fees == null
+      ? 'unknown'
+      : formatAmount(details.fees, transaction.currency);
+  return `Investment: ${details.type ?? 'unknown'} | Quantity: ${details.quantity_decimal ?? 'unknown'} | Unit price: ${price} | Fees: ${fees}`;
 }
 
 export const TransactionsList: React.FC<TransactionsListProps> = ({
@@ -122,9 +138,15 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
       <Box flexDirection="column" marginTop={1} paddingX={2}>
         <Text bold>{headerRow}</Text>
         <Text dimColor>{separatorRow}</Text>
-        {rows.map((row, index) => (
-          <Text key={transactions[index].id}>{row}</Text>
-        ))}
+        {rows.map((row, index) => {
+          const details = investmentLine(transactions[index]);
+          return (
+            <Box key={transactions[index].id} flexDirection="column">
+              <Text>{row}</Text>
+              {details !== null ? <Text dimColor>{details}</Text> : null}
+            </Box>
+          );
+        })}
       </Box>
       {page?.has_more !== undefined ? (
         <Box flexDirection="column" marginTop={1}>

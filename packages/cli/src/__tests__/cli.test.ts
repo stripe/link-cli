@@ -3017,6 +3017,42 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
   });
 
   describe('transactions list', () => {
+    it('preserves full, sparse, unknown and omitted investment details in one complete JSON page', async () => {
+      const page = {
+        data: [
+          {
+            ...SAMPLE_TRANSACTION,
+            id: 'lbctxn_full',
+            investment_details: {
+              type: 'reinvest',
+              quantity_decimal: '0.1000000001',
+              unit_price: 1234,
+              fees: 7,
+            },
+          },
+          {
+            ...SAMPLE_TRANSACTION,
+            id: 'lbctxn_sparse',
+            investment_details: { type: 'buy' },
+          },
+          {
+            ...SAMPLE_TRANSACTION,
+            id: 'lbctxn_unknown',
+            investment_details: null,
+          },
+          { ...SAMPLE_TRANSACTION, id: 'lbctxn_old' },
+        ],
+        has_more: true,
+      };
+      setNextResponse(200, page);
+      const result = await runProdCli('transactions', 'list', '--json');
+      expect(result.exitCode).toBe(0);
+      expect(parseJson(result.stdout)).toEqual(page);
+      expect(
+        requests.filter((request) => request.url.startsWith('/transactions')),
+      ).toHaveLength(1);
+    });
+
     it('GETs the Link API endpoint with bearer auth', async () => {
       setResponseForUrl('/transactions', 200, {
         data: [SAMPLE_TRANSACTION],
@@ -3133,6 +3169,32 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
   };
 
   describe('sources list', () => {
+    it.each(['investment', 'future_category'])(
+      'passes through category %s and returns the complete page',
+      async (category) => {
+        const page = {
+          data: [{ ...SAMPLE_SOURCE, category, subcategory: null }],
+          has_more: true,
+        };
+        setNextResponse(200, page);
+        const result = await runProdCli(
+          'sources',
+          'list',
+          '--category',
+          category,
+          '--limit',
+          '1',
+          '--json',
+        );
+        expect(result.exitCode).toBe(0);
+        expect(lastRequest.url).toBe(`/sources?category=${category}&limit=1`);
+        expect(parseJson(result.stdout)).toEqual(page);
+        expect(
+          requests.filter((request) => request.url.startsWith('/sources')),
+        ).toHaveLength(1);
+      },
+    );
+
     it('GETs the Link API endpoint with bearer auth', async () => {
       setResponseForUrl('/sources', 200, {
         data: [SAMPLE_SOURCE],
@@ -3270,6 +3332,48 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
   };
 
   describe('balances list', () => {
+    it('returns distinct investment balances and unknown fields without collapsing null or omission in JSON', async () => {
+      const page = {
+        data: [
+          {
+            ...SAMPLE_BALANCE,
+            type: 'investment',
+            current: 100000,
+            investment: {
+              available_cash: { usd: 12000 },
+              margin: { usd: 30000 },
+            },
+          },
+          {
+            ...SAMPLE_BALANCE,
+            source_id: 'csmrpd_unknown',
+            type: 'investment',
+            investment: null,
+          },
+          {
+            ...SAMPLE_BALANCE,
+            source_id: 'csmrpd_sparse',
+            type: 'investment',
+            investment: { available_cash: null },
+          },
+          {
+            ...SAMPLE_BALANCE,
+            source_id: 'csmrpd_omitted',
+            type: 'investment',
+          },
+          { ...SAMPLE_BALANCE, source_id: 'csmrpd_future', type: 'loan' },
+        ],
+        has_more: true,
+      };
+      setNextResponse(200, page);
+      const result = await runProdCli('balances', 'list', '--json');
+      expect(result.exitCode).toBe(0);
+      expect(parseJson(result.stdout)).toEqual(page);
+      expect(
+        requests.filter((request) => request.url.startsWith('/balances')),
+      ).toHaveLength(1);
+    });
+
     it('GETs the Link API endpoint with bearer auth', async () => {
       setResponseForUrl('/balances', 200, {
         data: [SAMPLE_BALANCE],
