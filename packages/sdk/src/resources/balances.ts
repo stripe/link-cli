@@ -10,13 +10,20 @@ import type { BalancesPage } from '@/types/index';
 const currencyAmountsSchema = z.record(z.string(), z.number());
 const balanceSchema = z.looseObject({
   source_id: z.string(),
-  type: z.enum(['cash', 'credit']),
+  type: z.string(),
   cash: z
     .looseObject({ available: currencyAmountsSchema })
     .nullable()
     .optional(),
   credit: z
     .looseObject({ used: currencyAmountsSchema.nullable() })
+    .nullable()
+    .optional(),
+  investment: z
+    .looseObject({
+      available_cash: currencyAmountsSchema.nullable().optional(),
+      margin: currencyAmountsSchema.nullable().optional(),
+    })
     .nullable()
     .optional(),
   current: z.number(),

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getApiErrorDetails,
   LinkApiError,
   LinkConfigurationError,
   LinkSdkError,
@@ -45,5 +46,95 @@ describe('SDK error codes', () => {
     const cause = new Error('root');
     const err = new LinkTransportError('failed', { cause });
     expect(err.cause).toBe(cause);
+  });
+});
+
+describe('getApiErrorDetails', () => {
+  it('validates the nested server envelope without changing api_error', () => {
+    const details = {
+      code: 'missing_permissions',
+      message: 'Grant access',
+      authorization_remediation: {
+        scope: ['financial_insights.holdings.read'],
+        authorization_details: [{ type: 'source', actions: ['read_holdings'] }],
+      },
+    };
+    const error = new LinkApiError('Failed', {
+      status: 403,
+      details: { error: details },
+      rawBody: 'never returned',
+    });
+    expect(getApiErrorDetails(error)).toEqual(details);
+    expect(error.code).toBe('api_error');
+  });
+
+  it('preserves future server codes and code-only envelopes', () => {
+    const error = new LinkApiError('Failed', {
+      status: 409,
+      details: { error: { code: 'future_error', extra: 'ignored' } },
+    });
+    expect(getApiErrorDetails(error)).toEqual({ code: 'future_error' });
+  });
+
+  it('accepts null remediation', () => {
+    const error = new LinkApiError('Failed', {
+      status: 422,
+      details: {
+        error: {
+          code: 'holdings_not_supported',
+          authorization_remediation: null,
+        },
+      },
+    });
+    expect(getApiErrorDetails(error)).toEqual({
+      code: 'holdings_not_supported',
+      authorization_remediation: null,
+    });
+  });
+
+  it.each([
+    undefined,
+    null,
+    'not JSON',
+    {},
+    { code: 'missing_permissions' },
+    { error: 'failed' },
+    { error: { message: 'no code' } },
+    { error: { code: 1 } },
+    { error: { code: 'failure', message: 1 } },
+    {
+      error: {
+        code: 'missing_permissions',
+        authorization_remediation: { scope: 'not an array' },
+      },
+    },
+    {
+      error: {
+        code: 'missing_permissions',
+        authorization_remediation: {
+          authorization_details: [{ type: 'source', actions: [1] }],
+        },
+      },
+    },
+  ])(
+    'returns null for absent or malformed details without reading rawBody: %j',
+    (details) => {
+      expect(
+        getApiErrorDetails(
+          new LinkApiError('Failed', {
+            status: 500,
+            details,
+            rawBody: 'private payload',
+          }),
+        ),
+      ).toBeNull();
+    },
+  );
+
+  it('ignores other errors', () => {
+    expect(getApiErrorDetails(new Error('ordinary error'))).toBeNull();
+    expect(
+      getApiErrorDetails({ details: { error: { code: 'spoof' } } }),
+    ).toBeNull();
   });
 });

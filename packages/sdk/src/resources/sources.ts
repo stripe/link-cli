@@ -12,6 +12,8 @@ const nullableRecordSchema = z
   .nullable()
   .optional();
 const sourceSchema = z.looseObject({
+  category: z.string().nullable().optional(),
+  subcategory: z.string().nullable().optional(),
   id: z.string().nullable().optional(),
   name: z.string().nullable().optional(),
   type: z.string().nullable().optional(),
@@ -34,6 +36,9 @@ export class SourcesResource extends BaseResource implements ISourcesResource {
   private buildUrl(params: ListSourcesParams): string {
     const url = new URL(this.endpoint);
 
+    if (params.category !== undefined) {
+      url.searchParams.set('category', params.category);
+    }
     if (params.limit !== undefined) {
       url.searchParams.set('limit', String(params.limit));
     }

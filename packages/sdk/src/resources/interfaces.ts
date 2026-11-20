@@ -4,6 +4,7 @@ import type {
   AvailableInsightTypesPage,
   BalancesPage,
   CredentialType,
+  HoldingsPage,
   InsightsPage,
   LineItem,
   PaymentMethod,
@@ -12,6 +13,7 @@ import type {
   ShippingAddressRecord,
   SourcesPage,
   SpendRequest,
+  TaxLotsPage,
   Total,
   TransactionOrigin,
   TransactionsPage,
@@ -248,6 +250,7 @@ export interface IInsightsResource {
 }
 
 export interface ListSourcesParams {
+  category?: string;
   limit?: number;
   starting_after?: string;
   ending_before?: string;
@@ -266,6 +269,31 @@ export interface ListBalancesParams {
 
 export interface IBalancesResource {
   list(params?: ListBalancesParams): Promise<BalancesPage>;
+}
+
+export interface ListHoldingsParams {
+  source: string;
+  limit?: number;
+  starting_after?: string;
+  ending_before?: string;
+}
+
+export interface IHoldingsResource {
+  list(params: ListHoldingsParams): Promise<HoldingsPage>;
+}
+
+export interface ListTaxLotsParams {
+  holding: string;
+  limit?: number;
+  starting_after?: string;
+  ending_before?: string;
+  /** Inclusive purchase-date filters, applied by the API before pagination. */
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface ITaxLotsResource {
+  list(params: ListTaxLotsParams): Promise<TaxLotsPage>;
 }
 
 export const REPORT_OUTCOMES = ['success', 'blocked', 'abandoned'] as const;

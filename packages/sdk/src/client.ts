@@ -2,12 +2,14 @@ import type { LinkOptions } from '@/config';
 import { ApprovalPolicyResource } from '@/resources/approval-policy';
 import { AttestationsResource } from '@/resources/attestations';
 import { BalancesResource } from '@/resources/balances';
+import { HoldingsResource } from '@/resources/holdings';
 import { IdentityCredentialsResource } from '@/resources/identity-credentials';
 import { InsightsResource } from '@/resources/insights';
 import type {
   IApprovalPolicyResource,
   IAttestationsResource,
   IBalancesResource,
+  IHoldingsResource,
   IIdentityCredentialsResource,
   IInsightsResource,
   IMppResource,
@@ -16,6 +18,7 @@ import type {
   IShippingAddressResource,
   ISourcesResource,
   ISpendRequestResource,
+  ITaxLotsResource,
   ITransactionsResource,
   IUcpResource,
   IUserInfoResource,
@@ -27,6 +30,7 @@ import { ReportResource } from '@/resources/report';
 import { ShippingAddressResource } from '@/resources/shipping-address';
 import { SourcesResource } from '@/resources/sources';
 import { SpendRequestResource } from '@/resources/spend-request';
+import { TaxLotsResource } from '@/resources/tax-lots';
 import { TransactionsResource } from '@/resources/transactions';
 import { UcpResource } from '@/resources/ucp';
 import { UserInfoResource } from '@/resources/user-info';
@@ -44,6 +48,8 @@ export class Link {
   readonly insights: IInsightsResource;
   readonly sources: ISourcesResource;
   readonly balances: IBalancesResource;
+  readonly holdings: IHoldingsResource;
+  readonly taxLots: ITaxLotsResource;
   readonly webBotAuth: IWebBotAuthResource;
   readonly reports: IReportResource;
   readonly ucp: IUcpResource;
@@ -61,6 +67,8 @@ export class Link {
     this.insights = new InsightsResource(options);
     this.sources = new SourcesResource(options);
     this.balances = new BalancesResource(options);
+    this.holdings = new HoldingsResource(options);
+    this.taxLots = new TaxLotsResource(options);
     this.webBotAuth = new WebBotAuthResource(options);
     this.reports = new ReportResource(options);
     this.ucp = new UcpResource(options);
