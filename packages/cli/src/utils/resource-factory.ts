@@ -3,6 +3,7 @@ import {
   type IApprovalPolicyResource,
   type IAttestationsResource,
   type IBalancesResource,
+  type IHoldingsResource,
   type IIdentityCredentialsResource,
   type IInsightsResource,
   type IMppResource,
@@ -135,6 +136,7 @@ export class ResourceFactory {
   private insightsResource?: IInsightsResource;
   private sourcesResource?: ISourcesResource;
   private balancesResource?: IBalancesResource;
+  private holdingsResource?: IHoldingsResource;
   private webBotAuthResource?: IWebBotAuthResource;
   private reportResource?: IReportResource;
   private ucpResource?: IUcpResource;
@@ -372,6 +374,13 @@ export class ResourceFactory {
 
     const resource = sanitizeResource(this.createSdkClient().balances);
     this.balancesResource = resource;
+    return resource;
+  }
+
+  createHoldingsResource(): IHoldingsResource {
+    if (this.holdingsResource) return this.holdingsResource;
+    const resource = sanitizeResource(this.createSdkClient().holdings);
+    this.holdingsResource = resource;
     return resource;
   }
 

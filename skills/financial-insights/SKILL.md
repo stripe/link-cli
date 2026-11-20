@@ -290,9 +290,28 @@ When summarizing sources:
 - Avoid exposing full account numbers, credentials, tokens, or payment instrument details.
 - Prefer labels such as institution, account type, source status, and last updated time when available.
 
+## Holdings
+
+Use `link-cli holdings list --source <source_id> --limit 10 --format json` only
+for a relevant investment question with `read_holdings` access. New
+financial-insights logins request this access; existing tokens without it need an
+approved `auth upgrade`. A response is one page of cached positions with `data`
+and `has_more`; the CLI never traverses automatically. Continue with
+`--starting-after <last_holding_id>`
+while keeping the source unchanged. Use either forward or reverse cursor, never
+both, and request only the pages needed for the question.
+
+Use returned quantities, market-value currency maps, position/type and snapshot
+dates as observations. Null names, descriptions or dates are unknown; do not
+substitute request time. These are read-only snapshots, not live quotes or advice.
+On `missing_permissions`, follow the explicit upgrade continuation only after
+the user chooses to grant access; with `LINK_ACCESS_TOKEN`, explain the missing
+access and let the application reconnect. Unsupported, not-ready and failed
+retrieval are distinct from a successful empty page; never report them as zero.
+
 ## Pagination
 
-All three list commands support the same pagination flags:
+These list commands support the same pagination flags:
 
 | Flag | Description |
 |---|---|
@@ -307,6 +326,7 @@ JSON responses contain a `data` array and may contain `has_more`. They do not pr
 | `transactions list` | Final transaction's `id`. |
 | `balances list` | Final balance's `source_id`. |
 | `sources list` | Final source's `id`. |
+| `holdings list` | Final holding's `id`; keep `--source` unchanged. |
 
 For example:
 

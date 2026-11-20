@@ -139,6 +139,11 @@ Update README, payment skill, schema descriptions, and this guide together.
 - Investment balances label `current` as portfolio value, separately from `investment.available_cash` and `investment.margin`. Null means unknown; omitted fields do not gain zero values. Transaction `investment_details.quantity_decimal` remains exact text, with nullable/optional activity, quantity, price, and fees.
 - Financial data is read-only snapshot data, not live quotes or financial advice. Maintain the financial-insights skill and its Eve/Mastra mirrors; native tools gain response metadata but no category parameter or holdings/tax-lots tools.
 
+### holdings list
+
+- `holdings list --source <source_id>` reads one complete cached page with `has_more`; `--limit` is 1–100 and forward/reverse cursors are mutually exclusive. The interactive handler captures the first result and never refetches or traverses.
+- `ResourceFactory` constructs and caches holdings through the existing auth and sanitization boundary. Error output uses validated/sanitized message/code fields, never raw bodies; missing permissions offers a shell-quoted `auth upgrade` CTA without initiating approval. Sparse snapshot fields are unknown, not zero or request time.
+
 ### auth login
 
 - `read_holdings` is included in the financial-insights bundle for ordinary new logins and explicit `--financial-insights`. Explicit bundle selection merges and deduplicates `--source-actions`; without that selection, explicit actions or raw authorization details replace the implicit bundle. `--no-financial-insights` opts out. Existing tokens without holdings require `auth upgrade --source-actions read_holdings` and user approval before session replacement; permission remediation never starts an upgrade automatically. Coordinate CLI release with backend `read_holdings` parsing and consent readiness.
