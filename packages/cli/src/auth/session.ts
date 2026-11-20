@@ -10,6 +10,10 @@ export function createAccessTokenProvider(
   authStorage: AuthStorage = storage,
   options: { noRefresh?: boolean } = {},
 ): AccessTokenProvider {
+  let refreshInFlight:
+    | { refreshToken: string; result: Promise<string> }
+    | undefined;
+
   return async ({ forceRefresh } = {}) => {
     const auth = await authStorage.getTokens();
     if (!auth) {
@@ -32,8 +36,20 @@ export function createAccessTokenProvider(
       );
     }
 
-    const refreshed = await authResource.refreshToken(auth.refresh_token);
-    await authStorage.setTokens(refreshed);
-    return refreshed.access_token;
+    if (refreshInFlight?.refreshToken !== auth.refresh_token) {
+      const result = (async () => {
+        const refreshed = await authResource.refreshToken(auth.refresh_token);
+        await authStorage.setTokens(refreshed);
+        return refreshed.access_token;
+      })();
+      refreshInFlight = { refreshToken: auth.refresh_token, result };
+    }
+
+    const current = refreshInFlight;
+    try {
+      return await current.result;
+    } finally {
+      if (refreshInFlight === current) refreshInFlight = undefined;
+    }
   };
 }
