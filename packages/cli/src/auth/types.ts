@@ -5,6 +5,7 @@ export const SOURCE_ACTIONS = [
   'read_external_transactions',
   'read_link_transactions',
   'read_source_details',
+  'read_holdings',
 ] as const;
 
 export type SourceAction = (typeof SOURCE_ACTIONS)[number];
@@ -16,6 +17,7 @@ export const DEFAULT_FINANCIAL_INSIGHTS_SOURCE_ACTIONS = [
   'read_external_transactions',
   'read_link_transactions',
   'read_source_details',
+  'read_holdings',
 ] as const satisfies readonly SourceAction[];
 
 export interface AuthTokens {

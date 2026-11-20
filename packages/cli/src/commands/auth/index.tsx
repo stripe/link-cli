@@ -249,14 +249,15 @@ export function createAuthCli(
         });
       }
       if (
-        c.options.financialInsights !== undefined &&
-        (c.options.sourceActions.length > 0 ||
-          c.options.authorizationDetail.length > 0)
+        (c.options.financialInsights !== undefined &&
+          c.options.authorizationDetail.length > 0) ||
+        (c.options.financialInsights === false &&
+          c.options.sourceActions.length > 0)
       ) {
         return c.error({
           code: 'INVALID_ARGUMENT',
           message:
-            "The --financial-insights parameter can't be used at the same time as --authorization-detail or --source-actions.",
+            'Do not combine --authorization-detail with a financial-insights flag or --source-actions with --no-financial-insights.',
         });
       }
       try {
@@ -270,12 +271,17 @@ export function createAuthCli(
         });
       }
 
-      // Explicit authorization details or source actions replace the default.
+      // Explicit inputs replace the implicit default. Selecting the bundle
+      // explicitly adds its actions alongside any requested source actions.
       const sourceActions =
-        c.options.financialInsights !== false &&
-        c.options.sourceActions.length === 0 &&
-        authorizationDetails.length === 0
-          ? [...DEFAULT_FINANCIAL_INSIGHTS_SOURCE_ACTIONS]
+        c.options.financialInsights === true ||
+        (c.options.financialInsights !== false &&
+          c.options.sourceActions.length === 0 &&
+          authorizationDetails.length === 0)
+          ? [
+              ...DEFAULT_FINANCIAL_INSIGHTS_SOURCE_ACTIONS,
+              ...c.options.sourceActions,
+            ]
           : c.options.sourceActions;
 
       const existingAuth = storage.getTokens();

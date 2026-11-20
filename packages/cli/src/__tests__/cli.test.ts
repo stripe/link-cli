@@ -3440,6 +3440,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         'read_external_transactions',
         'read_link_transactions',
         'read_source_details',
+        'read_holdings',
       ]);
     });
 
@@ -3491,8 +3492,110 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         'read_external_transactions',
         'read_link_transactions',
         'read_source_details',
+        'read_holdings',
       ]);
       expect(params.get('scope')).toBe('userinfo:read payment_methods.agentic');
+    });
+
+    it('requests the financial-insights bundle with explicit --financial-insights', async () => {
+      storage.clearTokens();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--financial-insights',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const params = new URLSearchParams(
+        requests.find((r) => r.url.includes('/device/code'))?.body,
+      );
+      expect(params.getAll('authorization_details[][type]')).toEqual([
+        'source',
+      ]);
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_balances',
+        'read_external_transactions',
+        'read_link_transactions',
+        'read_source_details',
+        'read_holdings',
+      ]);
+    });
+
+    it.each([
+      { sourceActions: ['read_balances'] },
+      {
+        sourceActions: ['read_holdings', 'read_balances', 'read_holdings'],
+      },
+    ])(
+      'merges requested source actions $sourceActions with explicit --financial-insights',
+      async ({ sourceActions }) => {
+        storage.clearTokens();
+        setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+        const result = await runProdCli(
+          'auth',
+          'login',
+          '--financial-insights',
+          ...sourceActions.flatMap((action) => ['--source-actions', action]),
+          '--json',
+        );
+
+        expect(result.exitCode).toBe(0);
+        const params = new URLSearchParams(
+          requests.find((r) => r.url.includes('/device/code'))?.body,
+        );
+        expect(params.getAll('authorization_details[][type]')).toEqual([
+          'source',
+        ]);
+        expect(params.getAll('authorization_details[][actions][]')).toEqual([
+          'read_balances',
+          'read_external_transactions',
+          'read_link_transactions',
+          'read_source_details',
+          'read_holdings',
+        ]);
+      },
+    );
+
+    it('requests only holdings when explicitly selected on login', async () => {
+      storage.clearTokens();
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'login',
+        '--source-actions',
+        'read_holdings',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const deviceCodeRequest = requests.find((r) =>
+        r.url.includes('/device/code'),
+      );
+      expect(deviceCodeRequest).toBeDefined();
+      const params = new URLSearchParams(deviceCodeRequest?.body);
+      expect(params.get('scope')).toBe('userinfo:read payment_methods.agentic');
+      expect(params.get('authorization_details')).toBeNull();
+      expect(params.getAll('authorization_details[][type]')).toEqual([
+        'source',
+      ]);
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_holdings',
+      ]);
+    });
+
+    it('describes holdings and source-action merging in login help', async () => {
+      const result = await runProdCli('auth', 'login', '--help');
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('including read_holdings');
+      expect(result.stdout).toContain('merge into this bundle');
+      expect(result.stdout).toContain('--no-financial-insights');
+      expect(requests).toHaveLength(0);
     });
 
     it('omits automatic source actions with --no-financial-insights', async () => {
@@ -3535,6 +3638,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         'read_external_transactions',
         'read_link_transactions',
         'read_source_details',
+        'read_holdings',
       ]);
     });
 
@@ -3592,7 +3696,6 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     });
 
     it.each([
-      ['--financial-insights', '--source-actions', 'read_balances'],
       ['--no-financial-insights', '--source-actions', 'read_balances'],
       ['--financial-insights', '--authorization-detail', '{"type":"source"}'],
       [
@@ -3608,7 +3711,7 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
       expect(parseJson(result.stdout)).toMatchObject({
         code: 'INVALID_ARGUMENT',
         message:
-          "The --financial-insights parameter can't be used at the same time as --authorization-detail or --source-actions.",
+          'Do not combine --authorization-detail with a financial-insights flag or --source-actions with --no-financial-insights.',
       });
     });
 
@@ -4046,6 +4149,50 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
         'read_external_transactions',
         'read_balances',
       ]);
+    });
+
+    it('adds holdings to existing balance access while approval is pending', async () => {
+      const existingAuthorizationDetails = [
+        { type: 'source', actions: ['read_balances'] },
+      ];
+      setResponseForUrl('/device/token', 200, {
+        ...REFRESH_RESPONSE,
+        scope: 'userinfo:read payment_methods.agentic',
+        authorization_details: existingAuthorizationDetails,
+      });
+      setResponseForUrl('/device/code', 200, DEVICE_CODE_RESPONSE);
+
+      const result = await runProdCli(
+        'auth',
+        'upgrade',
+        '--source-actions',
+        'read_holdings',
+        '--json',
+      );
+
+      expect(result.exitCode).toBe(0);
+      const deviceCodeRequest = requests.find((r) =>
+        r.url.includes('/device/code'),
+      );
+      expect(deviceCodeRequest).toBeDefined();
+      const params = new URLSearchParams(deviceCodeRequest?.body);
+      expect(params.getAll('authorization_details[][type]')).toEqual([
+        'source',
+      ]);
+      expect(params.getAll('authorization_details[][actions][]')).toEqual([
+        'read_holdings',
+        'read_balances',
+      ]);
+      expect(storage.getTokens()).toMatchObject({
+        ...REFRESH_RESPONSE,
+        authorization_details: existingAuthorizationDetails,
+      });
+      expect(storage.getPendingDeviceAuth()?.replaces_existing_session).toBe(
+        true,
+      );
+      expect(
+        requests.find((r) => r.url.includes('/device/revoke')),
+      ).toBeUndefined();
     });
 
     it('warns and continues when there is no active session', async () => {

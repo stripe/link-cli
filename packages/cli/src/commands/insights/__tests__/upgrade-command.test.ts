@@ -2,6 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { upgradeCommand } from '../upgrade-command';
 
 describe('upgradeCommand', () => {
+  it('uses the source-action flag for holdings remediation', () => {
+    expect(
+      upgradeCommand([
+        {
+          authorization_details: [
+            { type: 'source', actions: ['read_holdings'] },
+          ],
+        },
+      ]),
+    ).toBe('link-cli auth upgrade --source-actions read_holdings');
+  });
+
   it('unions scopes and actions across remediations', () => {
     expect(
       upgradeCommand([
