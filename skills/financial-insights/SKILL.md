@@ -119,6 +119,8 @@ Use the smallest command set that answers the user’s question.
 | Recent purchases, merchants, spend, transaction history, income, deposits, subscriptions | `link-cli transactions list` |
 | Current available balance, account balance, cash position | `link-cli balances list` |
 | Connected accounts, cards, banks, wallet sources, source metadata | `link-cli sources list` |
+| Cached positions for one investment account | `link-cli holdings list --source <source_id>` |
+| Acquisition lots for one holding | `link-cli tax-lots list --holding <holding_id>` |
 
 Examples:
 
@@ -309,6 +311,22 @@ the user chooses to grant access; with `LINK_ACCESS_TOKEN`, explain the missing
 access and let the application reconnect. Unsupported, not-ready and failed
 retrieval are distinct from a successful empty page; never report them as zero.
 
+## Tax lots
+
+Use `link-cli tax-lots list --holding <holding_id> --limit 10 --format json` for
+acquisition lots under one holding with `read_holdings` access from the
+financial-insights login bundle or an approved `auth upgrade`. Each call returns
+one complete page; continue only as needed with
+`--starting-after <last_tax_lot_id>`, retaining the holding and filters. Forward
+and reverse cursors are mutually exclusive.
+
+`--start-date`/`--end-date` are inclusive filters on purchase date. Preserve
+returned quantity and cost basis; null basis is unknown, never zero. No currency
+code accompanies basis, so do not infer one or combine bases across holdings.
+These read-only snapshots are not tax or financial advice. Follow the same
+permission, environment-token and approval rules as holdings; listing never
+starts an upgrade.
+
 ## Pagination
 
 These list commands support the same pagination flags:
@@ -327,6 +345,7 @@ JSON responses contain a `data` array and may contain `has_more`. They do not pr
 | `balances list` | Final balance's `source_id`. |
 | `sources list` | Final source's `id`. |
 | `holdings list` | Final holding's `id`; keep `--source` unchanged. |
+| `tax-lots list` | Final tax lot's `id`; keep `--holding` and date filters unchanged. |
 
 For example:
 

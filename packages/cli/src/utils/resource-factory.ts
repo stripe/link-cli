@@ -12,6 +12,7 @@ import {
   type IShippingAddressResource,
   type ISourcesResource,
   type ISpendRequestResource,
+  type ITaxLotsResource,
   type ITransactionsResource,
   type IUcpResource,
   type IUserInfoResource,
@@ -137,6 +138,7 @@ export class ResourceFactory {
   private sourcesResource?: ISourcesResource;
   private balancesResource?: IBalancesResource;
   private holdingsResource?: IHoldingsResource;
+  private taxLotsResource?: ITaxLotsResource;
   private webBotAuthResource?: IWebBotAuthResource;
   private reportResource?: IReportResource;
   private ucpResource?: IUcpResource;
@@ -381,6 +383,13 @@ export class ResourceFactory {
     if (this.holdingsResource) return this.holdingsResource;
     const resource = sanitizeResource(this.createSdkClient().holdings);
     this.holdingsResource = resource;
+    return resource;
+  }
+
+  createTaxLotsResource(): ITaxLotsResource {
+    if (this.taxLotsResource) return this.taxLotsResource;
+    const resource = sanitizeResource(this.createSdkClient().taxLots);
+    this.taxLotsResource = resource;
     return resource;
   }
 

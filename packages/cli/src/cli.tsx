@@ -15,6 +15,7 @@ import { createServeCli } from './commands/serve';
 import { createShippingAddressCli } from './commands/shipping-address';
 import { createSourcesCli } from './commands/sources';
 import { createSpendRequestCli } from './commands/spend-request';
+import { createTaxLotsCli } from './commands/tax-lots';
 import { createTestHelpersCli } from './commands/test-helpers';
 import { createTransactionsCli } from './commands/transactions';
 import { createUcpCli } from './commands/ucp';
@@ -207,6 +208,13 @@ cli.command(
 cli.command(
   createHoldingsCli(
     () => factory.createHoldingsResource(),
+    authStorage,
+    envAccessToken,
+  ),
+);
+cli.command(
+  createTaxLotsCli(
+    () => factory.createTaxLotsResource(),
     authStorage,
     envAccessToken,
   ),

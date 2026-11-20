@@ -144,6 +144,11 @@ Update README, payment skill, schema descriptions, and this guide together.
 - `holdings list --source <source_id>` reads one complete cached page with `has_more`; `--limit` is 1–100 and forward/reverse cursors are mutually exclusive. The interactive handler captures the first result and never refetches or traverses.
 - `ResourceFactory` constructs and caches holdings through the existing auth and sanitization boundary. Error output uses validated/sanitized message/code fields, never raw bodies; missing permissions offers a shell-quoted `auth upgrade` CTA without initiating approval. Sparse snapshot fields are unknown, not zero or request time.
 
+### tax-lots list
+
+- `tax-lots list --holding <holding_id>` reads one complete page with the same `read_holdings` access as holdings. `--start-date`/`--end-date` map to inclusive `start_date`/`end_date` purchase-date filters; limit is 1–100 and cursors are exclusive.
+- Reuse the holdings error/CTA helper and capture the first result/error without refetching. Cost basis null is unknown; the wire record has no currency code, so preserve numeric basis without inventing one. Dates describe cached acquisitions, not live quotes or tax/financial advice.
+
 ### auth login
 
 - `read_holdings` is included in the financial-insights bundle for ordinary new logins and explicit `--financial-insights`. Explicit bundle selection merges and deduplicates `--source-actions`; without that selection, explicit actions or raw authorization details replace the implicit bundle. `--no-financial-insights` opts out. Existing tokens without holdings require `auth upgrade --source-actions read_holdings` and user approval before session replacement; permission remediation never starts an upgrade automatically. Coordinate CLI release with backend `read_holdings` parsing and consent readiness.
