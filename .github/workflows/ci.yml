@@ -26,7 +26,7 @@ jobs:
       - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 26.13.0
+          node-version: 26.13.1
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run build --filter=@stripe/link-cli...
@@ -35,6 +35,7 @@ jobs:
         run: |
           test "$(node -p 'process.arch')" = "${{ matrix.arch }}"
           if [ "${{ matrix.arch }}" = arm64 ]; then
+            # Temporary workaround: https://github.com/nodejs/node/issues/67048
             node --experimental-sea-config packages/cli/sea-config.json
             mv sea-output sea-prep.blob
             cp "$(node -p 'process.execPath')" sea-output
@@ -44,6 +45,10 @@ jobs:
             node --build-sea packages/cli/sea-config.json
           fi
           chmod +x sea-output
+      # Temporary guard: https://github.com/nodejs/node/issues/67048
+      - name: Check ARM64 ELF page compatibility
+        if: matrix.arch == 'arm64'
+        run: node scripts/check-arm64-sea.mjs sea-output
       - name: Smoke test binary
         run: |
           uname -a
@@ -166,6 +171,8 @@ jobs:
       - run: pnpm turbo run typecheck
       - run: pnpm biome check .
       - run: pnpm turbo run test
+      - name: Test ARM64 ELF page guard
+        run: node --test scripts/check-arm64-sea.test.mjs
       - name: Check Agent Identity package, examples, and documentation
         working-directory: packages/agent-identity
         run: |
