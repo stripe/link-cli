@@ -4,7 +4,7 @@ Link CLI lets agents get secure payment credentials from a Link wallet for one-t
 
 The CLI can produce one of three credential types:
 
-- A virtual card (PAN) for use with a standard web checkout form. The issued card can be used with eligible merchants, including sellers that do not use Link or Stripe.
+- A card (PAN) for use with a standard web checkout form. Link can return either an agentic token (Visa Intelligent Commerce, Mastercard Agent Pay, American Express ACE) or a single-use virtual card. The returned PAN can be used for all checkouts, including merchants that do not use Link or Stripe.
 - A Link Pay Token (LPT) for use on supported Stripe payment surfaces. Stripe checkout pages use WebMCP to allow agents to complete the checkout.
 - A [Shared Payment Token](https://docs.stripe.com/agentic-commerce/concepts/shared-payment-tokens) (SPT) for use when the seller accepts programmatic payments through [Machine Payment Protocols](https://mpp.dev) (MPP)
 
