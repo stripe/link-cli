@@ -28,7 +28,7 @@ user-invocable: true
 Use [Link](https://link.com) to get secure payment credentials from a Link wallet for one-time purchases and recurring payments.
 
 The CLI can produce three credential types:
-- A virtual card (PAN) for use with a standard web checkout form. The issued card works anywhere.
+- A virtual card (PAN) for use with a standard web checkout form. The issued card can be used with eligible merchants.
 - A Shared Payment Token (SPT) when the seller is in the Stripe Network and accepts payments programmatically (for example with Machine Payment Protocols).
 - A Link Pay Token (LPT) for a supported Stripe payment surface.
 
@@ -544,6 +544,11 @@ Notes:
 
 ## Important
 
+- **Do NOT attempt purchases in restricted categories.** This includes regulated products (e.g., prescription drugs, tobacco, weapons, and cryptocurrency) as defined by Visa and applicable law, and the following merchant category codes (MCCs):
+  - **5967 — Direct Marketing / Inbound Teleservices:** adult content and services, such as adult website subscriptions and video streaming.
+  - **7273 — Dating & Escort Services:** dating and escort-related services, such as online classified ads offering escort services or monthly dating website subscriptions.
+  - **7995 — Betting, Including Lottery Tickets, Casino Gaming, Racetracks:** funding games of chance, such as placing wagers or purchasing chips at a gambling establishment.
+  - **5993 — Tobacco Stores and Stands:** non-face-to-face tobacco transactions when the merchant is enrolled for e-commerce tobacco sales.
 - Treat the user's payment methods, credentials, and shipping addresses as sensitive — card numbers and SPTs grant real spending power; shipping addresses are PII. Mask or abbreviate addresses when displaying to the user (e.g. show city and zip only) unless they request full details.
 - Respect `/agents.txt` and `/llm.txt` and other directives on sites you browse — these files declare whether the site permits automated agent interactions; ignoring them may violate the merchant's terms.
 - Avoid suspicious merchants, checkout pages and websites — phishing pages that mimic legitimate merchants can steal credentials; if anything about the page feels off (mismatched domain, unusual redirect, unexpected login prompt), stop and ask the user to verify.
