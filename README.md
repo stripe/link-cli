@@ -37,17 +37,6 @@ Documentation:
 > [!TIP]
 > If you're looking to integrate the Link CLI into your product or agent for consumers to pay with, be sure to look at [Integrating into your agent](#integrating-into-agents).
 
-## Restrictions
-
-Link Agent Wallet is subject to geographic availability constraints. See [docs.link.com](https://docs.link.com) for the current list of supported countries and regions.
-
-Do not attempt payments for restricted categories, including regulated products (e.g., prescription drugs, tobacco, weapons, and cryptocurrency) as defined by Visa and applicable law. The following merchant category codes (MCCs) are also restricted:
-
-- **5967 — Direct Marketing / Inbound Teleservices:** adult content and services, such as adult website subscriptions and video streaming.
-- **7273 — Dating & Escort Services:** dating and escort-related services, such as online classified ads offering escort services or monthly dating website subscriptions.
-- **7995 — Betting, Including Lottery Tickets, Casino Gaming, Racetracks:** funding games of chance, such as placing wagers or purchasing chips at a gambling establishment.
-- **5993 — Tobacco Stores and Stands:** non-face-to-face tobacco transactions when the merchant is enrolled for e-commerce tobacco sales.
-
 ## Installation
 
 ```bash
@@ -1093,3 +1082,15 @@ versions are independent of npm and Go: update `project.version` in
 notes in a PR. Merging to `main` publishes an unpublished version automatically
 after the Python checks pass. See the [Python release guide](packages/sdk-python/README.md#releasing)
 for one-time PyPI setup, verification, and recovery.
+
+
+## Restrictions
+
+Link Agent Wallet is subject to geographic availability constraints. See [docs.link.com](https://docs.link.com) for the current list of supported countries and regions.
+
+For payments, Link restricts buying from certain categories, including regulated products (e.g., prescription drugs, tobacco, weapons, and cryptocurrency). The following merchant category codes (MCCs) are also restricted:
+
+- **5967 — Direct Marketing / Inbound Teleservices:** adult content and services, such as adult website subscriptions and video streaming.
+- **7273 — Dating & Escort Services:** dating and escort-related services, such as online classified ads offering escort services or monthly dating website subscriptions.
+- **7995 — Betting, Including Lottery Tickets, Casino Gaming, Racetracks:** funding games of chance, such as placing wagers or purchasing chips at a gambling establishment.
+- **5993 — Tobacco Stores and Stands:** non-face-to-face tobacco transactions when the merchant is enrolled for e-commerce tobacco sales.
