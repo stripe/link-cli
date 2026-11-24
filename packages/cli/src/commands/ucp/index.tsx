@@ -14,6 +14,7 @@ import {
 } from '../../utils/command-continuation';
 import { renderInteractive } from '../../utils/render-interactive';
 import { requireAuth } from '../../utils/require-auth';
+import { agentCheckout } from './bank-verification';
 import { CatalogSearch } from './catalog-search';
 import { CheckoutAction } from './checkout-action';
 import { CheckoutComplete } from './checkout-complete';
@@ -264,7 +265,8 @@ export function createUcpCli(
         );
       }
 
-      return repository.completeCheckout(id, params);
+      const result = await repository.completeCheckout(id, params);
+      return c.formatExplicit ? result : agentCheckout(result, params.business);
     },
   });
 
@@ -327,7 +329,7 @@ export function createUcpCli(
     options: checkoutRetrieveOptions,
     outputPolicy: 'agent-only' as const,
     middleware: [requireAuth(authStorage, envAccessToken)],
-    run(c) {
+    async run(c) {
       let id: string;
       try {
         id = checkoutId(c.args.id, c.options.id);
@@ -355,9 +357,9 @@ export function createUcpCli(
           },
         );
       }
-      return repository.retrieveCheckout(id, {
-        business: c.options.business,
-      });
+      const business = c.options.business;
+      const result = await repository.retrieveCheckout(id, { business });
+      return c.formatExplicit ? result : agentCheckout(result, business);
     },
   });
 

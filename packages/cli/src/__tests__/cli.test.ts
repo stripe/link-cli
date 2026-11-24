@@ -5474,16 +5474,24 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     });
 
     describe('checkout complete', () => {
-      it.each(['completed', 'complete_in_progress'])(
-        'returns the completion API response with status %s without monitoring payment',
-        async (status) => {
-          setNextResponse(200, {
-            id: 'dcs_1',
-            status,
-            order: { id: 'order_confirmed' },
-          });
+      it.each([
+        { status: 'completed', order: { id: 'order_confirmed' } },
+        { status: 'complete_in_progress', order: { id: 'order_confirmed' } },
+        {
+          status: 'requires_escalation',
+          messages: [
+            { code: 'requires_3ds', content: 'Authenticate with your bank' },
+          ],
+          continue_url: 'https://bank.example/verify?token=test-challenge',
+        },
+      ])(
+        'returns the completion API response with status $status without monitoring payment',
+        async (response) => {
+          const checkout = { id: 'dcs_1', ...response };
+          setNextResponse(200, checkout);
 
           const result = await runProdCli(
+            '--verbose',
             'ucp',
             'checkout',
             'complete',
@@ -5504,8 +5512,9 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
             business: 'np_1',
           });
 
-          const output = parseJson(result.stdout) as Record<string, unknown>;
-          expect(output.status).toBe(status);
+          expect(parseJson(result.stdout)).toEqual(checkout);
+          expect(result.stderr).toContain('< 200');
+          expect(result.stderr).not.toContain('test-challenge');
         },
       );
 

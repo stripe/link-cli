@@ -57,7 +57,7 @@ export const CheckoutComplete: React.FC<CheckoutCompleteProps> = ({
   return (
     <Box flexDirection="column">
       <Text color="green">✓ Checkout completion response received</Text>
-      {data && <CheckoutSummary checkout={data} />}
+      {data && <CheckoutSummary checkout={data} business={params.business} />}
     </Box>
   );
 };

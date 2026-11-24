@@ -1,7 +1,9 @@
 import type { UcpCheckout } from '@stripe/link-sdk';
 import { Box, Text } from 'ink';
 import type React from 'react';
+import { formatCommandSuggestion } from '../../utils/command-continuation';
 import { formatAmount as formatCurrencyAmount } from '../../utils/format-amount';
+import { bankVerification } from './bank-verification';
 import {
   CheckoutBuyer,
   CheckoutFulfillment,
@@ -18,12 +20,15 @@ function formatAmount(
 
 interface CheckoutSummaryProps {
   checkout: UcpCheckout;
+  business?: string;
 }
 
 /** Shared presentational summary of a UCP checkout session. */
 export const CheckoutSummary: React.FC<CheckoutSummaryProps> = ({
   checkout,
+  business,
 }) => {
+  const verification = business && bankVerification(checkout, business);
   const total = checkout.totals?.find(
     (entry) => entry.type === 'total',
   )?.amount;
@@ -53,7 +58,22 @@ export const CheckoutSummary: React.FC<CheckoutSummaryProps> = ({
         </Text>
       )}
       <CheckoutMessages checkout={checkout} />
-      {checkout.continue_url && <Text>Continue: {checkout.continue_url}</Text>}
+      {verification ? (
+        <Box flexDirection="column">
+          <Text color="yellow">{verification.instruction}</Text>
+          {verification.link && (
+            <Text>
+              Bank verification link for the buyer: {verification.link}
+            </Text>
+          )}
+          <Text>
+            {verification._next.command && 'link-cli '}
+            {formatCommandSuggestion(verification._next)}
+          </Text>
+        </Box>
+      ) : (
+        checkout.continue_url && <Text>Continue: {checkout.continue_url}</Text>
+      )}
       {total != null && (
         <Text>
           Total:{' '}

@@ -531,11 +531,15 @@ Steps:
      --format json
    ```
 
+   If the status is `requires_escalation` and a message has code `requires_3ds`, the checkout is pending bank verification. Give the buyer the absolute HTTPS `continue_url` and pause for them to finish. Do not open it yourself, log it, or include it in a command. If the link is missing or invalid, tell the buyer verification is still pending; a fresh Retrieve can check for a link or updated status. Do not poll, repeat Complete, or create another spend request.
+
 5. **Retrieve the checkout as needed** to check its current status:
 
    ```bash
    link-cli ucp checkout retrieve <checkout_id> --business <business> --format json
    ```
+
+   After bank verification, retrieve the same checkout with the original business. Report success only when Retrieve returns `completed`. If it still requires escalation, report it as pending even if the buyer finished the challenge.
 
 Notes:
 - `create --format json` returns `_next.argv` templating the `complete` call. Replace only the `<spend_request_id>` argument with the approved ID and invoke directly without a shell, adding `--format json` when invoking it. Keep the original business argument intact. Do not execute the incomplete template or edit its compatibility string.

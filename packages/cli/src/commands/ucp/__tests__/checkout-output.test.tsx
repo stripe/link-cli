@@ -25,6 +25,13 @@ const checkout: UcpCheckout = {
   totals: [{ type: 'total', amount: 5500 }],
   custom_metadata: { preserved: true },
 };
+const pending: UcpCheckout = {
+  ...checkout,
+  status: 'requires_escalation',
+  messages: [{ code: 'requires_3ds', content: 'Bank authentication required' }],
+  continue_url: 'https://bank.example/verify?token=example',
+};
+const pendingWithoutLink = { ...pending, continue_url: null };
 const catalog = {
   data: [{ sku: 'sku_1', custom_metadata: { preserved: true } }],
 };
@@ -76,7 +83,7 @@ const cases = [
       'lsrq_1',
     ],
     component: CheckoutComplete,
-    result: checkout,
+    result: pending,
   },
   {
     name: 'checkout cancel',
@@ -88,7 +95,7 @@ const cases = [
     name: 'checkout retrieve',
     args: ['checkout', 'retrieve', '--id', 'checkout_1', '--business', 'np_1'],
     component: CheckoutRetrieve,
-    result: checkout,
+    result: pendingWithoutLink,
   },
 ];
 
@@ -106,11 +113,11 @@ async function run(args: string[]) {
     searchCatalog: vi.fn().mockResolvedValue(catalog),
     createCheckout: vi.fn().mockResolvedValue(checkout),
     updateCheckout: vi.fn().mockResolvedValue(checkout),
-    completeCheckout: vi.fn().mockResolvedValue(checkout),
+    completeCheckout: vi.fn().mockResolvedValue(pending),
     cancelCheckout: vi
       .fn()
       .mockResolvedValue({ ...checkout, status: 'canceled' }),
-    retrieveCheckout: vi.fn().mockResolvedValue(checkout),
+    retrieveCheckout: vi.fn().mockResolvedValue(pendingWithoutLink),
   };
   let output = '';
   const exit = vi.fn();
@@ -162,5 +169,16 @@ describe.each(cases)('$name output', ({ args, component, result }) => {
     const { output } = await run(args);
     expect(renderInteractive).not.toHaveBeenCalled();
     expect(output).toContain('preserved: true');
+    if (component === CheckoutComplete || component === CheckoutRetrieve) {
+      expect(output).toContain(
+        component === CheckoutComplete
+          ? 'Wait for the buyer'
+          : 'no usable link',
+      );
+      expect(output).toContain(
+        'ucp checkout retrieve checkout_1 --business np_1',
+      );
+      expect(output.slice(output.indexOf('_next:'))).not.toContain('https://');
+    }
   });
 });
