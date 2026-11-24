@@ -248,7 +248,7 @@ Reuse one instance per process to share issuer caches. The SDK has no replay or 
 
 Token keys are revalidated according to `issuerOptions.maxKeyAgeSeconds` (default 900). When Link rotates, existing tokens stop verifying after the verifier observes that their key was retired, unless old and new keys overlap or `retiredKeyGraceSeconds` is configured. A grace period means continuing to accept a key Link no longer advertises. Issuer fetches enforce bounded responses, deadlines, same-origin validation, and refresh throttling.
 
-Credential signing keys are cached process-wide for one hour by JWKS URI. `clearJwksCache()` is exported for tests; the token key cache settings do not control this cache. There are no built-in metrics or logging hooks. Instrument verification results at the call site without logging tokens, presentations, or disclosed personal information.
+Credential signing keys are cached process-wide for one hour by JWKS URI. When no cached key verifies a credential, as after Link rotates its signing key, the JWKS is refetched at most once every 30 seconds per URI, with concurrent requests sharing one fetch. A failed refetch keeps the cached keys, still counts toward that limit, and the presentation fails as it would have without it. `clearJwksCache()` is exported for tests and also resets the refetch limit; the token key cache settings do not control this cache. There are no built-in metrics or logging hooks. Instrument verification results at the call site without logging tokens, presentations, or disclosed personal information.
 
 ## Limitations
 
@@ -293,7 +293,7 @@ test('accepts a Link token and rejects a forged token without WBA', async () => 
 });
 ```
 
-For identity claims, use `CredentialFixture.present()` and `combineFetch` to serve both Link metadata and credential JWKS. Call `clearJwksCache()` between tests that create new keys for the same issuer. The token challenge encoder and issuer-name derivation are shared by the fixtures and verifier, so the suite also keeps Link's real token key and independent RFC 7638 thumbprint vectors.
+For identity claims, use `CredentialFixture.present()` and `combineFetch` to serve both Link metadata and credential JWKS. Call `clearJwksCache()` between tests that create new keys for the same issuer. Pass `kid` to `CredentialFixture.create()` to mint a credential under a rotated key. The token challenge encoder and issuer-name derivation are shared by the fixtures and verifier, so the suite also keeps Link's real token key and independent RFC 7638 thumbprint vectors.
 
 ## Troubleshooting
 

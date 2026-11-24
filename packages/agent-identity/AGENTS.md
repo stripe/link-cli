@@ -69,7 +69,7 @@ After changing issuance formats or wallet commands, also run `node --test test/w
 - AAT single use is not enforced. A bearer token can be replayed wherever it is trusted. Its lifetime is tied to issuer key acceptance, not challenge `max-age`.
 - Key-bound AATs are unsupported and must fail with `challenge_mismatch`; this SDK does not establish possession of an agent signing key.
 - Credential verification does not authorize an HTTP operation or authenticate its method, URL, or body. The application owns authorization and replay policy.
-- Credential signing keys are cached process-wide for one hour; `issuerOptions.maxKeyAgeSeconds` controls only token keys.
+- Credential signing keys are cached process-wide for one hour; `issuerOptions.maxKeyAgeSeconds` controls only token keys. A credential no cached key verifies triggers a JWKS refetch, at most once every 30 seconds per URI; a failed refetch keeps the cached keys.
 
 AAT and identity-presentation double-spend detection and replay prevention belong to adopters and must be implemented in their own stack if needed. The SDK provides no spent-token or nonce store and no replay enforcement.
 

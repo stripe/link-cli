@@ -154,7 +154,13 @@ export interface VerifyClaimsOptions {
   timeoutMs?: number;
   /** Ceiling on the credential JWKS response. Default 256 KiB. */
   maxResponseBytes?: number;
-  /** How long a fetched credential JWKS is cached. Default 3600 seconds. */
+  /**
+   * How long a fetched credential JWKS is cached. Default 3600 seconds.
+   *
+   * A presentation that no cached key verifies refetches it sooner, at most once
+   * every 30 seconds per JWKS URI, so a signing key rotation is picked up without
+   * waiting out the TTL.
+   */
   jwksTtlSeconds?: number;
   now?: () => number;
 }
@@ -302,15 +308,22 @@ export async function verifyClaimsPresentation(
   // Reaches Link's JWKS, so an outage must become a result rather than an
   // exception. A caller cannot distinguish an outage from a bad credential if it
   // arrives as a throw.
-  let issuerKeys: CryptoKey[];
+  let resolved: IssuerKeys;
   try {
-    issuerKeys = await resolveIssuerKeys(
+    resolved = await resolveIssuerKeys(
       options,
       typeof issuerHeader.kid === 'string' ? issuerHeader.kid : undefined,
       issuerAlg,
     );
   } catch (error) {
     return failWith('issuer_unavailable', describeError(error));
+  }
+  let issuerKeys = resolved.keys;
+  // A cached JWKS with no usable key for this credential may predate a rotation.
+  let refetched = false;
+  if (issuerKeys.length === 0 && resolved.refetch !== undefined) {
+    refetched = true;
+    issuerKeys = (await resolved.refetch()) ?? issuerKeys;
   }
   if (issuerKeys.length === 0) {
     return failWith(
@@ -323,11 +336,14 @@ export async function verifyClaimsPresentation(
   } catch {
     return fail('issuer JWT signature segment is not valid base64url');
   }
-  let issuerOk = false;
-  for (const candidate of issuerKeys) {
-    if (await verifyJws(candidate, issuerAlg, issuerJwt)) {
-      issuerOk = true;
-      break;
+  let issuerOk = await verifiesUnderAny(issuerKeys, issuerAlg, issuerJwt);
+  if (!issuerOk && !refetched && resolved.refetch !== undefined) {
+    // No cached key verifies: either the `kid` is absent from the cached JWKS, or
+    // Link reissued that `kid` with a new key. Both are what a rotation looks like
+    // from here, so the JWKS is refetched once before the signature is refused.
+    const fresh = await resolved.refetch();
+    if (fresh !== undefined) {
+      issuerOk = await verifiesUnderAny(fresh, issuerAlg, issuerJwt);
     }
   }
   if (!issuerOk) return fail('issuer JWT signature does not verify');
@@ -564,13 +580,56 @@ function acceptedAlg(alg: unknown): JwsAlg | undefined {
   return undefined;
 }
 
-const jwksCache = new Map<string, { keys: Jwk[]; fetchedAt: number }>();
+interface CachedJwks {
+  keys: Jwk[];
+  fetchedAt: number;
+}
+
+const jwksCache = new Map<string, CachedJwks>();
+
+/** When a refetch provoked by an unverifiable credential was last permitted, by JWKS URI. */
+const lastForcedJwksRefetch = new Map<string, number>();
+
+/** The refetch currently running for each JWKS URI, shared by every caller that needs it. */
+const jwksInFlight = new Map<string, Promise<Jwk[] | undefined>>();
+
+/**
+ * Minimum seconds between credential JWKS refetches provoked by a presentation no
+ * cached key verifies.
+ *
+ * That signal is what a credential signing key rotation looks like, but it is
+ * reachable by any unauthenticated caller: an issuer JWT with an unknown `kid` or a
+ * bad signature costs nothing to send. Without this floor the claims front door
+ * would drive one upstream JWKS fetch per request.
+ */
+const MIN_FORCED_JWKS_REFETCH_SECONDS = 30;
 
 /** Keys considered from one credential JWKS. Bounds per-request import work. */
 const MAX_CREDENTIAL_KEYS = 16;
 
 /** How deep a payload value is inspected before it is refused as un-inspectable. */
 const MAX_CLAIM_DEPTH = 8;
+
+interface IssuerKeys {
+  keys: CryptoKey[];
+  /**
+   * Present only when `keys` came from cache. Refetches the JWKS, subject to the
+   * forced-refetch throttle, and returns the candidates from it, or undefined when
+   * no newer JWKS could be obtained.
+   */
+  refetch?: () => Promise<CryptoKey[] | undefined>;
+}
+
+async function verifiesUnderAny(
+  keys: CryptoKey[],
+  alg: JwsAlg,
+  jws: string,
+): Promise<boolean> {
+  for (const key of keys) {
+    if (await verifyJws(key, alg, jws)) return true;
+  }
+  return false;
+}
 
 /**
  * Every trusted credential signing key that could verify this algorithm.
@@ -585,48 +644,118 @@ async function resolveIssuerKeys(
   options: VerifyClaimsOptions,
   kid: string | undefined,
   alg: JwsAlg,
-): Promise<CryptoKey[]> {
+): Promise<IssuerKeys> {
   const metadata = await options.issuer.getMetadata();
   const uri = metadata.claims_jwks_uri;
-  if (!uri) return [];
+  if (!uri) return { keys: [] };
 
   const now = (options.now ?? (() => Math.floor(Date.now() / 1000)))();
   const cached = jwksCache.get(uri);
-  let keys =
-    cached && now - cached.fetchedAt < (options.jwksTtlSeconds ?? 3600)
-      ? cached.keys
-      : undefined;
-  if (!keys) {
-    // Routed through boundedGet like every other outbound call. This one was
-    // missed: it is the claims lane's trust anchor, and it had no deadline, no
-    // byte ceiling, no redirect policy, and no same-origin check, so a slow
-    // credential JWKS hung every concurrent claims verification indefinitely even
-    // with a timeout configured on the issuer.
-    const result = await boundedGet(uri, {
-      fetchImpl: options.fetchImpl ?? globalThis.fetch,
-      timeoutMs: options.timeoutMs ?? 3000,
-      maxBytes: options.maxResponseBytes ?? 256 * 1024,
-      requireOrigin: new URL(options.issuer.issuer).origin,
-    });
-    if (!result.ok) {
-      // Thrown rather than returned so the caller maps it to issuer_unavailable
-      // alongside every other way this lane can fail to reach Link.
-      throw new Error(`credential JWKS: ${result.reason}`);
-    }
-    const body = parseJson(result.text);
-    if (typeof body === 'string') throw new Error(`credential JWKS: ${body}`);
-    if (body === null || typeof body !== 'object') {
-      throw new Error('credential JWKS is not a JSON object');
-    }
-    const raw = (body as { keys?: unknown }).keys;
-    keys = Array.isArray(raw)
-      ? raw
-          .filter((k): k is Jwk => k !== null && typeof k === 'object')
-          .slice(0, MAX_CREDENTIAL_KEYS)
-      : [];
-    jwksCache.set(uri, { keys, fetchedAt: now });
+  if (cached && now - cached.fetchedAt < (options.jwksTtlSeconds ?? 3600)) {
+    return {
+      keys: await importCandidates(cached.keys, kid, alg),
+      refetch: async () => {
+        const keys = await refetchForUnverifiedCredential(
+          options,
+          uri,
+          cached,
+          now,
+        );
+        return keys && importCandidates(keys, kid, alg);
+      },
+    };
   }
 
+  const keys = await fetchCredentialJwks(options, uri);
+  jwksCache.set(uri, { keys, fetchedAt: now });
+  return { keys: await importCandidates(keys, kid, alg) };
+}
+
+/**
+ * Refetch provoked by a credential that no cached key verifies.
+ *
+ * Mirrors `LinkIssuer`'s handling of an unrecognized token key id. Concurrent
+ * callers join one in-flight fetch, and a new fetch is permitted at most once per
+ * `MIN_FORCED_JWKS_REFETCH_SECONDS` per URI. A caller whose cached entry has
+ * since been replaced uses the replacement instead, so a burst of presentations
+ * under a newly rotated key costs one fetch and none of them is throttled.
+ *
+ * A failed refetch returns undefined and leaves the cached keys in place: an
+ * outage or a malformed response must not evict keys that still verify current
+ * credentials. A JWKS with no keys counts as a failure for the same reason. The
+ * attempt still consumes the throttle, so a failing JWKS is not hammered either.
+ */
+async function refetchForUnverifiedCredential(
+  options: VerifyClaimsOptions,
+  uri: string,
+  seen: CachedJwks,
+  now: number,
+): Promise<Jwk[] | undefined> {
+  const inFlight = jwksInFlight.get(uri);
+  if (inFlight !== undefined) return inFlight;
+  const current = jwksCache.get(uri);
+  if (current !== undefined && current !== seen) return current.keys;
+
+  const last = lastForcedJwksRefetch.get(uri);
+  if (last !== undefined && now - last < MIN_FORCED_JWKS_REFETCH_SECONDS) {
+    return undefined;
+  }
+  lastForcedJwksRefetch.set(uri, now);
+
+  const promise = fetchCredentialJwks(options, uri)
+    .then(
+      (keys) => {
+        if (keys.length === 0) return undefined;
+        jwksCache.set(uri, { keys, fetchedAt: now });
+        return keys;
+      },
+      () => undefined,
+    )
+    .finally(() => {
+      if (jwksInFlight.get(uri) === promise) jwksInFlight.delete(uri);
+    });
+  jwksInFlight.set(uri, promise);
+  return promise;
+}
+
+async function fetchCredentialJwks(
+  options: VerifyClaimsOptions,
+  uri: string,
+): Promise<Jwk[]> {
+  // Routed through boundedGet like every other outbound call. This one was
+  // missed: it is the claims lane's trust anchor, and it had no deadline, no
+  // byte ceiling, no redirect policy, and no same-origin check, so a slow
+  // credential JWKS hung every concurrent claims verification indefinitely even
+  // with a timeout configured on the issuer.
+  const result = await boundedGet(uri, {
+    fetchImpl: options.fetchImpl ?? globalThis.fetch,
+    timeoutMs: options.timeoutMs ?? 3000,
+    maxBytes: options.maxResponseBytes ?? 256 * 1024,
+    requireOrigin: new URL(options.issuer.issuer).origin,
+  });
+  if (!result.ok) {
+    // Thrown rather than returned so the caller maps it to issuer_unavailable
+    // alongside every other way this lane can fail to reach Link.
+    throw new Error(`credential JWKS: ${result.reason}`);
+  }
+  const body = parseJson(result.text);
+  if (typeof body === 'string') throw new Error(`credential JWKS: ${body}`);
+  if (body === null || typeof body !== 'object') {
+    throw new Error('credential JWKS is not a JSON object');
+  }
+  const raw = (body as { keys?: unknown }).keys;
+  return Array.isArray(raw)
+    ? raw
+        .filter((k): k is Jwk => k !== null && typeof k === 'object')
+        .slice(0, MAX_CREDENTIAL_KEYS)
+    : [];
+}
+
+async function importCandidates(
+  keys: Jwk[],
+  kid: string | undefined,
+  alg: JwsAlg,
+): Promise<CryptoKey[]> {
   const candidates = kid ? keys.filter((k) => k.kid === kid) : keys;
   const considered = (candidates.length > 0 ? candidates : keys).slice(
     0,
@@ -643,7 +772,9 @@ async function resolveIssuerKeys(
   return imported;
 }
 
-/** Test seam: clears the JWKS cache. */
+/** Test seam: clears the JWKS cache, its refetch throttle, and any in-flight refetch. */
 export function clearJwksCache(): void {
   jwksCache.clear();
+  lastForcedJwksRefetch.clear();
+  jwksInFlight.clear();
 }
