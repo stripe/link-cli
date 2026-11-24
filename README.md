@@ -4,14 +4,15 @@ Link CLI lets agents get secure payment credentials from a Link wallet for one-t
 
 The CLI can produce one of three credential types:
 
-- A virtual card (PAN) for use with a standard web checkout form. The issued card works anywhere, and is not restricted to Link-enabled sellers or sellers that use Stripe.
+- A card (PAN) for use with a standard web checkout form. Link can return either an agentic token (Visa Intelligent Commerce, Mastercard Agent Pay, American Express ACE) or a single-use virtual card. The returned PAN can be used for all checkouts, including merchants that do not use Link or Stripe.
 - A Link Pay Token (LPT) for use on supported Stripe payment surfaces. Stripe checkout pages use WebMCP to allow agents to complete the checkout.
 - A [Shared Payment Token](https://docs.stripe.com/agentic-commerce/concepts/shared-payment-tokens) (SPT) for use when the seller accepts programmatic payments through [Machine Payment Protocols](https://mpp.dev) (MPP)
 
-For now, this is only available to US and Canadian Link accounts.
+Geographic availability and payment restrictions apply. See [Restrictions](#restrictions).
 
 Documentation:
 
+- [Restrictions](#restrictions)
 - [Installation](#installation)
 - [Quickstart](#quickstart)
 - [Where to use Link Agent Wallet](#where-to-use-link-agent-wallet)
@@ -35,6 +36,17 @@ Documentation:
 
 > [!TIP]
 > If you're looking to integrate the Link CLI into your product or agent for consumers to pay with, be sure to look at [Integrating into your agent](#integrating-into-agents).
+
+## Restrictions
+
+Link Agent Wallet is subject to geographic availability constraints. See [docs.link.com](https://docs.link.com) for the current list of supported countries and regions.
+
+Do not attempt payments for restricted categories, including regulated products (e.g., prescription drugs, tobacco, weapons, and cryptocurrency) as defined by Visa and applicable law. The following merchant category codes (MCCs) are also restricted:
+
+- **5967 — Direct Marketing / Inbound Teleservices:** adult content and services, such as adult website subscriptions and video streaming.
+- **7273 — Dating & Escort Services:** dating and escort-related services, such as online classified ads offering escort services or monthly dating website subscriptions.
+- **7995 — Betting, Including Lottery Tickets, Casino Gaming, Racetracks:** funding games of chance, such as placing wagers or purchasing chips at a gambling establishment.
+- **5993 — Tobacco Stores and Stands:** non-face-to-face tobacco transactions when the merchant is enrolled for e-commerce tobacco sales.
 
 ## Installation
 
