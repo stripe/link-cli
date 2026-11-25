@@ -110,10 +110,13 @@ export class UcpResource implements IUcpResource {
 
     if (this.verbose) {
       this.logger.debug(`< ${response.status} ${response.statusText}`);
-      response.headers.forEach((value, key) => {
-        this.logger.debug(`  ${key}: ${value}`);
-      });
-      this.logger.debug(JSON.stringify(data, null, 2) ?? rawBody);
+      // A checkout redirect can contain a buyer authentication token.
+      if (!(data && typeof data === 'object' && 'continue_url' in data)) {
+        response.headers.forEach((value, key) => {
+          this.logger.debug(`  ${key}: ${value}`);
+        });
+        this.logger.debug(JSON.stringify(data, null, 2) ?? rawBody);
+      }
     }
 
     return { status: response.status, data, rawBody };

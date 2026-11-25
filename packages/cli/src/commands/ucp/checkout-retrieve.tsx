@@ -52,7 +52,7 @@ export function CheckoutRetrieve({
   return (
     <Box flexDirection="column">
       <Text color="green">✓ Checkout retrieved</Text>
-      {data && <CheckoutSummary checkout={data} />}
+      {data && <CheckoutSummary checkout={data} business={business} />}
     </Box>
   );
 }

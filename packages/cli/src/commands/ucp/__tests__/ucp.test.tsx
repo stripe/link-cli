@@ -321,6 +321,7 @@ describe('ucp checkout complete component', () => {
         expect(lastFrame()).toContain('Checkout completion response received');
         expect(lastFrame()).toContain(status);
         expect(lastFrame()).toContain('order_confirmed');
+        expect(lastFrame()).not.toMatch(/bank verification/i);
       });
       await vi.waitFor(
         () => expect(onComplete).toHaveBeenCalledExactlyOnceWith(checkout),
@@ -334,6 +335,43 @@ describe('ucp checkout complete component', () => {
       expect(lastFrame()).not.toMatch(
         /payment succeeded|Checkout completed|Verifying/,
       );
+    },
+  );
+
+  it.each(['https://bank.example/verify', 'http://bank.example/verify'])(
+    'shows the pending buyer handoff for %s',
+    async (url) => {
+      const repository = makeResource({
+        completeCheckout: vi.fn().mockResolvedValue({
+          id: 'dcs_1',
+          status: 'requires_escalation',
+          messages: [
+            { code: 'requires_3ds', content: 'Authentication required' },
+          ],
+          continue_url: url,
+        }),
+      });
+      const { lastFrame } = render(
+        <CheckoutComplete
+          repository={repository}
+          id="dcs_1"
+          params={{ spend_request_id: 'lsrq_1', business: 'np_1' }}
+          onComplete={() => {}}
+        />,
+      );
+      await vi.waitFor(() => {
+        const frame = lastFrame();
+        expect(frame).toContain('Checkout pending');
+        expect(frame).toContain('ucp checkout retrieve dcs_1 --business np_1');
+        if (url.startsWith('https:')) {
+          expect(frame).toContain(
+            `Bank verification link for the buyer: ${url}`,
+          );
+        } else {
+          expect(frame).toContain('no usable link');
+          expect(frame).not.toContain(url);
+        }
+      });
     },
   );
 
