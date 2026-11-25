@@ -135,6 +135,7 @@ Update README, payment skill, schema descriptions, and this guide together.
 
 ### auth login
 
+- `read_holdings` is included in the financial-insights bundle for ordinary new logins and explicit `--financial-insights`. Explicit bundle selection merges and deduplicates `--source-actions`; without that selection, explicit actions or raw authorization details replace the implicit bundle. `--no-financial-insights` opts out. Existing tokens without holdings require `auth upgrade --source-actions read_holdings` and user approval before session replacement; permission remediation never starts an upgrade automatically. Coordinate CLI release with backend `read_holdings` parsing and consent readiness.
 - `auth login --client-name <name>` — optional flag to identify the agent or app; shown in the user's Link app as `<name> on <hostname>`. Defined in `loginOptions` in `packages/cli/src/commands/auth/schema.ts`.
 - `auth login --interval <seconds> [--timeout <seconds>] [--max-attempts <n>]` — when `--interval` is provided, the command yields the verification code immediately then polls inline until authenticated or timed out. Without `--interval`, returns the code with a `_next` hint for separate polling via `auth status`.
 - The token endpoint echoes `scope` and `authorization_details` back with the tokens on login/refresh. These are persisted in the credential file (part of `AuthTokens`) and surfaced on `auth status` in both interactive and JSON modes, only when present.
