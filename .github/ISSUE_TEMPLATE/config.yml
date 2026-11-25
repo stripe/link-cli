@@ -1,0 +1,6 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Link support
+    url: https://support.link.com/
+    about: |
+      Please only file issues here that you believe represent actual bugs or feature requests for the Link CLI and SDKs.
