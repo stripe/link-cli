@@ -18,7 +18,7 @@
     "ai": "^7.0.137",
     "better-auth": "1.7.16",
     "eve": "1.0.0-rc.5",
-    "zod": "4.6.5"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
