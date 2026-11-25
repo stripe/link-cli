@@ -56,6 +56,10 @@ describe('ResourceFactory', () => {
       'function',
     );
     expect(factory.createPaymentMethodsResource().list).toBeTypeOf('function');
+    expect(factory.createHoldingsResource()).toBe(
+      factory.createHoldingsResource(),
+    );
+    expect(factory.createHoldingsResource().list).toBeTypeOf('function');
     expect(factory.createBalancesResource().list).toBeTypeOf('function');
     expect(factory.createWebBotAuthResource().signUrl).toBeTypeOf('function');
   });
@@ -107,5 +111,42 @@ describe('ResourceFactory', () => {
       expect(token).toBe('at_refreshed');
       expect(mockAuth.refreshToken).toHaveBeenCalledWith('rt_env');
     });
+  });
+  it('fetches and sanitizes holdings through the shared SDK client', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(
+      async () =>
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: 'fchold_1',
+                source_id: 'csmrpd_1',
+                description: '\x1b[2JHidden\rText',
+                security_name: null,
+                total_market_value: { usd: 100 },
+                quantity: 1,
+                as_of_date: null,
+                position_type: 'long',
+                type: 'crypto',
+              },
+            ],
+            has_more: false,
+          }),
+          { status: 200 },
+        ),
+    );
+    const factory = new ResourceFactory({
+      envAccessToken: 'test-token',
+      apiBaseUrl: 'https://api.example.com',
+      fetch,
+    });
+    const result = await factory
+      .createHoldingsResource()
+      .list({ source: 'csmrpd_1' });
+    expect(result.data[0]?.description).toBe('HiddenText');
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch.mock.calls[0]?.[0]).toBe(
+      'https://api.example.com/holdings?source=csmrpd_1',
+    );
   });
 });

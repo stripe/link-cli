@@ -389,6 +389,28 @@ Returns current balances for connected accounts, including `cash.available` (ban
 
 Investment data is read-only snapshot data, not live quotes or financial advice. Respect returned snapshot dates and balance `as_of` values; request time does not establish freshness.
 
+#### List holdings
+
+```bash
+link-cli holdings list --source <source_id> --limit 10 --format json
+link-cli holdings list --source <source_id> --starting-after <last_holding_id> --format json
+```
+
+Requires `read_holdings` access, included in the financial-insights login bundle
+or added to an existing session through an approved `auth upgrade`. Each
+invocation returns one complete page with `data` and `has_more`; request another
+page explicitly, retaining the same source. `--limit` is 1–100;
+`--starting-after` and `--ending-before` are
+mutually exclusive. Holdings include quantities, currency-map market values,
+position/type, and a snapshot date. Missing names, descriptions, or snapshot dates
+are unknown, not request-time values or live quotes.
+
+On `missing_permissions`, the CLI reports an `auth upgrade --source-actions
+read_holdings` continuation; it never starts approval automatically. Choose
+whether to upgrade and wait for user approval before retrying. Unsupported,
+not-ready, and retrieval-failure results are errors distinct from an empty page.
+These commands remain read-only and must not be used for financial advice.
+
 ## Advanced
 
 ### Authentication

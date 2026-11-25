@@ -6,6 +6,7 @@ const supportedSourceActions = new Set<string>(SOURCE_ACTIONS);
 
 export function upgradeCommand(
   remediations: readonly (InsightAuthorizationRemediation | null | undefined)[],
+  options: { includeExecutable?: boolean } = {},
 ): string | null {
   const scopes = new Set<string>();
   const actionsByType = new Map<string, Set<string>>();
@@ -42,5 +43,7 @@ export function upgradeCommand(
     }
   }
 
-  return args.length > 3 ? shellCommand(args) : null;
+  return args.length > 3
+    ? shellCommand(options.includeExecutable === false ? args.slice(1) : args)
+    : null;
 }

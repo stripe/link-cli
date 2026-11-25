@@ -101,6 +101,8 @@ New logins request the `userinfo:read` and `payment_methods.agentic` scopes and 
 
 For questions about investment account categories, portfolio value, cash, or transaction details, use the financial-insights skill; investment data is read-only snapshot data and must not be used to give financial advice.
 
+`holdings list --source <source_id>` reads one page of cached positions and returns explicit permission-upgrade guidance; listing never starts approval automatically.
+
 Investment holdings access (`read_holdings`) is included in the financial-insights login bundle. To request only holdings on a new connection, use `auth login --source-actions read_holdings`. Existing tokens without holdings need `auth upgrade --source-actions read_holdings` only when the user's task requires it. Preserve the current session until user approval succeeds; permission remediation never initiates an upgrade automatically.
 
 If login initiation fails specifically because the extra source actions are unsupported or unavailable, explain that financial insights will be unavailable and retry once with `--no-financial-insights` when the payment still needs a Link connection. Do not automatically retry after the user declines or abandons approval.
