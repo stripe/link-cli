@@ -21,9 +21,25 @@ including zero-filled `.bss`. These layout checks cover the 4, 16, and 64 KiB
 page sizes; they do not prove that the executable runs on each kernel.
 Run the guard's regression tests with `node --test scripts/check-arm64-sea.test.mjs`.
 
-The standard `ubuntu-24.04-arm` runner uses 4 KiB pages. Native 64 KiB runtime
-validation remains pending; QEMU testing is a follow-up to this workaround.
-When a matching Muse host is available, test the actual artifact:
+The standard `ubuntu-24.04-arm` runner uses 4 KiB pages. The separate
+`arm64-large-page-smoke` CI matrix downloads that job's exact ARM64 binary and
+checksum, then boots full-system QEMU guests with these distro kernels:
+
+| Page size | Kernel source | Package |
+| --- | --- | --- |
+| 16 KiB | Debian trixie | `linux-image-arm64-16k` |
+| 64 KiB | Ubuntu 24.04 | `linux-image-generic-64k` |
+
+The guests use a minimal initramfs with the runner's ARM64 libraries and have no
+network access. Each guest checks `uname -m`, the actual `getconf PAGESIZE`, and
+the artifact checksum before executing the CLI. Both commands must exit zero,
+the version must match the checkout, and help must contain `Usage: link-cli` so
+an ordinary Node executable cannot pass. Timeouts and missing pass markers fail
+the job. CI uploads the serial console and kernel provenance as
+`arm64-16384-page-smoke-log` and `arm64-65536-page-smoke-log`.
+
+These jobs exercise the affected kernel page sizes. Validation on native Muse
+hardware remains pending; when a matching host is available, test the same artifact:
 
 ```sh
 set -eu
@@ -36,8 +52,9 @@ chmod +x link-cli-linux-arm64
 ./link-cli-linux-arm64 --help
 ```
 
-Remove the workaround when an official Node release fixes #67048 and its built-in
-SEA output passes both the layout guard and runtime tests on larger-page kernels.
+Remove the workaround when an official Node release fixes #67048. First run the
+existing layout guard and both QEMU jobs against its built-in `--build-sea` output;
+both 16 and 64 KiB kernels must pass before removing or simplifying the validation.
 Search for `nodejs/node/issues/67048` to find the workflow branches and guard,
 return Linux ARM64 to `--build-sea`, remove the guard and its test step, and remove
 `postject` from `package.json` and the lockfile. Keep the binary smoke tests.

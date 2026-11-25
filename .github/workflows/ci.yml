@@ -67,6 +67,144 @@ jobs:
             link-cli-linux-${{ matrix.arch }}.sha256
           if-no-files-found: error
 
+  # Exercise the kernels affected by https://github.com/nodejs/node/issues/67048.
+  # Run this against the upstream-fixed --build-sea output before removing the workaround.
+  arm64-large-page-smoke:
+    needs: linux-binary
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - page: 16384
+            image: debian:trixie
+            package: linux-image-arm64-16k
+            kernel_config: CONFIG_ARM64_16K_PAGES
+          - page: 65536
+            image: ubuntu:24.04
+            package: linux-image-generic-64k
+            kernel_config: CONFIG_ARM64_64K_PAGES
+    env:
+      EXPECTED_PAGE: ${{ matrix.page }}
+      KERNEL_IMAGE: ${{ matrix.image }}
+      KERNEL_PACKAGE: ${{ matrix.package }}
+      KERNEL_CONFIG: ${{ matrix.kernel_config }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: link-cli-linux-arm64
+          path: artifact
+      - name: Verify exact CI artifact
+        working-directory: artifact
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = aarch64
+          sha256sum -c link-cli-linux-arm64.sha256
+          chmod +x link-cli-linux-arm64
+      - name: Install QEMU and obtain large-page kernel
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-system-arm busybox-static cpio
+          docker run --name kernel-source --platform linux/arm64 -e DEBIAN_FRONTEND=noninteractive "$KERNEL_IMAGE" \
+            sh -euxc 'apt-get update; apt-get install -y --no-install-recommends "$1"' sh "$KERNEL_PACKAGE"
+          mkdir kernel
+          docker cp kernel-source:/boot/. kernel/
+          kernel_paths=(kernel/vmlinuz-*)
+          test "${#kernel_paths[@]}" -eq 1
+          kernel_path="${kernel_paths[0]}"
+          test -f "$kernel_path"
+          kernel_release="${kernel_path#kernel/vmlinuz-}"
+          grep -Fx "$KERNEL_CONFIG=y" "kernel/config-$kernel_release"
+          cp "$kernel_path" vmlinuz
+          {
+            printf 'Kernel: %s\nPage config: %s\n' "$kernel_release" "$KERNEL_CONFIG"
+            docker inspect --format 'Container image: {{.Image}}' kernel-source
+            sha256sum vmlinuz
+            qemu-system-aarch64 --version
+          } | tee kernel-info.txt
+      - name: Build minimal guest initramfs
+        run: |
+          set -euo pipefail
+          mkdir -p guest/bin guest/artifact guest/proc guest/sys guest/dev guest/tmp
+          cp /bin/busybox guest/bin/busybox
+          for applet in sh mount uname cat grep sha256sum poweroff sync; do
+            ln -s busybox "guest/bin/$applet"
+          done
+          cp /usr/bin/getconf guest/bin/getconf
+          cp artifact/link-cli-linux-arm64 artifact/link-cli-linux-arm64.sha256 guest/artifact/
+          for executable in artifact/link-cli-linux-arm64 /usr/bin/getconf; do
+            ldd "$executable" | awk '$2 == "=>" && substr($3,1,1) == "/" {print $3} substr($1,1,1) == "/" {print $1}' |
+              while read -r library; do cp --parents -L "$library" guest/; done
+          done
+          printf '%s\n' "$EXPECTED_PAGE" > guest/expected-page
+          jq -er .version packages/cli/package.json > guest/expected-version
+          cat > guest/init <<'GUEST'
+          #!/bin/sh
+          set -eu
+          export PATH=/bin HOME=/tmp TMPDIR=/tmp
+          expected=$(cat /expected-page)
+          finish() {
+            status=$?
+            trap - EXIT
+            if [ "$status" -eq 0 ]; then
+              echo "SEA_LARGE_PAGE_PASS:$expected"
+            else
+              echo "SEA_LARGE_PAGE_FAIL:$expected"
+            fi
+            sync
+            poweroff -f
+            exit "$status"
+          }
+          trap finish EXIT
+          mount -t proc proc /proc
+          mount -t sysfs sysfs /sys
+          mount -t devtmpfs devtmpfs /dev
+          ulimit -c 0
+          arch=$(uname -m)
+          page=$(getconf PAGESIZE)
+          uname -a
+          echo "ARCH=$arch PAGE_SIZE=$page EXPECTED=$expected"
+          [ "$arch" = aarch64 ]
+          [ "$page" = "$expected" ]
+          cd /artifact
+          sha256sum -c link-cli-linux-arm64.sha256
+          version_status=0
+          help_status=0
+          ./link-cli-linux-arm64 --version > /tmp/version.txt 2>&1 || version_status=$?
+          ./link-cli-linux-arm64 --help > /tmp/help.txt 2>&1 || help_status=$?
+          cat /tmp/version.txt /tmp/help.txt
+          echo "VERSION_EXIT=$version_status HELP_EXIT=$help_status"
+          [ "$version_status" -eq 0 ]
+          [ "$help_status" -eq 0 ]
+          [ "$(cat /tmp/version.txt)" = "$(cat /expected-version)" ]
+          grep -Eq '^Usage: link-cli( |$)' /tmp/help.txt
+          GUEST
+          chmod +x guest/init
+          (cd guest && find . -print0 | cpio --null -o --format=newc --owner=0:0 | gzip -1) > initramfs.cpio.gz
+      - name: Boot guest and run CLI
+        run: |
+          set -euo pipefail
+          timeout 600 qemu-system-aarch64 \
+            -machine virt -cpu max -accel tcg -smp 2 -m 4096 \
+            -nographic -no-reboot -nic none \
+            -kernel vmlinuz -initrd initramfs.cpio.gz \
+            -append 'console=ttyAMA0 rdinit=/init panic=-1' \
+            2>&1 | tr -d '\r' | tee guest-console.txt
+          grep -Fx "SEA_LARGE_PAGE_PASS:$EXPECTED_PAGE" guest-console.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: arm64-${{ matrix.page }}-page-smoke-log
+          path: |
+            guest-console.txt
+            kernel-info.txt
+          if-no-files-found: warn
+
   windows-continuations:
     runs-on: windows-latest
     steps:
