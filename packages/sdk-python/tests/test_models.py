@@ -208,8 +208,59 @@ def test_partner_auth_challenge_next_actions(
     assert request.status_details is not None
     assert request.status_details.requires_action is not None
     next_action = request.status_details.requires_action.next_action
+    assert next_action is not None
     assert next_action.type == next_action_type
     assert next_action.resolution == resolution
+
+
+@pytest.mark.parametrize(
+    "next_action",
+    [
+        {
+            "type": None,
+            "resolution": "create_new_spend_request",
+            "display_message": "Verify",
+            "action_url": None,
+            "expires_at": None,
+        },
+        {
+            "type": "partner_create_card_enrollment",
+            "resolution": "auto_resume",
+            "display_message": "Confirm enrollment",
+            "action_url": "https://example.com/verify",
+            "expires_at": "2026-11-05T12:00:00Z",
+        },
+        {
+            "type": "three_d_secure",
+            "resolution": "auto_resume",
+            "display_message": "Authenticate",
+            "action_url": None,
+            "expires_at": 456,
+        },
+        None,
+    ],
+)
+def test_next_action_nullable_fields_are_preserved(
+    next_action: dict[str, object] | None,
+) -> None:
+    details = {"requires_action": {"next_action": next_action}}
+    request = SpendRequest.model_validate(
+        {**SPEND, "status": "requires_action", "status_details": details}
+    )
+    assert request.model_dump(exclude_unset=True)["status_details"] == details
+
+
+def test_requires_action_without_next_action() -> None:
+    request = SpendRequest.model_validate(
+        {
+            **SPEND,
+            "status": "requires_action",
+            "status_details": {"requires_action": {}},
+        }
+    )
+    assert request.status_details is not None
+    assert request.status_details.requires_action is not None
+    assert request.status_details.requires_action.next_action is None
 
 
 def test_optional_field_presence_and_future_status_are_preserved() -> None:

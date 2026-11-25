@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Accept absent or null next actions, null next action types, and string next action expiry in spend-request status details.
+
 ## 0.2.0
 
 - Remove deprecated saved-card `CardDetails.exp_month` and `CardDetails.exp_year`, fixing `payment_methods.list()` rejecting successful responses that omit expiry fields ([#560](https://github.com/stripe/link-cli/issues/560)). Preserve SpendRequest card credential expiry.
