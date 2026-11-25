@@ -11,7 +11,7 @@ import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { DISPLAY_DELAY_MS } from '../../utils/constants';
 import { writeCredentialFile } from '../../utils/credential-output';
-import { formatAmount } from '../../utils/format-amount';
+import { formatLinkAmount } from '../../utils/format-amount';
 import { formatRecurring } from '../../utils/format-recurring';
 import { openUrl } from '../../utils/open-url';
 import { sanitizeDeep } from '../../utils/sanitize-text';
@@ -341,7 +341,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
                 Amount:{' '}
                 <Text bold>
                   {duplicateRequest.amount != null
-                    ? formatAmount(
+                    ? formatLinkAmount(
                         duplicateRequest.amount,
                         duplicateRequest.currency ?? '',
                       )
@@ -385,7 +385,7 @@ export const CreateSpendRequest: React.FC<CreateSpendRequestProps> = ({
             Amount:{' '}
             <Text bold>
               {request?.amount != null
-                ? formatAmount(request.amount, request.currency ?? '')
+                ? formatLinkAmount(request.amount, request.currency ?? '')
                 : 'N/A'}
             </Text>
           </Text>

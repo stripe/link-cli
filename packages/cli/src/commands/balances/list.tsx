@@ -9,7 +9,7 @@ import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback } from 'react';
 import { useAsyncAction } from '../../hooks/use-async-action';
-import { formatAmount } from '../../utils/format-amount';
+import { formatLinkAmount } from '../../utils/format-amount';
 
 interface BalancesListProps {
   resource: IBalancesResource;
@@ -89,7 +89,7 @@ export const BalancesList: React.FC<BalancesListProps> = ({
       formatCell(balance.type ?? '-', TYPE_WIDTH),
       formatCell(
         balance.current != null
-          ? formatAmount(balance.current, balance.currency)
+          ? formatLinkAmount(balance.current, balance.currency)
           : '-',
         CURRENT_WIDTH,
       ),

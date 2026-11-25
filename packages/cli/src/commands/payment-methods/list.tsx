@@ -4,7 +4,7 @@ import Spinner from 'ink-spinner';
 import type React from 'react';
 import { useCallback } from 'react';
 import { useAsyncAction } from '../../hooks/use-async-action';
-import { formatAmount } from '../../utils/format-amount';
+import { formatLinkAmount } from '../../utils/format-amount';
 
 interface PaymentMethodsListProps {
   resource: IPaymentMethodsResource;
@@ -61,7 +61,7 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
           const details = last4
             ? ` ****${last4}`
             : availableBalance
-              ? ` ${formatAmount(availableBalance.amount, availableBalance.currency)} available`
+              ? ` ${formatLinkAmount(availableBalance.amount, availableBalance.currency)} available`
               : '';
           const suffix = pm.nickname ? `(${pm.nickname})` : '';
           const agenticCap = pm.capabilities?.agentic_payments;
