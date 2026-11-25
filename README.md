@@ -411,6 +411,27 @@ whether to upgrade and wait for user approval before retrying. Unsupported,
 not-ready, and retrieval-failure results are errors distinct from an empty page.
 These commands remain read-only and must not be used for financial advice.
 
+#### List tax lots
+
+```bash
+link-cli tax-lots list --holding <holding_id> --limit 10 --format json
+link-cli tax-lots list --holding <holding_id> --start-date 2026-01-01 --end-date 2026-01-31 --format json
+```
+
+Requires the same `read_holdings` access as holdings, included in the
+financial-insights login bundle or added through an approved `auth upgrade`.
+Each invocation returns one complete page with `data` and `has_more`; continue
+explicitly with `--starting-after <last_tax_lot_id>` while retaining the holding
+and date filters.
+`--limit` is 1–100 (API default 10), and forward/reverse cursors are exclusive.
+`--start-date` and `--end-date` are inclusive purchase-date filters.
+
+Lots expose purchase date, quantity and cost basis; null basis is unknown, never
+zero. The response has no currency code for basis, so the view preserves the
+reported number without guessing a currency. Treat these as read-only snapshots,
+not tax or financial advice. Permission errors offer the same explicit upgrade
+continuation and never initiate approval automatically.
+
 ## Advanced
 
 ### Authentication

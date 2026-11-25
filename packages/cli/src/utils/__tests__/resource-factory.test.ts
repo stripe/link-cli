@@ -60,6 +60,10 @@ describe('ResourceFactory', () => {
       factory.createHoldingsResource(),
     );
     expect(factory.createHoldingsResource().list).toBeTypeOf('function');
+    expect(factory.createTaxLotsResource()).toBe(
+      factory.createTaxLotsResource(),
+    );
+    expect(factory.createTaxLotsResource().list).toBeTypeOf('function');
     expect(factory.createBalancesResource().list).toBeTypeOf('function');
     expect(factory.createWebBotAuthResource().signUrl).toBeTypeOf('function');
   });
@@ -147,6 +151,38 @@ describe('ResourceFactory', () => {
     expect(fetch).toHaveBeenCalledOnce();
     expect(fetch.mock.calls[0]?.[0]).toBe(
       'https://api.example.com/holdings?source=csmrpd_1',
+    );
+  });
+  it('uses the shared SDK auth and sanitization boundary for tax lots', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(
+      async () =>
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: 'fclot_1',
+                purchased_date: '\x1b[2J2026-01-15\r',
+                cost_basis: null,
+                quantity: 0.25,
+              },
+            ],
+            has_more: false,
+          }),
+          { status: 200 },
+        ),
+    );
+    const factory = new ResourceFactory({
+      envAccessToken: 'test-token',
+      apiBaseUrl: 'https://api.example.com',
+      fetch,
+    });
+    const page = await factory
+      .createTaxLotsResource()
+      .list({ holding: 'fchold_1' });
+    expect(page.data[0]?.purchased_date).toBe('2026-01-15');
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch.mock.calls[0]?.[0]).toBe(
+      'https://api.example.com/tax_lots?holding=fchold_1',
     );
   });
 });

@@ -3625,6 +3625,266 @@ describe('production mode', { timeout: CLI_TIMEOUT_MS + 5_000 }, () => {
     });
   });
 
+  const SAMPLE_TAX_LOT = {
+    id: 'fclot_1',
+    purchased_date: '2026-01-15',
+    cost_basis: null,
+    quantity: 0.25,
+  };
+  describe('tax-lots list', () => {
+    it('returns one complete page with exact holding, purchase-date and cursor flags', async () => {
+      const page = {
+        data: [
+          SAMPLE_TAX_LOT,
+          { ...SAMPLE_TAX_LOT, id: 'fclot_zero', cost_basis: 0 },
+        ],
+        has_more: true,
+      };
+      setNextResponse(200, page);
+      const result = await runProdCli(
+        'tax-lots',
+        'list',
+        '--holding',
+        'fchold_1',
+        '--limit',
+        '2',
+        '--starting-after',
+        'fclot_before',
+        '--start-date',
+        '2026-01-01',
+        '--end-date',
+        '2026-01-31',
+        '--json',
+      );
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.url).toBe(
+        '/tax_lots?holding=fchold_1&limit=2&starting_after=fclot_before&start_date=2026-01-01&end_date=2026-01-31',
+      );
+      expect(parseJson(result.stdout)).toEqual(page);
+      expect(requests).toHaveLength(1);
+    });
+    it('accepts a reverse cursor and a successful empty page', async () => {
+      setNextResponse(200, { data: [], has_more: false });
+      const result = await runProdCli(
+        'tax-lots',
+        'list',
+        '--holding',
+        'fchold_1',
+        '--ending-before',
+        'fclot_after',
+        '--json',
+      );
+      expect(result.exitCode).toBe(0);
+      expect(lastRequest.url).toBe(
+        '/tax_lots?holding=fchold_1&ending_before=fclot_after',
+      );
+      expect(parseJson(result.stdout)).toEqual({ data: [], has_more: false });
+      expect(requests).toHaveLength(1);
+    });
+    it.each(
+      [
+        [],
+        ['--holding', ''],
+        ['--holding', 'fchold_1', '--limit', '0'],
+        ['--holding', 'fchold_1', '--limit', '101'],
+        ['--holding', 'fchold_1', '--limit', '1.5'],
+        [
+          '--holding',
+          'fchold_1',
+          '--starting-after',
+          'a',
+          '--ending-before',
+          'b',
+        ],
+        ['--holding', 'fchold_1', '--start-date', 'bad'],
+        ['--holding', 'fchold_1', '--end-date', '2026-1-1'],
+      ].map((flags) => [flags] as const),
+    )(
+      'validates required holding, bounds, cursors and date format: %j',
+      async (flags) => {
+        const result = await runProdCli('tax-lots', 'list', ...flags, '--json');
+        expect(result.exitCode).toBe(1);
+        expect(parseJson(result.stdout)).toMatchObject({
+          code: 'VALIDATION_ERROR',
+        });
+        expect(requests).toHaveLength(0);
+      },
+    );
+    it('returns sanitized permission errors with an explicit upgrade continuation and no auth request', async () => {
+      setNextResponse(403, {
+        error: {
+          code: 'missing_permissions',
+          message: '\x1b[2JTax lots\rdenied',
+          authorization_remediation: {
+            authorization_details: [
+              { type: 'source', actions: ['read_holdings'] },
+            ],
+          },
+        },
+      });
+      const result = await runProdCli(
+        'tax-lots',
+        'list',
+        '--holding',
+        'fchold_1',
+        '--json',
+      );
+      expect(result.exitCode).toBe(1);
+      expect(parseJson(result.stdout)).toMatchObject({
+        code: 'missing_permissions',
+        message: 'Tax lotsdenied',
+        cta: {
+          commands: [
+            { command: 'link-cli auth upgrade --source-actions read_holdings' },
+          ],
+        },
+      });
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.url).toBe('/tax_lots?holding=fchold_1');
+      expect(requests.some((request) => request.url.includes('/device/'))).toBe(
+        false,
+      );
+    });
+    it.each([
+      'holdings_not_supported',
+      'holdings_not_ready',
+      'holdings_retrieval_failed',
+    ])('keeps %s distinct from a successful empty page', async (code) => {
+      setNextResponse(409, { error: { code } });
+      const result = await runProdCli(
+        'tax-lots',
+        'list',
+        '--holding',
+        'fchold_1',
+        '--json',
+      );
+      expect(result.exitCode).toBe(1);
+      expect(parseJson(result.stdout)).toMatchObject({ code, message: code });
+      expect(result.stdout + result.stderr).not.toContain('auth upgrade');
+      expect(requests).toHaveLength(1);
+    });
+    it('does not expose malformed API payloads as a human message', async () => {
+      setNextResponse(502, { private: 'PRIVATE_TAX_LOT_PAYLOAD' });
+      const result = await runProdCli(
+        'tax-lots',
+        'list',
+        '--holding',
+        'fchold_1',
+        '--json',
+      );
+      expect(result.exitCode).toBe(1);
+      expect(parseJson(result.stdout)).toMatchObject({
+        code: 'api_error',
+        message: 'Failed to list tax lots (502)',
+      });
+      expect(result.stdout + result.stderr).not.toContain(
+        'PRIVATE_TAX_LOT_PAYLOAD',
+      );
+    });
+    it.skipIf(process.platform === 'win32').each([false, true])(
+      'finishes human listing with one request and expected exit status (denied=%s)',
+      async (denied) => {
+        // Human startup checks npm metadata before registering commands.
+        setResponseForUrl('/@stripe%2Flink-cli', 200, {
+          name: '@stripe/link-cli',
+          'dist-tags': { latest: CLI_VERSION },
+          versions: { [CLI_VERSION]: { version: CLI_VERSION } },
+        });
+        setNextResponse(
+          denied ? 403 : 200,
+          denied
+            ? {
+                error: {
+                  code: 'missing_permissions',
+                  message: 'Tax lots denied',
+                  authorization_remediation: {
+                    authorization_details: [
+                      { type: 'source', actions: ['read_holdings'] },
+                    ],
+                  },
+                },
+              }
+            : { data: [SAMPLE_TAX_LOT], has_more: true },
+        );
+        const runner = new URL('./fixtures/run-in-pty.py', import.meta.url)
+          .pathname;
+        let result: CliResult;
+        try {
+          const output = await execFileAsync(
+            'python3',
+            [
+              runner,
+              process.execPath,
+              CLI_PATH,
+              'tax-lots',
+              'list',
+              '--holding',
+              'fchold_1',
+            ],
+            {
+              env: {
+                ...process.env,
+                ...EMPTY_AGENT_ENV,
+                LINK_API_BASE_URL: `http://127.0.0.1:${serverPort}`,
+                LINK_AUTH_BASE_URL: `http://127.0.0.1:${serverPort}`,
+                LINK_AUTH_FILE: TEST_AUTH_FILE,
+                XDG_DATA_HOME: '/tmp/link-cli-test-empty',
+                npm_config_registry: `http://127.0.0.1:${serverPort}`,
+              },
+              timeout: CLI_TIMEOUT_MS,
+            },
+          );
+          result = {
+            stdout: output.stdout,
+            stderr: output.stderr,
+            exitCode: 0,
+          };
+        } catch (error) {
+          const output = error as {
+            stdout?: string;
+            stderr?: string;
+            code?: number;
+          };
+          result = {
+            stdout: output.stdout ?? '',
+            stderr: output.stderr ?? '',
+            exitCode: output.code ?? 1,
+          };
+        }
+        expect(result.exitCode).toBe(denied ? 1 : 0);
+        expect(result.stdout).toContain(
+          denied
+            ? 'auth upgrade --source-actions read_holdings'
+            : 'Cost basis: unknown',
+        );
+        const lotRequests = requests.filter((request) =>
+          request.url.startsWith('/tax_lots'),
+        );
+        expect(lotRequests).toHaveLength(1);
+        expect(lotRequests[0]?.url).toBe('/tax_lots?holding=fchold_1');
+        expect(
+          requests.some((request) => request.url.includes('/device/')),
+        ).toBe(false);
+      },
+    );
+
+    it('requires authentication before requesting tax lots', async () => {
+      storage.clearTokens();
+      const result = await runProdCli(
+        'tax-lots',
+        'list',
+        '--holding',
+        'fchold_1',
+        '--json',
+      );
+      expect(result.exitCode).toBe(1);
+      expect(parseJson(result.stdout)).toMatchObject({
+        code: 'NOT_AUTHENTICATED',
+      });
+      expect(requests).toHaveLength(0);
+    });
+  });
+
   describe('balances list', () => {
     it('returns distinct investment balances and unknown fields without collapsing null or omission in JSON', async () => {
       const page = {
