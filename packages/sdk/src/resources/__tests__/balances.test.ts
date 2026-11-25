@@ -181,4 +181,61 @@ describe('BalancesResource', () => {
       status: 200,
     });
   });
+  it.each([
+    { available_cash: { usd: 12345 }, margin: { usd: 67890 }, extra: 'kept' },
+    { available_cash: null, margin: null },
+    { available_cash: { usd: 0 } },
+    {},
+    null,
+    undefined,
+  ])(
+    'preserves distinct and unknown investment observations: %j',
+    async (investment) => {
+      const balance = {
+        source_id: 'csmrpd_investment',
+        type: 'investment',
+        current: 987654,
+        currency: 'usd',
+        as_of: '2026-11-16T00:00:00Z',
+        ...(investment === undefined ? {} : { investment }),
+      };
+      const response = { data: [balance], has_more: false };
+      mockFetchResponse(200, response);
+      await expect(repo.list()).resolves.toEqual(response);
+    },
+  );
+
+  it('accepts an unknown future balance type', async () => {
+    const response = {
+      data: [
+        {
+          source_id: 'csmrpd_loan',
+          type: 'loan',
+          current: 700,
+          currency: 'usd',
+          as_of: '2026-11-16',
+        },
+      ],
+    };
+    mockFetchResponse(200, response);
+    await expect(repo.list()).resolves.toEqual(response);
+  });
+
+  it('rejects nonnumeric investment map values', async () => {
+    mockFetchResponse(200, {
+      data: [
+        {
+          source_id: 'csmrpd_bad',
+          type: 'investment',
+          current: 100,
+          currency: 'usd',
+          as_of: '2026-11-16',
+          investment: { available_cash: { usd: 'unknown' } },
+        },
+      ],
+    });
+    await expect(repo.list()).rejects.toMatchObject({
+      code: 'invalid_response',
+    });
+  });
 });

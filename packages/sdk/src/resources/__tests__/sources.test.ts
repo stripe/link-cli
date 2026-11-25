@@ -160,4 +160,29 @@ describe('SourcesResource', () => {
       status: 200,
     });
   });
+  it('sends a category without restricting the evolving taxonomy', async () => {
+    mockFetchResponse(200, { data: [] });
+    await repo.list({ category: 'future category&value' });
+    expect(
+      new URL(mockFetch.mock.calls[0]![0]).searchParams.get('category'),
+    ).toBe('future category&value');
+    expect(mockFetch).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    { category: 'investment', subcategory: 'brokerage' },
+    { category: null, subcategory: null },
+    {},
+  ])('preserves category omission and null: %j', async (fields) => {
+    const response = { data: [{ id: 'csmrpd_123', ...fields }] };
+    mockFetchResponse(200, response);
+    await expect(repo.list()).resolves.toEqual(response);
+  });
+
+  it('rejects a nonstring category', async () => {
+    mockFetchResponse(200, { data: [{ category: 1 }] });
+    await expect(repo.list()).rejects.toMatchObject({
+      code: 'invalid_response',
+    });
+  });
 });

@@ -322,6 +322,15 @@ export interface ShippingAddressRecord {
 
 export type TransactionOrigin = 'link' | 'external_connection';
 
+export interface InvestmentDetails {
+  type?: string | null;
+  /** Decimal quantity text is preserved without numeric conversion. */
+  quantity_decimal?: string | null;
+  unit_price?: number | null;
+  fees?: number | null;
+  [key: string]: unknown;
+}
+
 export interface Transaction {
   id: string;
   source_id: string | null;
@@ -332,6 +341,7 @@ export interface Transaction {
   origin: TransactionOrigin;
   category: string | null;
   status: string;
+  investment_details?: InvestmentDetails | null;
 }
 
 export interface TransactionsPage {
@@ -384,6 +394,8 @@ export interface InsightsPage {
 }
 
 export interface Source {
+  category?: string | null;
+  subcategory?: string | null;
   id?: string | null;
   name?: string | null;
   type?: string | null;
@@ -409,11 +421,18 @@ export interface CreditBalance {
   used: Record<string, number> | null;
 }
 
+export interface InvestmentBalance {
+  available_cash?: Record<string, number> | null;
+  margin?: Record<string, number> | null;
+  [key: string]: unknown;
+}
+
 export interface Balance {
   source_id: string;
-  type: 'cash' | 'credit';
+  type: 'cash' | 'credit' | 'investment' | (string & {});
   cash?: CashBalance | null;
   credit?: CreditBalance | null;
+  investment?: InvestmentBalance | null;
   current: number;
   currency: string;
   as_of: string;
@@ -423,6 +442,40 @@ export interface Balance {
 export interface BalancesPage {
   data: Balance[];
   has_more?: boolean;
+  [key: string]: unknown;
+}
+
+export interface Holding {
+  id: string;
+  source_id: string;
+  description: string | null;
+  security_name: string | null;
+  total_market_value: Record<string, number>;
+  quantity: number;
+  as_of_date: string | null;
+  position_type: string;
+  type: string;
+  ticker_symbol?: string | null;
+  [key: string]: unknown;
+}
+
+export interface HoldingsPage {
+  data: Holding[];
+  has_more: boolean;
+  [key: string]: unknown;
+}
+
+export interface TaxLot {
+  id: string;
+  purchased_date: string;
+  cost_basis: number | null;
+  quantity: number;
+  [key: string]: unknown;
+}
+
+export interface TaxLotsPage {
+  data: TaxLot[];
+  has_more: boolean;
   [key: string]: unknown;
 }
 

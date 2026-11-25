@@ -1,4 +1,5 @@
-import { prettifyError, ZodError } from 'zod';
+import { prettifyError, ZodError, z } from 'zod';
+import type { InsightAuthorizationRemediation } from './types/index';
 
 export class LinkSdkError extends Error {
   readonly code: string;
@@ -64,4 +65,33 @@ export class LinkApiError extends LinkSdkError {
     this.rawBody = options.rawBody;
     this.details = options.details;
   }
+}
+
+export interface LinkApiErrorDetails {
+  code: string;
+  message?: string;
+  authorization_remediation?: InsightAuthorizationRemediation | null;
+}
+
+const apiErrorDetailsSchema = z.object({
+  error: z.object({
+    code: z.string(),
+    message: z.string().optional(),
+    authorization_remediation: z
+      .object({
+        scope: z.array(z.string()).optional(),
+        authorization_details: z
+          .array(z.object({ type: z.string(), actions: z.array(z.string()) }))
+          .optional(),
+      })
+      .nullable()
+      .optional(),
+  }),
+});
+
+/** Reads validated server details without changing the SDK's api_error code. */
+export function getApiErrorDetails(error: unknown): LinkApiErrorDetails | null {
+  if (!(error instanceof LinkApiError)) return null;
+  const parsed = apiErrorDetailsSchema.safeParse(error.details);
+  return parsed.success ? (parsed.data.error as LinkApiErrorDetails) : null;
 }

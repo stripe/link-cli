@@ -38,6 +38,26 @@ const approvalPolicy = await link.approvalPolicy.retrieve();
 Use a fixed token for a short-lived job or when the caller replaces the entire
 client as credentials change.
 
+## Investment snapshots
+
+Read connected investment data with `sources.list({ category: 'investment' })`,
+`balances.list()`, and `transactions.list()`. Investment `current` is portfolio
+value; `investment.available_cash` and `investment.margin` are separate currency
+maps. Amounts use currency minor units. Transaction `quantity_decimal` remains
+exact decimal text. Optional fields can be absent; null means unknown, not zero.
+
+`holdings.list({ source: 'csmrpd_example', limit: 10 })` and
+`taxLots.list({ holding: 'fchold_example', limit: 10 })` return one complete page,
+including `has_more`. Request another page explicitly with `starting_after` or
+`ending_before`. Tax-lot `start_date` and `end_date` are inclusive purchase-date
+filters. Holdings and tax lots require `read_holdings` access, included in the
+CLI financial-insights bundle for new logins. Existing tokens without that access
+need `auth upgrade --source-actions read_holdings` and user approval.
+
+These are read-only snapshots, not live quotes or financial advice. Respect
+returned snapshot dates rather than treating request time as data freshness.
+The standalone tool catalog does not expose holdings or tax lots.
+
 ## Credentials
 
 Exactly one credential option is required.
@@ -338,7 +358,11 @@ The SDK throws typed errors:
 - `LinkResponseError` when a successful response has an invalid shape
 
 `LinkApiError` includes `status`, `code`, and structured `details` fields for
-programmatic handling.
+programmatic handling. Its default `code` stays `api_error`; use the exported
+`getApiErrorDetails(error)` to read a validated server `code`, optional `message`,
+and `authorization_remediation` from the nested error envelope. It returns null
+for absent or malformed details. Remediation describes access the user may choose
+to grant; the SDK never initiates an authorization upgrade.
 
 ```ts
 import { LinkApiError } from '@stripe/link-sdk';
@@ -399,6 +423,8 @@ const canceled = await link.ucp.cancelCheckout(checkout.id, {
 - `transactions` — list transactions
 - `sources` — list connected sources
 - `balances` — list balances
+- `holdings` — list one page of positions for a source
+- `taxLots` — list one page of acquisition lots for a holding
 - `webBotAuth` — sign URLs for Web Bot Auth
 - `reports` — report agent outcomes
 - `ucp` — search the catalog and create, update, retrieve, complete, and cancel checkouts

@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import Link from '@/client';
 import { AttestationsResource } from '@/resources/attestations';
+import { HoldingsResource } from '@/resources/holdings';
 import { IdentityCredentialsResource } from '@/resources/identity-credentials';
 import { MppResource } from '@/resources/mpp';
 import { PaymentMethodsResource } from '@/resources/payment-methods';
 import { ReportResource } from '@/resources/report';
 import { SpendRequestResource } from '@/resources/spend-request';
+import { TaxLotsResource } from '@/resources/tax-lots';
 import { TransactionsResource } from '@/resources/transactions';
 import { WebBotAuthResource } from '@/resources/web-bot-auth';
 
@@ -24,6 +26,8 @@ describe('Link', () => {
     expect(client.spendRequests).toBeInstanceOf(SpendRequestResource);
     expect(client.paymentMethods).toBeInstanceOf(PaymentMethodsResource);
     expect(client.transactions).toBeInstanceOf(TransactionsResource);
+    expect(client.holdings).toBeInstanceOf(HoldingsResource);
+    expect(client.taxLots).toBeInstanceOf(TaxLotsResource);
     expect(client.webBotAuth).toBeInstanceOf(WebBotAuthResource);
     expect(client.reports).toBeInstanceOf(ReportResource);
     expect(client.mpp).toBeInstanceOf(MppResource);
@@ -35,5 +39,7 @@ describe('Link', () => {
     expect(client.paymentMethods.list).toBeTypeOf('function');
     expect(client.transactions.list).toBeTypeOf('function');
     expect(client.mpp.pay).toBeTypeOf('function');
+    expect(client.holdings.list).toBeTypeOf('function');
+    expect(client.taxLots.list).toBeTypeOf('function');
   });
 });
