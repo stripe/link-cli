@@ -59,6 +59,30 @@ function nameWidth(balances: Balance[]): number {
   return Math.min(NAME_MAX, Math.max(NAME_MIN, maxLen));
 }
 
+function investmentLines(balance: Balance): string[] {
+  if (balance.type !== 'investment') return [];
+  const lines = [
+    `Portfolio value: ${formatAmount(balance.current, balance.currency)}`,
+  ];
+  for (const [label, amounts] of [
+    [
+      'Cash',
+      balance.investment === null ? null : balance.investment?.available_cash,
+    ],
+    ['Margin', balance.investment === null ? null : balance.investment?.margin],
+  ] as const) {
+    if (amounts === undefined) continue;
+    const value =
+      amounts === null
+        ? 'unknown'
+        : Object.entries(amounts)
+            .map(([currency, amount]) => formatAmount(amount, currency))
+            .join(', ');
+    lines.push(`${label}: ${value || 'unknown'}`);
+  }
+  return lines;
+}
+
 export const BalancesList: React.FC<BalancesListProps> = ({
   resource,
   params,
@@ -131,9 +155,17 @@ export const BalancesList: React.FC<BalancesListProps> = ({
         <Text bold>{headerRow}</Text>
         <Text dimColor>{separatorRow}</Text>
         {rows.map((row, index) => (
-          <Text key={balances[index].source_id ?? `balance-${index}`}>
-            {row}
-          </Text>
+          <Box
+            key={balances[index].source_id ?? `balance-${index}`}
+            flexDirection="column"
+          >
+            <Text>{row}</Text>
+            {investmentLines(balances[index]).map((line) => (
+              <Text key={line} dimColor>
+                {line}
+              </Text>
+            ))}
+          </Box>
         ))}
       </Box>
       {page?.has_more !== undefined ? (

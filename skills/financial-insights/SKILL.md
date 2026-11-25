@@ -35,7 +35,7 @@ Use this skill to answer questions about a user’s Link-connected financial dat
 - Basic summaries derived from the user’s financial data
 - Available precomputed insights about purchase patterns and preferences
 
-All commands are read-only. They do not move money, initiate payments, modify accounts, or expose payment credentials.
+All commands are read-only. They do not move money, initiate payments, modify accounts, or expose payment credentials. Investment data is snapshot data, not live quotes. State the returned freshness and do not offer financial advice or trading recommendations.
 
 ## Safety and privacy
 
@@ -173,6 +173,10 @@ Each retrieved insight has a `status`:
 
 Other value types or statuses may appear in future responses. Preserve their JSON rather than inventing a meaning. Treat purchase-pattern results as observed history, not a definitive statement of the user's preference. For an ambiguous payment, check only a relevant category and use the result only if `ready`; an explicit merchant choice always wins. If insight discovery or retrieval fails, is pending, lacks access, or returns no useful data, continue from other task context or ask the user which merchant they want. Do not retry or delay a payment solely for an optional insight. Use raw transactions only if the user needs transaction-level detail to answer their question.
 
+## Investment transaction details
+
+Transactions may include `investment_details` with an extensible activity `type`, exact `quantity_decimal` text, and `unit_price`/`fees` in the transaction currency's minor units. Keep quantity text exact; children may be absent or null. Missing information is unknown, never an inferred zero.
+
 ## Sources (concept)
 
 A **source** is a financial account connected to the user's Link wallet — a bank account, credit card, savings account, etc. Each source has a unique `id` (e.g. `csmrpd_abc123`) that other endpoints may expose as `source_id`:
@@ -245,10 +249,11 @@ See [Pagination](#pagination) for shared list controls.
 
 | Field | Note |
 |---|---|
-| `type` | `cash` (bank/savings) or `credit` (credit card/line of credit). Determines which sub-object is present. |
-| `current` | Balance *before* pending transactions. Not the same as available funds. |
+| `type` | `cash`, `credit`, or `investment`; future type strings may appear. |
+| `current` | For investment accounts, portfolio value. For cash/credit, balance before pending transactions; not necessarily available funds. |
 | `cash.available` | Object mapping currency codes to available funds (current minus outbound pending plus inbound pending). Only present when `type` is `cash`. |
 | `credit.used` | Object mapping currency codes to credit used. Only present when `type` is `credit`. |
+| `investment.available_cash`, `investment.margin` | Separate currency maps for cash and margin, distinct from portfolio value. Null means unknown, not zero; omitted fields are unavailable. |
 | `as_of` | When the balance was last updated — may be stale by hours or days. |
 
 When summarizing balances:
@@ -259,6 +264,8 @@ When summarizing balances:
 - If multiple sources are returned, summarize by account/source.
 
 ## Sources
+
+Use `link-cli sources list --category investment --format json` for investment accounts. Account `category`/`subcategory` are separate from source `type`. The API validates category values; null means unknown and omitted metadata is unavailable.
 
 Use sources to answer questions about connected wallet sources, linked accounts, or available financial data sources. See [Pagination](#pagination) for shared list controls.
 

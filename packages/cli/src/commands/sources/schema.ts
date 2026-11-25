@@ -1,6 +1,12 @@
 import { z } from 'incur';
 
 export const listOptions = z.object({
+  category: z
+    .string()
+    .optional()
+    .describe(
+      'Filter by source category, such as investment. The API validates category values.',
+    ),
   limit: z.coerce
     .number()
     .int()
