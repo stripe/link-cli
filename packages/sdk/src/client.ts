@@ -1,9 +1,9 @@
-import type { LinkOptions } from '@/config';
-import { ApprovalPolicyResource } from '@/resources/approval-policy';
-import { AttestationsResource } from '@/resources/attestations';
-import { BalancesResource } from '@/resources/balances';
-import { IdentityCredentialsResource } from '@/resources/identity-credentials';
-import { InsightsResource } from '@/resources/insights';
+import type { LinkOptions } from './config.js';
+import { ApprovalPolicyResource } from './resources/approval-policy.js';
+import { AttestationsResource } from './resources/attestations.js';
+import { BalancesResource } from './resources/balances.js';
+import { IdentityCredentialsResource } from './resources/identity-credentials.js';
+import { InsightsResource } from './resources/insights.js';
 import type {
   IApprovalPolicyResource,
   IAttestationsResource,
@@ -20,17 +20,17 @@ import type {
   IUcpResource,
   IUserInfoResource,
   IWebBotAuthResource,
-} from '@/resources/interfaces';
-import { MppResource } from '@/resources/mpp';
-import { PaymentMethodsResource } from '@/resources/payment-methods';
-import { ReportResource } from '@/resources/report';
-import { ShippingAddressResource } from '@/resources/shipping-address';
-import { SourcesResource } from '@/resources/sources';
-import { SpendRequestResource } from '@/resources/spend-request';
-import { TransactionsResource } from '@/resources/transactions';
-import { UcpResource } from '@/resources/ucp';
-import { UserInfoResource } from '@/resources/user-info';
-import { WebBotAuthResource } from '@/resources/web-bot-auth';
+} from './resources/interfaces.js';
+import { MppResource } from './resources/mpp.js';
+import { PaymentMethodsResource } from './resources/payment-methods.js';
+import { ReportResource } from './resources/report.js';
+import { ShippingAddressResource } from './resources/shipping-address.js';
+import { SourcesResource } from './resources/sources.js';
+import { SpendRequestResource } from './resources/spend-request.js';
+import { TransactionsResource } from './resources/transactions.js';
+import { UcpResource } from './resources/ucp.js';
+import { UserInfoResource } from './resources/user-info.js';
+import { WebBotAuthResource } from './resources/web-bot-auth.js';
 
 export class Link {
   readonly attestations: IAttestationsResource;

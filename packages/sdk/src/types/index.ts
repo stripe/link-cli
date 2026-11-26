@@ -1,4 +1,4 @@
-import type { UcpBuyer } from '../resources/interfaces';
+import type { UcpBuyer } from '../resources/interfaces.js';
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue =

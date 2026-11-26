@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import type { LinkOptions } from '@/config';
-import { LinkSdkError } from '@/errors';
-import { BaseResource } from '@/resources/base';
-import type { IWebBotAuthResource } from '@/resources/interfaces';
-import type { WebBotAuthBlock } from '@/types/index';
+import type { LinkOptions } from '../config.js';
+import { LinkSdkError } from '../errors.js';
+import type { WebBotAuthBlock } from '../types/index.js';
+import { BaseResource } from './base.js';
+import type { IWebBotAuthResource } from './interfaces.js';
 
 interface CacheEntry {
   block: WebBotAuthBlock;

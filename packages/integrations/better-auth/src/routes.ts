@@ -8,8 +8,8 @@ import {
 } from 'better-auth/api';
 import { decryptOAuthToken } from 'better-auth/oauth2';
 import { z } from 'zod';
-import { LINK_ERROR_CODES } from './error-codes';
-import type { LinkOptions } from './index';
+import { LINK_ERROR_CODES } from './error-codes.js';
+import type { LinkOptions } from './index.js';
 
 export const connectLink = () =>
   createAuthEndpoint(

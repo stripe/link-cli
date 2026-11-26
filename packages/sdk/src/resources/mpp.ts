@@ -1,7 +1,8 @@
 import { Challenge, Credential, Method, PaymentRequest } from 'mppx';
 import { Mppx } from 'mppx/client';
 import { Methods as StripeMethods } from 'mppx/stripe';
-import { type LinkOptions, requireFetchImplementation } from '@/config';
+import { type LinkOptions, requireFetchImplementation } from '../config.js';
+import type { SpendRequest } from '../types/index.js';
 import type {
   DecodedStripeChallenge,
   IMppResource,
@@ -10,8 +11,7 @@ import type {
   MppPaymentResult,
   MppPayOptions,
   MppRequest,
-} from '@/resources/interfaces';
-import type { SpendRequest } from '@/types';
+} from './interfaces.js';
 
 type StripeChallenge = Challenge.Challenge<
   Record<string, unknown>,

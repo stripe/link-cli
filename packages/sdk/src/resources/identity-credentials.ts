@@ -1,13 +1,13 @@
 import { z } from 'zod';
-import type { LinkOptions } from '@/config';
-import { LinkApiError } from '@/errors';
-import { BaseResource } from '@/resources/base';
-import { parseHolderPublicJwk } from '@/resources/holder-jwk';
+import type { LinkOptions } from '../config.js';
+import { LinkApiError } from '../errors.js';
+import { BaseResource } from './base.js';
+import { parseHolderPublicJwk } from './holder-jwk.js';
 import type {
   IIdentityCredentialsResource,
   IssueIdentityCredentialParams,
   IssueIdentityCredentialResponse,
-} from '@/resources/interfaces';
+} from './interfaces.js';
 
 const LINK_ISSUER = 'https://api.link.com';
 const LINK_ISSUER_METADATA_URL = `${LINK_ISSUER}/.well-known/aap-issuer`;

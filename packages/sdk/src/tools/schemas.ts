@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { REPORT_OUTCOMES, REPORT_TAGS } from '../resources/interfaces';
+import { REPORT_OUTCOMES, REPORT_TAGS } from '../resources/interfaces.js';
 
 const id = z.string().min(1);
 const money = z

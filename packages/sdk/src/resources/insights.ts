@@ -1,12 +1,15 @@
 import { z } from 'zod';
-import type { LinkOptions } from '@/config';
-import { BaseResource } from '@/resources/base';
+import type { LinkOptions } from '../config.js';
+import type {
+  AvailableInsightTypesPage,
+  InsightsPage,
+} from '../types/index.js';
+import { BaseResource } from './base.js';
 import type {
   IInsightsResource,
   ListInsightsParams,
   ListInsightTypesParams,
-} from '@/resources/interfaces';
-import type { AvailableInsightTypesPage, InsightsPage } from '@/types/index';
+} from './interfaces.js';
 
 const authorizationRemediationSchema = z.looseObject({
   scope: z.array(z.string()).optional(),

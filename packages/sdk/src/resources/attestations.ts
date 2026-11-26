@@ -4,26 +4,26 @@
  * operations live in attestations-crypto.ts.
  */
 import { z } from 'zod';
-import type { LinkOptions } from '@/config';
+import type { LinkOptions } from '../config.js';
 import {
   LinkApiError,
   LinkConfigurationError,
   LinkResponseError,
   LinkTransportError,
-} from '@/errors';
+} from '../errors.js';
 import {
   base64urlEncode,
   computeChallengeDigest,
   type FinalToken,
   generateBlindedMessages,
   unblindSignatures,
-} from '@/resources/attestations-crypto';
-import { BaseResource } from '@/resources/base';
+} from './attestations-crypto.js';
+import { BaseResource } from './base.js';
 import type {
   AttestationRequestParams,
   AttestationRequestResult,
   IAttestationsResource,
-} from '@/resources/interfaces';
+} from './interfaces.js';
 
 const TOKEN_TYPE_BLIND_RSA = 0x0002;
 const LINK_ISSUER = 'https://api.link.com';

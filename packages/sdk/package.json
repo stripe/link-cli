@@ -43,9 +43,9 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsup && tsc --noEmit false --emitDeclarationOnly",
+    "build": "tsup && tsc -p tsconfig.lib.json --noEmit false --emitDeclarationOnly",
     "prepack": "pnpm run build",
-    "typecheck": "tsc",
+    "typecheck": "tsc && tsc -p tsconfig.lib.json",
     "test": "vitest run"
   },
   "dependencies": {

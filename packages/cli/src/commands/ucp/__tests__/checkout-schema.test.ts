@@ -1,11 +1,11 @@
-import type { IUcpResource } from '@stripe/link-sdk';
+import type { IUcpResource, UcpCheckout } from '@stripe/link-sdk';
 import { describe, expect, it, vi } from 'vitest';
 import { createUcpCli } from '..';
 import { parseCheckoutUpdateInput } from '../checkout-input';
 import { checkoutUpdateOptions } from '../schema';
 
 async function run(args: string[]) {
-  const checkout = {
+  const checkout: UcpCheckout = {
     id: 'checkout_1',
     status: 'ready_for_complete',
     currency: 'usd',

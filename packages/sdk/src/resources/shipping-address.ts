@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import type { LinkOptions } from '@/config';
-import { BaseResource } from '@/resources/base';
-import type { IShippingAddressResource } from '@/resources/interfaces';
-import type { ShippingAddressRecord } from '@/types/index';
+import type { LinkOptions } from '../config.js';
+import type { ShippingAddressRecord } from '../types/index.js';
+import { BaseResource } from './base.js';
+import type { IShippingAddressResource } from './interfaces.js';
 
 const shippingAddressSchema = z.looseObject({
   id: z.string(),

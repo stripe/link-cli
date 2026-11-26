@@ -1,13 +1,13 @@
 import { z } from 'zod';
-import type { LinkOptions } from '@/config';
-import { LinkApiError, LinkSdkError } from '@/errors';
-import { BaseResource } from '@/resources/base';
+import type { LinkOptions } from '../config.js';
+import { LinkApiError, LinkSdkError } from '../errors.js';
+import type { RequestApprovalResponse, SpendRequest } from '../types/index.js';
+import { BaseResource } from './base.js';
 import type {
   CreateSpendRequestParams,
   ISpendRequestResource,
   UpdateSpendRequestParams,
-} from '@/resources/interfaces';
-import type { RequestApprovalResponse, SpendRequest } from '@/types/index';
+} from './interfaces.js';
 
 const sharedPaymentTokenSchema = z.union([
   z.string().transform((id) => ({ id })),

@@ -2,9 +2,13 @@ import {
   type LinkOptions,
   requireFetchImplementation,
   resolveLinkSdkConfig,
-} from '@/config';
-import { LinkApiError, LinkResponseError, LinkTransportError } from '@/errors';
-import type { AccessTokenProvider } from '@/resources/interfaces';
+} from '../config.js';
+import {
+  LinkApiError,
+  LinkResponseError,
+  LinkTransportError,
+} from '../errors.js';
+import type { AccessTokenProvider } from './interfaces.js';
 
 export interface ApiFetchOptions {
   method: string;

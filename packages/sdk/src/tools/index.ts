@@ -1,8 +1,8 @@
 import type { z } from 'zod';
-import type { Link } from '../client';
-import { linkToolSchemas as schemas } from './schemas';
+import type { Link } from '../client.js';
+import { linkToolSchemas as schemas } from './schemas.js';
 
-export { linkToolSchemas } from './schemas';
+export { linkToolSchemas } from './schemas.js';
 
 type Defined<T> = T extends readonly (infer Item)[]
   ? Defined<Item>[]
