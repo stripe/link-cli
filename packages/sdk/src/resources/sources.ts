@@ -1,11 +1,8 @@
 import { z } from 'zod';
-import type { LinkOptions } from '@/config';
-import { BaseResource } from '@/resources/base';
-import type {
-  ISourcesResource,
-  ListSourcesParams,
-} from '@/resources/interfaces';
-import type { SourcesPage } from '@/types/index';
+import type { LinkOptions } from '../config.js';
+import type { SourcesPage } from '../types/index.js';
+import { BaseResource } from './base.js';
+import type { ISourcesResource, ListSourcesParams } from './interfaces.js';
 
 const nullableRecordSchema = z
   .record(z.string(), z.unknown())

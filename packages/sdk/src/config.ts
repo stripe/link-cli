@@ -1,5 +1,5 @@
-import { LinkConfigurationError } from '@/errors';
-import type { AccessTokenProvider } from '@/resources/interfaces';
+import { LinkConfigurationError } from './errors.js';
+import type { AccessTokenProvider } from './resources/interfaces.js';
 
 export interface LinkSdkLogger {
   debug(message: string): void;

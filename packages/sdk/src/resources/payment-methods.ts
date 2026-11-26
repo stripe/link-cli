@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import type { LinkOptions } from '@/config';
-import { BaseResource } from '@/resources/base';
+import type { LinkOptions } from '../config.js';
+import type { PaymentMethod } from '../types/index.js';
+import { BaseResource } from './base.js';
 import type {
   IPaymentMethodsResource,
   UpdatePaymentMethodParams,
-} from '@/resources/interfaces';
-import type { PaymentMethod } from '@/types/index';
+} from './interfaces.js';
 
 const balanceDetailsSchema = z.looseObject({
   available_balance: z

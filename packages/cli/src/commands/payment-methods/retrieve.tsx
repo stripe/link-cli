@@ -17,7 +17,11 @@ export const PaymentMethodRetrieve: React.FC<PaymentMethodRetrieveProps> = ({
   onComplete,
 }) => {
   const action = useCallback(() => resource.retrieve(id), [resource, id]);
-  const { status, data: method, error } = useAsyncAction(action, onComplete);
+  const {
+    status,
+    data: method,
+    error,
+  } = useAsyncAction<PaymentMethod | null>(action, onComplete);
 
   if (status === 'loading') {
     return (

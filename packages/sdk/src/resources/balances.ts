@@ -1,11 +1,8 @@
 import { z } from 'zod';
-import type { LinkOptions } from '@/config';
-import { BaseResource } from '@/resources/base';
-import type {
-  IBalancesResource,
-  ListBalancesParams,
-} from '@/resources/interfaces';
-import type { BalancesPage } from '@/types/index';
+import type { LinkOptions } from '../config.js';
+import type { BalancesPage } from '../types/index.js';
+import { BaseResource } from './base.js';
+import type { IBalancesResource, ListBalancesParams } from './interfaces.js';
 
 const currencyAmountsSchema = z.record(z.string(), z.number());
 const balanceSchema = z.looseObject({

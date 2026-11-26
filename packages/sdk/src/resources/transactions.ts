@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import type { LinkOptions } from '@/config';
-import { BaseResource } from '@/resources/base';
+import type { LinkOptions } from '../config.js';
+import type { TransactionsPage } from '../types/index.js';
+import { BaseResource } from './base.js';
 import type {
   ITransactionsResource,
   ListTransactionsParams,
-} from '@/resources/interfaces';
-import type { TransactionsPage } from '@/types/index';
+} from './interfaces.js';
 
 const transactionSchema = z.looseObject({
   id: z.string(),

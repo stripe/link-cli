@@ -2,8 +2,8 @@ import type { UserInfo } from '@stripe/link-sdk';
 import type { BetterAuthPlugin } from 'better-auth';
 import { genericOAuth } from 'better-auth/plugins/generic-oauth';
 import { z } from 'zod';
-import { LINK_ERROR_CODES } from './error-codes';
-import { connectLink, disconnectLink } from './routes';
+import { LINK_ERROR_CODES } from './error-codes.js';
+import { connectLink, disconnectLink } from './routes.js';
 
 declare module '@better-auth/core' {
   interface BetterAuthPluginRegistry<AuthOptions, Options> {
@@ -86,4 +86,4 @@ export function link(options: LinkOptions) {
   } satisfies BetterAuthPlugin;
 }
 
-export { LINK_ERROR_CODES } from './error-codes';
+export { LINK_ERROR_CODES } from './error-codes.js';

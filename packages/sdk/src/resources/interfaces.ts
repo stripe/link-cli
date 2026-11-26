@@ -19,7 +19,7 @@ import type {
   UcpSearchResult,
   UserInfo,
   WebBotAuthBlock,
-} from '@/types/index';
+} from '../types/index.js';
 
 export interface GetAccessTokenOptions {
   forceRefresh?: boolean;

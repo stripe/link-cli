@@ -1,22 +1,22 @@
-export { default, Link } from './client';
-export type { LinkOptions, LinkSdkLogger } from './config';
+export { default, Link } from './client.js';
+export type { LinkOptions, LinkSdkLogger } from './config.js';
 export {
   LinkApiError,
   LinkConfigurationError,
   LinkResponseError,
   LinkSdkError,
   LinkTransportError,
-} from './errors';
-export { ApprovalPolicyResource } from './resources/approval-policy';
-export * from './resources/attestations';
-export { BaseResource } from './resources/base';
+} from './errors.js';
+export { ApprovalPolicyResource } from './resources/approval-policy.js';
+export * from './resources/attestations.js';
+export { BaseResource } from './resources/base.js';
 export {
   holderJwksEqual,
   holderJwkThumbprint,
   parseHolderPublicJwk,
-} from './resources/holder-jwk';
-export { InsightsResource } from './resources/insights';
-export * from './resources/interfaces';
-export { decodeMppChallenges } from './resources/mpp';
-export { getDuplicateSpendRequest } from './resources/spend-request';
-export * from './types/index';
+} from './resources/holder-jwk.js';
+export { InsightsResource } from './resources/insights.js';
+export * from './resources/interfaces.js';
+export { decodeMppChallenges } from './resources/mpp.js';
+export { getDuplicateSpendRequest } from './resources/spend-request.js';
+export * from './types/index.js';

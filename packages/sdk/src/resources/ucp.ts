@@ -2,8 +2,13 @@ import {
   type LinkOptions,
   requireFetchImplementation,
   resolveLinkSdkConfig,
-} from '@/config';
-import { LinkApiError, LinkSdkError, LinkTransportError } from '@/errors';
+} from '../config.js';
+import { LinkApiError, LinkSdkError, LinkTransportError } from '../errors.js';
+import type {
+  UcpCheckout,
+  UcpProduct,
+  UcpSearchResult,
+} from '../types/index.js';
 import type {
   AccessTokenProvider,
   CancelUcpCheckoutParams,
@@ -13,8 +18,7 @@ import type {
   RetrieveUcpCheckoutParams,
   SearchUcpCatalogParams,
   UpdateUcpCheckoutParams,
-} from '@/resources/interfaces';
-import type { UcpCheckout, UcpProduct, UcpSearchResult } from '@/types/index';
+} from './interfaces.js';
 
 interface ApiFetchOptions {
   method: string;

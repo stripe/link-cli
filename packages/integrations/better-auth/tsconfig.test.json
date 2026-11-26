@@ -1,6 +1,8 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "rootDir": ".",
     "types": ["node"],
     "lib": ["es2024", "DOM", "DOM.Iterable"]

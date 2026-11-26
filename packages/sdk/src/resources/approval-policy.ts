@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import type { LinkOptions } from '@/config';
-import { BaseResource } from '@/resources/base';
-import type { IApprovalPolicyResource } from '@/resources/interfaces';
-import type { ApprovalPolicy } from '@/types/index';
+import type { LinkOptions } from '../config.js';
+import type { ApprovalPolicy } from '../types/index.js';
+import { BaseResource } from './base.js';
+import type { IApprovalPolicyResource } from './interfaces.js';
 
 const approvalPolicySchema = z.looseObject({
   rules: z.array(
